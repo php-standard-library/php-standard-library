@@ -22,8 +22,8 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0",
-        "php-standard-library/default": "^6.0",
         "php-standard-library/async": "^6.0",
+        "php-standard-library/default": "^6.0",
         "php-standard-library/io": "^6.0",
         "php-standard-library/url": "^6.0"
     },
@@ -38,7 +38,9 @@
         "psr-4": {
             "Psl\\HTTP\\Message\\": "src/Psl/HTTP/Message/"
         },
-        "files": ["src/Psl/bootstrap.php"]
+        "files": [
+            "src/Psl/bootstrap.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -47,7 +49,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-next": "6.2.x-dev"
+            "dev-next": "6.3.x-dev"
         }
     }
 }

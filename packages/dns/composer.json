@@ -23,11 +23,11 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0",
-        "php-standard-library/foundation": "^6.0",
         "php-standard-library/async": "^6.2",
         "php-standard-library/cache": "^6.0",
         "php-standard-library/date-time": "^6.0",
         "php-standard-library/default": "^6.0",
+        "php-standard-library/foundation": "^6.0",
         "php-standard-library/http-client": "^6.0",
         "php-standard-library/http-message": "^6.0",
         "php-standard-library/io": "^6.0",
@@ -40,11 +40,11 @@
         "php-standard-library/url": "^6.2"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.0",
         "php-standard-library/binary": "^6.0",
         "php-standard-library/iter": "^6.0",
+        "php-standard-library/socks": "^6.0",
         "php-standard-library/str": "^6.0",
-        "php-standard-library/socks": "^6.0"
+        "phpunit/phpunit": "^13.0"
     },
     "conflict": {
         "azjezz/psl": "*"
@@ -54,7 +54,9 @@
         "psr-4": {
             "Psl\\DNS\\": "src/Psl/DNS/"
         },
-        "files": ["src/Psl/bootstrap.php"]
+        "files": [
+            "src/Psl/bootstrap.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -63,7 +65,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-next": "6.2.x-dev"
+            "dev-next": "6.3.x-dev"
         }
     }
 }

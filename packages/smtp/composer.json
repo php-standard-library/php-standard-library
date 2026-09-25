@@ -22,22 +22,22 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0",
-        "php-standard-library/foundation": "^6.0",
-        "php-standard-library/message": "^6.2",
-        "php-standard-library/default": "^6.0",
-        "php-standard-library/io": "^6.0",
-        "php-standard-library/tcp": "^6.0",
-        "php-standard-library/tls": "^6.0",
         "php-standard-library/async": "^6.0",
+        "php-standard-library/date-time": "^6.0",
+        "php-standard-library/default": "^6.0",
+        "php-standard-library/foundation": "^6.0",
+        "php-standard-library/io": "^6.0",
+        "php-standard-library/message": "^6.2",
         "php-standard-library/network": "^6.0",
         "php-standard-library/punycode": "^6.0",
-        "php-standard-library/date-time": "^6.0"
+        "php-standard-library/tcp": "^6.0",
+        "php-standard-library/tls": "^6.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.0",
+        "php-standard-library/iter": "^6.0",
         "php-standard-library/mime": "^6.2",
         "php-standard-library/str": "^6.0",
-        "php-standard-library/iter": "^6.0"
+        "phpunit/phpunit": "^13.0"
     },
     "conflict": {
         "azjezz/psl": "*",
@@ -48,7 +48,9 @@
         "psr-4": {
             "Psl\\SMTP\\": "src/Psl/SMTP/"
         },
-        "files": ["src/Psl/bootstrap.php"]
+        "files": [
+            "src/Psl/bootstrap.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -57,7 +59,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-next": "6.2.x-dev"
+            "dev-next": "6.3.x-dev"
         }
     }
 }
