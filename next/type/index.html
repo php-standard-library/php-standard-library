@@ -306,7 +306,7 @@ $shape = Type\shape([
 <p>Could not coerce &quot;int&quot; to type &quot;string&quot; <strong>at path &quot;coerce_input(int): string&quot;</strong></p>
 </blockquote>
 <blockquote>
-<p>Could not coerce &quot;string&quot; to type &quot;class-string&lt;stdClass&gt;&quot; <strong>at path &quot;coerce_output(string): class-string&lt;stdClass&gt;&quot;</strong></p>
+<p>Could not coerce &quot;string&quot; to type &quot;class-string<stdClass>&quot; <strong>at path &quot;coerce_output(string): class-string<stdClass>&quot;</strong></p>
 </blockquote>
 <h2 id="json-decoding-with-jsondecoded"><a href="#json-decoding-with-jsondecoded" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>JSON Decoding with <code>json_decoded()</code></h2>
 <p>The <code>json_decoded()</code> type transparently handles fields that may contain JSON-encoded strings. If the value already matches the inner type, it passes through; if it's a string, it's JSON-decoded and coerced through the inner type. This is especially useful in shapes where database columns store JSON:</p>
