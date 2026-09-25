@@ -6,6 +6,10 @@
 
 * feat(type): add `numeric` type - [#793](https://github.com/php-standard-library/php-standard-library/pull/793) by @gsteel
 
+### fixes
+
+- fix(http-client): validate all `Transfer-Encoding` response fields and reject invalid or unsupported transfer codings instead of falling back to `Content-Length` - [#806](https://github.com/php-standard-library/php-standard-library/pull/806)
+
 ## 6.2.1
 
 ### security
