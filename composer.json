@@ -20,15 +20,15 @@
         "ext-mbstring": "*",
         "ext-openssl": "*",
         "ext-sodium": "*",
-        "revolt/event-loop": "^1.0.8"
+        "revolt/event-loop": "^1.0.9"
     },
     "require-dev": {
         "ext-brotli": "*",
-        "carthage-software/mago": "^1.46.0",
-        "infection/infection": "^0.32.6",
+        "carthage-software/mago": "^1.50.0",
+        "infection/infection": "^0.32.7",
         "php-coveralls/php-coveralls": "^2.9.1",
-        "phpbench/phpbench": "^1.6.0",
-        "phpunit/phpunit": "^13.0.5"
+        "phpbench/phpbench": "^1.7.0",
+        "phpunit/phpunit": "^13.1.14"
     },
     "replace": {
         "php-standard-library/ansi": "self.version",

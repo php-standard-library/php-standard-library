@@ -24,7 +24,7 @@ final readonly class StaticResolver implements ResolverInterface
     use ResolverConvenienceMethodsTrait;
 
     /**
-     * @param array<string, array<int, list<RecordInterface>>> $records
+     * @var array<string, array<int, list<RecordInterface>>> $records
      *  Map of lowercased domain name -> record kind value -> record list.
      */
     private array $records;
@@ -58,7 +58,6 @@ final readonly class StaticResolver implements ResolverInterface
             return new Response(0, ResponseCode::NonExistentDomain, [], [], []);
         }
 
-        /** @var list<RecordInterface> $answers */
         $answers = $this->records[$normalizedName][$type->value] ?? [];
 
         return new Response(0, ResponseCode::NoError, $answers, [], []);
