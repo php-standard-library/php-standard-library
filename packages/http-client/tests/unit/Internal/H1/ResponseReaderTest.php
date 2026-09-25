@@ -21,6 +21,7 @@ use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Response;
 use Psl\IO;
 
+use function implode;
 use function str_repeat;
 use function strlen;
 
@@ -112,6 +113,57 @@ final class ResponseReaderTest extends TestCase
         $body = $response->body;
         static::assertNotNull($body);
         static::assertSame('hello', $body->readAll());
+    }
+
+    /**
+     * @param list<string> $values
+     */
+    #[DataProvider('chunkedTransferEncodings')]
+    public function testChunkedTransferEncodingOverridesContentLength(array $values): void
+    {
+        $raw =
+            "HTTP/1.1 200 OK\r\nTransfer-Encoding: "
+            . implode("\r\nTransfer-Encoding: ", $values)
+            . "\r\nContent-Length: 0\r\n\r\n5\r\nhello\r\n0\r\nx-check: pass\r\n\r\n";
+        [$response, $keepAlive] = ResponseReader::read(self::reader($raw), 8192, self::timeout(), false);
+
+        static::assertTrue($keepAlive);
+        $body = $response->body;
+        static::assertNotNull($body);
+        static::assertSame('hello', $body->readAll());
+        $trailers = $response->trailers;
+        static::assertNotNull($trailers);
+        static::assertSame('pass', $trailers->await()->get('x-check'));
+    }
+
+    /**
+     * @param list<string> $values
+     */
+    #[DataProvider('invalidTransferEncodings')]
+    public function testInvalidOrUnsupportedTransferEncodingThrows(array $values, null|int $contentLength): void
+    {
+        $raw = "HTTP/1.1 200 OK\r\nTransfer-Encoding: " . implode("\r\nTransfer-Encoding: ", $values) . "\r\n";
+        if ($contentLength !== null) {
+            $raw .= "Content-Length: {$contentLength}\r\n";
+        }
+
+        $raw .= "\r\n5\r\nhello\r\n0\r\n\r\n";
+
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('Invalid or unsupported transfer-encoding.');
+
+        ResponseReader::read(self::reader($raw), 8192, self::timeout(), false);
+    }
+
+    #[DataProvider('bodylessResponsesWithTransferEncoding')]
+    public function testTransferEncodingDoesNotAddBody(int $status, bool $isHead): void
+    {
+        $raw = "HTTP/1.1 {$status} Response\r\nTransfer-Encoding: gzip, chunked\r\n\r\n";
+        [$response, $keepAlive] = ResponseReader::read(self::reader($raw), 8192, self::timeout(), $isHead);
+
+        static::assertNull($response->body);
+        static::assertNull($response->trailers);
+        static::assertTrue($keepAlive);
     }
 
     public function testUntilCloseBody(): void
@@ -485,6 +537,57 @@ final class ResponseReaderTest extends TestCase
 
         static::assertCount(1, $informational);
         static::assertSame(200, $response->status);
+    }
+
+    /**
+     * @return iterable<string, array{list<string>}>
+     */
+    public static function chunkedTransferEncodings(): iterable
+    {
+        yield 'chunked' => [['chunked']];
+        yield 'case and whitespace' => [[" \tChUnKeD\t "]];
+        yield 'empty list elements' => [[" , \tchunked, , \t"]];
+        yield 'empty first field' => [['', 'chunked']];
+        yield 'empty last field' => [['chunked', '']];
+    }
+
+    /**
+     * @return iterable<string, array{list<string>, null|int}>
+     */
+    public static function invalidTransferEncodings(): iterable
+    {
+        $cases = [
+            'identity then chunked fields' => ['identity', 'chunked'],
+            'chunked then identity fields' => ['chunked', 'identity'],
+            'repeated chunked fields' => ['chunked', 'chunked'],
+            'identity then chunked list' => ['identity, chunked'],
+            'chunked then identity list' => ['chunked, identity'],
+            'repeated chunked list' => ['chunked, chunked'],
+            'gzip then chunked fields' => ['gzip', 'chunked'],
+            'gzip then chunked list' => ['gzip, chunked'],
+            'identity' => ['identity'],
+            'gzip' => ['gzip'],
+            'empty field' => [''],
+            'empty list' => [', ,'],
+            'chunked parameters' => ['chunked;foo=bar'],
+            'partial token' => ['xchunked'],
+            'invalid whitespace' => ["\vchunked\v"],
+        ];
+
+        foreach ($cases as $name => $values) {
+            foreach ([null, 0, 5] as $contentLength) {
+                yield $name . ' / content-length ' . ($contentLength ?? 'absent') => [$values, $contentLength];
+            }
+        }
+    }
+
+    /**
+     * @return iterable<string, array{int, bool}>
+     */
+    public static function bodylessResponsesWithTransferEncoding(): iterable
+    {
+        yield 'HEAD' => [200, true];
+        yield '304' => [304, false];
     }
 
     /**

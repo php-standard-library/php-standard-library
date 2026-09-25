@@ -158,8 +158,8 @@ final class ResponseReader
                 }
 
                 $contentLength = $value;
-            } elseif ($nameLen === 17 && $transferEncoding === null && strtolower($name) === 'transfer-encoding') {
-                $transferEncoding = $value;
+            } elseif ($nameLen === 17 && strtolower($name) === 'transfer-encoding') {
+                $transferEncoding = $transferEncoding === null ? $value : $transferEncoding . ', ' . $value;
             } elseif ($nameLen === 10 && $connectionHeader === null && strtolower($name) === 'connection') {
                 $connectionHeader = $value;
             }
@@ -261,12 +261,14 @@ final class ResponseReader
      *
      * @param IO\Reader $reader Buffered reader wrapping the connection stream.
      * @param null|string $contentLength Content-Length header value, or null.
-     * @param null|string $transferEncoding Transfer-Encoding header value, or null.
+     * @param null|string $transferEncoding Combined Transfer-Encoding field value, or null.
      * @param int $status The HTTP status code.
      * @param bool $isHead Whether this is a HEAD request.
      * @param int $maxResponseBodySize Maximum allowed body size (0 = unlimited).
      *
      * @return array{null|IO\ReadHandleInterface, null|Async\Awaitable<FieldMap>} Body handle and trailers awaitable.
+     *
+     * @throws ProtocolException If the transfer encoding is invalid or unsupported.
      */
     private static function buildBody(
         IO\Reader $reader,
@@ -282,7 +284,12 @@ final class ResponseReader
 
         $trailers = null;
 
-        if ($transferEncoding !== null && strtolower(trim($transferEncoding)) === 'chunked') {
+        if ($transferEncoding !== null) {
+            // Only chunked is supported; ignore empty list elements (RFC 9110 Section 5.6.1).
+            if (strtolower(trim($transferEncoding, " \t,")) !== 'chunked') {
+                throw ProtocolException::forMalformedResponse('Invalid or unsupported transfer-encoding.');
+            }
+
             /** @var Async\Deferred<FieldMap> $deferred */
             $deferred = new Async\Deferred();
             $handle = new ChunkedBodyHandle($reader, $deferred);
