@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Terminal - PSL</title>
+        <meta name="description" content="The Terminal component provides a full-featured TUI (Terminal User Interface) framework built on ...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/terminal/">
+        <meta property="og:title" content="Terminal - PSL">
+        <meta property="og:description" content="The Terminal component provides a full-featured TUI (Terminal User Interface) framework built on ...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/terminal/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Terminal - PSL">
+        <meta name="twitter:description" content="The Terminal component provides a full-featured TUI (Terminal User Interface) framework built on ...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link active" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Terminal</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/terminal</div></div>
+<p>The <code>Terminal</code> component provides a full-featured TUI (Terminal User Interface) framework built on top of the <code>Ansi</code> and <code>Async</code> components.</p>
+<p>It handles the event loop, raw mode, input parsing, diff-based rendering, and provides a library of composable widgets for building interactive terminal applications.</p>
+<h2 id="quick-start"><a href="#quick-start" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Quick Start</h2>
+<pre><code class="language-php">use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class MyState {}
+
+$app = Terminal\Application::create(new MyState(), title: 'My App');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, MyState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+return $app-&gt;run(static function (Terminal\Frame $frame, MyState $_state): void {
+    $buffer = $frame-&gt;buffer();
+
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Hello, World!')]),
+    ])-&gt;render($frame-&gt;rect(), $buffer);
+});
+</code></pre>
+<h2 id="architecture"><a href="#architecture" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Architecture</h2>
+<p>The framework follows an immediate-mode rendering model:</p>
+<ol>
+<li><strong>Application</strong> manages the event loop, terminal setup/teardown, and render scheduling</li>
+<li><strong>Events</strong> are parsed from raw stdin bytes and dispatched to registered handlers</li>
+<li><strong>Frame</strong> is provided to the render callback each tick with a fresh <strong>Buffer</strong></li>
+<li><strong>Widgets</strong> render themselves into a rectangular <strong>Rect</strong> area of the <strong>Buffer</strong></li>
+<li><strong>Buffer</strong> diffs against the previous frame and writes only changed cells</li>
+</ol>
+<h2 id="application"><a href="#application" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Application</h2>
+<h3 id="local-terminal"><a href="#local-terminal" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Local Terminal</h3>
+<p>For local terminal applications using STDIN/STDOUT:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\Terminal;
+
+final class AppState {}
+
+$app = Terminal\Application::create(
+    state: new AppState(),
+    title: 'My App',
+    tickInterval: DateTime\Duration::milliseconds(16), // ~60 ticks/s (default: 16ms)
+    scrollSmoothing: true, // filter trackpad scroll micro-reversals (default: true)
+    mouseMotion: false, // track mouse movement, not just clicks (default: false)
+);
+</code></pre>
+<p>This automatically handles raw mode, terminal size detection, SIGWINCH/SIGINT signal handling, and in-band resize notifications.</p>
+<h3 id="custom-io"><a href="#custom-io" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Custom I/O</h3>
+<p>For remote scenarios (e.g. SSH servers) or testing, where you provide your own I/O handles:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Terminal;
+
+final class RemoteState {}
+
+$sshInputStream = IO\input_handle();
+$sshOutputStream = IO\output_handle();
+
+$app = Terminal\Application::custom(
+    state: new RemoteState(),
+    input: $sshInputStream,
+    output: $sshOutputStream,
+    width: 80,
+    height: 24,
+    title: 'Remote App',
+);
+</code></pre>
+<p>In this mode, raw mode is not managed by the application -- the caller is responsible for it. Signal handlers are not registered, and Ctrl+C is handled via the input stream parser. Use <code>$app-&gt;dispatch(new Event\Resize($cols, $rows))</code> to inject resize events.</p>
+<h2 id="event-handling"><a href="#event-handling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Event Handling</h2>
+<p>Register handlers for specific event types. Multiple handlers per event type are supported:</p>
+<pre><code class="language-php">use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class EventState {}
+
+$app = Terminal\Application::create(new EventState(), title: 'Events Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, EventState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+
+    if ($event-&gt;is('enter')) {
+        /**
+         * handle enter
+         */
+    }
+
+    if ($event-&gt;is('up')) {
+        /**
+         * handle up arrow
+         */
+    }
+});
+
+$app-&gt;on(Event\Mouse::class, static function (Event\Mouse $_event, EventState $_state): void {
+    // $_event-&gt;kind (Press, Release, Drag, ScrollUp, ScrollDown, Move)
+    // $_event-&gt;column, $_event-&gt;row
+});
+
+$app-&gt;on(Event\Paste::class, static function (Event\Paste $_event, EventState $_state): void {
+    // $_event-&gt;text -- the pasted string
+});
+
+$app-&gt;on(Event\Resize::class, static function (Event\Resize $_event, EventState $_state): void {
+    // $_event-&gt;width, $_event-&gt;height
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, EventState $_state): void {
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Press Ctrl+C to exit')]),
+    ])-&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<p>Periodic callbacks can be registered for tasks like polling or animation:</p>
+<pre><code class="language-php">use Psl\DateTime\Duration;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class TimerState
+{
+    public int $ticks = 0;
+}
+
+$app = Terminal\Application::create(new TimerState(), title: 'Interval Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, TimerState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;interval(Duration::milliseconds(100), static function (TimerState $state): void {
+    // runs every 100ms
+    $state-&gt;ticks++;
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, TimerState $state): void {
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Ticks: ' . $state-&gt;ticks)]),
+    ])-&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<h2 id="layout"><a href="#layout" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Layout</h2>
+<p>The layout system splits rectangular areas into sub-regions using constraints:</p>
+<pre><code class="language-php">use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Layout;
+use Psl\Terminal\Widget;
+
+final class LayoutState {}
+
+$app = Terminal\Application::create(new LayoutState(), title: 'Layout Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, LayoutState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, LayoutState $_state): void {
+    $buffer = $frame-&gt;buffer();
+
+    // Vertical split: header (3 rows) + content (fill) + footer (1 row)
+    [$header, $content, $footer] = Layout\vertical($frame, [
+        Layout\fixed(3),
+        Layout\fill(),
+        Layout\fixed(1),
+    ]);
+
+    // Horizontal split: sidebar (20 cols) + main (fill)
+    [$sidebar, $main] = Layout\horizontal($content, [
+        Layout\fixed(20),
+        Layout\fill(),
+    ]);
+
+    // Constraints can be wrapped with min/max
+    // Layout\min(10, Layout\fill());     // fill, but at least 10
+    // Layout\max(50, Layout\fill());     // fill, but at most 50
+
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Header Area')]),
+    ])-&gt;render($header, $buffer);
+
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Sidebar')]),
+    ])-&gt;render($sidebar, $buffer);
+
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Main Content')]),
+    ])-&gt;render($main, $buffer);
+
+    Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('Footer')]),
+    ])-&gt;render($footer, $buffer);
+});
+</code></pre>
+<h2 id="widgets"><a href="#widgets" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Widgets</h2>
+<p>All widgets implement <code>WidgetInterface</code> with a single method: <code>render(Rect $area, Buffer $buffer): void</code>. They use a builder pattern for configuration.</p>
+<h3 id="paragraph"><a href="#paragraph" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Paragraph</h3>
+<p>Multi-line text with wrapping, scrolling, and alignment:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class ParagraphState {}
+
+$app = Terminal\Application::create(new ParagraphState(), title: 'Paragraph Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, ParagraphState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, ParagraphState $_state): void {
+    Widget\Paragraph::new([
+        Widget\Line::new([
+            Widget\Span::styled('Error: ', Ansi\foreground(Color\red()), Style\bold()),
+            Widget\Span::raw('something went wrong'),
+        ]),
+        Widget\Line::new([Widget\Span::raw('Check the logs for details.')]),
+    ])
+        -&gt;wrap(Widget\Wrap::Word)
+        -&gt;alignment(Widget\Alignment::Left)
+        -&gt;scroll(0)
+        -&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<h3 id="block"><a href="#block" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Block</h3>
+<p>A container that draws a border and optional title around an inner widget:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class BlockState {}
+
+$app = Terminal\Application::create(new BlockState(), title: 'Block Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, BlockState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, BlockState $_state): void {
+    $area = $frame-&gt;rect();
+    $buffer = $frame-&gt;buffer();
+
+    $block = Widget\Block::new()
+        -&gt;title(' Status ')
+        -&gt;titleStyle(Ansi\foreground(Color\bright_white()), Style\bold())
+        -&gt;border(Widget\Border::rounded(Ansi\foreground(Color\bright_cyan())))
+        -&gt;padding(right: 1, left: 1)
+        -&gt;margin(top: 1)
+        -&gt;background(Color\ansi256(235));
+
+    $paragraph = Widget\Paragraph::new([
+        Widget\Line::new([Widget\Span::raw('All systems operational.')]),
+    ]);
+
+    $block-&gt;render($area, $paragraph, $buffer);
+});
+</code></pre>
+<p>Border styles: <code>Border::rounded()</code>, <code>Border::plain()</code>, <code>Border::double()</code>, <code>Border::thick()</code>.</p>
+<h3 id="table"><a href="#table" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Table</h3>
+<p>Columnar data with headers, scrolling, and row highlighting:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class TableState {}
+
+$app = Terminal\Application::create(new TableState(), title: 'Table Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, TableState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, TableState $_state): void {
+    Widget\Table::new()
+        -&gt;headers(['Name', 'Status', 'CPU'])
+        -&gt;widths([15, 10, 8])
+        -&gt;rows([
+            [
+                Widget\Span::raw('nginx'),
+                Widget\Span::styled('running', Ansi\foreground(Color\green())),
+                Widget\Span::raw('2.1%'),
+            ],
+            [
+                Widget\Span::raw('postgres'),
+                Widget\Span::styled('running', Ansi\foreground(Color\green())),
+                Widget\Span::raw('5.3%'),
+            ],
+        ])
+        -&gt;highlight(0)
+        -&gt;highlightStyle(Ansi\foreground(Color\bright_white()), Ansi\background(Color\blue()))
+        -&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<h3 id="menu"><a href="#menu" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Menu</h3>
+<p>A selectable list of items with scrolling and highlight:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class MenuState
+{
+    public int $selectedIndex = 0;
+    public int $scrollOffset = 0;
+}
+
+$app = Terminal\Application::create(new MenuState(), title: 'Menu Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, MenuState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, MenuState $state): void {
+    Widget\Menu::new([
+        Widget\MenuItem::raw('Open File'),
+        Widget\MenuItem::raw('Save'),
+        Widget\MenuItem::styled([
+            Widget\Span::styled('Quit', Ansi\foreground(Color\red())),
+        ]),
+    ])
+        -&gt;highlight($state-&gt;selectedIndex)
+        -&gt;scroll($state-&gt;scrollOffset)
+        -&gt;highlightStyle(Ansi\foreground(Color\bright_white()), Ansi\background(Color\blue()))
+        -&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<h3 id="other-widgets"><a href="#other-widgets" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Other Widgets</h3>
+<ul>
+<li><strong>Tabs</strong> -- horizontal tab bar with active/inactive styling</li>
+<li><strong>Gauge</strong> -- horizontal progress bar with label and percentage</li>
+<li><strong>Sparkline</strong> -- single-row data visualization using Unicode block characters</li>
+<li><strong>BarChart</strong> -- vertical bar chart with labels</li>
+<li><strong>Scrollbar</strong> -- vertical scrollbar for scrollable content</li>
+<li><strong>TextInput</strong> -- single-line text input with cursor and placeholder</li>
+</ul>
+<h3 id="text-primitives"><a href="#text-primitives" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Text Primitives</h3>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+use Psl\Terminal\Widget;
+
+final class TextState {}
+
+$app = Terminal\Application::create(new TextState(), title: 'Text Primitives Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, TextState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, TextState $_state): void {
+    // Span -- a styled text fragment (the smallest text unit)
+    $plain = Widget\Span::raw('plain text');
+    $boldRed = Widget\Span::styled('bold red', Ansi\foreground(Color\red()), Style\bold());
+
+    // Line -- a horizontal sequence of spans
+    $line = Widget\Line::new([
+        Widget\Span::styled('[INFO] ', Ansi\foreground(Color\blue())),
+        Widget\Span::raw('Server started on port 8080'),
+    ]);
+
+    Widget\Paragraph::new([
+        Widget\Line::new([$plain]),
+        Widget\Line::new([$boldRed]),
+        $line,
+    ])-&gt;render($frame-&gt;rect(), $frame-&gt;buffer());
+});
+</code></pre>
+<h2 id="buffer"><a href="#buffer" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Buffer</h2>
+<p>The <code>Buffer</code> is a 2D grid of <code>Cell</code> objects. Widgets write to it, and <code>flush()</code> performs diff-based rendering:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\Terminal;
+use Psl\Terminal\Event;
+
+final class BufferState {}
+
+$app = Terminal\Application::create(new BufferState(), title: 'Buffer Demo');
+
+$app-&gt;on(Event\Key::class, static function (Event\Key $event, BufferState $_state) use ($app): void {
+    if ($event-&gt;is('ctrl+c')) {
+        $app-&gt;stop();
+    }
+});
+
+$app-&gt;run(static function (Terminal\Frame $frame, BufferState $_state): void {
+    $buffer = $frame-&gt;buffer();
+
+    // Direct cell manipulation
+    $buffer-&gt;set(0, 0, new Terminal\Cell('X', [Ansi\foreground(Color\red())]));
+    $buffer-&gt;setString(0, 1, 'Hello', [Ansi\foreground(Color\green()), Style\bold()]);
+
+    // Read cells
+    $cell = $buffer-&gt;get(0, 0);
+    $grapheme = $cell?-&gt;grapheme;
+});
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/terminal/src/Psl/Terminal/">src/Psl/Terminal/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

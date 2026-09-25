@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Html - PSL</title>
+        <meta name="description" content="The Html component provides functions for encoding, decoding, and stripping HTML entities. It wra...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/html/">
+        <meta property="og:title" content="Html - PSL">
+        <meta property="og:description" content="The Html component provides functions for encoding, decoding, and stripping HTML entities. It wra...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/html/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Html - PSL">
+        <meta name="twitter:description" content="The Html component provides functions for encoding, decoding, and stripping HTML entities. It wra...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link active" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Html</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/html</div></div>
+<p>The <code>Html</code> component provides functions for encoding, decoding, and stripping HTML entities. It wraps PHP's <code>htmlentities</code>, <code>htmlspecialchars</code>, and related functions with a cleaner API and an <code>Encoding</code> enum for character set selection.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="encoding"><a href="#encoding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Encoding</h3>
+<p><code>encode()</code> converts all applicable characters to HTML entities, while <code>encode_special_characters()</code> only converts the special characters (<code>&amp;</code>, <code>&quot;</code>, <code>'</code>, <code>&lt;</code>, <code>&gt;</code>):</p>
+<pre><code class="language-php">use Psl\Html;
+
+Html\encode('&lt;p&gt;&quot;Hello&quot; &amp; welcome&lt;/p&gt;');
+// '&amp;lt;p&amp;gt;&amp;quot;Hello&amp;quot; &amp;amp; welcome&amp;lt;/p&amp;gt;'
+
+// encode_special_characters is lighter -- only converts &amp;, &quot;, ', &lt;, &gt;
+Html\encode_special_characters('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+
+// '&amp;lt;script&amp;gt;alert(&amp;quot;xss&amp;quot;)&amp;lt;/script&amp;gt;'
+</code></pre>
+<p>Use <code>encode_special_characters()</code> when building HTML output from user input -- it is the safer default for preventing XSS while keeping non-special characters readable.</p>
+<h3 id="avoiding-double-encoding"><a href="#avoiding-double-encoding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Avoiding Double Encoding</h3>
+<p>Both functions accept a <code>$double_encoding</code> parameter. Set it to <code>false</code> to preserve existing entities:</p>
+<pre><code class="language-php">use Psl\Html;
+
+Html\encode('&amp;amp; is an ampersand', doubleEncoding: false);
+
+// '&amp;amp; is an ampersand' (not double-encoded to '&amp;amp;amp;')
+</code></pre>
+<h3 id="decoding"><a href="#decoding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Decoding</h3>
+<pre><code class="language-php">use Psl\Html;
+
+Html\decode('&amp;lt;p&amp;gt;Hello&amp;lt;/p&amp;gt;');
+// '&lt;p&gt;Hello&lt;/p&gt;'
+
+Html\decode_special_characters('&amp;lt;p&amp;gt;Hello&amp;lt;/p&amp;gt;');
+
+// '&lt;p&gt;Hello&lt;/p&gt;'
+</code></pre>
+<h3 id="stripping-tags"><a href="#stripping-tags" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Stripping Tags</h3>
+<p>Remove HTML and PHP tags from a string, optionally keeping specific tags:</p>
+<pre><code class="language-php">use Psl\Html;
+
+Html\strip_tags('&lt;p&gt;Hello &lt;b&gt;World&lt;/b&gt;&lt;/p&gt;');
+// 'Hello World'
+
+Html\strip_tags('&lt;p&gt;Hello &lt;b&gt;World&lt;/b&gt;&lt;/p&gt;', ['b']);
+
+// 'Hello &lt;b&gt;World&lt;/b&gt;'
+</code></pre>
+<h3 id="character-encoding"><a href="#character-encoding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Character Encoding</h3>
+<p>All encoding/decoding functions accept an <code>Encoding</code> enum to specify the character set. The default is UTF-8:</p>
+<pre><code class="language-php">use Psl\Html;
+
+$html = '&lt;p&gt;&quot;Hello&quot; &amp; welcome&lt;/p&gt;';
+
+Html\encode($html, encoding: Html\Encoding::Iso88591);
+Html\decode('&amp;lt;p&amp;gt;Hello&amp;lt;/p&amp;gt;', Html\Encoding::ShiftJis);
+</code></pre>
+<p>The <code>Encoding</code> enum supports UTF-8, ISO-8859-1, ISO-8859-15, Windows-1251, Windows-1252, Big5, GB2312, Shift_JIS, EUC-JP, KOI8-R, and several other character sets.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/html/src/Psl/Html/">src/Psl/Html/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

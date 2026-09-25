@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DNSSEC - PSL</title>
+        <meta name="description" content="The DNSSEC component adds full DNSSEC validation to DNS resolution. It is a standalone package (p...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/dnssec/">
+        <meta property="og:title" content="DNSSEC - PSL">
+        <meta property="og:description" content="The DNSSEC component adds full DNSSEC validation to DNS resolution. It is a standalone package (p...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/dnssec/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="DNSSEC - PSL">
+        <meta name="twitter:description" content="The DNSSEC component adds full DNSSEC validation to DNS resolution. It is a standalone package (p...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link active" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>DNSSEC</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/dnssec</div></div>
+<p>The <code>DNSSEC</code> component adds full DNSSEC validation to DNS resolution. It is a standalone package (<code>php-standard-library/dnssec</code>) that requires a <code>Psl\DNS\ResolverInterface</code> instance from the <code>psl/dns</code> package.</p>
+<p>DNSSEC validation verifies that DNS responses have not been tampered with by checking cryptographic signatures (RRSIG), walking trust chains from the DNS root (DS/DNSKEY), and validating authenticated denial of existence proofs (NSEC/NSEC3).</p>
+<h2 id="getting-started"><a href="#getting-started" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Getting Started</h2>
+<p>To use DNSSEC, you need two things: a DNS resolver that requests DNSSEC records (<code>dnssec: true</code>), and the DNSSEC validation layer that wraps it.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\Record\RecordType;
+use Psl\DNSSEC;
+
+// Create a DNSSEC-validating resolver
+$inner = new DNS\SystemResolver(dnssec: true);
+$trustChain = new DNSSEC\TrustChainResolver($inner);
+$resolver = new DNSSEC\SecureResolver($inner, $trustChain);
+
+// Queries are validated: signatures, trust chain, NSEC proofs
+$response = $resolver-&gt;query('example.com', RecordType::A);
+
+// Throws SignatureFailedException, BrokenTrustChainException,
+// InvalidProofException, or UnsignedResponseException on failure
+</code></pre>
+<h2 id="rrsig-signature-verification"><a href="#rrsig-signature-verification" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RRSIG: Signature Verification</h2>
+<p>Every DNSSEC-signed response includes RRSIG records alongside the answer records. Each RRSIG contains a cryptographic signature over a set of records, the signer's identity, and the key tag to locate the corresponding DNSKEY.</p>
+<p>When <code>SecureResolver</code> receives a response, it verifies that the RRSIG signatures are valid using the zone's public keys (DNSKEY records). If any signature is invalid or expired, <code>SignatureFailedException</code> is thrown.</p>
+<h2 id="dsdnskey-trust-chain"><a href="#dsdnskey-trust-chain" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>DS/DNSKEY: Trust Chain</h2>
+<p>DNSSEC trust is established through a chain from the DNS root to the target zone. Each parent zone contains a DS (Delegation Signer) record that is a cryptographic hash of the child zone's DNSKEY. By verifying each link in the chain, <code>TrustChainResolver</code> proves that the zone's keys are authorized by the parent, all the way up to the root trust anchor.</p>
+<p>The walk for <code>example.com</code> goes: root (.) DNSKEY &gt; <code>com.</code> DS &gt; <code>com.</code> DNSKEY &gt; <code>example.com.</code> DS &gt; <code>example.com.</code> DNSKEY.</p>
+<h2 id="nsecnsec3-authenticated-denial"><a href="#nsecnsec3-authenticated-denial" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>NSEC/NSEC3: Authenticated Denial</h2>
+<p>When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records list the names that DO exist in sorted order, proving there is no name between them. NSEC3 records do the same but with hashed names to prevent zone enumeration.</p>
+<p><code>SecureResolver</code> validates these proofs automatically. If the proof is missing or invalid, <code>InvalidProofException</code> is thrown.</p>
+<h2 id="trust-anchors"><a href="#trust-anchors" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Trust Anchors</h2>
+<p><code>TrustChainResolver</code> uses the IANA root KSK as its trust anchor by default. For fully offline environments, <code>StaticTrustChainResolver</code> accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.</p>
+<pre><code class="language-php">use Psl\DateTime\Duration;
+use Psl\DNS;
+use Psl\DNS\DNSSEC\Algorithm;
+use Psl\DNS\Record\DNSKEYRecord;
+use Psl\DNSSEC;
+
+$inner = new DNS\SystemResolver(dnssec: true);
+
+// Default: uses IANA root KSK, walks the DS/DNSKEY chain via DNS queries
+$trustChain = new DNSSEC\TrustChainResolver($inner);
+
+// Fully offline: pre-loaded DNSKEY records per zone, no network queries
+$rootDnskey = new DNSKEYRecord('.', Duration::seconds(0), 257, 3, Algorithm::RSASHA256, '...');
+$comDnskey = new DNSKEYRecord('com.', Duration::seconds(0), 257, 3, Algorithm::ECDSAP256SHA256, '...');
+
+$offline = new DNSSEC\StaticTrustChainResolver([
+    '.' =&gt; [$rootDnskey],
+    'com.' =&gt; [$comDnskey],
+]);
+
+$resolver = new DNSSEC\SecureResolver($inner, $trustChain);
+</code></pre>
+<h2 id="validation-errors"><a href="#validation-errors" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Validation Errors</h2>
+<p>DNSSEC validation produces specific exceptions for each failure mode:</p>
+<table>
+<thead>
+<tr>
+<th>Exception</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SignatureFailedException</code></td>
+<td>RRSIG verification failed or crypto format is invalid</td>
+</tr>
+<tr>
+<td><code>BrokenTrustChainException</code></td>
+<td>DS/DNSKEY trust chain is incomplete or invalid</td>
+</tr>
+<tr>
+<td><code>InvalidProofException</code></td>
+<td>NSEC/NSEC3 proof does not check out</td>
+</tr>
+<tr>
+<td><code>UnsignedResponseException</code></td>
+<td>Expected DNSSEC-signed data but response was unsigned</td>
+</tr>
+</tbody>
+</table>
+<p>All exceptions extend <code>Psl\DNSSEC\Exception\RuntimeException</code>.</p>
+<h2 id="caching"><a href="#caching" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Caching</h2>
+<p>DNSSEC validation is expensive - each query triggers a trust chain walk from the root zone through every intermediate zone to the target. <code>CachedTrustChainResolver</code> caches the validated trust chain results so subsequent queries to the same TLD reuse the cached chain. Combine with <code>CachedResolver</code> on top to cache the final validated responses.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DNS;
+use Psl\DNS\Record\RecordType;
+use Psl\DNSSEC;
+
+$cache = new Cache\LocalStore();
+
+// The inner resolver must request DNSSEC records
+$dnsResolver = new DNS\SystemResolver(dnssec: true);
+
+// Cache trust chain results to avoid repeated root-to-leaf walks
+// Without caching, every query triggers DS/DNSKEY lookups for each zone
+$trustChain = new DNSSEC\CachedTrustChainResolver(new DNSSEC\TrustChainResolver($dnsResolver), $cache);
+
+// SecureResolver validates every response using the cached trust chain
+$secureResolver = new DNSSEC\SecureResolver($dnsResolver, $trustChain);
+
+// Cache the validated DNS responses on top
+$resolver = new DNS\CachedResolver($secureResolver, $cache);
+
+// First query: full trust chain walk (root -&gt; com. -&gt; example.com.)
+$resolver-&gt;query('example.com', RecordType::A);
+
+// Second query for same TLD: trust chain for &quot;com.&quot; is cached
+$resolver-&gt;query('another.com', RecordType::A);
+
+// Third query for same domain: entire response is cached
+$resolver-&gt;query('example.com', RecordType::A);
+</code></pre>
+<h2 id="kitchen-sink"><a href="#kitchen-sink" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Kitchen Sink</h2>
+<p>Compose DNSSEC validation with static entries, hosts file, search domains, split-horizon routing, multiple racing DNS-over-TLS nameservers, and caching. DNSSEC validation only wraps the public DNS path; trusted sources (static, internal, hosts file) are outside the validation boundary.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DateTime\Duration;
+use Psl\DNS;
+use Psl\DNS\Record\ARecord;
+use Psl\DNS\Record\RecordType;
+use Psl\DNS\System\HostsFile\HostsFile;
+use Psl\DNSSEC;
+use Psl\IO;
+use Psl\IP\Address;
+use Psl\TCP;
+use Psl\TLS;
+
+$cache = new Cache\LocalStore();
+
+// 1. Static entries (trusted by definition, no DNSSEC needed)
+$static = new DNS\StaticResolver([
+    'db.internal' =&gt; [
+        RecordType::A-&gt;value =&gt; [
+            new ARecord('db.internal', Duration::hours(999), Address::parse('10.0.0.5')),
+        ],
+    ],
+    'cache.internal' =&gt; [
+        RecordType::A-&gt;value =&gt; [
+            new ARecord('cache.internal', Duration::hours(999), Address::parse('10.0.0.6')),
+        ],
+    ],
+]);
+
+// 2. Internal nameserver for corporate domains (trusted network, no DNSSEC)
+$internalDns = new DNS\FallbackResolver([
+    new DNS\UDPResolver('10.0.0.53'),
+    new DNS\TCPResolver('10.0.0.53'),
+]);
+
+// 3. Race multiple DNSSEC-enabled public nameservers
+$public = new DNS\RacingResolver([
+    // Cloudflare DNS-over-TLS
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('1.1.1.1', dnssec: true),
+        new DNS\TCPResolver(
+            '1.1.1.1',
+            port: 853,
+            dnssec: true,
+            connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+        ),
+    ]),
+    // Google DNS-over-TLS
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('8.8.8.8', dnssec: true),
+        new DNS\TCPResolver(
+            '8.8.8.8',
+            port: 853,
+            dnssec: true,
+            connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+        ),
+    ]),
+    // Cloudflare secondary (plain TCP fallback)
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('1.0.0.1', dnssec: true),
+        new DNS\TCPResolver('1.0.0.1', dnssec: true),
+    ]),
+    // Google secondary (plain TCP fallback)
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('8.8.4.4', dnssec: true),
+        new DNS\TCPResolver('8.8.4.4', dnssec: true),
+    ]),
+]);
+
+// 4. DNSSEC: validate public DNS responses only
+$public = new DNSSEC\SecureResolver(
+    $public,
+    new DNSSEC\CachedTrustChainResolver(new DNSSEC\TrustChainResolver($public), $cache),
+);
+
+// 5. Static overrides first, then DNSSEC-validated public DNS
+$base = new DNS\FallbackResolver([$static, $public]);
+
+// 6. Route corporate domains to internal DNS (unvalidated),
+//    everything else to static + DNSSEC-validated public
+$routed = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['corp.internal', 'dev.internal'], $internalDns),
+], default: $base);
+
+// 7. Expand short names using search domains
+$searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.internal']);
+
+// 8. Check the hosts file before any network query
+$hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
+
+// 9. Cache everything on top
+$resolver = new DNS\CachedResolver($hostsAware, $cache);
+
+// 10. Profit!
+$response = $resolver-&gt;query('php-standard-library.dev', RecordType::A);
+
+IO\write_line(
+    'php-standard-library.dev -&gt; %s',
+    $response-&gt;getFirstAnswerRecord(ARecord::class)?-&gt;address-&gt;toString() ?? '&lt;unknown&gt;',
+);
+</code></pre>
+<h2 id="supported-algorithms"><a href="#supported-algorithms" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Supported Algorithms</h2>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>RFC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RSA/SHA-1</td>
+<td>RFC 4034</td>
+</tr>
+<tr>
+<td>RSA/SHA-256</td>
+<td>RFC 5702</td>
+</tr>
+<tr>
+<td>RSA/SHA-512</td>
+<td>RFC 5702</td>
+</tr>
+<tr>
+<td>ECDSA P-256/SHA-256</td>
+<td>RFC 6605</td>
+</tr>
+<tr>
+<td>ECDSA P-384/SHA-384</td>
+<td>RFC 6605</td>
+</tr>
+<tr>
+<td>Ed25519</td>
+<td>RFC 8080</td>
+</tr>
+<tr>
+<td>Ed448</td>
+<td>RFC 8080</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rfc-compliance"><a href="#rfc-compliance" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RFC Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 4033</td>
+<td>DNSSEC introduction and requirements</td>
+</tr>
+<tr>
+<td>RFC 4034</td>
+<td>DNSSEC resource records (RRSIG, DNSKEY, DS, NSEC)</td>
+</tr>
+<tr>
+<td>RFC 4035</td>
+<td>DNSSEC protocol modifications and validation</td>
+</tr>
+<tr>
+<td>RFC 5155</td>
+<td>NSEC3 hashed authenticated denial of existence</td>
+</tr>
+<tr>
+<td>RFC 5702</td>
+<td>RSA/SHA-256 and RSA/SHA-512 for DNSSEC</td>
+</tr>
+<tr>
+<td>RFC 6605</td>
+<td>ECDSA for DNSSEC (P-256/SHA-256, P-384/SHA-384)</td>
+</tr>
+<tr>
+<td>RFC 8080</td>
+<td>Edwards-curve algorithms for DNSSEC (Ed25519, Ed448)</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/dnssec/src/Psl/DNSSEC/">src/Psl/DNSSEC/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

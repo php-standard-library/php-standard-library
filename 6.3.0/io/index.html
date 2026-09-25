@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>IO - PSL</title>
+        <meta name="description" content="The IO component provides handle-based I/O abstractions. Instead of reaching for global functions...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/io/">
+        <meta property="og:title" content="IO - PSL">
+        <meta property="og:description" content="The IO component provides handle-based I/O abstractions. Instead of reaching for global functions...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/io/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="IO - PSL">
+        <meta name="twitter:description" content="The IO component provides handle-based I/O abstractions. Instead of reaching for global functions...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link active" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>IO</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/io</div></div>
+<p>The <code>IO</code> component provides handle-based I/O abstractions. Instead of reaching for global functions like <code>fread()</code> and <code>fwrite()</code>, you work with typed handle interfaces that make I/O composable, testable, and safe.</p>
+<h2 id="handle-interfaces"><a href="#handle-interfaces" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Handle Interfaces</h2>
+<p>Handles are defined as narrow interfaces, each describing a single capability:</p>
+<ul>
+<li><strong><code>ReadHandleInterface</code></strong> -- read bytes, check for EOF</li>
+<li><strong><code>WriteHandleInterface</code></strong> -- write bytes</li>
+<li><strong><code>SeekHandleInterface</code></strong> -- move the cursor position</li>
+<li><strong><code>CloseHandleInterface</code></strong> -- explicitly close the handle, check if closed via <code>isClosed()</code></li>
+</ul>
+<p>A concrete handle implements whichever combination applies. For example, a file handle implements read, write, seek, and close, while a network socket implements read, write, and close but not seek.</p>
+<h3 id="buffered-interfaces"><a href="#buffered-interfaces" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Buffered Interfaces</h3>
+<p>Two higher-level interfaces extend the base read and write interfaces for handles that buffer data internally:</p>
+<ul>
+<li><strong><code>BufferedReadHandleInterface</code></strong> -- extends <code>ReadHandleInterface</code> with <code>readByte()</code>, <code>readLine()</code>, <code>readUntil()</code>, and <code>readUntilBounded()</code>. Implemented by <code>Reader</code>.</li>
+<li><strong><code>BufferedWriteHandleInterface</code></strong> -- extends <code>WriteHandleInterface</code> with <code>flush()</code> for explicitly flushing buffered output. Useful for decorators like compression handles that accumulate data before writing.</li>
+</ul>
+<h2 id="quick-output"><a href="#quick-output" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Quick Output</h2>
+<p>Convenience functions write directly to stdout or stderr:</p>
+<pre><code class="language-php">use Psl\IO;
+
+$msg = 'file not found';
+
+IO\write('Hello, %s!', 'world'); // stdout, no newline
+IO\write_line('Count: %d', 42); // stdout + newline
+IO\write_error('something went wrong'); // stderr
+IO\write_error_line('Error: %s', $msg); // stderr + newline
+</code></pre>
+<p>All output functions support <code>sprintf</code>-style formatting.</p>
+<h2 id="standard-handles"><a href="#standard-handles" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Standard Handles</h2>
+<p>Three functions return the process-level I/O handles:</p>
+<pre><code class="language-php">use Psl\IO;
+
+$stdin = IO\input_handle(); // ReadHandleInterface  (STDIN in CLI)
+$stdout = IO\output_handle(); // WriteHandleInterface (STDOUT in CLI)
+$stderr = IO\error_handle(); // WriteHandleInterface (STDERR in CLI, null otherwise)
+</code></pre>
+<p>In non-CLI SAPIs, <code>input_handle()</code> reads from <code>php://input</code> and <code>output_handle()</code> writes to <code>php://output</code>. <code>error_handle()</code> returns <code>null</code> outside CLI.</p>
+<h2 id="memoryhandle"><a href="#memoryhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>MemoryHandle</h2>
+<p><code>MemoryHandle</code> is an in-memory buffer implementing read, write, seek, and close. It is useful for testing code that accepts handle interfaces without touching the filesystem or network.</p>
+<pre><code class="language-php">use Psl\IO;
+
+$handle = new IO\MemoryHandle();
+$handle-&gt;writeAll('Hello, World!');
+$handle-&gt;seek(0);
+$handle-&gt;readAll(); // 'Hello, World!'
+$_ = $handle-&gt;getBuffer(); // 'Hello, World!' (always returns full buffer)
+
+// Use MemoryHandle as a test double for any WriteHandleInterface
+function render_report(IO\WriteHandleInterface $output): void
+{
+    $output-&gt;writeAll(&quot;Report\n&quot;);
+}
+
+$buffer = new IO\MemoryHandle();
+render_report($buffer);
+Psl\invariant($buffer-&gt;getBuffer() === &quot;Report\n&quot;, 'Expected buffer to contain &quot;Report\n&quot;');
+</code></pre>
+<h2 id="reader"><a href="#reader" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reader</h2>
+<p><code>Reader</code> wraps any <code>ReadHandleInterface</code> and implements <code>BufferedReadHandleInterface</code>, providing buffered, higher-level reading methods:</p>
+<pre><code class="language-php">use Psl\IO;
+
+$handle = new IO\MemoryHandle(&quot;line one\nline two\n\x00rest&quot;);
+$reader = new IO\Reader($handle);
+
+$line = $reader-&gt;readLine(); // read until newline: &quot;line one&quot;
+$byte = $reader-&gt;readByte(); // read exactly one byte: &quot;l&quot;
+$chunk = $reader-&gt;readFixedSize(7); // read exactly 7 bytes: &quot;ine two&quot;
+$until = $reader-&gt;readUntil(&quot;\0&quot;); // read until a delimiter (delimiter consumed but not returned): &quot;\n&quot;
+
+IO\write_line('Line:  %s', $line ?? '&lt;line not found&gt;');
+IO\write_line('Byte:  %s', $byte);
+IO\write_line('Chunk: %s', $chunk);
+IO\write_line('Until: %s', $until ?? '&lt;suffix not found&gt;');
+</code></pre>
+<h3 id="bounded-reads"><a href="#bounded-reads" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Bounded Reads</h3>
+<p><code>Reader::readUntilBounded()</code> works like <code>readUntil()</code> but enforces a maximum byte limit. If the suffix is not found within <code>$max_bytes</code>, an <code>IO\Exception\OverflowException</code> is thrown. This prevents unbounded memory consumption when reading from untrusted sources -- for example, capping HTTP header lines to a safe size so a malicious client cannot exhaust memory by sending an endless line.</p>
+<pre><code class="language-php">use Psl\IO;
+
+$handle = new IO\MemoryHandle(&quot;GET / HTTP/1.1\r\nHost: example.com\r\n\r\nbody&quot;);
+$reader = new IO\Reader($handle);
+
+// Read the request line, capped at 8192 bytes
+$requestLine = $reader-&gt;readUntilBounded(&quot;\r\n&quot;, 8192);
+IO\write_line('Request line: %s', $requestLine ?? '&lt;not found&gt;');
+
+// Read a header line, capped at 4096 bytes
+$header = $reader-&gt;readUntilBounded(&quot;\r\n&quot;, 4096);
+IO\write_line('Header: %s', $header ?? '&lt;not found&gt;');
+
+// If the line exceeds the limit, OverflowException is thrown:
+$tinyHandle = new IO\MemoryHandle(&quot;this line is way too long\r\n&quot;);
+$tinyReader = new IO\Reader($tinyHandle);
+
+try {
+    $tinyReader-&gt;readUntilBounded(&quot;\r\n&quot;, 5);
+} catch (IO\Exception\OverflowException $e) {
+    IO\write_line('Caught: %s', $e-&gt;getMessage());
+}
+</code></pre>
+<h2 id="spool"><a href="#spool" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Spool</h2>
+<p><code>IO\spool()</code> creates a handle that writes to memory until a threshold is reached (default 2MB), then transparently spools to a temporary file on disk. This is useful when buffering data of unknown size without risking excessive memory usage.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Str;
+
+// Writes to memory until 2MB, then spools to a temporary file on disk
+$handle = IO\spool();
+
+$handle-&gt;writeAll('Hello, World!');
+$handle-&gt;seek(0);
+$handle-&gt;readAll(); // 'Hello, World!'
+
+$handle-&gt;close();
+
+// Custom threshold: spool to disk after 64 bytes
+$small = IO\spool(maxMemory: 64);
+$small-&gt;writeAll(Str\repeat('x', 256)); // transparently written to disk
+$small-&gt;seek(0);
+$small-&gt;readAll(); // 256 bytes of 'x'
+
+$small-&gt;close();
+</code></pre>
+<h2 id="pipes"><a href="#pipes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Pipes</h2>
+<p><code>IO\pipe()</code> creates a connected pair of handles: anything written to the write end can be read from the read end.</p>
+<pre><code class="language-php">use Psl\IO;
+
+[$reader, $writer] = IO\pipe();
+$writer-&gt;writeAll('hello');
+$writer-&gt;close();
+
+$result = $reader-&gt;readAll(); // 'hello'
+$reader-&gt;close();
+
+IO\write_line('Read from pipe: %s', $result);
+</code></pre>
+<h2 id="copying-and-streaming"><a href="#copying-and-streaming" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Copying and Streaming</h2>
+<p><code>IO\copy()</code> reads from one handle and writes to another until EOF. If the writer implements <code>BufferedWriteHandleInterface</code>, it is flushed after all data has been written:</p>
+<pre><code class="language-php">use Psl\IO;
+
+$source = new IO\MemoryHandle('data to copy');
+$dest = new IO\MemoryHandle();
+IO\copy($source, $dest);
+
+IO\write_line('Copied: %s', $dest-&gt;getBuffer()); // 'data to copy'
+</code></pre>
+<p>For control over the read chunk size, use <code>IO\copy_chunked()</code>:</p>
+<pre><code class="language-php">use Psl\IO;
+
+$source = new IO\MemoryHandle(str_repeat('x', 100_000));
+$destination = new IO\MemoryHandle();
+
+// Copy using 4 KB chunks instead of the default 8 KB
+$bytesCopied = IO\copy_chunked($source, $destination, 4096);
+
+$bytesCopied; // 100000
+</code></pre>
+<p>Both functions have bidirectional variants -- <code>IO\copy_bidirectional()</code> and <code>IO\copy_bidirectional_chunked()</code> -- that copy data in both directions concurrently between two read-write handles. These are useful for building proxies and tunnels.</p>
+<p><code>IO\streaming()</code> multiplexes reads from several stream handles concurrently, yielding chunks as they arrive. This is useful for reading interleaved process output:</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Create two pipes to simulate concurrent streams
+[$outReader, $outWriter] = IO\pipe();
+[$errReader, $errWriter] = IO\pipe();
+
+// Write data to both pipes
+$outWriter-&gt;writeAll('stdout output');
+$outWriter-&gt;close();
+$errWriter-&gt;writeAll('stderr output');
+$errWriter-&gt;close();
+
+foreach (IO\streaming(['out' =&gt; $outReader, 'err' =&gt; $errReader]) as $name =&gt; $chunk) {
+    IO\write_line('[%s] %s', $name, $chunk);
+}
+
+$outReader-&gt;close();
+$errReader-&gt;close();
+</code></pre>
+<h2 id="handle-decorators"><a href="#handle-decorators" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Handle Decorators</h2>
+<p>PSL provides several decorator handles that wrap an existing handle and add behavior.</p>
+<h3 id="iterablereadhandle"><a href="#iterablereadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>IterableReadHandle</h3>
+<p><code>IterableReadHandle</code> wraps an <code>iterable&lt;string&gt;</code> (array, generator, or any iterable) as a streaming <code>ReadHandleInterface</code>. The iterator is advanced lazily on each <code>read()</code> call, so the entire content is never buffered in memory.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Wrap a generator as a streaming read handle
+$handle = new IO\IterableReadHandle(
+    (function () {
+        yield 'first chunk';
+        yield 'second chunk';
+        yield 'third chunk';
+    })(),
+);
+
+$handle-&gt;read(); // 'first chunk'
+$handle-&gt;read(); // 'second chunk'
+$handle-&gt;read(); // 'third chunk'
+$handle-&gt;read(); // '' (EOF)
+$handle-&gt;reachedEndOfDataSource(); // true
+
+// Also works with arrays
+$handle = new IO\IterableReadHandle(['hello', ' ', 'world']);
+$handle-&gt;readAll(); // 'hello world'
+</code></pre>
+<h3 id="concatreadhandle"><a href="#concatreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>ConcatReadHandle</h3>
+<p><code>ConcatReadHandle</code> reads from two handles in sequence. It delegates to the first handle until EOF, then transparently switches to the second.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Concatenate two handles into a single stream
+$header = new IO\MemoryHandle(&quot;Header\n&quot;);
+$body = new IO\MemoryHandle('Body content');
+
+$combined = new IO\ConcatReadHandle($header, $body);
+$combined-&gt;readAll(); // &quot;Header\nBody content&quot;
+</code></pre>
+<h3 id="truncatedreadhandle"><a href="#truncatedreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TruncatedReadHandle</h3>
+<p><code>TruncatedReadHandle</code> reads up to N bytes from the underlying handle. Once the limit is reached, it silently reports EOF regardless of whether more data is available. Data beyond the limit is neither consumed nor validated.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Read at most 5 bytes, silently discard the rest
+$inner = new IO\MemoryHandle('hello world');
+$handle = new IO\TruncatedReadHandle($inner, 5);
+
+$handle-&gt;readAll(); // 'hello'
+$handle-&gt;reachedEndOfDataSource(); // true
+
+// The underlying handle still has data, but the truncated handle doesn't care
+$inner-&gt;tryRead(); // ' world'
+</code></pre>
+<h3 id="boundedreadhandle"><a href="#boundedreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>BoundedReadHandle</h3>
+<p><code>BoundedReadHandle</code> reads up to N bytes from the underlying handle. Unlike <code>TruncatedReadHandle</code>, it peeks past the limit to check for overflow. If the underlying handle has more data, an <code>IO\Exception\RuntimeException</code> is thrown. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Enforce a maximum of 5 bytes -- throw if the source has more
+$inner = new IO\MemoryHandle('hello');
+$handle = new IO\BoundedReadHandle($inner, 5);
+$handle-&gt;readAll(); // 'hello' -- fits exactly, no error
+
+// When the source exceeds the limit, an exception is thrown
+$inner = new IO\MemoryHandle('hello world');
+$handle = new IO\BoundedReadHandle($inner, 5);
+$handle-&gt;read(5); // 'hello'
+
+try {
+    $handle-&gt;read(); // throws -- underlying handle has more data
+} catch (IO\Exception\RuntimeException $e) {
+    $e-&gt;getMessage(); // 'Response body exceeded the configured limit of 5 bytes.'
+}
+</code></pre>
+<h3 id="fixedlengthreadhandle"><a href="#fixedlengthreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>FixedLengthReadHandle</h3>
+<p><code>FixedLengthReadHandle</code> reads exactly N bytes from the underlying handle. If the handle reaches EOF before N bytes are consumed, an <code>IO\Exception\RuntimeException</code> is thrown. Use this when the data source promises a specific length (e.g., HTTP Content-Length bodies, fixed-size protocol frames).</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Read exactly 11 bytes
+$inner = new IO\MemoryHandle('hello world');
+$handle = new IO\FixedLengthReadHandle($inner, 11);
+$handle-&gt;readAll(); // 'hello world'
+$handle-&gt;reachedEndOfDataSource(); // true
+
+// Premature EOF throws
+$inner = new IO\MemoryHandle('hi');
+$handle = new IO\FixedLengthReadHandle($inner, 10);
+
+try {
+    $handle-&gt;readAll(); // throws -- only 2 bytes available, expected 10
+} catch (IO\Exception\RuntimeException $e) {
+    $e-&gt;getMessage(); // 'Expected 10 bytes, but only 2 were available (premature EOF)'
+}
+</code></pre>
+<h3 id="joinedreadwritehandle"><a href="#joinedreadwritehandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>JoinedReadWriteHandle</h3>
+<p><code>JoinedReadWriteHandle</code> combines a <code>ReadHandleInterface</code> and a <code>WriteHandleInterface</code> into a single bidirectional handle. All read operations delegate to the reader, all write operations delegate to the writer. It implements <code>BufferedWriteHandleInterface</code>, so calling <code>flush()</code> delegates to the underlying writer if it also implements <code>BufferedWriteHandleInterface</code>.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Join separate read and write handles into one bidirectional handle
+$reader = new IO\MemoryHandle('incoming data');
+$writer = new IO\MemoryHandle();
+
+$handle = new IO\JoinedReadWriteHandle($reader, $writer);
+
+$handle-&gt;readAll(); // 'incoming data' (from reader)
+$handle-&gt;writeAll('outgoing data'); // written to writer
+$writer-&gt;seek(0);
+$writer-&gt;readAll(); // 'outgoing data'
+</code></pre>
+<h3 id="teewritehandle"><a href="#teewritehandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TeeWriteHandle</h3>
+<p><code>TeeWriteHandle</code> writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements <code>BufferedWriteHandleInterface</code> -- call <code>flush()</code> to explicitly drain any pending data to the second handle. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// Write to two handles simultaneously -- useful for logging, hashing, or mirroring
+$primary = new IO\MemoryHandle();
+$mirror = new IO\MemoryHandle();
+
+$tee = new IO\TeeWriteHandle($primary, $mirror);
+$tee-&gt;writeAll('hello world');
+
+$primary-&gt;seek(0);
+$primary-&gt;readAll(); // 'hello world'
+
+$mirror-&gt;seek(0);
+$mirror-&gt;readAll(); // 'hello world'
+</code></pre>
+<h3 id="sink-handles"><a href="#sink-handles" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sink Handles</h3>
+<p><code>SinkWriteHandle</code> discards all written data, like <code>/dev/null</code>. <code>SinkReadHandle</code> is a read handle that always reports EOF immediately -- unlike <code>new MemoryHandle('')</code> which only reports EOF after the first read attempt. <code>SinkReadWriteHandle</code> combines both: writes are discarded and reads always report EOF. All write sinks implement <code>BufferedWriteHandleInterface</code> with a no-op <code>flush()</code> for compatibility with code that expects flushable writers. These are useful as no-op handles in tests or when output must be consumed but can be discarded.</p>
+<pre><code class="language-php">use Psl\IO;
+
+// SinkWriteHandle discards everything -- like /dev/null
+$sink = new IO\SinkWriteHandle();
+$sink-&gt;writeAll('this goes nowhere');
+$sink-&gt;writeAll('neither does this');
+
+// SinkReadWriteHandle also supports reads, but always reports EOF
+$sink = new IO\SinkReadWriteHandle();
+$sink-&gt;writeAll('discarded');
+$sink-&gt;read(); // '' (always empty)
+$sink-&gt;reachedEndOfDataSource(); // true (always EOF)
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/io/src/Psl/IO/">src/Psl/IO/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

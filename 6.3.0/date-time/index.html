@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DateTime - PSL</title>
+        <meta name="description" content="The DateTime component provides immutable, timezone-aware date and time types. It replaces PHP&#039;s ...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/date-time/">
+        <meta property="og:title" content="DateTime - PSL">
+        <meta property="og:description" content="The DateTime component provides immutable, timezone-aware date and time types. It replaces PHP&#039;s ...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/date-time/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="DateTime - PSL">
+        <meta name="twitter:description" content="The DateTime component provides immutable, timezone-aware date and time types. It replaces PHP&#039;s ...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link active" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>DateTime</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/date-time</div></div>
+<p>The <code>DateTime</code> component provides immutable, timezone-aware date and time types. It replaces PHP's mutable <code>DateTime</code> class with a design where every operation returns a new instance, eliminating an entire class of mutation bugs.</p>
+<p>The component is built around several core types: <code>DateTime</code> for calendar-aware dates, <code>Timestamp</code> for raw points in time, <code>Duration</code> for exact time spans, <code>Period</code> for calendar-based periods, and <code>Interval</code> for time ranges.</p>
+<h2 id="creating-dates"><a href="#creating-dates" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Creating Dates</h2>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$now = DateTime\DateTime::now();
+IO\write_line('Now: %s', $now-&gt;toRfc3339());
+
+$tokyo = DateTime\DateTime::now(DateTime\Timezone::AsiaTokyo);
+IO\write_line('Tokyo: %s', $tokyo-&gt;toRfc3339());
+
+// From individual components
+$birthday = DateTime\DateTime::fromParts(DateTime\Timezone::AmericaNewYork, 1990, DateTime\Month::March, 15, 14, 30, 0);
+IO\write_line('Birthday: %s', $birthday-&gt;toRfc3339());
+
+// A specific time today
+$meeting = DateTime\DateTime::todayAt(9, 0, timezone: DateTime\Timezone::EuropeLondon);
+IO\write_line('Meeting: %s', $meeting-&gt;toRfc3339());
+</code></pre>
+<h2 id="timestamps"><a href="#timestamps" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Timestamps</h2>
+<p>A <code>Timestamp</code> represents a precise point in time as seconds and nanoseconds since the Unix epoch, independent of any timezone:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$ts = DateTime\Timestamp::now();
+IO\write_line('Seconds since epoch: %d', $ts-&gt;getSeconds());
+IO\write_line('Nanoseconds: %d', $ts-&gt;getNanoseconds());
+
+$specific = DateTime\Timestamp::fromParts(1_700_000_000, 500_000_000);
+
+// Create from milliseconds or microseconds
+$fromMs = DateTime\Timestamp::fromMilliseconds(1_700_000_000_500);
+$fromUs = DateTime\Timestamp::fromMicroseconds(1_700_000_000_500_000);
+
+$dt = DateTime\DateTime::fromTimestamp($ts, DateTime\Timezone::UTC);
+IO\write_line('From timestamp: %s', $dt-&gt;toRfc3339());
+</code></pre>
+<p>Use <code>Timestamp::monotonic()</code> for duration measurements -- it uses a monotonic clock unaffected by system time adjustments.</p>
+<h2 id="duration-and-arithmetic"><a href="#duration-and-arithmetic" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Duration and Arithmetic</h2>
+<p><code>Duration</code> represents an exact time span (hours, minutes, seconds, nanoseconds). All values are normalized automatically:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$twoHours = DateTime\Duration::hours(2);
+$timeout = DateTime\Duration::seconds(30);
+$precise = DateTime\Duration::milliseconds(1500); // normalizes to 1s 500ms
+
+$now = DateTime\DateTime::now(DateTime\Timezone::UTC);
+
+// Add or subtract durations from dates
+$later = $now-&gt;plus(DateTime\Duration::hours(3));
+$earlier = $now-&gt;minus(DateTime\Duration::hours(7 * 24));
+
+// Convenience methods
+$tomorrow = $now-&gt;plusDays(1);
+$nextMonth = $now-&gt;plusMonths(1);
+$lastYear = $now-&gt;minusYears(1);
+
+IO\write_line('Now: %s', $now-&gt;toRfc3339());
+IO\write_line('3 hours later: %s', $later-&gt;toRfc3339());
+IO\write_line('7 days earlier: %s', $earlier-&gt;toRfc3339());
+IO\write_line('Tomorrow: %s', $tomorrow-&gt;toRfc3339());
+IO\write_line('Next month: %s', $nextMonth-&gt;toRfc3339());
+IO\write_line('Last year: %s', $lastYear-&gt;toRfc3339());
+
+// Measure elapsed time
+$start = DateTime\Timestamp::now();
+$end = DateTime\Timestamp::now();
+$elapsed = $end-&gt;since($start); // returns Duration
+IO\write_line('Elapsed: %f seconds', $elapsed-&gt;getTotalSeconds());
+
+// ISO 8601 format
+$duration = DateTime\Duration::fromParts(2, 30, 15);
+IO\write_line('ISO 8601: %s', $duration-&gt;toIso8601()); // PT2H30M15S
+$parsed = DateTime\Duration::fromIso8601('PT1H45M');
+IO\write_line('Parsed: %s', $parsed-&gt;toString());
+</code></pre>
+<h2 id="period"><a href="#period" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Period</h2>
+<p><code>Period</code> represents a calendar-based period (years, months, days). Unlike <code>Duration</code>, a period's actual time length depends on context - a month can be 28-31 days, and a day can be 23-25 hours due to DST. Months automatically normalize into years, but days are never normalized:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+// Create periods from calendar units
+$oneYear = DateTime\Period::years(1);
+$sixMonths = DateTime\Period::months(6);
+$twoWeeks = DateTime\Period::weeks(2); // 14 days
+$tenDays = DateTime\Period::days(10);
+
+// Months automatically normalize into years
+$period = DateTime\Period::months(14); // 1 year, 2 months
+IO\write_line('14 months = %s', $period-&gt;toString());
+
+// Days are never normalized (a day is not a fixed number of hours)
+$longPeriod = DateTime\Period::days(365);
+IO\write_line('365 days = %s', $longPeriod-&gt;toString());
+
+// Combine parts
+$mixed = DateTime\Period::fromParts(1, 6, 15);
+IO\write_line('Mixed: %s', $mixed-&gt;toString());
+
+// Arithmetic
+$a = DateTime\Period::fromParts(1, 6, 0);
+$b = DateTime\Period::fromParts(0, 8, 15);
+IO\write_line('Sum: %s', $a-&gt;plus($b)-&gt;toString());
+IO\write_line('Difference: %s', $a-&gt;minus($b)-&gt;toString());
+IO\write_line('Inverted: %s', $a-&gt;invert()-&gt;toString());
+
+// Calculate the period between two dates
+$start = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2024, 3, 15);
+$end = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 7, 20);
+$between = DateTime\Period::between($start, $end);
+IO\write_line('Between: %s', $between-&gt;toString()); // 1 year(s), 4 month(s), 5 day(s)
+
+// ISO 8601 format
+IO\write_line('ISO 8601: %s', $mixed-&gt;toIso8601()); // P1Y6M15D
+$parsed = DateTime\Period::fromIso8601('P2Y3M10D');
+IO\write_line('Parsed: %s', $parsed-&gt;toString());
+</code></pre>
+<h2 id="interval"><a href="#interval" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Interval</h2>
+<p><code>Interval</code> represents a range between two points in time. It can check containment, overlap, and compute the exact duration between its endpoints:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+// An Interval is a range between two points in time
+$start = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 1, 1);
+$end = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 12, 31, 23, 59, 59);
+$interval = DateTime\Interval::between($start, $end);
+
+IO\write_line('Interval: %s', $interval-&gt;toString());
+
+// Create from a start point and a duration
+$hourInterval = DateTime\Interval::from(DateTime\Timestamp::now(), DateTime\Duration::hours(1));
+IO\write_line('One hour from now: %s', $hourInterval-&gt;toString());
+
+// Get the exact time duration between start and end
+$duration = $interval-&gt;getDuration();
+IO\write_line('Duration: %s', $duration-&gt;toString());
+
+// Check if a point falls within the interval
+$mid = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 6, 15);
+$outside = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2026, 1, 1);
+
+IO\write_line('Contains mid-year: %s', $interval-&gt;contains($mid) ? 'yes' : 'no');
+IO\write_line('Contains next year: %s', $interval-&gt;contains($outside) ? 'yes' : 'no');
+
+// Check if two intervals overlap and get their intersection
+$q1 = DateTime\Interval::between(
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 1, 1),
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 3, 31),
+);
+$q2 = DateTime\Interval::between(
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 3, 1),
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 6, 30),
+);
+
+IO\write_line('Q1 overlaps Q2: %s', $q1-&gt;overlaps($q2) ? 'yes' : 'no');
+
+$intersection = $q1-&gt;intersection($q2);
+if (null !== $intersection) {
+    IO\write_line('Intersection: %s', $intersection-&gt;toString());
+}
+
+// Check if one interval fully contains another
+IO\write_line('Full year contains Q1: %s', $interval-&gt;containsInterval($q1) ? 'yes' : 'no');
+IO\write_line('Q1 contains full year: %s', $q1-&gt;containsInterval($interval) ? 'yes' : 'no');
+
+// Merge overlapping intervals
+$merged = $q1-&gt;merge($q2);
+IO\write_line('Merged Q1+Q2: %s', $merged-&gt;toString());
+
+// Find the gap between non-overlapping intervals
+$spring = DateTime\Interval::between(
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 3, 1),
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 5, 31),
+);
+$autumn = DateTime\Interval::between(
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 9, 1),
+    DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 11, 30),
+);
+
+$gap = $spring-&gt;gap($autumn);
+if (null !== $gap) {
+    IO\write_line('Gap between spring and autumn: %s', $gap-&gt;toString());
+}
+
+// ISO 8601 format
+IO\write_line('ISO 8601: %s', $interval-&gt;toIso8601());
+$parsed = DateTime\Interval::fromIso8601('2025-01-01T00:00:00Z/2025-12-31T23:59:59Z');
+IO\write_line('Parsed: %s', $parsed-&gt;toString());
+</code></pre>
+<h2 id="convenience-methods"><a href="#convenience-methods" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Convenience Methods</h2>
+<p><code>DateTime</code> provides convenience methods for common boundary operations:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$dt = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, 6, 15, 14, 30, 45);
+
+// Start and end of day
+$startOfDay = $dt-&gt;atStartOfDay();
+IO\write_line('Start of day: %s', $startOfDay-&gt;toRfc3339()); // 2025-06-15T00:00:00+00:00
+
+$endOfDay = $dt-&gt;atEndOfDay();
+IO\write_line('End of day: %s', $endOfDay-&gt;toRfc3339()); // 2025-06-15T23:59:59.999999999+00:00
+
+// Start and end of month
+$startOfMonth = $dt-&gt;atStartOfMonth();
+IO\write_line('Start of month: %s', $startOfMonth-&gt;toRfc3339()); // 2025-06-01T00:00:00+00:00
+
+$endOfMonth = $dt-&gt;atEndOfMonth();
+IO\write_line('End of month: %s', $endOfMonth-&gt;toRfc3339()); // 2025-06-30T23:59:59.999999999+00:00
+
+// Start and end of year
+$startOfYear = $dt-&gt;atStartOfYear();
+IO\write_line('Start of year: %s', $startOfYear-&gt;toRfc3339()); // 2025-01-01T00:00:00+00:00
+
+$endOfYear = $dt-&gt;atEndOfYear();
+IO\write_line('End of year: %s', $endOfYear-&gt;toRfc3339()); // 2025-12-31T23:59:59.999999999+00:00
+
+// Start and end of week (Monday-Sunday)
+$startOfWeek = $dt-&gt;atStartOfWeek();
+IO\write_line('Start of week: %s', $startOfWeek-&gt;toRfc3339()); // 2025-06-09T00:00:00+00:00
+
+$endOfWeek = $dt-&gt;atEndOfWeek();
+IO\write_line('End of week: %s', $endOfWeek-&gt;toRfc3339()); // 2025-06-15T23:59:59.999999999+00:00
+
+// Useful for date range queries
+$feb = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2024, 2, 15);
+IO\write_line('Feb 2024 ends: day %d', $feb-&gt;atEndOfMonth()-&gt;getDay()); // 29 (leap year)
+</code></pre>
+<h2 id="comparing-and-inspecting"><a href="#comparing-and-inspecting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Comparing and Inspecting</h2>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$a = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, DateTime\Month::January, 1);
+$b = DateTime\DateTime::fromParts(DateTime\Timezone::UTC, 2025, DateTime\Month::June, 15);
+
+IO\write_line('a before b: %s', $a-&gt;before($b) ? 'yes' : 'no'); // true
+IO\write_line('b after a: %s', $b-&gt;after($a) ? 'yes' : 'no'); // true
+IO\write_line('a same time as a: %s', $a-&gt;atTheSameTime($a) ? 'yes' : 'no'); // true
+IO\write_line('a between a and b: %s', $a-&gt;betweenTimeInclusive($a, $b) ? 'yes' : 'no'); // true
+
+// Inspect components
+IO\write_line('Year: %d', $a-&gt;getYear());
+IO\write_line('Month: %s', $a-&gt;getMonthEnum()-&gt;name);
+IO\write_line('Weekday: %s', $a-&gt;getWeekday()-&gt;name);
+IO\write_line('Leap year: %s', $a-&gt;isLeapYear() ? 'yes' : 'no');
+IO\write_line('DST: %s', $a-&gt;isDaylightSavingTime() ? 'yes' : 'no');
+</code></pre>
+<h2 id="formatting-and-parsing"><a href="#formatting-and-parsing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Formatting and Parsing</h2>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$dt = DateTime\DateTime::now(DateTime\Timezone::UTC);
+
+// ICU pattern
+IO\write_line('ICU: %s', $dt-&gt;format('yyyy-MM-dd HH:mm:ss'));
+
+// Predefined patterns
+IO\write_line('ISO 8601: %s', $dt-&gt;format(DateTime\FormatPattern::Iso8601));
+IO\write_line('SQL: %s', $dt-&gt;format(DateTime\FormatPattern::SqlDateTime));
+
+// Style-based (locale-aware)
+IO\write_line('Long/Short: %s', $dt-&gt;toString(DateTime\DateStyle::Long, DateTime\TimeStyle::Short));
+
+// RFC 3339 for APIs
+IO\write_line('RFC 3339: %s', $dt-&gt;toRfc3339());
+
+// Parsing
+$parsed = DateTime\DateTime::parse('2025-03-15 12:00:00', 'yyyy-MM-dd HH:mm:ss', DateTime\Timezone::UTC);
+IO\write_line('Parsed: %s', $parsed-&gt;toRfc3339());
+</code></pre>
+<h2 id="timezone-conversion"><a href="#timezone-conversion" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Timezone Conversion</h2>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$utc = DateTime\DateTime::now(DateTime\Timezone::UTC);
+$la = $utc-&gt;convertToTimezone(DateTime\Timezone::AmericaLosAngeles);
+
+// Same moment, different local time
+IO\write_line('UTC: %s', $utc-&gt;toRfc3339());
+IO\write_line('LA:  %s', $la-&gt;toRfc3339());
+IO\write_line('Same time: %s', $utc-&gt;atTheSameTime($la) ? 'yes' : 'no');
+</code></pre>
+<h2 id="interoperability"><a href="#interoperability" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Interoperability</h2>
+<p><code>DateTime</code> converts to and from PHP's <code>DateTimeImmutable</code> and ICU's <code>IntlCalendar</code>:</p>
+<pre><code class="language-php">use Psl\DateTime;
+use Psl\IO;
+
+$native = new DateTimeImmutable('2025-03-15 12:00:00', new DateTimeZone('UTC'));
+$dt = DateTime\DateTime::fromStdlib($native);
+$back = $dt-&gt;toStdlib(); // DateTimeImmutable
+
+IO\write_line('From stdlib: %s', $dt-&gt;toRfc3339());
+IO\write_line('Back to stdlib: %s', $back-&gt;format('Y-m-d H:i:s T'));
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/date-time/src/Psl/DateTime/">src/Psl/DateTime/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

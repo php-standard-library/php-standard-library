@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Math - PSL</title>
+        <meta name="description" content="The Math component provides mathematical functions with strict typing and predictable error handl...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/math/">
+        <meta property="og:title" content="Math - PSL">
+        <meta property="og:description" content="The Math component provides mathematical functions with strict typing and predictable error handl...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/math/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Math - PSL">
+        <meta name="twitter:description" content="The Math component provides mathematical functions with strict typing and predictable error handl...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link active" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Math</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/math</div></div>
+<p>The <code>Math</code> component provides mathematical functions with strict typing and predictable error handling. Instead of PHP's loose math functions that silently return <code>false</code> or emit warnings, PSL's <code>Math</code> functions throw typed exceptions on invalid inputs and preserve numeric types through generics.</p>
+<h2 id="constants"><a href="#constants" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Constants</h2>
+<pre><code class="language-php">use Psl\Math;
+
+Math\PI; // 3.141592653589793...
+Math\E; // 2.718281828459045...
+Math\INFINITY; // INF
+Math\NAN; // NAN
+Math\INT64_MAX; // 9_223_372_036_854_775_807
+Math\INT32_MAX; // 2_147_483_647
+</code></pre>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="basic-arithmetic"><a href="#basic-arithmetic" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Basic Arithmetic</h3>
+<pre><code class="language-php">use Psl\Math;
+
+Math\abs(-5); // 5 (preserves int|float type)
+Math\ceil(4.2); // 5.0
+Math\floor(4.8); // 4.0
+Math\round(3.456, 2); // 3.46
+Math\sqrt(16.0); // 4.0
+Math\div(7, 2); // 3 (integer division, throws on division by zero)
+</code></pre>
+<h3 id="clamping-and-aggregation"><a href="#clamping-and-aggregation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Clamping and Aggregation</h3>
+<pre><code class="language-php">use Psl\Math;
+
+Math\clamp(15, 0, 10); // 10
+Math\clamp(-5, 0, 10); // 0
+
+Math\sum([1, 2, 3, 4]); // 10 (int)
+Math\sum_floats([1.5, 2.5]); // 4.0 (float)
+Math\mean([2, 4, 6]); // 4.0
+Math\median([1, 3, 5, 7]); // 4.0
+Math\mean([]); // null (empty list)
+</code></pre>
+<h3 id="min-max-and-comparisons"><a href="#min-max-and-comparisons" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Min, Max, and Comparisons</h3>
+<pre><code class="language-php">use Psl\Math;
+
+// From a list (returns null if empty)
+Math\max([3, 1, 4, 1, 5]); // 5
+Math\min([3, 1, 4, 1, 5]); // 1
+
+// From variadic arguments (requires at least two)
+Math\maxva(3, 1, 4, 1, 5); // 5
+Math\minva(3, 1, 4, 1, 5); // 1
+
+// By a custom comparison function
+$users = [['name' =&gt; 'Alice', 'age' =&gt; 30], ['name' =&gt; 'Bob', 'age' =&gt; 25]];
+Math\max_by($users, fn($u) =&gt; $u['age']); // ['name' =&gt; 'Alice', 'age' =&gt; 30]
+Math\min_by($users, fn($u) =&gt; $u['age']); // ['name' =&gt; 'Bob', 'age' =&gt; 25]
+</code></pre>
+<h3 id="trigonometry"><a href="#trigonometry" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Trigonometry</h3>
+<p>All trigonometric functions work in radians:</p>
+<pre><code class="language-php">use Psl\Math;
+
+Math\sin(Math\PI / 2); // 1.0
+Math\cos(0.0); // 1.0
+Math\tan(Math\PI / 4); // ~1.0
+Math\asin(1.0); // ~PI/2
+Math\atan2(1.0, 1.0); // ~PI/4 (two-argument arctangent)
+</code></pre>
+<h3 id="logarithms-and-exponentiation"><a href="#logarithms-and-exponentiation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Logarithms and Exponentiation</h3>
+<pre><code class="language-php">use Psl\Math;
+
+Math\log(Math\E); // 1.0 (natural logarithm)
+Math\log(100.0, 10.0); // 2.0 (log base 10)
+Math\exp(1.0); // ~E (e^1)
+
+// Throws on invalid input instead of returning -INF or NAN
+try {
+    Math\log(-1.0);
+} catch (Math\Exception\InvalidArgumentException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+</code></pre>
+<h3 id="base-conversion"><a href="#base-conversion" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Base Conversion</h3>
+<pre><code class="language-php">use Psl\Math;
+
+Math\to_base(255, 16); // 'ff'
+Math\from_base('ff', 16); // 255
+Math\base_convert('ff', 16, 2); // '11111111'
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/math/src/Psl/Math/">src/Psl/Math/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

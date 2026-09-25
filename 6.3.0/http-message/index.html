@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>HTTP Message - PSL</title>
+        <meta name="description" content="The HTTP Message component provides version-agnostic HTTP message abstractions. Requests, respons...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/http-message/">
+        <meta property="og:title" content="HTTP Message - PSL">
+        <meta property="og:description" content="The HTTP Message component provides version-agnostic HTTP message abstractions. Requests, respons...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/http-message/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="HTTP Message - PSL">
+        <meta name="twitter:description" content="The HTTP Message component provides version-agnostic HTTP message abstractions. Requests, respons...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link active" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>HTTP Message</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/http-message</div></div>
+<p>The <code>HTTP Message</code> component provides version-agnostic HTTP message abstractions. Requests, responses, and headers work identically across HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3. Bodies are streaming (<code>ReadHandleInterface</code>), trailers are async (<code>Awaitable&lt;FieldMap&gt;</code>), and all objects are immutable.</p>
+<h2 id="requests"><a href="#requests" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Requests</h2>
+<p>Construct a request with a method, URL, and optional headers/body. The request target is derived from the URL automatically.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+use Psl\IO;
+use Psl\URL;
+
+$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com/api/users?page=1'));
+
+$request-&gt;method; // &quot;GET&quot;
+$request-&gt;requestTarget; // &quot;/api/users?page=1&quot;
+$request-&gt;url?-&gt;authority-&gt;host; // &quot;example.com&quot;
+$request-&gt;protocolVersion; // ProtocolVersion::V11
+
+$post = new Message\Request(
+    method: Message\METHOD_POST,
+    url: URL\parse('https://example.com/api/users'),
+    headers: Message\FieldMap::from([
+        ['Content-Type', 'application/json'],
+        ['Accept',       'application/json'],
+    ]),
+    body: new IO\MemoryHandle('{&quot;name&quot;: &quot;Alice&quot;}'),
+);
+</code></pre>
+<h2 id="responses"><a href="#responses" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Responses</h2>
+<p>Responses carry a status code, headers, and an optional streaming body. Reason phrases are not stored on the response since HTTP/2 and HTTP/3 do not transmit them.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+use Psl\IO;
+
+$response = new Message\Response(
+    status: Message\STATUS_OK,
+    headers: Message\FieldMap::from([
+        ['Content-Type', 'text/html; charset=utf-8'],
+    ]),
+    body: new IO\MemoryHandle('&lt;h1&gt;Hello&lt;/h1&gt;'),
+);
+
+$response-&gt;status; // 200
+$response-&gt;headers-&gt;get('Content-Type'); // &quot;text/html; charset=utf-8&quot;
+
+Message\reason_phrase($response-&gt;status); // &quot;OK&quot;
+Message\reason_phrase(Message\STATUS_NOT_FOUND); // &quot;Not Found&quot;
+</code></pre>
+<h2 id="header-fields"><a href="#header-fields" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Header Fields</h2>
+<p><code>FieldMap</code> is an ordered, case-insensitive collection of header field pairs. It supports multiple values for the same name (e.g. Set-Cookie) and preserves insertion order and original casing.</p>
+<pre><code class="language-php">use Psl\HTTP\Message\FieldMap;
+use Psl\IO;
+
+$headers = FieldMap::from([
+    ['Content-Type', 'application/json'],
+    ['Accept',       'text/html'],
+    ['Accept',       'application/json'],
+    ['X-Request-Id', 'abc-123'],
+]);
+
+$headers-&gt;get('content-type'); // &quot;application/json&quot; (case-insensitive)
+$headers-&gt;getAll('Accept'); // [&quot;text/html&quot;, &quot;application/json&quot;]
+$headers-&gt;has('X-Request-Id'); // true
+
+$updated = $headers
+    -&gt;with('Content-Type', 'text/plain')
+    -&gt;withAdded('Cache-Control', 'no-cache')
+    -&gt;without('X-Request-Id');
+
+$updated-&gt;get('Content-Type'); // &quot;text/plain&quot;
+$updated-&gt;has('X-Request-Id'); // false
+
+foreach ($headers as [$name, $value]) {
+    // Iterates in insertion order, preserving original casing
+    IO\write_line('%s: %s', $name, $value);
+}
+</code></pre>
+<h2 id="immutable-mutation"><a href="#immutable-mutation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Immutable Mutation</h2>
+<p>All <code>with*()</code> methods return new instances. The original message is never modified.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+use Psl\IO;
+use Psl\URL;
+
+$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com/'));
+
+$modified = $request
+    -&gt;withMethod(Message\METHOD_POST)
+    -&gt;withUrl(URL\parse('https://example.com/api/submit'))
+    -&gt;withHeader('Content-Type', 'application/json')
+    -&gt;withHeader('Authorization', 'Bearer token123')
+    -&gt;withBody(new IO\MemoryHandle('{&quot;data&quot;: true}'))
+    -&gt;withProtocolVersion(Message\ProtocolVersion::V20);
+
+$modified-&gt;method; // &quot;POST&quot;
+$modified-&gt;protocolVersion; // ProtocolVersion::V20
+
+$request-&gt;method; // &quot;GET&quot; (original unchanged)
+</code></pre>
+<h2 id="streaming-bodies"><a href="#streaming-bodies" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Streaming Bodies</h2>
+<p>Bodies are modeled as <code>ReadHandleInterface</code> streams, allowing constant-memory processing of arbitrarily large payloads. Use <code>MemoryHandle</code> to create a body from a string.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+use Psl\IO;
+use Psl\URL;
+
+$request = new Message\Request(
+    method: Message\METHOD_POST,
+    url: URL\parse('https://example.com/upload'),
+    headers: Message\FieldMap::from([
+        ['Content-Type', 'application/json'],
+    ]),
+    body: new IO\MemoryHandle('{&quot;name&quot;: &quot;Alice&quot;, &quot;role&quot;: &quot;admin&quot;}'),
+);
+
+$body = $request-&gt;body;
+$body?-&gt;tryRead(16); // '{&quot;name&quot;: &quot;Alice&quot;' (non-blocking, up to 16 bytes)
+$body?-&gt;read(maxBytes: 8); // ', &quot;role&quot;' (suspends until data available)
+
+$response = new Message\Response(
+    status: Message\STATUS_OK,
+    body: new IO\MemoryHandle('&lt;html&gt;&lt;body&gt;Hello, world!&lt;/body&gt;&lt;/html&gt;'),
+);
+
+$response-&gt;body?-&gt;readAll(); // '&lt;html&gt;&lt;body&gt;Hello, world!&lt;/body&gt;&lt;/html&gt;'
+</code></pre>
+<h2 id="trailers"><a href="#trailers" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Trailers</h2>
+<p>Trailing header fields arrive after the body has been fully transmitted. They are modeled as <code>Awaitable&lt;FieldMap&gt;</code> because the values are not known until the body is complete. Use <code>Deferred</code> to create trailers that are resolved later.</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\HTTP\Message;
+use Psl\IO;
+use Psl\URL;
+
+/** @var Async\Deferred&lt;Message\FieldMap&gt; $deferred */
+$deferred = new Async\Deferred();
+$request = new Message\Request(
+    method: Message\METHOD_POST,
+    url: URL\parse('https://example.com/upload'),
+    headers: Message\FieldMap::from([
+        ['Trailer', 'Checksum'],
+    ]),
+    body: new IO\MemoryHandle('file contents here'),
+    trailers: $deferred-&gt;getAwaitable(),
+);
+
+$deferred-&gt;complete(Message\FieldMap::from([
+    ['Checksum', 'sha256=abc123...'],
+]));
+
+$trailerMap = $request-&gt;trailers?-&gt;await();
+$trailerMap?-&gt;get('Checksum'); // &quot;sha256=abc123...&quot;
+</code></pre>
+<h2 id="transactions"><a href="#transactions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transactions</h2>
+<p><code>Transaction</code> groups the final response with any informational (1xx) responses received before it and any HTTP/2 server-pushed exchanges. This is the return type of connection-level exchange methods.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+use Psl\IO;
+
+$earlyHints = new Message\Response(status: Message\STATUS_EARLY_HINTS, headers: Message\FieldMap::from([
+    ['Link', '&lt;/style.css&gt;; rel=preload; as=style'],
+]));
+
+$finalResponse = new Message\Response(
+    status: Message\STATUS_OK,
+    headers: Message\FieldMap::from([
+        ['Content-Type', 'text/html'],
+    ]),
+    body: new IO\MemoryHandle('&lt;h1&gt;Hello&lt;/h1&gt;'),
+);
+
+$tx = new Message\Transaction(informational: [$earlyHints], pushed: null, response: $finalResponse);
+
+$tx-&gt;response-&gt;status; // 200
+$tx-&gt;informational[0]-&gt;status; // 103
+$tx-&gt;informational[0]-&gt;headers-&gt;get('Link'); // &quot;&lt;/style.css&gt;; rel=preload; as=style&quot;
+$tx-&gt;pushed; // null (no HTTP/2 server push)
+</code></pre>
+<h2 id="status-codes-and-methods"><a href="#status-codes-and-methods" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Status Codes and Methods</h2>
+<p>Method and status code constants improve readability and prevent typos. The <code>reason_phrase()</code> function maps any status code to its canonical reason phrase for HTTP/1.x serialization.</p>
+<pre><code class="language-php">use Psl\HTTP\Message;
+
+Message\METHOD_GET; // &quot;GET&quot;
+Message\METHOD_POST; // &quot;POST&quot;
+Message\METHOD_PUT; // &quot;PUT&quot;
+Message\METHOD_DELETE; // &quot;DELETE&quot;
+Message\METHOD_PATCH; // &quot;PATCH&quot;
+
+Message\STATUS_OK; // 200
+Message\STATUS_CREATED; // 201
+Message\STATUS_NO_CONTENT; // 204
+Message\STATUS_NOT_FOUND; // 404
+Message\STATUS_INTERNAL_SERVER_ERROR; // 500
+
+Message\reason_phrase(Message\STATUS_OK); // &quot;OK&quot;
+Message\reason_phrase(Message\STATUS_NOT_FOUND); // &quot;Not Found&quot;
+Message\reason_phrase(Message\STATUS_TOO_MANY_REQUESTS); // &quot;Too Many Requests&quot;
+Message\reason_phrase(999); // &quot;status code 999&quot;
+</code></pre>
+<h2 id="protocol-versions"><a href="#protocol-versions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Protocol Versions</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Enum Case</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP/1.0</td>
+<td><code>ProtocolVersion::V10</code></td>
+<td><code>HTTP/1.0</code></td>
+</tr>
+<tr>
+<td>HTTP/1.1</td>
+<td><code>ProtocolVersion::V11</code></td>
+<td><code>HTTP/1.1</code></td>
+</tr>
+<tr>
+<td>HTTP/2</td>
+<td><code>ProtocolVersion::V20</code></td>
+<td><code>HTTP/2</code></td>
+</tr>
+<tr>
+<td>HTTP/3</td>
+<td><code>ProtocolVersion::V30</code></td>
+<td><code>HTTP/3</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="status-code-classes"><a href="#status-code-classes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Status Code Classes</h2>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Class</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1xx</td>
+<td>Informational</td>
+<td>100 Continue, 101 Switching Protocols</td>
+</tr>
+<tr>
+<td>2xx</td>
+<td>Successful</td>
+<td>200 OK, 201 Created, 204 No Content</td>
+</tr>
+<tr>
+<td>3xx</td>
+<td>Redirection</td>
+<td>301 Moved Permanently, 304 Not Modified</td>
+</tr>
+<tr>
+<td>4xx</td>
+<td>Client Error</td>
+<td>400 Bad Request, 404 Not Found, 429 Too Many Requests</td>
+</tr>
+<tr>
+<td>5xx</td>
+<td>Server Error</td>
+<td>500 Internal Server Error, 502 Bad Gateway</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rfc-compliance"><a href="#rfc-compliance" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RFC Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 9110</td>
+<td>HTTP semantics: methods, status codes, header fields, message body</td>
+</tr>
+<tr>
+<td>RFC 9112</td>
+<td>HTTP/1.1 message syntax (request line, status line, headers)</td>
+</tr>
+<tr>
+<td>RFC 9113</td>
+<td>HTTP/2 pseudo-headers, trailers, binary framing semantics</td>
+</tr>
+<tr>
+<td>RFC 9114</td>
+<td>HTTP/3 message mapping over QUIC</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/http-message/src/Psl/HTTP/Message/">src/Psl/HTTP/Message/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Type - PSL</title>
+        <meta name="description" content="The Type component provides a set of functions to ensure that a given value is of a specific type...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/type/">
+        <meta property="og:title" content="Type - PSL">
+        <meta property="og:description" content="The Type component provides a set of functions to ensure that a given value is of a specific type...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/type/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Type - PSL">
+        <meta name="twitter:description" content="The Type component provides a set of functions to ensure that a given value is of a specific type...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link active" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Type</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/type</div></div>
+<h2 id="introduction"><a href="#introduction" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Introduction</h2>
+<p>The <code>Type</code> component provides a set of functions to ensure that a given value is of a specific type <strong>at runtime</strong>. It implements the <a href="https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/">Parse, Don't Validate</a> pattern -- turning unstructured input into well-typed, trusted data.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-php">use Psl\Type;
+
+function get_untrusted_input(): mixed
+{
+    return '&lt;some string&gt;';
+}
+
+// Coerce: convert a string-like value into a non-empty-string
+$trustedInput = Type\non_empty_string()-&gt;coerce(get_untrusted_input());
+
+// Assert: verify it is already a non-empty-string (no conversion)
+$trustedInput = Type\non_empty_string()-&gt;assert(get_untrusted_input());
+
+// Match: check without throwing
+$isTrustworthy = Type\non_empty_string()-&gt;matches(get_untrusted_input());
+</code></pre>
+<h2 id="core-operations"><a href="#core-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Core Operations</h2>
+<p>Every type provided by this component is an instance of <code>Type\TypeInterface&lt;Tv&gt;</code>, which provides three operations:</p>
+<ul>
+<li><strong><code>matches(mixed $value): bool</code></strong> -- Checks if the value already satisfies the type. No conversion, no exceptions.</li>
+<li><strong><code>assert(mixed $value): Tv</code></strong> -- Asserts the value is already of the correct type. Throws <code>AssertException</code> if not. No conversion is performed.</li>
+<li><strong><code>coerce(mixed $value): Tv</code></strong> -- Attempts to convert the value into the target type. Throws <code>CoercionException</code> if conversion is impossible.</li>
+</ul>
+<p>The key distinction is between <code>assert</code> (strict -- value must already match) and <code>coerce</code> (flexible -- will attempt safe conversions like <code>&quot;42&quot;</code> to <code>42</code>).</p>
+<h2 id="static-analysis"><a href="#static-analysis" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Static Analysis</h2>
+<p>Your static analyzer fully understands the types provided by this component, but requires a plugin:</p>
+<ul>
+<li><strong>Mago</strong>: enable <code>psl</code> plugin in your <code>mago.toml</code>:</li>
+</ul>
+<pre><code class="language-toml">[analyzer]
+plugins = [&quot;psl&quot;]
+...
+</code></pre>
+<ul>
+<li><strong>Psalm</strong>: see <a href="https://github.com/php-standard-library/psalm-plugin">php-standard-library/psalm-plugin</a></li>
+<li><strong>PHPStan</strong>: see <a href="https://github.com/php-standard-library/phpstan-extension">php-standard-library/phpstan-extension</a></li>
+</ul>
+<h2 id="building-types"><a href="#building-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Building Types</h2>
+<h3 id="scalar-types"><a href="#scalar-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Scalar Types</h3>
+<p>The component provides types for all PHP scalar values: <code>string()</code>, <code>int()</code>, <code>float()</code>, <code>bool()</code>, <code>null()</code>, and <code>num()</code>. Each has well-defined coercion rules:</p>
+<pre><code class="language-php">use Psl\Type;
+
+// int() coerces from int, numeric strings, and floats with .00 decimal
+Type\int()-&gt;coerce('42'); // 42
+Type\int()-&gt;coerce(42.0); // 42
+
+// string() coerces from string, int, and Stringable objects
+Type\string()-&gt;coerce(42); // '42'
+
+// bool() coerces from bool, 0/1 (int), and '0'/'1' (string)
+Type\bool()-&gt;coerce(1); // true
+</code></pre>
+<p>Sized integer types enforce range constraints: <code>i8()</code>, <code>i16()</code>, <code>i32()</code>, <code>i64()</code>, <code>u8()</code>, <code>u16()</code>, <code>u32()</code>, <code>uint()</code>, <code>positive_int()</code>. Float variants: <code>f32()</code>, <code>f64()</code>. All use the same coercion rules as their base type while guarding the value range.</p>
+<h3 id="compound-types"><a href="#compound-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Compound Types</h3>
+<h4 id="shape----structured-arrays"><a href="#shape----structured-arrays" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>shape -- Structured Arrays</h4>
+<p><code>shape()</code> is the most powerful type for validating complex data structures. It supports nesting, optional fields, and produces detailed error paths:</p>
+<pre><code class="language-php">use Psl\Type;
+
+$shape = Type\shape([
+    'name' =&gt; Type\string(),
+    'articles' =&gt; Type\vec(Type\shape([
+        'title' =&gt; Type\string(),
+        'content' =&gt; Type\string(),
+        'likes' =&gt; Type\int(),
+        'comments' =&gt; Type\optional(Type\vec(Type\shape([
+            'user' =&gt; Type\string(),
+            'comment' =&gt; Type\string(),
+        ]))),
+    ])),
+    'pagination' =&gt; Type\optional(Type\shape([
+        'currentPage' =&gt; Type\uint(),
+        'totalPages' =&gt; Type\uint(),
+        'perPage' =&gt; Type\uint(),
+        'totalRows' =&gt; Type\uint(),
+    ])),
+]);
+
+$untrustedData = [
+    'name' =&gt; 'Alice',
+    'articles' =&gt; [
+        [
+            'title' =&gt; 'Hello World',
+            'content' =&gt; 'My first article.',
+            'likes' =&gt; 5,
+            'comments' =&gt; [
+                ['user' =&gt; 'Bob', 'comment' =&gt; 'Great post!'],
+            ],
+        ],
+    ],
+    'pagination' =&gt; [
+        'currentPage' =&gt; 1,
+        'totalPages' =&gt; 10,
+        'perPage' =&gt; 20,
+        'totalRows' =&gt; 200,
+    ],
+];
+
+$validData = $shape-&gt;coerce($untrustedData);
+</code></pre>
+<p>When validation fails, you get precise error paths:</p>
+<blockquote>
+<p>Expected &quot;array{...}&quot;, got &quot;int&quot; <strong>at path &quot;articles.0.comments.0.user&quot;</strong>.</p>
+</blockquote>
+<h4 id="vec----ordered-lists"><a href="#vec----ordered-lists" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>vec -- Ordered Lists</h4>
+<pre><code class="language-php">use Psl\Type;
+
+$vec = Type\vec(Type\shape([
+    'user' =&gt; Type\string(),
+    'comment' =&gt; Type\string(),
+]));
+
+$vec-&gt;assert([
+    ['user' =&gt; 'john', 'comment' =&gt; 'hello'],
+    ['user' =&gt; 'jane', 'comment' =&gt; 'world'],
+]);
+</code></pre>
+<p>Use <code>non_empty_vec()</code> to additionally require at least one element.</p>
+<h4 id="dict----key-value-dictionaries"><a href="#dict----key-value-dictionaries" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>dict -- Key-Value Dictionaries</h4>
+<pre><code class="language-php">use Psl\Type;
+
+$dict = Type\dict(Type\string(), Type\shape([
+    'title' =&gt; Type\string(),
+    'content' =&gt; Type\string(),
+]));
+</code></pre>
+<p>Use <code>non_empty_dict()</code> to require at least one entry.</p>
+<h3 id="nullability-and-optionality"><a href="#nullability-and-optionality" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Nullability and Optionality</h3>
+<ul>
+<li><strong><code>nullable(TypeInterface $inner)</code></strong> -- Allows <code>null</code> alongside the inner type</li>
+<li><strong><code>optional(TypeInterface $inner)</code></strong> -- Marks a field as optional within a <code>shape()</code> (the key may be absent entirely)</li>
+<li><strong><code>nullish(TypeInterface $inner)</code></strong> -- Combines both: the key may be absent, but defaults to <code>null</code> instead of being omitted</li>
+<li><strong><code>nonnull()</code></strong> -- Accepts any value except <code>null</code></li>
+</ul>
+<pre><code class="language-php">use Psl\Type;
+
+$shape = Type\shape([
+    'name' =&gt; Type\string(),
+    'nickname' =&gt; Type\nullable(Type\string()), // present but may be null
+    'bio' =&gt; Type\optional(Type\string()), // key may be missing entirely
+    'avatar' =&gt; Type\nullish(Type\string()), // key may be missing, defaults to null
+]);
+</code></pre>
+<h3 id="union-and-intersection"><a href="#union-and-intersection" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Union and Intersection</h3>
+<pre><code class="language-php">use Psl\Type;
+
+interface Loggable
+{
+    public function log(): string;
+}
+
+interface Exportable
+{
+    public function export(): string;
+}
+
+// Value must satisfy either type
+$stringOrInt = Type\union(Type\string(), Type\int());
+
+// Value must satisfy both types
+$loggableAndExportable = Type\intersection(Type\instance_of(Loggable::class), Type\instance_of(Exportable::class));
+</code></pre>
+<p>Coercion tries each type in order. For unions, the first successful coercion wins. Intersections coerce through one type then assert against the other.</p>
+<h3 id="object-and-enum-types"><a href="#object-and-enum-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Object and Enum Types</h3>
+<pre><code class="language-php">use Psl\Type;
+
+enum Status: string
+{
+    case Active = 'active';
+    case Inactive = 'inactive';
+}
+
+enum Color
+{
+    case Red;
+    case Green;
+    case Blue;
+}
+
+interface Renderable
+{
+    public function render(): string;
+}
+
+class HtmlRenderer implements Renderable
+{
+    public function render(): string
+    {
+        return '&lt;p&gt;Hello&lt;/p&gt;';
+    }
+}
+
+// Validate class instances
+$value = new DateTimeImmutable();
+Type\instance_of(DateTimeImmutable::class)-&gt;assert($value);
+
+// Backed enums -- coerce from the backing value
+Type\backed_enum(Status::class)-&gt;coerce('active');
+
+// Unit enums -- only accept enum instances directly
+Type\unit_enum(Color::class)-&gt;assert(Color::Red);
+
+// Class strings
+Type\class_string(Renderable::class)-&gt;assert(HtmlRenderer::class);
+</code></pre>
+<h3 id="literal-values"><a href="#literal-values" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Literal Values</h3>
+<pre><code class="language-php">use Psl\Type;
+
+Type\literal_scalar('hello')-&gt;assert('hello');
+Type\literal_scalar(42)-&gt;assert(42);
+</code></pre>
+<h3 id="collection-types"><a href="#collection-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Collection Types</h3>
+<p>The component also provides types for PSL collection objects: <code>vector()</code>, <code>mutable_vector()</code>, <code>map()</code>, <code>mutable_map()</code>, <code>set()</code>, <code>mutable_set()</code>.</p>
+<h2 id="type-conversion-with-converted"><a href="#type-conversion-with-converted" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Type Conversion with <code>converted()</code></h2>
+<p>The <code>converted()</code> type enables custom conversion pipelines. It takes a source type, a target type, and a converter function. This is especially powerful for building reusable type-safe parsers for value objects:</p>
+<pre><code class="language-php">use Psl\Type;
+use Psl\Type\TypeInterface;
+
+$dateTimeType = Type\converted(
+    Type\string(),
+    Type\instance_of(DateTimeImmutable::class),
+    static function (string $value): DateTimeImmutable {
+        $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value);
+        if (!$date) {
+            throw new RuntimeException('Invalid date format');
+        }
+
+        return $date;
+    },
+);
+
+$date = $dateTimeType-&gt;coerce('2024-01-15 10:30:00');
+// DateTimeImmutable object
+
+$dateTimeType-&gt;assert($date);
+// Works -- assert checks the output type (DateTimeImmutable), not the input
+
+// Building reusable type-safe parsers for value objects:
+
+final class Person
+{
+    public function __construct(
+        public readonly string $firstName,
+        public readonly string $lastName,
+    ) {}
+
+    /** @return TypeInterface&lt;self&gt; */
+    public static function type(): TypeInterface
+    {
+        return Type\converted(
+            Type\shape([
+                'firstName' =&gt; Type\string(),
+                'lastName' =&gt; Type\string(),
+            ]),
+            Type\instance_of(Person::class),
+            static fn(array $data): Person =&gt; new Person($data['firstName'], $data['lastName']),
+        );
+    }
+}
+
+// Now composable with other types:
+$shape = Type\shape([
+    'person' =&gt; Person::type(),
+    'role' =&gt; Type\string(),
+]);
+</code></pre>
+<p>When conversion fails, error messages indicate which stage failed:</p>
+<blockquote>
+<p>Could not coerce &quot;int&quot; to type &quot;string&quot; <strong>at path &quot;coerce_input(int): string&quot;</strong></p>
+</blockquote>
+<blockquote>
+<p>Could not coerce &quot;string&quot; to type &quot;class-string<stdClass>&quot; <strong>at path &quot;coerce_output(string): class-string<stdClass>&quot;</strong></p>
+</blockquote>
+<h2 id="json-decoding-with-jsondecoded"><a href="#json-decoding-with-jsondecoded" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>JSON Decoding with <code>json_decoded()</code></h2>
+<p>The <code>json_decoded()</code> type transparently handles fields that may contain JSON-encoded strings. If the value already matches the inner type, it passes through; if it's a string, it's JSON-decoded and coerced through the inner type. This is especially useful in shapes where database columns store JSON:</p>
+<pre><code class="language-php">use Psl\Type;
+
+$shape = Type\shape([
+    'name' =&gt; Type\string(),
+    'metadata' =&gt; Type\json_decoded(Type\shape([
+        'role' =&gt; Type\string(),
+        'active' =&gt; Type\bool(),
+    ])),
+]);
+
+// Works with JSON strings (e.g. from a database column)
+$fromDb = $shape-&gt;coerce([
+    'name' =&gt; 'Alice',
+    'metadata' =&gt; '{&quot;role&quot;: &quot;admin&quot;, &quot;active&quot;: true}',
+]);
+
+// Also works with already-decoded arrays
+$fromArray = $shape-&gt;coerce([
+    'name' =&gt; 'Alice',
+    'metadata' =&gt; ['role' =&gt; 'admin', 'active' =&gt; true],
+]);
+</code></pre>
+<h2 id="strict-mode-with-alwaysassert"><a href="#strict-mode-with-alwaysassert" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Strict Mode with <code>always_assert()</code></h2>
+<p>By default, <code>coerce()</code> attempts type conversion. Use <code>always_assert()</code> to create a type that rejects any value not already matching, even during coercion:</p>
+<pre><code class="language-php">use Psl\Type;
+use Psl\Type\Exception\CoercionException;
+
+$integer = Type\int();
+$strictInteger = Type\always_assert(Type\int());
+
+$integer-&gt;coerce('1'); // 1 (coerced from string)
+
+try {
+    $strictInteger-&gt;coerce('1'); // CoercionException!
+} catch (CoercionException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+</code></pre>
+<h2 id="error-paths"><a href="#error-paths" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Error Paths</h2>
+<p>One of the most valuable features of the Type component is detailed error reporting. When validation fails on nested structures, the error message includes the exact path to the failing value:</p>
+<pre><code class="language-php">use Psl\Type;
+use Psl\Type\Exception\AssertException;
+use Psl\Type\Exception\CoercionException;
+
+$type = Type\dict(Type\string(), Type\shape([
+    'title' =&gt; Type\string(),
+    'content' =&gt; Type\string(),
+]));
+
+// If key 123 (int) is used instead of a string key:
+try {
+    $type-&gt;assert([
+        123 =&gt; ['title' =&gt; 'Hello', 'content' =&gt; 'World'],
+    ]);
+} catch (AssertException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+
+// If 'title' is an array instead of string:
+try {
+    $type-&gt;coerce([
+        'foo' =&gt; ['title' =&gt; ['nested'], 'content' =&gt; 'World'],
+    ]);
+} catch (CoercionException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+</code></pre>
+<p>This makes debugging validation failures in deeply nested data structures straightforward.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/type/src/Psl/Type/">src/Psl/Type/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

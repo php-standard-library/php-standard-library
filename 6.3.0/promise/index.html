@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Promise - PSL</title>
+        <meta name="description" content="The Promise component provides a promise interface for deferred computations. A promise represent...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/promise/">
+        <meta property="og:title" content="Promise - PSL">
+        <meta property="og:description" content="The Promise component provides a promise interface for deferred computations. A promise represent...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/promise/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Promise - PSL">
+        <meta name="twitter:description" content="The Promise component provides a promise interface for deferred computations. A promise represent...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link active" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Promise</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/promise</div></div>
+<p>The <code>Promise</code> component provides a promise interface for deferred computations. A promise represents a value that will be available in the future -- either resolved with a success value or rejected with an exception. You attach callbacks to react to the outcome without blocking.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<p><code>PromiseInterface&lt;T&gt;</code> defines four methods for composing asynchronous operations:</p>
+<ul>
+<li><strong><code>then()</code></strong> -- Handle both success and failure in one call</li>
+<li><strong><code>map()</code></strong> -- Transform the resolved value</li>
+<li><strong><code>catch()</code></strong> -- Recover from rejection</li>
+<li><strong><code>always()</code></strong> -- Run cleanup logic regardless of outcome</li>
+</ul>
+<p>Every method returns a new <code>PromiseInterface</code>, so you can chain them into pipelines.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="transforming-a-resolved-value"><a href="#transforming-a-resolved-value" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming a Resolved Value</h3>
+<p><code>map()</code> applies a function to the resolved value. If the promise is rejected, the callback is skipped and the rejection propagates:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Str;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; 'hello');
+
+$upper = $promise-&gt;map(fn(string $body) =&gt; Str\uppercase($body));
+// If $promise resolves with 'hello', $upper resolves with 'HELLO'
+// If $promise is rejected, $upper is also rejected with the same exception
+
+$upper-&gt;await(); // 'HELLO'
+</code></pre>
+<h3 id="recovering-from-failure"><a href="#recovering-from-failure" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Recovering from Failure</h3>
+<p><code>catch()</code> attaches a callback that is only invoked when the promise is rejected. The returned value becomes the new resolved value:</p>
+<pre><code class="language-php">use Psl\Async;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; throw new Exception('oh no'));
+
+$safe = $promise-&gt;catch(fn(Throwable $_) =&gt; 'default response');
+// If $promise is rejected, $safe resolves with 'default response'
+// If $promise succeeds, $safe resolves with the original value
+
+$safe-&gt;await(); // 'default response'
+</code></pre>
+<h3 id="handling-both-cases-with-then"><a href="#handling-both-cases-with-then" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Handling Both Cases with then()</h3>
+<p><code>then()</code> is a shortcut for chaining <code>map()</code> and <code>catch()</code>:</p>
+<pre><code class="language-php">use Psl\Async;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; 'hello world');
+
+$result = $promise-&gt;then(fn(string $value) =&gt; ['value' =&gt; $value], fn(Throwable $e) =&gt; ['error' =&gt; $e-&gt;getMessage()]);
+
+$result-&gt;await(); // ['value' =&gt; 'hello world']
+</code></pre>
+<p>This is equivalent to:</p>
+<pre><code class="language-php">use Psl\Async;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; 'hello world');
+
+$result = $promise-&gt;map(fn(string $value) =&gt; ['value' =&gt; $value])-&gt;catch(fn(Throwable $e) =&gt; [
+    'error' =&gt; $e-&gt;getMessage(),
+]);
+
+$result-&gt;await(); // ['value' =&gt; 'hello world']
+</code></pre>
+<h3 id="cleanup-with-always"><a href="#cleanup-with-always" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cleanup with always()</h3>
+<p><code>always()</code> runs a callback when the promise settles, regardless of whether it resolved or was rejected. The promise's value passes through unchanged (unless the callback throws):</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\IO;
+use Psl\Str;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; 'hello');
+
+$promise
+    -&gt;map(fn(string $content) =&gt; Str\uppercase($content))
+    -&gt;always(fn() =&gt; IO\write_error_line('cleanup complete'))
+    -&gt;await();
+</code></pre>
+<h3 id="building-pipelines"><a href="#building-pipelines" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Building Pipelines</h3>
+<p>Because every method returns a new promise, you can compose multi-step async workflows:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\IO;
+use Psl\Json;
+use Psl\Type;
+
+/** @var Async\Awaitable&lt;string&gt; $promise */
+$promise = Async\run(static fn() =&gt; '{&quot;name&quot;: &quot;psl&quot;, &quot;version&quot;: &quot;3.0&quot;}');
+
+$processed = $promise
+    -&gt;map(fn(string $raw) =&gt; Json\decode($raw))
+    -&gt;map(
+        fn(mixed $data) =&gt; Type\shape([
+            'name' =&gt; Type\string(),
+            'version' =&gt; Type\string(),
+        ])-&gt;coerce($data),
+    )
+    -&gt;map(fn(array $valid) =&gt; ['project' =&gt; $valid['name'], 'v' =&gt; $valid['version']])
+    -&gt;catch(fn(Throwable $e) =&gt; ['error' =&gt; $e-&gt;getMessage()])
+    -&gt;always(fn() =&gt; IO\write_error_line('pipeline complete'));
+
+$processed-&gt;await();
+</code></pre>
+<h2 id="when-to-use-promise"><a href="#when-to-use-promise" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use Promise</h2>
+<ul>
+<li><strong>Async operations</strong> -- React to the outcome of concurrent tasks</li>
+<li><strong>Pipeline composition</strong> -- Chain transformations that may fail at any step</li>
+<li><strong>Error boundaries</strong> -- Catch and recover from failures at specific points in the chain</li>
+<li><strong>Resource cleanup</strong> -- Use <code>always()</code> to guarantee cleanup runs</li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/promise/src/Psl/Promise/">src/Psl/Promise/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

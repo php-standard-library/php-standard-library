@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ansi - PSL</title>
+        <meta name="description" content="The Ansi component provides pure functions for constructing ANSI escape sequences -- text styling...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/ansi/">
+        <meta property="og:title" content="Ansi - PSL">
+        <meta property="og:description" content="The Ansi component provides pure functions for constructing ANSI escape sequences -- text styling...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/ansi/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Ansi - PSL">
+        <meta name="twitter:description" content="The Ansi component provides pure functions for constructing ANSI escape sequences -- text styling...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link active" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Ansi</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/ansi</div></div>
+<p>The <code>Ansi</code> component provides pure functions for constructing ANSI escape sequences -- text styling, colors, cursor movement, screen manipulation, hyperlinks, and terminal mode control.</p>
+<p>All functions return immutable sequence objects that implement <code>CommandInterface</code>. No I/O is performed -- call <code>toString()</code> to get the raw escape string for writing to a terminal.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Cursor;
+use Psl\Ansi\Screen;
+use Psl\Ansi\Style;
+use Psl\IO;
+
+// Style and color text
+IO\write(Ansi\apply('Hello, world!', Style\bold(), Ansi\foreground(Color\green())));
+IO\write(&quot;\n&quot;);
+
+// Cursor movement
+IO\write(Cursor\move_to(1, 1)-&gt;toString());
+IO\write(Cursor\hide()-&gt;toString());
+
+// Screen control
+IO\write(Screen\erase(Screen\EraseMode::Full)-&gt;toString());
+IO\write(Screen\title('My App')-&gt;toString());
+
+// Hyperlinks (OSC 8)
+IO\write(Ansi\link('Click here', 'https://example.com', Style\underline()));
+IO\write(&quot;\n&quot;);
+
+// Strip ANSI sequences from text
+$plain = Ansi\strip(&quot;\e[1mBold\e[0m&quot;); // &quot;Bold&quot;
+IO\write_line('Stripped: %s', $plain);
+</code></pre>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<p>The component is organized around three sequence types that implement <code>CommandInterface</code>:</p>
+<ul>
+<li><strong><code>ControlSequenceIntroducer</code></strong> (CSI) -- sequences starting with <code>\e[</code>, used for cursor movement, text styling (SGR), screen erasing, scrolling, and DEC private mode toggling.</li>
+<li><strong><code>OperatingSystemCommand</code></strong> (OSC) -- sequences starting with <code>\e]</code>, used for setting window titles, hyperlinks, clipboard access, and desktop notifications.</li>
+<li><strong><code>ControlCharacter</code></strong> -- single-byte control characters (e.g. BEL <code>\x07</code>) that don't fit the CSI or OSC format.</li>
+</ul>
+<p>All are <code>final readonly</code> classes with a <code>toString()</code> method that produces the raw escape string. Functions in the component return one of these types (or a plain <code>string</code> for composed output like <code>apply()</code> and <code>link()</code>).</p>
+<h2 id="text-styling"><a href="#text-styling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Text Styling</h2>
+<p>The <code>apply()</code> function wraps text with SGR (Select Graphic Rendition) sequences and an automatic reset. It accepts any combination of styles and colors:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\IO;
+
+// Combine multiple styles
+IO\write(Ansi\apply('important', Style\bold(), Style\underline(), Ansi\foreground(Color\red())));
+IO\write(&quot;\n&quot;);
+
+// Background colors
+IO\write(Ansi\apply(' PASS ', Style\bold(), Ansi\foreground(Color\white()), Ansi\background(Color\green())));
+IO\write(&quot;\n&quot;);
+</code></pre>
+<p>Colors are created through factory functions in the <code>Color</code> namespace and passed to <code>foreground()</code> or <code>background()</code>:</p>
+<ul>
+<li><strong>16 named colors</strong> -- <code>black</code>, <code>red</code>, <code>green</code>, <code>yellow</code>, <code>blue</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code>, and their <code>bright_*</code> variants</li>
+<li><strong>ANSI-256</strong> -- <code>Color\ansi256(int $code)</code> for the 256-color palette</li>
+<li><strong>24-bit RGB</strong> -- <code>Color\rgb(int $r, int $g, int $b)</code> for true color</li>
+<li><strong>Hex</strong> -- <code>Color\hex(string $hex)</code> for hex color strings like <code>'#FF6600'</code></li>
+</ul>
+<h2 id="hyperlinks"><a href="#hyperlinks" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Hyperlinks</h2>
+<p>The <code>link()</code> function wraps text in an OSC 8 hyperlink, with optional SGR styles applied to the visible text:</p>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Style;
+use Psl\IO;
+
+IO\write(Ansi\link('GitHub', 'https://github.com', Style\bold(), Style\underline()));
+IO\write(&quot;\n&quot;);
+</code></pre>
+<p>Terminal emulators that support OSC 8 render the text as a clickable link.</p>
+<h2 id="cursor-control"><a href="#cursor-control" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cursor Control</h2>
+<p>Functions in the <code>Cursor</code> namespace manipulate cursor position and visibility:</p>
+<pre><code class="language-php">use Psl\Ansi\Cursor;
+use Psl\IO;
+
+IO\write(Cursor\move_to(1, 1)-&gt;toString()); // absolute position (1-based row, column)
+IO\write(Cursor\up(5)-&gt;toString()); // relative movement
+IO\write(Cursor\down(3)-&gt;toString());
+IO\write(Cursor\forward(10)-&gt;toString());
+IO\write(Cursor\back(2)-&gt;toString());
+IO\write(Cursor\save()-&gt;toString()); // save position
+IO\write(Cursor\restore()-&gt;toString()); // restore saved position
+IO\write(Cursor\hide()-&gt;toString()); // hide cursor
+IO\write(Cursor\show()-&gt;toString()); // show cursor
+</code></pre>
+<h2 id="screen-control"><a href="#screen-control" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Screen Control</h2>
+<p>Functions in the <code>Screen</code> namespace control the display, window properties, and terminal modes.</p>
+<pre><code class="language-php">use Psl\Ansi\Screen;
+use Psl\IO;
+
+// Erasing and scrolling
+IO\write(Screen\erase(Screen\EraseMode::Full)-&gt;toString()); // erase entire screen
+IO\write(Screen\erase_line(Screen\LineEraseMode::Right)-&gt;toString()); // erase from cursor to end of line
+IO\write(Screen\scroll_up(5)-&gt;toString()); // scroll viewport up
+
+// Window properties
+IO\write(Screen\title('My App')-&gt;toString()); // set window title
+IO\write(Screen\notify('Build complete')-&gt;toString()); // desktop notification
+
+// Progress indicator (supported by Windows Terminal, ConEmu, Kitty, Ghostty)
+IO\write(Screen\progress(Screen\ProgressState::Normal, 50)-&gt;toString()); // 50% progress
+IO\write(Screen\progress(Screen\ProgressState::Indeterminate)-&gt;toString()); // animated spinner
+IO\write(Screen\progress_clear()-&gt;toString()); // remove indicator
+
+// Terminal modes
+IO\write(Screen\set_mode(Screen\ScreenMode::AlternateScreen)-&gt;toString()); // alternate screen buffer for TUIs
+IO\write(Screen\set_mode(Screen\ScreenMode::MouseTracking)-&gt;toString()); // mouse click and scroll events
+IO\write(Screen\set_mode(Screen\ScreenMode::BracketedPaste)-&gt;toString()); // distinguish pasted text from typed input
+</code></pre>
+<h2 id="examples"><a href="#examples" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Examples</h2>
+<h3 id="styled-log-output"><a href="#styled-log-output" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Styled Log Output</h3>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Color;
+use Psl\Ansi\Style;
+use Psl\IO;
+
+IO\write_line(Ansi\apply('Error: something went wrong', Style\bold(), Ansi\foreground(Color\red())));
+IO\write_line(Ansi\apply('Warning: check configuration', Ansi\foreground(Color\yellow())));
+IO\write_line(Ansi\apply('Success!', Style\bold(), Ansi\foreground(Color\green())));
+</code></pre>
+<h3 id="tui-setup-and-teardown"><a href="#tui-setup-and-teardown" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TUI Setup and Teardown</h3>
+<pre><code class="language-php">use Psl\Ansi;
+use Psl\Ansi\Cursor;
+use Psl\Ansi\Screen;
+use Psl\IO;
+
+// Enter TUI mode
+IO\write(
+    Screen\set_mode(Screen\ScreenMode::AlternateScreen)-&gt;toString()
+        . Cursor\hide()-&gt;toString()
+        . Screen\erase(Screen\EraseMode::Full)-&gt;toString()
+        . Cursor\move_to(1, 1)-&gt;toString()
+        . Screen\title('My TUI App')-&gt;toString(),
+);
+
+// ... render UI ...
+
+// Exit TUI mode
+IO\write(
+    Cursor\show()-&gt;toString()
+        . Ansi\reset()-&gt;toString()
+        . Screen\reset_mode(Screen\ScreenMode::AlternateScreen)-&gt;toString()
+        . Screen\title('')-&gt;toString(),
+);
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/ansi/src/Psl/Ansi/">src/Psl/Ansi/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dict - PSL</title>
+        <meta name="description" content="The Dict component provides functions for creating and transforming associative arrays (array&lt;Tk,...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/dict/">
+        <meta property="og:title" content="Dict - PSL">
+        <meta property="og:description" content="The Dict component provides functions for creating and transforming associative arrays (array&lt;Tk,...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/dict/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Dict - PSL">
+        <meta name="twitter:description" content="The Dict component provides functions for creating and transforming associative arrays (array&lt;Tk,...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link active" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Dict</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/dict</div></div>
+<p>The <code>Dict</code> component provides functions for creating and transforming associative arrays (<code>array&lt;Tk, Tv&gt;</code>). Unlike Vec, Dict functions preserve keys, making them the right choice when the relationship between keys and values matters.</p>
+<p>Dict functions are type-safe replacements for PHP's <code>array_map</code>, <code>array_filter</code>, <code>array_combine</code>, <code>array_merge</code>, and similar functions, with consistent argument order and predictable behavior.</p>
+<h2 id="transforming-values-and-keys"><a href="#transforming-values-and-keys" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming Values and Keys</h2>
+<pre><code class="language-php">use Psl\Dict;
+use Psl\Str;
+
+// Map: transform values, keep keys intact
+Dict\map(['a' =&gt; 1, 'b' =&gt; 2, 'c' =&gt; 3], fn(int $v) =&gt; $v * 10);
+// ['a' =&gt; 10, 'b' =&gt; 20, 'c' =&gt; 30]
+
+// Map keys: transform keys, keep values intact
+Dict\map_keys(['a' =&gt; 1, 'b' =&gt; 2], fn(string $k) =&gt; Str\uppercase($k));
+// ['A' =&gt; 1, 'B' =&gt; 2]
+
+// Map with key: callback receives both key and value
+Dict\map_with_key(['width' =&gt; 100, 'height' =&gt; 50], fn(string $k, int $v) =&gt; $k . '=' . $v);
+
+// ['width' =&gt; 'width=100', 'height' =&gt; 'height=50']
+</code></pre>
+<h2 id="filtering"><a href="#filtering" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Filtering</h2>
+<pre><code class="language-php">use Psl\Dict;
+use Psl\Str;
+
+// Filter by value (keys are preserved)
+Dict\filter(['a' =&gt; 1, 'b' =&gt; 0, 'c' =&gt; 3], fn(int $v) =&gt; $v &gt; 0);
+// ['a' =&gt; 1, 'c' =&gt; 3]
+
+// Filter by key
+Dict\filter_keys(['admin' =&gt; true, 'guest' =&gt; false], fn(string $k) =&gt; $k !== 'guest');
+// ['admin' =&gt; true]
+
+// Filter with both key and value
+Dict\filter_with_key(['foo' =&gt; 1, 'bar' =&gt; 2, 'baz' =&gt; 3], fn(string $k, int $v) =&gt; $v &gt; 1 &amp;&amp; Str\contains($k, 'a'));
+// ['bar' =&gt; 2, 'baz' =&gt; 3]
+
+// Filter nonnull by: keep values where the callback returns non-null (original values are preserved)
+Dict\filter_nonnull_by(['a' =&gt; 'hello', 'b' =&gt; '', 'c' =&gt; 'world'], fn(string $v) =&gt; $v !== '' ? $v : null);
+// ['a' =&gt; 'hello', 'c' =&gt; 'world']
+
+// Map nonnull: transform values and discard null results (keys are preserved)
+Dict\map_nonnull([1, 2, 3], fn(int $v) =&gt; $v &gt; 1 ? $v * 2 : null);
+
+// [1 =&gt; 4, 2 =&gt; 6]
+</code></pre>
+<h2 id="building-dicts"><a href="#building-dicts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Building Dicts</h2>
+<pre><code class="language-php">use Psl\Dict;
+use Psl\Str;
+
+// Associate: zip keys and values into a dict
+Dict\associate(['x', 'y', 'z'], [10, 20, 30]);
+// ['x' =&gt; 10, 'y' =&gt; 20, 'z' =&gt; 30]
+
+// From entries: build from [key, value] tuples
+Dict\from_entries([['name', 'Alice'], ['role', 'admin']]);
+// ['name' =&gt; 'Alice', 'role' =&gt; 'admin']
+
+// From keys: generate values from keys using a function
+Dict\from_keys(
+    ['sm', 'md', 'lg'],
+    /**
+     * @param 'sm'|'md'|'lg' $size
+     *
+     * @return 576|768|992
+     */
+    fn(string $size) =&gt; match ($size) {
+        'sm' =&gt; 576,
+        'md' =&gt; 768,
+        'lg' =&gt; 992,
+    },
+);
+// ['sm' =&gt; 576, 'md' =&gt; 768, 'lg' =&gt; 992]
+
+// Reindex: re-key an iterable using a function applied to each value
+$users = [['id' =&gt; 42, 'name' =&gt; 'Alice'], ['id' =&gt; 7, 'name' =&gt; 'Bob']];
+Dict\reindex($users, fn($user) =&gt; $user['id']);
+// [42 =&gt; ['id' =&gt; 42, 'name' =&gt; 'Alice'], 7 =&gt; ['id' =&gt; 7, 'name' =&gt; 'Bob']]
+
+// Pull: build a dict by deriving both new keys and new values
+Dict\pull(
+    ['Alice', 'Bob'],
+    fn(string $name) =&gt; Str\length($name), // value function
+    fn(string $name) =&gt; Str\lowercase($name), // key function
+);
+
+// ['alice' =&gt; 5, 'bob' =&gt; 3]
+</code></pre>
+<h2 id="merging-and-selecting"><a href="#merging-and-selecting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Merging and Selecting</h2>
+<pre><code class="language-php">use Psl\Dict;
+
+// Merge: combine multiple dicts (later values overwrite earlier ones)
+Dict\merge(['a' =&gt; 1, 'b' =&gt; 2], ['b' =&gt; 99, 'c' =&gt; 3]);
+// ['a' =&gt; 1, 'b' =&gt; 99, 'c' =&gt; 3]
+
+// Select keys: pick only the specified keys
+Dict\select_keys(['a' =&gt; 1, 'b' =&gt; 2, 'c' =&gt; 3, 'd' =&gt; 4], ['a', 'c']);
+// ['a' =&gt; 1, 'c' =&gt; 3]
+
+// Flip: swap keys and values
+Dict\flip(['a' =&gt; 1, 'b' =&gt; 2]);
+// [1 =&gt; 'a', 2 =&gt; 'b']
+
+// Unique: remove entries with duplicate values (keeps the first occurrence's key)
+Dict\unique([1 =&gt; 'a', 2 =&gt; 'b', 3 =&gt; 'a']);
+
+// [1 =&gt; 'a', 2 =&gt; 'b']
+</code></pre>
+<h2 id="sorting"><a href="#sorting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sorting</h2>
+<pre><code class="language-php">use Psl\Dict;
+
+// Sort by values (keys are preserved)
+Dict\sort(['b' =&gt; 3, 'a' =&gt; 1, 'c' =&gt; 2]);
+// ['a' =&gt; 1, 'c' =&gt; 2, 'b' =&gt; 3]
+
+// Sort by keys
+Dict\sort_by_key(['banana' =&gt; 2, 'apple' =&gt; 1, 'cherry' =&gt; 3]);
+
+// ['apple' =&gt; 1, 'banana' =&gt; 2, 'cherry' =&gt; 3]
+</code></pre>
+<h2 id="grouping"><a href="#grouping" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Grouping</h2>
+<pre><code class="language-php">use Psl\Dict;
+
+// Group by: partition values into buckets based on a key function
+$words = ['apple', 'avocado', 'banana', 'blueberry', 'cherry'];
+Dict\group_by($words, fn(string $w) =&gt; $w[0]);
+// ['a' =&gt; ['apple', 'avocado'], 'b' =&gt; ['banana', 'blueberry'], 'c' =&gt; ['cherry']]
+
+// Returning null from the key function excludes that element
+Dict\group_by([1, 2, 3, 4, 5], static function (int $n): null|string {
+    if ($n &lt;= 2) {
+        return null; // exclude 1 and 2
+    }
+
+    if (($n % 2) === 0) {
+        return 'even';
+    }
+
+    return 'odd';
+});
+
+// ['odd' =&gt; [3, 5], 'even' =&gt; [4]]
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/dict/src/Psl/Dict/">src/Psl/Dict/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

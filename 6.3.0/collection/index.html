@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Collection - PSL</title>
+        <meta name="description" content="The Collection component provides generic, object-oriented collection types as an alternative to ...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/collection/">
+        <meta property="og:title" content="Collection - PSL">
+        <meta property="og:description" content="The Collection component provides generic, object-oriented collection types as an alternative to ...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/collection/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Collection - PSL">
+        <meta name="twitter:description" content="The Collection component provides generic, object-oriented collection types as an alternative to ...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link active" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Collection</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/collection</div></div>
+<p>The <code>Collection</code> component provides generic, object-oriented collection types as an alternative to PHP arrays. Collections are strongly typed, support generics via doc-block annotations, and offer a rich API for filtering, mapping, and slicing.</p>
+<p>Each collection type comes in two variants: an immutable (<code>readonly</code>) version and a mutable version.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Immutable</th>
+<th>Mutable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ordered list</td>
+<td><code>Vector&lt;T&gt;</code></td>
+<td><code>MutableVector&lt;T&gt;</code></td>
+</tr>
+<tr>
+<td>Key-value map</td>
+<td><code>Map&lt;Tk, Tv&gt;</code></td>
+<td><code>MutableMap&lt;Tk, Tv&gt;</code></td>
+</tr>
+<tr>
+<td>Unique values</td>
+<td><code>Set&lt;T&gt;</code></td>
+<td><code>MutableSet&lt;T&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="vector"><a href="#vector" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Vector</h2>
+<p>A <code>Vector</code> is an ordered, integer-indexed sequence of values -- similar to a PHP <code>list&lt;T&gt;</code>.</p>
+<pre><code class="language-php">use Psl\Collection\MutableVector;
+use Psl\Collection\Vector;
+use Psl\Str;
+
+// Immutable vector
+$names = Vector::fromArray(['Alice', 'Bob', 'Charlie']);
+$names-&gt;count(); // 3
+$names-&gt;at(0); // 'Alice'
+$names-&gt;first(); // 'Alice'
+$names-&gt;last(); // 'Charlie'
+$names-&gt;toArray(); // ['Alice', 'Bob', 'Charlie']
+
+// Filtering and mapping return new immutable vectors
+$short = $names-&gt;filter(fn(string $n): bool =&gt; Str\length($n) &lt;= 3);
+$upper = $names-&gt;map(Str\uppercase(...));
+
+/**
+ * Mutable vector -- supports in-place modification
+ *
+ * @var MutableVector&lt;string&gt; $tasks
+ */
+$tasks = MutableVector::fromArray(['eat', 'sleep']);
+$tasks-&gt;add('code');
+$tasks-&gt;remove(0); // removes 'eat', re-indexes
+$tasks-&gt;toArray(); // ['sleep', 'code']
+</code></pre>
+<h2 id="map"><a href="#map" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Map</h2>
+<p>A <code>Map</code> is an ordered collection of key-value pairs. Keys must be <code>int</code> or <code>string</code>.</p>
+<pre><code class="language-php">use Psl\Collection\Map;
+use Psl\Collection\MutableMap;
+
+/**
+ * Immutable map
+ *
+ * @var Map&lt;string, int&gt; $scores
+ */
+$scores = Map::fromArray(['alice' =&gt; 95, 'bob' =&gt; 82, 'charlie' =&gt; 91]);
+$scores-&gt;at('alice'); // 95
+$scores-&gt;get('unknown'); // null (no exception)
+$scores-&gt;contains('bob'); // true
+$scores-&gt;keys(); // Vector&lt;string&gt;
+$scores-&gt;values(); // Vector&lt;int&gt;
+
+// Filter to passing scores
+$passing = $scores-&gt;filter(fn(int $s): bool =&gt; $s &gt;= 90);
+$passing-&gt;toArray(); // ['alice' =&gt; 95, 'charlie' =&gt; 91]
+
+/**
+ * Mutable map
+ *
+ * @var MutableMap&lt;string, string&gt; $config
+ */
+$config = MutableMap::fromArray(['debug' =&gt; 'false']);
+$config-&gt;add('version', '2.0'); // adds or overwrites
+$config-&gt;set('debug', 'true'); // overwrites existing key (throws if missing)
+$config-&gt;remove('debug');
+</code></pre>
+<h2 id="set"><a href="#set" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Set</h2>
+<p>A <code>Set</code> stores unique values with no duplicate entries. Values must be <code>int</code> or <code>string</code> (array-key types).</p>
+<pre><code class="language-php">use Psl\Collection\MutableSet;
+use Psl\Collection\Set;
+
+/**
+ * A set is a collection of unique values. It can be either mutable or immutable.
+ *
+ * @var Set&lt;string&gt; $tags
+ */
+$tags = Set::fromArray(['php', 'psl', 'php']); // duplicates removed
+$tags-&gt;count(); // 2
+$tags-&gt;contains('php'); // true
+$tags-&gt;contains('rust'); // false
+
+/**
+ * Mutable set -- supports in-place modification
+ *
+ * @var MutableSet&lt;string&gt; $visited
+ */
+$visited = MutableSet::fromArray([]);
+$visited-&gt;add('page-a');
+$visited-&gt;add('page-b');
+$visited-&gt;add('page-a'); // no-op, already present
+$visited-&gt;count(); // 2
+$visited-&gt;remove('page-a');
+</code></pre>
+<h2 id="common-operations"><a href="#common-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Common Operations</h2>
+<p>All collection types share a consistent API for reading, transforming, and slicing:</p>
+<pre><code class="language-php">use Psl\Collection\Vector;
+
+$v = Vector::fromArray([10, 20, 30]);
+$v-&gt;at(1); // 20 (throws OutOfBoundsException if missing)
+$v-&gt;get(1); // 20 (returns null if missing)
+$v-&gt;linearSearch(20); // 1 (index of the value)
+
+// Slicing operations return new collections
+$v = Vector::fromArray([1, 2, 3, 4, 5]);
+$v-&gt;take(3)-&gt;toArray(); // [1, 2, 3]
+$v-&gt;drop(2)-&gt;toArray(); // [3, 4, 5]
+$v-&gt;slice(1, 3)-&gt;toArray(); // [2, 3, 4]
+$v-&gt;chunk(2); // Vector&lt;Vector&lt;int&gt;&gt; of [[1,2], [3,4], [5]]
+</code></pre>
+<p>All collections implement <code>IteratorAggregate</code> for use in <code>foreach</code>, and <code>JsonSerializable</code> for JSON encoding. Maps always serialize as JSON objects (<code>{}</code>), vectors and sets as JSON arrays (<code>[]</code>).</p>
+<p>Mutable collections also implement <code>ArrayAccess</code>:</p>
+<pre><code class="language-php">use Psl\Collection\MutableVector;
+
+/**
+ * @var MutableVector&lt;int&gt; $v
+ */
+$v = MutableVector::fromArray([10, 20, 30]);
+$v[] = 40; // appends
+$v[1] = 99; // sets index 1
+unset($v[0]); // removes index 0
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/collection/src/Psl/Collection/">src/Psl/Collection/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

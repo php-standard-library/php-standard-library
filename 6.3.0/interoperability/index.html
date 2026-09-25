@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Interoperability - PSL</title>
+        <meta name="description" content="The Interoperability component provides a set of interfaces for converting between PSL types and ...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/interoperability/">
+        <meta property="og:title" content="Interoperability - PSL">
+        <meta property="og:description" content="The Interoperability component provides a set of interfaces for converting between PSL types and ...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/interoperability/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Interoperability - PSL">
+        <meta name="twitter:description" content="The Interoperability component provides a set of interfaces for converting between PSL types and ...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link active" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Interoperability</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/interoperability</div></div>
+<p>The <code>Interoperability</code> component provides a set of interfaces for converting between PSL types and their PHP standard library (<code>stdlib</code>) or <code>intl</code> extension equivalents.</p>
+<p>These interfaces establish a uniform contract for bidirectional conversion, allowing PSL types to interoperate seamlessly with native PHP types.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-php">use Psl\DateTime\DateTime;
+use Psl\DateTime\Timezone;
+use Psl\IO;
+
+// Convert a PSL DateTime to a PHP DateTimeImmutable
+$psl = DateTime::fromParts(Timezone::AmericaNewYork, 2024, 6, 15, 14, 30, 45);
+$stdlib = $psl-&gt;toStdlib();
+IO\write_line('PSL to stdlib: %s', $stdlib-&gt;format('Y-m-d H:i:s T'));
+
+// Convert back from a PHP DateTimeImmutable to a PSL DateTime
+$back = DateTime::fromStdlib($stdlib);
+IO\write_line('Back to PSL: %s', $back-&gt;toRfc3339());
+
+// Convert a PSL Timezone to an IntlTimeZone
+$intl = Timezone::AmericaNewYork-&gt;toIntl();
+$id = $intl-&gt;getID();
+IO\write_line('IntlTimeZone ID: %s', false === $id ? '&lt;unknown&gt;' : $id);
+
+// Convert back from an IntlTimeZone to a PSL Timezone
+$tz = Timezone::fromIntl($intl);
+IO\write_line('Back to PSL Timezone: %s', $tz-&gt;value);
+</code></pre>
+<h2 id="conversion-interfaces"><a href="#conversion-interfaces" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Conversion Interfaces</h2>
+<p>The component defines four interfaces covering all conversion directions:</p>
+<ul>
+<li><strong><code>ToStdlib</code></strong> -- convert a PSL type to its PHP standard library equivalent (e.g. PSL <code>DateTime</code> to <code>DateTimeImmutable</code>)</li>
+<li><strong><code>FromStdlib</code></strong> -- create a PSL type from its PHP standard library equivalent (e.g. <code>DateTimeImmutable</code> to PSL <code>DateTime</code>)</li>
+<li><strong><code>ToIntl</code></strong> -- convert a PSL type to its <code>intl</code> extension equivalent (e.g. PSL <code>Timezone</code> to <code>IntlTimeZone</code>)</li>
+<li><strong><code>FromIntl</code></strong> -- create a PSL type from its <code>intl</code> extension equivalent (e.g. <code>IntlTimeZone</code> to PSL <code>Timezone</code>)</li>
+</ul>
+<h2 id="implementations"><a href="#implementations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Implementations</h2>
+<p>The following PSL types implement these interfaces:</p>
+<table>
+<thead>
+<tr>
+<th>PSL Type</th>
+<th>ToStdlib</th>
+<th>FromStdlib</th>
+<th>ToIntl</th>
+<th>FromIntl</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DateTime\DateTime</code></td>
+<td><code>DateTimeImmutable</code></td>
+<td><code>DateTimeImmutable</code></td>
+<td><code>IntlCalendar</code></td>
+<td><code>IntlCalendar</code></td>
+</tr>
+<tr>
+<td><code>DateTime\Timestamp</code></td>
+<td><code>DateTimeImmutable</code></td>
+<td><code>DateTimeImmutable</code></td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>DateTime\Duration</code></td>
+<td><code>DateInterval</code></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td><code>DateTime\Timezone</code></td>
+<td><code>DateTimeZone</code></td>
+<td><code>DateTimeZone</code></td>
+<td><code>IntlTimeZone</code></td>
+<td><code>IntlTimeZone</code></td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/interoperability/src/Psl/Interoperability/">src/Psl/Interoperability/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

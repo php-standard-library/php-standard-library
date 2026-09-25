@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tree - PSL</title>
+        <meta name="description" content="The Tree component provides immutable tree data structures and operations for hierarchical data m...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/tree/">
+        <meta property="og:title" content="Tree - PSL">
+        <meta property="og:description" content="The Tree component provides immutable tree data structures and operations for hierarchical data m...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/tree/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Tree - PSL">
+        <meta name="twitter:description" content="The Tree component provides immutable tree data structures and operations for hierarchical data m...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link active" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Tree</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/tree</div></div>
+<p>The <code>Tree</code> component provides immutable tree data structures and operations for hierarchical data manipulation.</p>
+<p>Trees are fundamental data structures for representing hierarchical relationships. This component provides immutable tree nodes (<code>LeafNode</code> and <code>TreeNode</code>), pure constructor functions, functional operations (map, filter, reduce, fold), tree traversal algorithms, and search utilities.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<p>The Tree component has a simple design:</p>
+<ul>
+<li><strong><code>NodeInterface&lt;T&gt;</code></strong>: Base interface with <code>getValue(): T</code></li>
+<li><strong><code>LeafNode&lt;T&gt;</code></strong>: Leaf nodes (no children)</li>
+<li><strong><code>TreeNode&lt;T&gt;</code></strong>: Tree nodes with <code>getChildren(): list&lt;NodeInterface&lt;T&gt;&gt;</code></li>
+</ul>
+<p>All tree operations are immutable -- they return new trees rather than modifying existing ones.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="building-trees"><a href="#building-trees" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Building Trees</h3>
+<p>Use the <code>tree()</code> and <code>leaf()</code> constructor functions to build trees:</p>
+<pre><code class="language-php">use Psl\Tree;
+
+$tree = Tree\tree('root', [
+    Tree\leaf('child1'),
+    Tree\leaf('child2'),
+    Tree\tree('child3', [
+        Tree\leaf('grandchild1'),
+    ]),
+]);
+</code></pre>
+<p>You can also build trees from nested arrays or flat lists with parent references, which is especially useful for database records:</p>
+<pre><code class="language-php">use Psl\Tree;
+
+// From a nested array
+$tree = Tree\from_array([
+    'value' =&gt; 'root',
+    'children' =&gt; [
+        ['value' =&gt; 'child1', 'children' =&gt; []],
+        ['value' =&gt; 'child2', 'children' =&gt; []],
+    ],
+]);
+
+// From database records with parent_id relationships
+$records = [
+    ['id' =&gt; 1, 'name' =&gt; 'Root', 'parent_id' =&gt; null],
+    ['id' =&gt; 2, 'name' =&gt; 'Child A', 'parent_id' =&gt; 1],
+    ['id' =&gt; 3, 'name' =&gt; 'Child B', 'parent_id' =&gt; 1],
+    ['id' =&gt; 4, 'name' =&gt; 'Grandchild', 'parent_id' =&gt; 2],
+];
+
+$tree = Tree\from_list(
+    $records,
+    fn($record) =&gt; $record['id'],
+    fn($record) =&gt; $record['parent_id'],
+    fn($record) =&gt; $record['name'],
+);
+</code></pre>
+<h3 id="transforming-trees"><a href="#transforming-trees" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming Trees</h3>
+<pre><code class="language-php">use Psl\Math;
+use Psl\Tree;
+
+$tree = Tree\tree(1, [Tree\leaf(2), Tree\leaf(3)]);
+
+// Map: apply a function to every node value
+$doubled = Tree\map($tree, fn(int $x): int =&gt; $x * 2);
+// Result: tree(2, [leaf(4), leaf(6)])
+
+// Filter: keep only nodes matching a predicate
+$filtered = Tree\filter($tree, fn(int $x): bool =&gt; $x &gt;= 2);
+// Result: tree(2, [leaf(3)]) -- root must match or null is returned
+
+// Reduce: collapse the tree to a single value (pre-order)
+$sum = Tree\reduce($tree, fn(int $acc, int $x): int =&gt; $acc + $x, 0);
+// Result: 6
+
+// Fold: post-order fold with access to children results
+$result = Tree\fold(
+    $tree,
+    /**
+     * @param int $value
+     * @param list&lt;int&gt; $children
+     * @return int
+     */
+    fn(int $value, array $children): int =&gt; $value + Math\sum($children),
+);
+
+// Result: 6
+</code></pre>
+<h3 id="traversal"><a href="#traversal" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Traversal</h3>
+<p>Three traversal orders are available:</p>
+<pre><code class="language-php">use Psl\Tree;
+
+$tree = Tree\tree(1, [Tree\tree(2, [Tree\leaf(3)]), Tree\leaf(4)]);
+
+Tree\pre_order($tree); // [1, 2, 3, 4] -- root first, then children
+Tree\post_order($tree); // [3, 2, 4, 1] -- children first, then root
+Tree\level_order($tree); // [1, 2, 4, 3] -- breadth-first
+</code></pre>
+<h3 id="searching-and-paths"><a href="#searching-and-paths" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Searching and Paths</h3>
+<pre><code class="language-php">use Psl\Str;
+use Psl\Tree;
+
+$tree = Tree\tree('a', [
+    Tree\tree('b', [Tree\leaf('c')]),
+    Tree\leaf('d'),
+]);
+
+// Find the path from root to a matching node
+$path = Tree\path_to($tree, fn($x) =&gt; $x === 'c');
+// Result: ['a', 'b', 'c']
+
+// Navigate by index path
+Tree\at_index($tree, [0, 0]); // 'c'
+Tree\at_index($tree, [1]); // 'd'
+
+// Search for values
+Tree\find($tree, fn($x) =&gt; $x === 'c'); // 'c'
+Tree\contains($tree, 'd'); // true
+Tree\any($tree, fn($x) =&gt; $x === 'b'); // true
+Tree\all($tree, fn($x) =&gt; Str\length($x) === 1); // true
+</code></pre>
+<h3 id="custom-serialization"><a href="#custom-serialization" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Custom Serialization</h3>
+<p>The <code>traverse()</code> function gives you full control over how the tree is serialized:</p>
+<pre><code class="language-php">use Psl\Iter;
+use Psl\Str;
+use Psl\Tree;
+
+$tree = Tree\tree('root', [Tree\leaf('a'), Tree\leaf('b')]);
+
+// Build a custom string representation
+$result = Tree\traverse(
+    $tree,
+    /**
+     * @param non-empty-string $value
+     * @param Closure(): list&lt;non-empty-string&gt; $traverse
+     *
+     * @return non-empty-string
+     */
+    function (string $value, Closure $traverse): string {
+        $children = $traverse();
+        return Iter\is_empty($children) ? $value : $value . '(' . Str\join($children, ',') . ')';
+    },
+);
+
+// Result: 'root(a,b)'
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/tree/src/Psl/Tree/">src/Psl/Tree/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Graph - PSL</title>
+        <meta name="description" content="The Graph component provides immutable graph data structures and algorithms for working with dire...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/graph/">
+        <meta property="og:title" content="Graph - PSL">
+        <meta property="og:description" content="The Graph component provides immutable graph data structures and algorithms for working with dire...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/graph/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Graph - PSL">
+        <meta name="twitter:description" content="The Graph component provides immutable graph data structures and algorithms for working with dire...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link active" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Graph</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/graph</div></div>
+<p>The <code>Graph</code> component provides immutable graph data structures and algorithms for working with directed and undirected graphs.</p>
+<p>Graphs are fundamental data structures for modeling relationships and networks. This component supports directed and undirected graphs, weighted and unweighted edges, traversal (BFS, DFS), shortest path finding, topological sorting, and cycle detection. All operations are immutable and return new graph instances.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<p>The Graph component uses an adjacency list representation:</p>
+<ul>
+<li><strong><code>DirectedGraph&lt;TNode, TWeight&gt;</code></strong>: Directed graph with edges from node A to node B</li>
+<li><strong><code>UndirectedGraph&lt;TNode, TWeight&gt;</code></strong>: Undirected graph with bidirectional edges</li>
+<li><strong><code>Edge&lt;TNode, TWeight&gt;</code></strong>: Represents an edge with optional weight</li>
+<li><strong>Flexible node types</strong>: Nodes can be any type (objects, arrays, scalars, resources, etc.)</li>
+</ul>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="building-graphs"><a href="#building-graphs" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Building Graphs</h3>
+<pre><code class="language-php">use Psl\Graph;
+
+// Directed graph
+$graph = Graph\directed();
+$graph = Graph\add_node($graph, 'A');
+$graph = Graph\add_edge($graph, 'A', 'B');
+$graph = Graph\add_edge($graph, 'B', 'C');
+
+// Undirected graph (edges go in both directions)
+$graph = Graph\undirected();
+$graph = Graph\add_edge($graph, 'A', 'B'); // adds edges in both directions
+
+// Weighted edges
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'A', 'B', 5);
+$graph = Graph\add_edge($graph, 'A', 'C', 10);
+$graph = Graph\add_edge($graph, 'B', 'C', 2);
+</code></pre>
+<h3 id="traversal"><a href="#traversal" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Traversal</h3>
+<pre><code class="language-php">use Psl\Graph;
+
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'A', 'B');
+$graph = Graph\add_edge($graph, 'A', 'C');
+$graph = Graph\add_edge($graph, 'B', 'D');
+
+Graph\bfs($graph, 'A'); // ['A', 'B', 'C', 'D'] -- breadth-first
+Graph\dfs($graph, 'A'); // ['A', 'B', 'D', 'C'] -- depth-first
+</code></pre>
+<h3 id="shortest-path"><a href="#shortest-path" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Shortest Path</h3>
+<p>For unweighted graphs, BFS is used. For weighted graphs, Dijkstra's algorithm is used.</p>
+<pre><code class="language-php">use Psl\Graph;
+
+/** @var Graph\DirectedGraph&lt;string, int&gt; $graph */
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'NYC', 'Boston', 215);
+$graph = Graph\add_edge($graph, 'NYC', 'Philadelphia', 95);
+$graph = Graph\add_edge($graph, 'Philadelphia', 'Boston', 310);
+
+$path = Graph\shortest_path($graph, 'NYC', 'Boston');
+// ['NYC', 'Boston'] (cost: 215, shorter than via Philadelphia)
+
+/**
+ * For non-integer weights, use shortest_path_by with a converter
+ *
+ * @var Graph\DirectedGraph&lt;string, float&gt; $graph
+ */
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'A', 'B', 1.5);
+$graph = Graph\add_edge($graph, 'B', 'C', 2.3);
+$path = Graph\shortest_path_by($graph, 'A', 'C', fn(float $w): int =&gt; (int) ($w * 1000));
+</code></pre>
+<h3 id="cycle-detection-and-topological-sort"><a href="#cycle-detection-and-topological-sort" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cycle Detection and Topological Sort</h3>
+<pre><code class="language-php">use Psl\Graph;
+
+// Topological sort for DAGs (dependency ordering)
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'libc', 'gcc');
+$graph = Graph\add_edge($graph, 'gcc', 'app');
+$graph = Graph\add_edge($graph, 'libc', 'app');
+
+$buildOrder = Graph\topological_sort($graph);
+// ['libc', 'gcc', 'app']
+
+// Cycle detection
+$graph = Graph\directed();
+$graph = Graph\add_edge($graph, 'A', 'B');
+$graph = Graph\add_edge($graph, 'B', 'C');
+$graph = Graph\add_edge($graph, 'C', 'A');
+
+Graph\has_cycle($graph); // true
+</code></pre>
+<h3 id="object-nodes"><a href="#object-nodes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Object Nodes</h3>
+<p>Nodes can be any type, including objects:</p>
+<pre><code class="language-php">use Psl\Graph;
+
+class Task
+{
+    public function __construct(
+        public readonly string $name,
+        public readonly int $duration,
+    ) {}
+}
+
+$graph = Graph\directed();
+$compile = new Task('compile', 5);
+$test = new Task('test', 3);
+$deploy = new Task('deploy', 2);
+
+$graph = Graph\add_edge($graph, $compile, $test);
+$graph = Graph\add_edge($graph, $test, $deploy);
+
+$executionOrder = Graph\topological_sort($graph);
+
+// [$compile, $test, $deploy]
+</code></pre>
+<h2 id="use-cases"><a href="#use-cases" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Use Cases</h2>
+<ul>
+<li><strong>Dependency Resolution</strong>: Topological sort for build systems, package managers</li>
+<li><strong>Route Finding</strong>: Shortest path for navigation, network routing</li>
+<li><strong>Social Networks</strong>: Friend relationships, recommendations</li>
+<li><strong>State Machines</strong>: Transitions between states</li>
+<li><strong>Data Flow</strong>: Pipeline dependencies, task scheduling</li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/graph/src/Psl/Graph/">src/Psl/Graph/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

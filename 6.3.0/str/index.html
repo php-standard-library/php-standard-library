@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Str - PSL</title>
+        <meta name="description" content="The Str component provides Unicode-aware string functions that replace PHP&#039;s mb_* and standard st...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/str/">
+        <meta property="og:title" content="Str - PSL">
+        <meta property="og:description" content="The Str component provides Unicode-aware string functions that replace PHP&#039;s mb_* and standard st...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/str/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Str - PSL">
+        <meta name="twitter:description" content="The Str component provides Unicode-aware string functions that replace PHP&#039;s mb_* and standard st...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link active" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Str</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/str</div></div>
+<p>The <code>Str</code> component provides Unicode-aware string functions that replace PHP's <code>mb_*</code> and standard string functions with a consistent, safe, and predictable API.</p>
+<p>All functions work with UTF-8 by default and handle multibyte characters correctly. No more juggling <code>strlen</code> vs <code>mb_strlen</code> or forgetting encoding parameters -- <code>Str</code> makes the right behavior the default.</p>
+<h2 id="the-three-tier-model"><a href="#the-three-tier-model" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>The Three-Tier Model</h2>
+<p>PSL organizes string operations into three namespaces based on what a &quot;character&quot; means:</p>
+<ul>
+<li><code>Str</code> (default): Unicode codepoints via <code>mb_*</code>. Use this for most work. A character is one Unicode codepoint.</li>
+<li><code>Str\Byte</code>: Raw bytes via standard PHP functions. Faster when you know content is ASCII-only. A character is one byte.</li>
+<li><code>Str\Grapheme</code>: Grapheme clusters via <code>grapheme_*</code>. Handles combined characters like accented letters and emoji. A character is one visual unit.</li>
+</ul>
+<p>The difference matters for non-ASCII text:</p>
+<pre><code class="language-php">use Psl\Str;
+
+$emoji = &quot;\u{1F468}\u{200D}\u{1F469}\u{200D}\u{1F467}&quot;; // family emoji
+
+Str\Byte\length($emoji); // 18 (raw bytes)
+Str\length($emoji); // 5  (Unicode codepoints)
+Str\Grapheme\length($emoji); // 1  (one visual character)
+</code></pre>
+<p><strong>Rule of thumb</strong>: Use <code>Str\</code> by default. Use <code>Str\Byte\</code> for ASCII-only performance. Use <code>Str\Grapheme\</code> when you need to count or split by what users see on screen.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="searching-and-matching"><a href="#searching-and-matching" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Searching and Matching</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\contains('Hello, World', 'World'); // true
+Str\contains('Hello, World', 'world'); // false (case-sensitive)
+Str\contains_ci('Hello, World', 'world'); // true  (case-insensitive)
+
+Str\starts_with('Hello, World', 'Hello'); // true
+Str\ends_with('Hello, World', 'World'); // true
+
+// Find position of a substring (returns null if not found)
+Str\search('hello', 'l'); // 2
+Str\search_last('hello', 'l'); // 3
+</code></pre>
+<h3 id="extracting-substrings"><a href="#extracting-substrings" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Extracting Substrings</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\slice('Hello, World', 7); // 'World'
+Str\slice('Hello, World', 0, 5); // 'Hello'
+
+Str\before('user@example.com', '@'); // 'user'
+Str\after('user@example.com', '@'); // 'example.com'
+
+Str\chunk('Hello', 2); // ['He', 'll', 'o']
+</code></pre>
+<h3 id="transforming"><a href="#transforming" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\uppercase('hello'); // 'HELLO'
+Str\lowercase('HELLO'); // 'hello'
+Str\capitalize('hello world'); // 'Hello world'
+Str\capitalize_words('hello world'); // 'Hello World'
+
+Str\replace('hello world', 'world', 'PHP'); // 'hello PHP'
+Str\replace_every('aabbcc', ['aa' =&gt; '1', 'cc' =&gt; '3']); // '1bb3'
+
+Str\reverse('Hello'); // 'olleH'
+Str\repeat('ab', 3); // 'ababab'
+</code></pre>
+<h3 id="splitting-and-joining"><a href="#splitting-and-joining" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Splitting and Joining</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\split('one,two,three', ','); // ['one', 'two', 'three']
+Str\split('one,two,three', ',', 2); // ['one', 'two,three']
+
+Str\join(['one', 'two', 'three'], ', '); // 'one, two, three'
+</code></pre>
+<h3 id="trimming-and-padding"><a href="#trimming-and-padding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Trimming and Padding</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\trim('  hello  '); // 'hello'
+Str\trim_left('  hello  '); // 'hello  '
+Str\trim_right('  hello  '); // '  hello'
+
+Str\pad_left('42', 5, '0'); // '00042'
+Str\pad_right('hi', 10, '.'); // 'hi........'
+</code></pre>
+<h3 id="measuring-formatting-and-more"><a href="#measuring-formatting-and-more" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Measuring, Formatting, and More</h3>
+<pre><code class="language-php">use Psl\Str;
+
+Str\length('Hello'); // 5
+Str\length('مرحبا'); // 5 (Arabic characters, 5 codepoints)
+Str\is_empty(''); // true
+Str\width('你好'); // 4 (CJK characters count as 2)
+
+Str\format('Hello, %s! You have %d messages.', 'Alice', 5);
+// 'Hello, Alice! You have 5 messages.'
+
+Str\concat('Hello', ', ', 'World'); // 'Hello, World'
+Str\truncate('Hello, World', 0, 8, '...'); // 'Hello...'
+
+Str\strip_prefix('HelloWorld', 'Hello'); // 'World'
+Str\strip_suffix('HelloWorld', 'World'); // 'Hello'
+</code></pre>
+<h2 id="byte-level-operations"><a href="#byte-level-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Byte-Level Operations</h2>
+<p>When working with ASCII-only content, <code>Str\Byte\</code> functions are faster since they skip multibyte handling:</p>
+<pre><code class="language-php">use Psl\Str;
+
+// All the same functions, operating on raw bytes
+Str\Byte\length('Hello'); // 5
+Str\Byte\contains('Hello', 'ell'); // true
+Str\Byte\uppercase('hello'); // 'HELLO'
+Str\Byte\slice('Hello', 1, 3); // 'ell'
+Str\Byte\reverse('Hello'); // 'olleH'
+Str\Byte\rot13('Hello'); // 'Uryyb'
+</code></pre>
+<h2 id="grapheme-level-operations"><a href="#grapheme-level-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Grapheme-Level Operations</h2>
+<p>When you need to handle combined characters correctly (emoji sequences, accented characters), use <code>Str\Grapheme\</code>:</p>
+<pre><code class="language-php">use Psl\Str;
+
+$text = &quot;cafe\u{0301}&quot;; // 'cafe' + combining accent = 'caf' + visual 'é'
+
+Str\length($text); // 5 (codepoints)
+Str\Grapheme\length($text); // 4 (visual characters)
+
+Str\Grapheme\slice($text, 0, 3); // 'caf' (3 visual characters)
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/str/src/Psl/Str/">src/Psl/Str/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

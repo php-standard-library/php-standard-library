@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>UDP - PSL</title>
+        <meta name="description" content="The UDP component provides a non-blocking API for sending and receiving datagrams over UDP.">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/udp/">
+        <meta property="og:title" content="UDP - PSL">
+        <meta property="og:description" content="The UDP component provides a non-blocking API for sending and receiving datagrams over UDP.">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/udp/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="UDP - PSL">
+        <meta name="twitter:description" content="The UDP component provides a non-blocking API for sending and receiving datagrams over UDP.">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link active" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>UDP</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/udp</div></div>
+<p>The <code>UDP</code> component provides a non-blocking API for sending and receiving datagrams over UDP.</p>
+<p>It uses two distinct types for type-safe socket usage:</p>
+<ul>
+<li><strong><code>Socket</code></strong> -- an unconnected socket for sending/receiving to arbitrary addresses.</li>
+<li><strong><code>ConnectedSocket</code></strong> -- a connected socket for communicating with a single peer.</li>
+</ul>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Network\Address;
+use Psl\UDP;
+
+$server = UDP\Socket::bind('127.0.0.1', 0);
+$serverAddress = $server-&gt;getLocalAddress();
+
+Async\concurrently([
+    'server' =&gt; static function () use ($server): void {
+        [$data, $sender] = $server-&gt;receiveFrom(1024);
+        $server-&gt;sendTo(&quot;echo: {$data}&quot;, $sender);
+        $server-&gt;close();
+    },
+    'client' =&gt; static function () use ($serverAddress): void {
+        $client = UDP\Socket::bind('127.0.0.1', 0);
+        $client-&gt;sendTo('hello', Address::udp($serverAddress-&gt;host, $serverAddress-&gt;port ?? 0));
+        [$response, $_] = $client-&gt;receiveFrom(1024);
+        $client-&gt;close();
+    },
+]);
+</code></pre>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<h3 id="unconnected-vs-connected-sockets"><a href="#unconnected-vs-connected-sockets" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Unconnected vs. Connected Sockets</h3>
+<p>An unconnected <code>Socket</code> can send to and receive from any address using <code>sendTo()</code> and <code>receiveFrom()</code>. When you call <code>connect()</code> on it, the original socket is closed and a <code>ConnectedSocket</code> is returned. The connected socket uses simpler <code>send()</code> and <code>receive()</code> methods since the peer is fixed.</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\UDP;
+
+$server = UDP\Socket::bind('127.0.0.1', 0);
+$serverAddress = $server-&gt;getLocalAddress();
+
+Async\concurrently([
+    'server' =&gt; static function () use ($server): void {
+        [$data, $sender] = $server-&gt;receiveFrom(1024);
+        $server-&gt;sendTo(&quot;echo: {$data}&quot;, $sender);
+        $server-&gt;close();
+    },
+    'client' =&gt; static function () use ($serverAddress): void {
+        // Start with an unconnected socket
+        $socket = UDP\Socket::bind('127.0.0.1', 0);
+
+        // Connect returns a ConnectedSocket -- the original socket is closed
+        $connected = $socket-&gt;connect($serverAddress-&gt;host, $serverAddress-&gt;port ?? 0);
+
+        // $socket is now closed -- only $connected is usable
+        $connected-&gt;send('hello');
+        $_ = $connected-&gt;receive(512);
+        $connected-&gt;close();
+    },
+]);
+</code></pre>
+<p>You can also create a connected socket directly:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\UDP;
+
+$server = UDP\Socket::bind('127.0.0.1', 0);
+$serverAddress = $server-&gt;getLocalAddress();
+
+Async\concurrently([
+    'server' =&gt; static function () use ($server): void {
+        [$data, $sender] = $server-&gt;receiveFrom(1024);
+        $server-&gt;sendTo(&quot;echo: {$data}&quot;, $sender);
+        $server-&gt;close();
+    },
+    'client' =&gt; static function () use ($serverAddress): void {
+        // Create a connected socket directly
+        $socket = UDP\connect($serverAddress-&gt;host, $serverAddress-&gt;port ?? 0);
+        $socket-&gt;send('hello');
+        $_ = $socket-&gt;receive(512);
+        $socket-&gt;close();
+    },
+]);
+</code></pre>
+<h3 id="configuration"><a href="#configuration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Configuration</h3>
+<p><code>UDP\Socket::bind()</code> accepts a <code>BindConfiguration</code> to control address reuse, port reuse, and broadcast. Configuration objects are immutable with <code>with*</code> builder methods.</p>
+<h2 id="examples"><a href="#examples" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Examples</h2>
+<h3 id="echo-server"><a href="#echo-server" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Echo Server</h3>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Network\Address;
+use Psl\UDP;
+
+$socket = UDP\Socket::bind('127.0.0.1', 0);
+$serverAddress = $socket-&gt;getLocalAddress();
+echo &quot;Listening on {$serverAddress-&gt;toString()}\n&quot;;
+
+Async\concurrently([
+    'server' =&gt; static function () use ($socket): void {
+        // Echo one datagram then shut down
+        [$data, $sender] = $socket-&gt;receiveFrom(65_507);
+        $socket-&gt;sendTo($data, $sender);
+        $socket-&gt;close();
+    },
+    'client' =&gt; static function () use ($serverAddress): void {
+        $client = UDP\Socket::bind('127.0.0.1');
+        $client-&gt;sendTo('ping', Address::udp($serverAddress-&gt;host, $serverAddress-&gt;port ?? 0));
+        [$response, $_] = $client-&gt;receiveFrom(1024);
+        echo &quot;Got: {$response}\n&quot;;
+        $client-&gt;close();
+    },
+]);
+</code></pre>
+<h3 id="peek"><a href="#peek" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Peek</h3>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Network\Address;
+use Psl\UDP;
+
+$socket = UDP\Socket::bind('127.0.0.1');
+$serverAddress = $socket-&gt;getLocalAddress();
+
+Async\concurrently([
+    'server' =&gt; static function () use ($socket): void {
+        // Peek at data without consuming it
+        [$data, $_sender] = $socket-&gt;peekFrom(1024);
+        echo &quot;Peeked: {$data}\n&quot;;
+
+        // Same data is still available for receiveFrom()
+        [$data, $_sender] = $socket-&gt;receiveFrom(1024);
+        echo &quot;Received: {$data}\n&quot;;
+
+        $socket-&gt;close();
+    },
+    'client' =&gt; static function () use ($serverAddress): void {
+        $client = UDP\Socket::bind('127.0.0.1');
+        $client-&gt;sendTo('hello', Address::udp($serverAddress-&gt;host, $serverAddress-&gt;port ?? 0));
+        $client-&gt;close();
+    },
+]);
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/udp/src/Psl/UDP/">src/Psl/UDP/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

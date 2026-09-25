@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>File - PSL</title>
+        <meta name="description" content="The File component provides typed file handles for reading and writing files. It builds on the IO...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/file/">
+        <meta property="og:title" content="File - PSL">
+        <meta property="og:description" content="The File component provides typed file handles for reading and writing files. It builds on the IO...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/file/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="File - PSL">
+        <meta name="twitter:description" content="The File component provides typed file handles for reading and writing files. It builds on the IO...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link active" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>File</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/file</div></div>
+<p>The <code>File</code> component provides typed file handles for reading and writing files. It builds on the <code>IO</code> component's handle interfaces, adding file-specific concerns like write modes and advisory locking.</p>
+<h2 id="quick-read-and-write"><a href="#quick-read-and-write" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Quick Read and Write</h2>
+<p>For common cases, use the convenience functions:</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$tmp = Filesystem\create_temporary_file(prefix: 'psl_file_');
+
+// Write to a file (creates it if it does not exist)
+File\write($tmp, '{&quot;key&quot;: &quot;value&quot;}');
+
+// Read an entire file
+$content = File\read($tmp);
+IO\write_line('Full content: %s', $content);
+
+// Read with offset and length
+$header = File\read($tmp, offset: 0, length: 6);
+IO\write_line('Header: %s', $header);
+
+// Overwrite with truncation
+File\write($tmp, 'New content', File\WriteMode::Truncate);
+IO\write_line('After truncate: %s', File\read($tmp));
+
+Filesystem\delete_file($tmp);
+</code></pre>
+<p>Both <code>File\read()</code> and <code>File\write()</code> automatically acquire a lock (shared for reads, exclusive for writes) and release it when done.</p>
+<h2 id="write-modes"><a href="#write-modes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Write Modes</h2>
+<p>When opening a file for writing, you choose a <code>WriteMode</code> that controls how the file pointer is positioned and whether the file must already exist:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OpenOrCreate</code></td>
+<td>Opens or creates the file. Pointer at the beginning. Existing content is preserved. <strong>(default)</strong></td>
+</tr>
+<tr>
+<td><code>Truncate</code></td>
+<td>Opens or creates the file and truncates it to zero length.</td>
+</tr>
+<tr>
+<td><code>Append</code></td>
+<td>Opens or creates the file. All writes go to the end regardless of seek position.</td>
+</tr>
+<tr>
+<td><code>MustCreate</code></td>
+<td>Creates a new file. Throws if the file already exists.</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$logFile = Filesystem\create_temporary_file(prefix: 'psl_log_');
+$lockFile = sys_get_temp_dir() . '/psl-session-' . uniqid() . '.lock';
+
+// Append a log line
+File\write($logFile, &quot;event occurred\n&quot;, File\WriteMode::Append);
+File\write($logFile, &quot;another event\n&quot;, File\WriteMode::Append);
+IO\write_line('Log contents: %s', File\read($logFile));
+
+// Ensure we are creating a fresh file
+$id = 'session-abc123';
+File\write($lockFile, $id, File\WriteMode::MustCreate);
+IO\write_line('Lock file contents: %s', File\read($lockFile));
+
+Filesystem\delete_file($logFile);
+Filesystem\delete_file($lockFile);
+</code></pre>
+<h2 id="file-handles"><a href="#file-handles" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>File Handles</h2>
+<p>For more control, open a file handle directly. Handles implement the <code>IO</code> handle interfaces and add <code>getPath()</code>, <code>getSize()</code>, and locking.</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+use Psl\Str;
+
+$csvFile = Filesystem\create_temporary_file(prefix: 'psl_csv_');
+$outputFile = Filesystem\create_temporary_file(prefix: 'psl_out_');
+$datFile = Filesystem\create_temporary_file(prefix: 'psl_dat_');
+
+// Prepare CSV data
+File\write($csvFile, &quot;name,age\nAlice,30\nBob,25\n&quot;);
+
+// Read-only
+$handle = File\open_read_only($csvFile);
+$all = $handle-&gt;readAll();
+$handle-&gt;close();
+IO\write_line('CSV data: %s', Str\trim_right($all));
+
+// Write-only with truncation
+$handle = File\open_write_only($outputFile, File\WriteMode::Truncate);
+$handle-&gt;writeAll(&quot;line 1\nline 2\n&quot;);
+$handle-&gt;close();
+IO\write_line('Output: %s', Str\trim_right(File\read($outputFile)));
+
+// Read-write
+File\write($datFile, 'hello world');
+$handle = File\open_read_write($datFile);
+$existing = $handle-&gt;readAll();
+$handle-&gt;seek(0);
+$handle-&gt;writeAll(Str\uppercase($existing));
+$handle-&gt;close();
+IO\write_line('Uppercased: %s', File\read($datFile));
+
+Filesystem\delete_file($csvFile);
+Filesystem\delete_file($outputFile);
+Filesystem\delete_file($datFile);
+</code></pre>
+<h2 id="file-locking"><a href="#file-locking" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>File Locking</h2>
+<p>File handles support advisory locking via <code>lock()</code> and <code>tryLock()</code>. The returned <code>Lock</code> object is released by calling <code>release()</code> or when it is garbage collected.</p>
+<ul>
+<li><strong><code>LockType::Shared</code></strong> -- Multiple processes can hold a shared lock simultaneously. Use for reads.</li>
+<li><strong><code>LockType::Exclusive</code></strong> -- Only one process can hold an exclusive lock. Use for writes.</li>
+</ul>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$counterFile = Filesystem\create_temporary_file(prefix: 'psl_counter_');
+File\write($counterFile, '0');
+
+$handle = File\open_read_write($counterFile);
+$lock = $handle-&gt;lock(File\LockType::Exclusive);
+
+$count = (int) $handle-&gt;readAll();
+$handle-&gt;seek(0);
+$handle-&gt;writeAll((string) ($count + 1));
+
+$lock-&gt;release();
+$handle-&gt;close();
+
+IO\write_line('Counter incremented to: %s', File\read($counterFile));
+
+Filesystem\delete_file($counterFile);
+</code></pre>
+<p><code>tryLock()</code> acquires the lock immediately or throws <code>AlreadyLockedException</code>:</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$tmp = Filesystem\create_temporary_file(prefix: 'psl_lock_');
+$handle = File\open_read_write($tmp);
+
+try {
+    $lock = $handle-&gt;tryLock(File\LockType::Exclusive);
+    IO\write_line('Lock acquired successfully');
+    $lock-&gt;release();
+} catch (File\Exception\AlreadyLockedException) {
+    IO\write_line('Another process holds the lock');
+}
+
+$handle-&gt;close();
+Filesystem\delete_file($tmp);
+</code></pre>
+<h2 id="blocking-behavior-in-async-code"><a href="#blocking-behavior-in-async-code" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Blocking Behavior in Async Code</h2>
+<p>All file operations are blocking: they block the current fiber until the operation completes. This is inherent to filesystem I/O; operating systems do not provide truly non-blocking file I/O the way they do for sockets.</p>
+<p>In concurrent applications, this means a file read or write in one fiber will prevent other fibers from running until it finishes. For most workloads this is fine since file I/O is fast, but if you are doing heavy file I/O alongside latency-sensitive network operations, consider offloading file work to a separate process.</p>
+<p>The <a href="https://github.com/amphp/file"><code>amphp/file</code></a> package does exactly this: it spawns a worker process and delegates all file operations to it, communicating over IPC. Because amphp uses the same RevoltPHP event loop as PSL's async component, it integrates seamlessly:</p>
+<pre><code class="language-php">use Amp\File;
+use Psl\Async;
+
+Async\main(static function(): int {
+    // Non-blocking file read; other fibers can run while this waits
+    $content = File\read('/path/to/large-file.dat');
+
+    return 0;
+});
+</code></pre>
+<h2 id="integration-with-io"><a href="#integration-with-io" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Integration with IO</h2>
+<p>Because file handles implement the <code>IO</code> interfaces, they work with any code that accepts <code>IO\ReadHandleInterface</code> or <code>IO\WriteHandleInterface</code>:</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$sourceFile = Filesystem\create_temporary_file(prefix: 'psl_src_');
+$destFile = Filesystem\create_temporary_file(prefix: 'psl_dst_');
+
+File\write($sourceFile, 'binary data to copy');
+
+$source = File\open_read_only($sourceFile);
+$dest = File\open_write_only($destFile, File\WriteMode::Truncate);
+IO\copy($source, $dest);
+$source-&gt;close();
+$dest-&gt;close();
+
+IO\write_line('Copied: %s', File\read($destFile));
+
+Filesystem\delete_file($sourceFile);
+Filesystem\delete_file($destFile);
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/file/src/Psl/File/">src/Psl/File/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

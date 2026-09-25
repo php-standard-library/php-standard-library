@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Fun - PSL</title>
+        <meta name="description" content="The Fun component provides functional programming utilities for composing, decorating, and contro...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/fun/">
+        <meta property="og:title" content="Fun - PSL">
+        <meta property="og:description" content="The Fun component provides functional programming utilities for composing, decorating, and contro...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/fun/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Fun - PSL">
+        <meta name="twitter:description" content="The Fun component provides functional programming utilities for composing, decorating, and contro...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link active" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Fun</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/fun</div></div>
+<p>The <code>Fun</code> component provides functional programming utilities for composing, decorating, and controlling function execution. These small combinators let you build data pipelines, inject side effects without disrupting flow, and defer expensive computations until they are actually needed.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="piping-values-through-functions"><a href="#piping-values-through-functions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Piping Values Through Functions</h3>
+<p><code>pipe()</code> chains closures left-to-right. Each function receives the output of the previous one:</p>
+<pre><code class="language-php">use Psl\Fun;
+use Psl\Str;
+
+$transform = Fun\pipe(
+    static fn(string $s): string =&gt; Str\trim($s),
+    static fn(string $s): string =&gt; Str\lowercase($s),
+    static fn(string $s): string =&gt; Str\replace($s, ' ', '-'),
+);
+
+$transform('  Hello World  '); // 'hello-world'
+</code></pre>
+<h3 id="composing-two-functions"><a href="#composing-two-functions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Composing Two Functions</h3>
+<p><code>after()</code> connects two functions where the output type of the first can differ from the input type of the second:</p>
+<pre><code class="language-php">use Psl\Fun;
+use Psl\Str;
+
+$strlen = Fun\after(static fn(string $s): string =&gt; Str\trim($s), static fn(string $s): int =&gt; Str\length($s));
+
+$strlen('  hi  '); // 2
+</code></pre>
+<h3 id="side-effects-with-tap"><a href="#side-effects-with-tap" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Side Effects with tap()</h3>
+<p><code>tap()</code> runs a callback for its side effect and returns the original value unchanged -- useful for logging or debugging inside a pipeline:</p>
+<pre><code class="language-php">use Psl\Fun;
+use Psl\IO;
+use Psl\Str;
+
+$process = Fun\pipe(
+    Fun\tap(static fn(string $v) =&gt; IO\write_error_line('input: %s', $v)),
+    static fn(string $s): string =&gt; Str\uppercase($s),
+    Fun\tap(static fn(string $v) =&gt; IO\write_error_line('output: %s', $v)),
+);
+
+$process('hello'); // 'HELLO' (logs are emitted as a side effect)
+</code></pre>
+<h3 id="lazy-evaluation"><a href="#lazy-evaluation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Lazy Evaluation</h3>
+<p><code>lazy()</code> wraps an initializer so the value is computed once on first access, then cached:</p>
+<pre><code class="language-php">use Psl\Fun;
+use Psl\Vec;
+
+$config = Fun\lazy(static fn(): array =&gt; Vec\fill(1000, 'value'));
+
+$config(); // computes the array
+$config(); // returns cached result
+</code></pre>
+<h3 id="conditional-logic"><a href="#conditional-logic" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Conditional Logic</h3>
+<p><code>when()</code> returns one of two results based on a predicate:</p>
+<pre><code class="language-php">use Psl\Fun;
+
+$classify = Fun\when(
+    static fn(int $n): bool =&gt; $n &gt;= 18,
+    static fn(int $_n): string =&gt; 'adult',
+    static fn(int $_n): string =&gt; 'minor',
+);
+
+$classify(21); // 'adult'
+$classify(12); // 'minor'
+</code></pre>
+<h3 id="utility-functions"><a href="#utility-functions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Utility Functions</h3>
+<p><code>identity()</code> returns a closure that passes its argument through unchanged -- handy as a default transformer or no-op callback:</p>
+<pre><code class="language-php">use Psl\Fun;
+
+$fn = Fun\identity();
+$fn(42); // 42
+</code></pre>
+<p><code>rethrow()</code> returns a closure that rethrows any exception it receives -- useful as an error callback:</p>
+<pre><code class="language-php">use Psl\Fun;
+
+$handler = Fun\rethrow();
+
+try {
+    $handler(new RuntimeException('boom'));
+} catch (RuntimeException $e) {
+    echo $e-&gt;getMessage(); // 'boom'
+}
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/fun/src/Psl/Fun/">src/Psl/Fun/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>IP - PSL</title>
+        <meta name="description" content="The IP component provides an immutable, binary-backed value object for working with IPv4 and IPv6...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/ip/">
+        <meta property="og:title" content="IP - PSL">
+        <meta property="og:description" content="The IP component provides an immutable, binary-backed value object for working with IPv4 and IPv6...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/ip/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="IP - PSL">
+        <meta name="twitter:description" content="The IP component provides an immutable, binary-backed value object for working with IPv4 and IPv6...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link active" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>IP</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/ip</div></div>
+<p>The <code>IP</code> component provides an immutable, binary-backed value object for working with IPv4 and IPv6 addresses. It supports parsing, formatting, classification, comparison, and reverse DNS lookups.</p>
+<p><code>Address</code> implements <code>Stringable</code>, <code>Comparable</code>, and <code>Equable</code>.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-php">use Psl\IP\Address;
+
+$addr = Address::parse('192.168.1.10');
+$addr-&gt;family; // Family::V4
+$addr-&gt;toString(); // '192.168.1.10'
+$addr-&gt;isPrivate(); // true
+$addr-&gt;isGlobalUnicast(); // false
+</code></pre>
+<h2 id="parsing"><a href="#parsing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Parsing</h2>
+<p>There are three ways to create an <code>Address</code>:</p>
+<ul>
+<li><strong><code>Address::v4()</code></strong> -- parse a dotted-decimal IPv4 address.</li>
+<li><strong><code>Address::v6()</code></strong> -- parse a colon-hex IPv6 address.</li>
+<li><strong><code>Address::parse()</code></strong> -- auto-detect the family.</li>
+</ul>
+<p>You can also create an address from raw binary bytes using <code>Address::fromBytes()</code>.</p>
+<pre><code class="language-php">use Psl\IP\Address;
+
+// Parse with explicit family
+$v4 = Address::v4('192.168.1.1');
+$v6 = Address::v6('2001:db8::1');
+
+// Auto-detect family
+$auto = Address::parse('::1');
+$auto-&gt;family; // Family::V6
+
+// Create from raw binary bytes
+$fromBytes = Address::fromBytes(&quot;\xc0\xa8\x01\x01&quot;);
+$fromBytes-&gt;toString(); // '192.168.1.1'
+</code></pre>
+<h2 id="classification"><a href="#classification" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Classification</h2>
+<p><code>Address</code> provides methods to classify addresses into well-known categories:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>IPv4 Range</th>
+<th>IPv6 Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>isLoopback()</code></td>
+<td><code>127.0.0.0/8</code></td>
+<td><code>::1</code></td>
+</tr>
+<tr>
+<td><code>isPrivate()</code></td>
+<td><code>10.0.0.0/8</code>, <code>172.16.0.0/12</code>, <code>192.168.0.0/16</code></td>
+<td><code>fc00::/7</code></td>
+</tr>
+<tr>
+<td><code>isLinkLocal()</code></td>
+<td><code>169.254.0.0/16</code></td>
+<td><code>fe80::/10</code></td>
+</tr>
+<tr>
+<td><code>isMulticast()</code></td>
+<td><code>224.0.0.0/4</code></td>
+<td><code>ff00::/8</code></td>
+</tr>
+<tr>
+<td><code>isUnspecified()</code></td>
+<td><code>0.0.0.0</code></td>
+<td><code>::</code></td>
+</tr>
+<tr>
+<td><code>isDocumentation()</code></td>
+<td><code>192.0.2.0/24</code>, <code>198.51.100.0/24</code>, <code>203.0.113.0/24</code></td>
+<td><code>2001:db8::/32</code></td>
+</tr>
+<tr>
+<td><code>isGlobalUnicast()</code></td>
+<td>Everything else</td>
+<td>Everything else</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-php">use Psl\IP\Address;
+
+$loopback = Address::v4('127.0.0.1');
+$loopback-&gt;isLoopback(); // true
+
+$private = Address::v4('10.0.0.1');
+$private-&gt;isPrivate(); // true
+
+$public = Address::v4('8.8.8.8');
+$public-&gt;isGlobalUnicast(); // true
+$public-&gt;isPrivate(); // false
+
+$doc = Address::v6('2001:db8::1');
+$doc-&gt;isDocumentation(); // true
+$doc-&gt;isGlobalUnicast(); // false
+</code></pre>
+<h2 id="formatting"><a href="#formatting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Formatting</h2>
+<pre><code class="language-php">use Psl\IP\Address;
+
+$v6 = Address::v6('2001:db8::1');
+
+// Compressed (RFC 5952)
+$v6-&gt;toString(); // '2001:db8::1'
+
+// Fully expanded
+$v6-&gt;toExpandedString(); // '2001:0db8:0000:0000:0000:0000:0000:0001'
+
+// Raw binary bytes
+$v6-&gt;toBytes(); // 16-byte binary string
+
+// Stringable
+echo (string) $v6; // '2001:db8::1'
+</code></pre>
+<h2 id="reverse-dns"><a href="#reverse-dns" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reverse DNS</h2>
+<pre><code class="language-php">use Psl\IP\Address;
+
+$v4 = Address::v4('192.168.1.10');
+$v4-&gt;toArpaName(); // '10.1.168.192.in-addr.arpa'
+
+$v6 = Address::v6('2001:db8::1');
+$v6-&gt;toArpaName(); // '1.0.0.0.0.0.0.0...8.b.d.0.1.0.0.2.ip6.arpa'
+</code></pre>
+<h2 id="comparison"><a href="#comparison" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Comparison</h2>
+<p><code>Address</code> implements <code>Comparable</code> and <code>Equable</code>, so addresses can be compared and sorted.</p>
+<pre><code class="language-php">use Psl\IP\Address;
+
+$a = Address::v4('10.0.0.1');
+$b = Address::v4('10.0.0.2');
+
+$a-&gt;equals($b); // false
+$a-&gt;compare($b); // Psl\Comparison\Order::Less
+$b-&gt;compare($a); // Psl\Comparison\Order::Greater
+
+$c = Address::v6('2001:db8::1');
+$d = Address::v6('2001:0db8:0000:0000:0000:0000:0000:0001');
+$c-&gt;equals($d); // true (same bytes, different notation)
+</code></pre>
+<h2 id="cidr-integration"><a href="#cidr-integration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>CIDR Integration</h2>
+<p><code>Address</code> objects can be passed directly to <code>CIDR\Block::contains()</code>:</p>
+<pre><code class="language-php">use Psl\CIDR;
+use Psl\IP\Address;
+
+$block = new CIDR\Block('192.168.1.0/24');
+
+// Pass a string
+$block-&gt;contains('192.168.1.100'); // true
+
+// Or pass an Address object
+$addr = Address::v4('192.168.1.100');
+$block-&gt;contains($addr); // true
+</code></pre>
+<h2 id="family"><a href="#family" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Family</h2>
+<p>The <code>Family</code> enum represents the IP address family, with values <code>V4</code> (4) and <code>V6</code> (16) corresponding to their byte sizes. It also supports conversion to and from IANA address family numbers (RFC 7871).</p>
+<pre><code class="language-php">use Psl\IP\Family;
+
+$family = Family::V4;
+$family-&gt;value; // 4 (byte size)
+$family-&gt;ianaFamily(); // 1
+
+$fromIana = Family::fromIanaFamily(2);
+$fromIana === Family::V6; // true
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/ip/src/Psl/IP/">src/Psl/IP/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

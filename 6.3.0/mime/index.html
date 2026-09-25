@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MIME - PSL</title>
+        <meta name="description" content="The MIME component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and relat...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/mime/">
+        <meta property="og:title" content="MIME - PSL">
+        <meta property="og:description" content="The MIME component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and relat...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/mime/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="MIME - PSL">
+        <meta name="twitter:description" content="The MIME component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and relat...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link active" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>MIME</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/mime</div></div>
+<p>The <code>MIME</code> component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing - all without filesystem coupling or temporary files.</p>
+<h2 id="media-types"><a href="#media-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Media Types</h2>
+<p><code>MediaType</code> is an immutable value object representing a MIME media type like <code>application/json</code> or <code>text/html; charset=utf-8</code>. Type and subtype are always lowercased. Structured syntax suffixes and registration trees are extracted automatically.</p>
+<pre><code class="language-php">use Psl\MIME\MediaType;
+
+$type = MediaType::parse('application/vnd.api+json; charset=utf-8');
+
+$type-&gt;type; // &quot;application&quot;
+$type-&gt;subtype; // &quot;vnd.api+json&quot;
+$type-&gt;suffix; // &quot;json&quot;
+$type-&gt;tree; // &quot;vnd&quot;
+$type-&gt;parameters; // Parameters with charset=utf-8
+$type-&gt;essence(); // &quot;application/vnd.api+json&quot;
+
+// From file extension
+$json = MediaType::fromExtension('json'); // application/json
+
+// IANA registration
+$type-&gt;isRegistered(); // true
+$type-&gt;extensions(); // [&quot;json&quot;]
+</code></pre>
+<h2 id="content-negotiation"><a href="#content-negotiation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Content Negotiation</h2>
+<p><code>MediaPreferences</code> parses HTTP Accept headers and negotiates the best media type per RFC 9110.</p>
+<pre><code class="language-php">use Psl\MIME\MediaPreferences;
+use Psl\MIME\MediaType;
+
+$prefs = MediaPreferences::parse('text/html, application/json;q=0.9, */*;q=0.1');
+
+$best = $prefs-&gt;negotiate([
+    new MediaType('application', 'json'),
+    new MediaType('text', 'html'),
+]);
+
+// $best-&gt;essence() === &quot;text/html&quot;
+</code></pre>
+<h2 id="parts"><a href="#parts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Parts</h2>
+<p>Parts are the building blocks of MIME messages. Every part implements <code>PartInterface</code>, which exposes <code>$mediaType</code>, <code>$headers</code>, and <code>body()</code>.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\MIME\Headers;
+use Psl\MIME\MediaType;
+use Psl\MIME\Part;
+
+// Raw part from headers + body
+$raw = new Part\Part(Headers::fromPairs([['Content-Type', 'text/plain']]), new IO\MemoryHandle('Hello'));
+
+// Text part with automatic transfer encoding (quoted-printable by default)
+$text = new Part\Text(new IO\MemoryHandle('Hello, World!'));
+$text-&gt;mediaType; // text/plain; charset=utf-8
+
+// Binary attachment with base64 encoding
+$data = new Part\Data(
+    new IO\MemoryHandle('binary content'),
+    filename: 'report.pdf',
+    mediaType: MediaType::parse('application/pdf'),
+);
+
+// Convert attachment to inline with Content-ID
+$inline = $data-&gt;asInline(Psl\MIME\ContentId::generate());
+</code></pre>
+<h2 id="multipart-bodies"><a href="#multipart-bodies" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Multipart Bodies</h2>
+<p>Multipart types compose multiple parts into a single body, delimited by a boundary string. All multipart types implement <code>MultiPartInterface</code> (which extends <code>PartInterface</code>), so they nest naturally.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\MIME\MediaType;
+use Psl\MIME\MultiPart;
+use Psl\MIME\Part;
+
+// multipart/alternative: text + HTML versions
+$alt = new MultiPart\Alternative();
+$alt-&gt;addPart(new Part\Text(new IO\MemoryHandle('Plain text')));
+$alt-&gt;addPart(new Part\Text(new IO\MemoryHandle('&lt;h1&gt;HTML&lt;/h1&gt;'), subtype: 'html'));
+
+// multipart/mixed: body + attachments
+$mixed = new MultiPart\Composite($alt);
+$mixed-&gt;addPart(
+    new Part\Data(
+        new IO\MemoryHandle('pdf content'),
+        filename: 'doc.pdf',
+        mediaType: MediaType::parse('application/pdf'),
+    ),
+);
+
+// Nested multipart is just $mixed-&gt;body() - a streaming read handle
+// IO\copy($mixed-&gt;body(), $outputHandle);
+</code></pre>
+<h3 id="form-data"><a href="#form-data" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Form Data</h3>
+<p><code>Form</code> builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\MIME\MediaType;
+use Psl\MIME\MultiPart\Form;
+use Psl\MIME\Part;
+
+$form = new Form();
+$form-&gt;addField('username', 'azjezz');
+$form-&gt;addField('bio', 'PSL maintainer');
+$form-&gt;addPart(
+    'avatar',
+    new Part\Data(new IO\MemoryHandle('image bytes'), filename: 'avatar.png', mediaType: MediaType::parse('image/png')),
+);
+
+$form-&gt;mediaType; // multipart/form-data; boundary=...
+$form-&gt;boundary; // random 24-char alphanumeric string
+</code></pre>
+<h3 id="streaming-parser"><a href="#streaming-parser" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Streaming Parser</h3>
+<p>The streaming parser yields parts lazily from a read handle, with configurable limits to prevent abuse.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\MIME\MultiPart\Parser;
+
+$body = &quot;--boundary\r\nContent-Type: text/plain\r\n\r\nHello\r\n--boundary\r\nContent-Type: text/html\r\n\r\n&lt;b&gt;World&lt;/b&gt;\r\n--boundary--\r\n&quot;;
+
+$parser = new Parser(boundary: 'boundary', maxParts: 100, maxPartSize: 10_000_000, spoolThreshold: 2_097_152);
+
+foreach ($parser-&gt;parse(new IO\MemoryHandle($body)) as $part) {
+    IO\write_line('%s: %s', $part-&gt;mediaType-&gt;essence(), $part-&gt;body()-&gt;readAll());
+}
+</code></pre>
+<h2 id="smime-cryptography"><a href="#smime-cryptography" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>S/MIME Cryptography</h2>
+<p>Sign, verify, encrypt, and decrypt using CMS (RFC 5652) - entirely in-memory without temporary files or <code>openssl_pkcs7_*</code> functions.</p>
+<pre><code class="language-php">use Psl\MIME\SMIME;
+
+// Signing requires a certificate and private key in PEM format.
+// Verification can optionally check the certificate chain against trusted CAs.
+// Encryption requires the recipient's certificate; decryption requires their private key.
+// All operations are in-memory -- no temporary files or openssl_pkcs7_* calls.
+
+/** @var string $certPem */
+/** @var string $keyPem */
+/** @var string $caCertPem */
+/** @var string $recipientCertPem */
+/** @var string $recipientKeyPem */
+
+// Sign and verify
+$signer = new SMIME\Signer($certPem, $keyPem);
+$signed = $signer-&gt;sign('Hello');
+
+$verifier = new SMIME\Verifier([$caCertPem]);
+$result = $verifier-&gt;verify($signed, verifyCertificateChain: true);
+$result-&gt;valid; // true
+$result-&gt;content; // &quot;Hello&quot;
+$result-&gt;digestAlgorithm; // DigestAlgorithm::Sha256
+
+// Encrypt and decrypt
+$encryptor = new SMIME\Encryptor([$recipientCertPem], SMIME\CipherAlgorithm::Aes256Cbc);
+$encrypted = $encryptor-&gt;encrypt('Secret');
+
+$decryptor = new SMIME\Decryptor($recipientKeyPem);
+$decrypted = $decryptor-&gt;decrypt($encrypted); // &quot;Secret&quot;
+</code></pre>
+<h2 id="dkim-signing"><a href="#dkim-signing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>DKIM Signing</h2>
+<p>Sign raw MIME messages with DKIM (RFC 6376) using RSA-SHA256 or Ed25519-SHA256 (RFC 8463). RSA keys below 1024 bits are rejected per RFC 8301.</p>
+<pre><code class="language-php">use Psl\MIME\DKIM;
+
+/** @var string $rsaPrivateKeyPem */
+
+$config = new DKIM\SigningConfiguration(
+    domain: 'example.com',
+    selector: 'default',
+    algorithm: DKIM\Algorithm::RsaSha256,
+    headerCanonicalization: DKIM\Canonicalization::Relaxed,
+    bodyCanonicalization: DKIM\Canonicalization::Relaxed,
+);
+
+$signer = new DKIM\Signer($rsaPrivateKeyPem, $config);
+
+$rawMessage = &quot;From: sender@example.com\r\nTo: rcpt@example.com\r\nSubject: Test\r\n\r\nHello!&quot;;
+$signedMessage = $signer-&gt;sign($rawMessage);
+
+// $signedMessage now has a DKIM-Signature header prepended
+</code></pre>
+<h2 id="content-sniffing"><a href="#content-sniffing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Content Sniffing</h2>
+<p>Detect MIME types from content bytes using magic signatures, RIFF sub-formats, ISO BMFF brands, and text heuristics. Works on raw byte strings or seekable read handles.</p>
+<h2 id="rfc-compliance"><a href="#rfc-compliance" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RFC Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 2045</td>
+<td>Media types, parameters, transfer encoding</td>
+</tr>
+<tr>
+<td>RFC 2046</td>
+<td>Multipart bodies, boundary rules</td>
+</tr>
+<tr>
+<td>RFC 2183</td>
+<td>Content-Disposition with safe filename</td>
+</tr>
+<tr>
+<td>RFC 2231</td>
+<td>Parameter encoding with continuations and charset</td>
+</tr>
+<tr>
+<td>RFC 2387</td>
+<td>multipart/related</td>
+</tr>
+<tr>
+<td>RFC 2392</td>
+<td>Content-ID parsing and generation</td>
+</tr>
+<tr>
+<td>RFC 5322</td>
+<td>Header line folding</td>
+</tr>
+<tr>
+<td>RFC 5652</td>
+<td>CMS signing, verification, encryption, decryption</td>
+</tr>
+<tr>
+<td>RFC 6376</td>
+<td>DKIM signing with simple/relaxed canonicalization</td>
+</tr>
+<tr>
+<td>RFC 6838</td>
+<td>Media type registration, suffix/tree extraction</td>
+</tr>
+<tr>
+<td>RFC 7578</td>
+<td>multipart/form-data</td>
+</tr>
+<tr>
+<td>RFC 8301</td>
+<td>DKIM minimum key size enforcement</td>
+</tr>
+<tr>
+<td>RFC 8463</td>
+<td>Ed25519-SHA256 DKIM signing</td>
+</tr>
+<tr>
+<td>RFC 8551</td>
+<td>S/MIME 4.0 message specification</td>
+</tr>
+<tr>
+<td>RFC 9110</td>
+<td>Content negotiation (Accept header)</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/mime/src/Psl/MIME/">src/Psl/MIME/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

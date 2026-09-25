@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Channel - PSL</title>
+        <meta name="description" content="The Channel component provides message-passing channels for async communication, inspired by Go&#039;s...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/channel/">
+        <meta property="og:title" content="Channel - PSL">
+        <meta property="og:description" content="The Channel component provides message-passing channels for async communication, inspired by Go&#039;s...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/channel/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Channel - PSL">
+        <meta name="twitter:description" content="The Channel component provides message-passing channels for async communication, inspired by Go&#039;s...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link active" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Channel</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/channel</div></div>
+<p>The <code>Channel</code> component provides message-passing channels for async communication, inspired by Go's channels and Rust's <code>std::sync::mpsc</code>. A channel splits into a <code>SenderInterface</code> and a <code>ReceiverInterface</code>, giving you a clear separation between the producing and consuming sides.</p>
+<p>Channels come in two flavors:</p>
+<ul>
+<li><strong>Bounded</strong> -- Has a fixed capacity. Sending blocks when the channel is full.</li>
+<li><strong>Unbounded</strong> -- Grows without limit. Sending never blocks due to capacity.</li>
+</ul>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="creating-channels"><a href="#creating-channels" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Creating Channels</h3>
+<p>Both factory functions return a <code>[ReceiverInterface, SenderInterface]</code> pair:</p>
+<pre><code class="language-php">use Psl\Channel;
+
+// Bounded: holds at most 10 messages
+[$receiver, $sender] = Channel\bounded(10);
+
+// Unbounded: no capacity limit
+[$receiver, $sender] = Channel\unbounded();
+</code></pre>
+<h3 id="sending-and-receiving"><a href="#sending-and-receiving" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sending and Receiving</h3>
+<pre><code class="language-php">use Psl\Channel;
+
+[$receiver, $sender] = Channel\bounded(3);
+
+$sender-&gt;send('hello');
+$sender-&gt;send('world');
+
+$receiver-&gt;receive(); // 'hello'
+$receiver-&gt;receive(); // 'world'
+</code></pre>
+<p><code>send()</code> waits for space if the channel is full. <code>receive()</code> waits for a message if the channel is empty. For non-blocking alternatives, use <code>trySend()</code> and <code>tryReceive()</code>, which throw immediately instead of waiting:</p>
+<pre><code class="language-php">use Psl\Channel;
+use Psl\IO;
+
+[$receiver, $sender] = Channel\bounded(1);
+
+$sender-&gt;trySend('first');
+
+try {
+    $sender-&gt;trySend('second'); // throws FullChannelException -- channel is at capacity
+} catch (Channel\Exception\FullChannelException) {
+    IO\write_line('Channel is full, cannot send &quot;second&quot;');
+}
+
+$receiver-&gt;tryReceive(); // 'first'
+
+try {
+    $receiver-&gt;tryReceive(); // throws EmptyChannelException -- nothing left
+} catch (Channel\Exception\EmptyChannelException) {
+    IO\write_line('Channel is empty, cannot receive');
+}
+</code></pre>
+<h3 id="closing-channels"><a href="#closing-channels" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Closing Channels</h3>
+<p>Closing a channel signals that no more messages will be sent. Messages already in the channel can still be received:</p>
+<pre><code class="language-php">use Psl\Channel;
+use Psl\IO;
+
+[$receiver, $sender] = Channel\bounded(10);
+
+$sender-&gt;send('last message');
+$sender-&gt;close();
+
+$sender-&gt;isClosed(); // true
+$receiver-&gt;receive(); // 'last message'
+
+try {
+    $receiver-&gt;receive(); // throws ClosedChannelException -- no more messages
+} catch (Channel\Exception\ClosedChannelException) {
+    IO\write_line('Channel is closed, cannot receive more messages');
+}
+</code></pre>
+<h3 id="inspecting-channel-state"><a href="#inspecting-channel-state" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Inspecting Channel State</h3>
+<pre><code class="language-php">use Psl\Channel;
+
+[$receiver, $sender] = Channel\bounded(5);
+
+$sender-&gt;getCapacity(); // 5
+$sender-&gt;count(); // 0 (number of messages currently in the channel)
+$sender-&gt;isEmpty(); // true
+$sender-&gt;isFull(); // false
+$sender-&gt;isClosed(); // false
+</code></pre>
+<p>For unbounded channels, <code>getCapacity()</code> returns <code>null</code> and <code>isFull()</code> always returns <code>false</code>.</p>
+<h3 id="producer-consumer-pattern"><a href="#producer-consumer-pattern" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Producer-Consumer Pattern</h3>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Channel;
+use Psl\IO;
+
+/**
+ * @var Channel\ReceiverInterface&lt;string&gt; $receiver
+ * @var Channel\SenderInterface&lt;string&gt; $sender
+ */
+[$receiver, $sender] = Channel\bounded(100);
+
+// Producer
+Async\run(function () use ($sender): void {
+    foreach (['job-1', 'job-2', 'job-3'] as $job) {
+        $sender-&gt;send($job);
+    }
+
+    $sender-&gt;close();
+});
+
+// Consumer
+Async\run(function () use ($receiver): void {
+    while (!$receiver-&gt;isClosed() || !$receiver-&gt;isEmpty()) {
+        $job = $receiver-&gt;receive();
+        IO\write_error_line('Processing: %s', $job);
+    }
+});
+
+Async\later();
+</code></pre>
+<h3 id="fan-out-multiple-consumers"><a href="#fan-out-multiple-consumers" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Fan-Out: Multiple Consumers</h3>
+<p>Distribute work across several consumers by sharing the receiver:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Channel;
+use Psl\IO;
+
+/**
+ * @var Channel\ReceiverInterface&lt;string&gt; $receiver
+ * @var Channel\SenderInterface&lt;string&gt; $sender
+ */
+[$receiver, $sender] = Channel\bounded(100);
+
+// Spawn 3 worker consumers
+for ($i = 0; $i &lt; 3; $i++) {
+    Async\run(function () use ($receiver, $i): void {
+        while (!$receiver-&gt;isClosed() || !$receiver-&gt;isEmpty()) {
+            $task = $receiver-&gt;receive();
+            IO\write_error_line('Worker %d processing: %s', $i, $task);
+        }
+    });
+}
+
+// Feed tasks
+$tasks = ['task-a', 'task-b', 'task-c', 'task-d', 'task-e'];
+foreach ($tasks as $task) {
+    $sender-&gt;send($task);
+}
+
+$sender-&gt;close();
+
+Async\later();
+</code></pre>
+<h3 id="cancellation"><a href="#cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancellation</h3>
+<p>Both <code>send()</code> and <code>receive()</code> accept an optional <code>CancellationTokenInterface</code>. This is useful when you don't want to wait indefinitely for a message or for space in a bounded channel:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Channel;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+/** @var Channel\ReceiverInterface&lt;string&gt; $receiver */
+/** @var Channel\SenderInterface&lt;string&gt; $sender */
+[$receiver, $sender] = Channel\bounded(1);
+
+// Producer sends one message then stops
+Async\run(static function () use ($sender): void {
+    $sender-&gt;send('hello');
+    Async\sleep(Duration::seconds(5));
+    $sender-&gt;send('never arrives');
+})-&gt;ignore();
+
+// Consumer receives with a timeout
+$token = new Async\TimeoutCancellationToken(Duration::milliseconds(50));
+
+$first = $receiver-&gt;receive($token);
+IO\write_line('Received: %s', $first);
+
+try {
+    // This will be cancelled - no second message within 50ms
+    $receiver-&gt;receive($token);
+} catch (Async\Exception\CancelledException) {
+    IO\write_line('Timed out waiting for next message');
+}
+</code></pre>
+<p><code>trySend()</code> and <code>tryReceive()</code> are non-blocking and don't need cancellation tokens -- they throw immediately if the channel is full or empty.</p>
+<h2 id="when-to-use-channel"><a href="#when-to-use-channel" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use Channel</h2>
+<ul>
+<li><strong>Decoupling producers and consumers</strong> -- The sender doesn't need to know who processes the messages</li>
+<li><strong>Backpressure</strong> -- Bounded channels naturally slow down fast producers when consumers can't keep up</li>
+<li><strong>Async coordination</strong> -- Pass data between concurrent tasks without shared mutable state</li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/channel/src/Psl/Channel/">src/Psl/Channel/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

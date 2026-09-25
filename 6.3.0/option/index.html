@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Option - PSL</title>
+        <meta name="description" content="The Option component represents a value that may or may not be present. It replaces nullable type...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/option/">
+        <meta property="og:title" content="Option - PSL">
+        <meta property="og:description" content="The Option component represents a value that may or may not be present. It replaces nullable type...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/option/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Option - PSL">
+        <meta name="twitter:description" content="The Option component represents a value that may or may not be present. It replaces nullable type...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link active" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Option</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/option</div></div>
+<p>The <code>Option</code> component represents a value that may or may not be present. It replaces nullable types (<code>?T</code>) with explicit <code>Some</code>/<code>None</code> semantics, making the absence of a value intentional and impossible to ignore.</p>
+<p>Instead of returning <code>null</code> and hoping callers remember to check, you return an <code>Option</code> that forces the caller to handle both cases.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<p><code>Option&lt;T&gt;</code> is a single <code>readonly</code> class with two states:</p>
+<ul>
+<li><strong><code>Option::some($value)</code></strong> -- A value is present</li>
+<li><strong><code>Option::none()</code></strong> -- No value is present</li>
+</ul>
+<p>Convenience functions <code>some()</code>, <code>none()</code>, and <code>from_nullable()</code> are available in the <code>Psl\Option</code> namespace.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="creating-options"><a href="#creating-options" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Creating Options</h3>
+<pre><code class="language-php">use Psl\Option;
+
+$present = Option\some(42);
+$absent = Option\none();
+
+// Bridge from nullable values
+$option = Option\from_nullable('hello');
+// null becomes None, anything else becomes Some
+
+$fromNull = Option\from_nullable(null);
+
+// $fromNull is None
+</code></pre>
+<h3 id="checking-and-unwrapping"><a href="#checking-and-unwrapping" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Checking and Unwrapping</h3>
+<pre><code class="language-php">use Psl\Option;
+
+$opt = Option\some(42);
+$opt-&gt;isSome(); // true
+$opt-&gt;isNone(); // false
+$opt-&gt;isSomeAnd(fn(int $v) =&gt; $v &gt; 10); // true
+$opt-&gt;contains(42); // true
+
+// Unwrap the value
+$opt-&gt;unwrap(); // 42 (throws NoneException if None)
+$opt-&gt;unwrapOr(0); // 42 (returns default if None)
+$opt-&gt;unwrapOrElse(fn() =&gt; 0); // 42 (lazy default if None)
+</code></pre>
+<h3 id="transforming-values"><a href="#transforming-values" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming Values</h3>
+<pre><code class="language-php">use Psl\Option;
+
+$opt = Option\some(5);
+
+// map: transform the inner value
+$opt-&gt;map(fn(int $v) =&gt; $v * 2); // Some(10)
+Option\none()-&gt;map(fn(int $v) =&gt; $v * 2); // None
+
+// andThen: chain operations that return Options (flatMap)
+Option\some('hello')
+    -&gt;andThen(fn(string $v) =&gt; Option\from_nullable($v !== '' ? $v : null))
+    -&gt;andThen(fn(string $v) =&gt; Option\some(strlen($v)));
+// Some(5) if non-empty string, None otherwise
+
+// mapOr / mapOrElse: transform with a default
+Option\none()-&gt;mapOr(fn(int $v) =&gt; $v * 2, 0); // Some(0)
+</code></pre>
+<h3 id="pattern-matching-with-proceed"><a href="#pattern-matching-with-proceed" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Pattern Matching with proceed()</h3>
+<p>Handle both cases and return a unified result:</p>
+<pre><code class="language-php">use Psl\Option;
+
+$username = 'Alice';
+
+$greeting = Option\from_nullable($username)-&gt;proceed(
+    fn(string $name) =&gt; &quot;Welcome back, {$name}!&quot;,
+    fn() =&gt; 'Welcome, guest!',
+);
+</code></pre>
+<h3 id="side-effects-with-apply"><a href="#side-effects-with-apply" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Side Effects with apply()</h3>
+<p>Run a closure on the value without changing the Option:</p>
+<pre><code class="language-php">use Psl\Option;
+
+$result = Option\some('admin')
+    -&gt;apply(fn(string $role) =&gt; print &quot;Found role: {$role}\n&quot;)
+    -&gt;map(fn(string $role) =&gt; strtoupper($role));
+</code></pre>
+<h3 id="filtering"><a href="#filtering" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Filtering</h3>
+<pre><code class="language-php">use Psl\Option;
+
+Option\some(42)-&gt;filter(fn(int $v) =&gt; $v &gt; 10); // Some(42)
+Option\some(42)-&gt;filter(fn(int $v) =&gt; $v &gt; 100); // None
+</code></pre>
+<h3 id="combining-options"><a href="#combining-options" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Combining Options</h3>
+<pre><code class="language-php">use Psl\Option;
+
+$a = Option\some(1);
+$b = Option\some(2);
+$none = Option\none();
+
+$a-&gt;and($b); // Some(2) -- returns second if both Some
+$none-&gt;or($b); // Some(2) -- returns first Some found
+$none-&gt;orElse(fn() =&gt; Option\some(99)); // Some(99)
+
+// Zip: combine into a tuple
+$a-&gt;zip($b); // Some([1, 2])
+$a-&gt;zip($none); // None
+
+// ZipWith: combine with a function
+$a-&gt;zipWith($b, fn(int $x, int $y) =&gt; $x + $y); // Some(3)
+
+// Unzip: split a tuple Option
+Option\some([1, 2])-&gt;unzip(); // [Some(1), Some(2)]
+Option\none()-&gt;unzip(); // [None, None]
+</code></pre>
+<h2 id="when-to-use-option"><a href="#when-to-use-option" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use Option</h2>
+<ul>
+<li><strong>Repository lookups</strong>: <code>find_by_id()</code> returns <code>Option&lt;Entity&gt;</code> instead of <code>?Entity</code></li>
+<li><strong>Configuration</strong>: <code>get_setting()</code> returns <code>Option&lt;string&gt;</code> -- absence is explicit</li>
+<li><strong>Chained lookups</strong>: Use <code>andThen()</code> to chain fallible lookups without nested null checks</li>
+<li><strong>Safe data access</strong>: Parse user input with <code>from_nullable()</code> and transform with <code>map()</code></li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/option/src/Psl/Option/">src/Psl/Option/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

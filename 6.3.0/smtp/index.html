@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SMTP - PSL</title>
+        <meta name="description" content="The SMTP component implements an RFC 5321 SMTP client with connection pooling, TLS, authenticatio...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/smtp/">
+        <meta property="og:title" content="SMTP - PSL">
+        <meta property="og:description" content="The SMTP component implements an RFC 5321 SMTP client with connection pooling, TLS, authenticatio...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/smtp/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="SMTP - PSL">
+        <meta name="twitter:description" content="The SMTP component implements an RFC 5321 SMTP client with connection pooling, TLS, authenticatio...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link active" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>SMTP</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/smtp</div></div>
+<p>The <code>SMTP</code> component implements an RFC 5321 SMTP client with connection pooling, TLS, authentication, and support for modern SMTP extensions. It integrates with the <code>Message</code> and <code>MIME</code> components for complete email sending.</p>
+<h2 id="sending-a-message"><a href="#sending-a-message" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sending a Message</h2>
+<p>The <code>Transport</code> handles the full SMTP lifecycle: connection, EHLO, TLS, authentication, message transmission, and connection reuse. Pass an <code>Envelope</code> (derived from message headers) and a <code>MessageInterface</code> to send.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Message\Address\Mailbox;
+use Psl\Message\Envelope;
+use Psl\Message\Message;
+use Psl\MIME\Part;
+use Psl\SMTP\Client\Transport;
+use Psl\SMTP\Client\TransportConfiguration;
+use Psl\SMTP\Security;
+
+$transport = new Transport(
+    TransportConfiguration::default()-&gt;withHost('smtp.example.com')-&gt;withSecurity(Security::TLS),
+);
+
+$sender = new Mailbox('alice', 'example.com', 'Alice');
+$recipient = new Mailbox('bob', 'example.com');
+
+$message = new Message()
+    -&gt;withFrom($sender)
+    -&gt;withTo($recipient)
+    -&gt;withSubject('Hello from PSL')
+    -&gt;withContent(new Part\Text(new IO\MemoryHandle('Hello, Bob!')));
+
+$report = $transport-&gt;send(Envelope::fromMessage($message), $message);
+
+$transport-&gt;close();
+</code></pre>
+<h2 id="authentication"><a href="#authentication" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Authentication</h2>
+<p>Five authentication mechanisms are supported. Pass any <code>AuthenticatorInterface</code> as the second argument to <code>Transport</code>.</p>
+<pre><code class="language-php">use Psl\SMTP\Client\Authentication;
+use Psl\SMTP\Client\Transport;
+use Psl\SMTP\Client\TransportConfiguration;
+use Psl\SMTP\Security;
+
+// PLAIN authentication
+$plain = new Authentication\PlainAuthenticator('user', 'password');
+
+// LOGIN authentication
+$login = new Authentication\LoginAuthenticator('user', 'password');
+
+// XOAUTH2 for Gmail and other OAuth2-enabled servers
+$oauth = new Authentication\XOAuth2Authenticator('user@gmail.com', 'oauth2-access-token');
+
+// CRAM-MD5 challenge-response (avoids sending password in plaintext)
+$cramMd5 = new Authentication\CRAMMD5Authenticator('user', 'password');
+
+// SCRAM-SHA-256 with mutual authentication (RFC 7677)
+$scram = new Authentication\SCRAMSHA256Authenticator('user', 'password');
+
+// Pass any authenticator as the second argument to Transport
+$transport = new Transport(
+    TransportConfiguration::default()-&gt;withHost('smtp.gmail.com')-&gt;withSecurity(Security::TLS),
+    $oauth,
+);
+</code></pre>
+<h2 id="transport-configuration"><a href="#transport-configuration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transport Configuration</h2>
+<p><code>TransportConfiguration</code> controls connection-level settings: host, port, security mode, pipelining, chunking, and TCP/TLS options. All settings are immutable with fluent <code>with*()</code> builders.</p>
+<pre><code class="language-php">use Psl\SMTP\Client\TransportConfiguration;
+use Psl\SMTP\Security;
+use Psl\TCP;
+use Psl\TLS;
+
+// All transport settings are immutable with fluent with*() builders
+$config = TransportConfiguration::default()
+    -&gt;withHost('smtp.example.com')
+    -&gt;withPort(465)
+    -&gt;withSecurity(Security::TLS)
+    -&gt;withLocalHostname('client.example.com')
+    -&gt;withPipelining(true)
+    -&gt;withChunking(true)
+    -&gt;withChunkSize(32_768)
+    -&gt;withAllowPartialSuccess(false);
+
+// TCP and TLS settings are configurable independently
+$config = $config
+    -&gt;withConnectConfiguration(new TCP\ConnectConfiguration(noDelay: true))
+    -&gt;withTlsClientConfiguration(new TLS\ClientConfiguration(peerVerification: true, allowSelfSigned: false));
+</code></pre>
+<h2 id="send-configuration"><a href="#send-configuration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Send Configuration</h2>
+<p><code>SendConfiguration</code> controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery.</p>
+<pre><code class="language-php">use Psl\DateTime\DateTime;
+use Psl\DateTime\Duration;
+use Psl\SMTP\Client\SendConfiguration;
+use Psl\SMTP\DeliverBy;
+use Psl\SMTP\DeliverByMode;
+use Psl\SMTP\Priority;
+
+// Per-send parameters control MAIL FROM extensions
+$config = new SendConfiguration()
+    // DSN: request delivery status notifications (RFC 3461)
+    -&gt;withDsnReturn('FULL')
+    -&gt;withDsnEnvelopeId('msg-001')
+    -&gt;withDsnNotify('SUCCESS,FAILURE')
+    // Require TLS for the entire delivery chain (RFC 8689)
+    -&gt;withRequireTls(true)
+    // Message priority (RFC 6710 / STANAG 4406)
+    -&gt;withPriority(Priority::Urgent)
+    // Delivery deadline: return if not delivered within 2 hours (RFC 2852)
+    -&gt;withDeliverBy(new DeliverBy(Duration::hours(2), DeliverByMode::Return))
+    // Deferred delivery: hold for 30 minutes (RFC 4865)
+    -&gt;withFutureRelease(Duration::minutes(30));
+
+// Or hold until a specific time
+$config = $config-&gt;withFutureRelease(DateTime::now()-&gt;plusHours(6));
+</code></pre>
+<h2 id="partial-recipient-success"><a href="#partial-recipient-success" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Partial Recipient Success</h2>
+<p>By default, the transport throws on the first rejected recipient. Enable <code>allowPartialSuccess</code> to deliver to accepted recipients and report failures via <code>DeliveryReport</code>.</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Message\Address\Mailbox;
+use Psl\Message\Envelope;
+use Psl\Message\Message;
+use Psl\MIME\Part;
+use Psl\SMTP\Client\Transport;
+use Psl\SMTP\Client\TransportConfiguration;
+use Psl\SMTP\Security;
+
+// Enable partial success to deliver to accepted recipients
+// even when some are rejected
+$transport = new Transport(
+    TransportConfiguration::default()
+        -&gt;withHost('smtp.example.com')
+        -&gt;withSecurity(Security::TLS)
+        -&gt;withAllowPartialSuccess(true),
+);
+
+$sender = new Mailbox('noreply', 'example.com');
+$message = new Message()
+    -&gt;withFrom($sender)
+    -&gt;withTo('alice@example.com, bob@invalid.test, carol@example.com')
+    -&gt;withSubject('Team Update')
+    -&gt;withContent(new Part\Text(new IO\MemoryHandle('Hello team!')));
+
+$report = $transport-&gt;send(Envelope::fromMessage($message), $message);
+
+// Check for rejected recipients
+if ($report-&gt;hasRejections()) {
+    foreach ($report-&gt;rejectedRecipients as [$mailbox, $reply]) {
+        // $mailbox-&gt;address: &quot;bob@invalid.test&quot;
+        // $reply-&gt;code: 550
+        // $reply-&gt;message: &quot;User not found&quot;
+        IO\write_line($reply-&gt;message);
+    }
+}
+
+$transport-&gt;close();
+</code></pre>
+<h2 id="async-and-cancellation"><a href="#async-and-cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Async and Cancellation</h2>
+<p>The transport is fully async-capable. Use <code>Async\concurrently</code> to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts.</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\IO;
+use Psl\Message\Address\Mailbox;
+use Psl\Message\Envelope;
+use Psl\Message\Message;
+use Psl\MIME\Part;
+use Psl\SMTP\Client\Transport;
+use Psl\SMTP\Client\TransportConfiguration;
+use Psl\SMTP\Security;
+use Psl\Vec;
+
+$transport = new Transport(
+    TransportConfiguration::default()-&gt;withHost('smtp.example.com')-&gt;withSecurity(Security::TLS),
+);
+
+$sender = new Mailbox('noreply', 'example.com');
+$recipients = ['alice@example.com', 'bob@example.com', 'carol@example.com'];
+
+// Send to all recipients concurrently, reusing pooled connections
+Async\concurrently(Vec\map($recipients, static fn(string $address): Closure =&gt; static function () use (
+    $transport,
+    $sender,
+    $address,
+): void {
+    $recipient = Mailbox::parse($address);
+    $message = new Message()
+        -&gt;withFrom($sender)
+        -&gt;withTo($recipient)
+        -&gt;withSubject('Hello!')
+        -&gt;withContent(new Part\Text(new IO\MemoryHandle('Hi there!')));
+
+    $transport-&gt;send(Envelope::fromMessage($message), $message);
+}));
+
+// Send with a timeout using a cancellation token
+$message = new Message()
+    -&gt;withFrom($sender)
+    -&gt;withTo('dave@example.com')
+    -&gt;withSubject('Urgent')
+    -&gt;withContent(new Part\Text(new IO\MemoryHandle('Time-sensitive!')));
+
+$transport-&gt;send(
+    Envelope::fromMessage($message),
+    $message,
+    cancellation: new Async\TimeoutCancellationToken(Psl\DateTime\Duration::seconds(10)),
+);
+
+$transport-&gt;close();
+</code></pre>
+<h2 id="low-level-connection"><a href="#low-level-connection" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Low-Level Connection</h2>
+<p><code>Connection</code> implements <code>Network\StreamInterface</code> and speaks raw SMTP commands. Use it for direct protocol interaction or to build custom transports.</p>
+<pre><code class="language-php">use Psl\SMTP\Client\Connection;
+use Psl\SMTP\Command;
+use Psl\TCP;
+
+// Low-level connection for direct SMTP protocol interaction
+$stream = TCP\connect('smtp.example.com', 25);
+$connection = new Connection($stream);
+
+// Read the server greeting
+$greeting = $connection-&gt;readGreeting();
+// $greeting-&gt;code: 220
+// $greeting-&gt;message: &quot;smtp.example.com ESMTP&quot;
+
+// EHLO to discover capabilities
+$ehlo = $connection-&gt;ehlo('client.example.com');
+
+// Check capabilities
+$connection-&gt;supportsCapability('PIPELINING'); // bool
+$connection-&gt;supportsCapability('8BITMIME'); // bool
+$connection-&gt;getCapabilityValue('AUTH'); // &quot;PLAIN LOGIN&quot; or null
+$connection-&gt;maxSize; // int or null
+
+// Send arbitrary commands
+$reply = $connection-&gt;sendCommand(new Command('NOOP'));
+// $reply-&gt;code: 250
+// $reply-&gt;isPositiveCompletion(): true
+
+// Or send without reading reply (for pipelining)
+$connection-&gt;writeCommand(new Command('NOOP'));
+$reply = $connection-&gt;readReply();
+
+$connection-&gt;close();
+</code></pre>
+<h2 id="smtp-extensions"><a href="#smtp-extensions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SMTP Extensions</h2>
+<p>The transport automatically negotiates these extensions when the server advertises them:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>RFC</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PIPELINING</td>
+<td>RFC 2920</td>
+<td>Send multiple commands before reading replies</td>
+</tr>
+<tr>
+<td>CHUNKING</td>
+<td>RFC 3030</td>
+<td>BDAT transfer without dot-stuffing</td>
+</tr>
+<tr>
+<td>BINARYMIME</td>
+<td>RFC 3030</td>
+<td>Binary content without transfer encoding</td>
+</tr>
+<tr>
+<td>8BITMIME</td>
+<td>RFC 6152</td>
+<td>8-bit MIME transport</td>
+</tr>
+<tr>
+<td>SMTPUTF8</td>
+<td>RFC 6531</td>
+<td>Internationalized email addresses</td>
+</tr>
+<tr>
+<td>STARTTLS</td>
+<td>RFC 3207</td>
+<td>TLS upgrade on plaintext connections</td>
+</tr>
+<tr>
+<td>DSN</td>
+<td>RFC 3461</td>
+<td>Delivery status notifications</td>
+</tr>
+<tr>
+<td>REQUIRETLS</td>
+<td>RFC 8689</td>
+<td>End-to-end TLS enforcement</td>
+</tr>
+<tr>
+<td>MT-PRIORITY</td>
+<td>RFC 6710</td>
+<td>Message priority levels</td>
+</tr>
+<tr>
+<td>DELIVERBY</td>
+<td>RFC 2852</td>
+<td>Delivery deadline specification</td>
+</tr>
+<tr>
+<td>FUTURERELEASE</td>
+<td>RFC 4865</td>
+<td>Deferred delivery</td>
+</tr>
+<tr>
+<td>SIZE</td>
+<td>RFC 1870</td>
+<td>Server maximum message size</td>
+</tr>
+</tbody>
+</table>
+<h2 id="security"><a href="#security" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Security</h2>
+<p>The transport validates all SMTP commands for CRLF and null byte injection attacks. Malicious input in addresses, hostnames, or DSN parameters throws <code>PossibleAttackException</code> before reaching the wire.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/smtp/src/Psl/SMTP/">src/Psl/SMTP/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

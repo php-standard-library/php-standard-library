@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password - PSL</title>
+        <meta name="description" content="The Password component provides secure password hashing and verification. It wraps PHP&#039;s password...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/password/">
+        <meta property="og:title" content="Password - PSL">
+        <meta property="og:description" content="The Password component provides secure password hashing and verification. It wraps PHP&#039;s password...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/password/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Password - PSL">
+        <meta name="twitter:description" content="The Password component provides secure password hashing and verification. It wraps PHP&#039;s password...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link active" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Password</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/password</div></div>
+<p>The <code>Password</code> component provides secure password hashing and verification. It wraps PHP's <code>password_*</code> functions with a type-safe <code>Algorithm</code> enum and a clean functional API, making it easy to hash passwords with bcrypt or Argon2 and handle algorithm upgrades over time.</p>
+<h2 id="hashing-a-password"><a href="#hashing-a-password" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Hashing a Password</h2>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Password;
+
+$plaintext = 'my-secret-password';
+
+// Uses the default algorithm (currently bcrypt, may change in future PHP versions)
+$hash = Password\hash($plaintext);
+IO\write_line('Default hash: %s', $hash);
+
+// Specify an algorithm explicitly
+$bcryptHash = Password\hash($plaintext, Password\Algorithm::Bcrypt);
+IO\write_line('Bcrypt hash: %s', $bcryptHash);
+</code></pre>
+<p>You can tune algorithm parameters through the <code>$options</code> array:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Password;
+
+$plaintext = 'my-secret-password';
+
+// Bcrypt with a higher cost factor (default is 10)
+$hash = Password\hash($plaintext, Password\Algorithm::Bcrypt, ['cost' =&gt; 14]);
+IO\write_line('Bcrypt (cost 14): %s', $hash);
+</code></pre>
+<h2 id="verifying-a-password"><a href="#verifying-a-password" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Verifying a Password</h2>
+<p><code>verify()</code> checks a plaintext password against a stored hash. The algorithm and salt are embedded in the hash itself, so you do not need to store them separately:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Password;
+
+$plaintext = 'my-secret-password';
+$storedHash = Password\hash($plaintext, Password\Algorithm::Bcrypt);
+
+if (Password\verify($plaintext, $storedHash)) {
+    IO\write_line('Password is correct.');
+} else {
+    IO\write_line('Password is incorrect.');
+}
+</code></pre>
+<h2 id="checking-if-a-rehash-is-needed"><a href="#checking-if-a-rehash-is-needed" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Checking If a Rehash Is Needed</h2>
+<p>When you upgrade your hashing algorithm or increase the cost factor, existing hashes remain valid but are no longer up to your current standard. <code>needs_rehash()</code> detects this so you can transparently upgrade hashes at login time:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Password;
+
+$plaintext = 'my-secret-password';
+$storedHash = Password\hash($plaintext, Password\Algorithm::Bcrypt);
+
+if (Password\verify($plaintext, $storedHash)) {
+    IO\write_line('Password is correct.');
+
+    // Check if the hash needs upgrading
+    if (Password\needs_rehash($storedHash, Password\Algorithm::Bcrypt, ['cost' =&gt; 14])) {
+        $newHash = Password\hash($plaintext, Password\Algorithm::Bcrypt, ['cost' =&gt; 14]);
+        IO\write_line('Hash upgraded: %s', $newHash);
+        // store $newHash in the database
+    } else {
+        IO\write_line('Hash is up to date.');
+    }
+}
+</code></pre>
+<p>This pattern lets you migrate from bcrypt to Argon2id (or increase cost parameters) gradually, without forcing all users to reset their passwords.</p>
+<h2 id="inspecting-a-hash"><a href="#inspecting-a-hash" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Inspecting a Hash</h2>
+<p><code>get_information()</code> returns the algorithm and options used to create a hash:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Password;
+
+$hash = Password\hash('my-secret-password', Password\Algorithm::Bcrypt);
+
+$info = Password\get_information($hash);
+IO\write_line('Algorithm: %s', $info['algorithm']-&gt;name);
+IO\write_line('Cost: %d', $info['options']['cost'] ?? '&lt;unknown&gt;');
+</code></pre>
+<h2 id="algorithm"><a href="#algorithm" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Algorithm</h2>
+<p>The <code>Password\Algorithm</code> enum provides four cases:</p>
+<ul>
+<li><code>Default</code> -- follows PHP's default, which may change over time to adopt stronger algorithms</li>
+<li><code>Bcrypt</code> -- Blowfish-based, always produces 60-character hashes</li>
+<li><code>Argon2i</code> -- memory-hard algorithm resistant to GPU attacks</li>
+<li><code>Argon2id</code> -- hybrid of Argon2i and Argon2d, recommended for most applications</li>
+</ul>
+<p>When using <code>Algorithm::Default</code>, store hashes in a column that can hold at least 255 characters, since the underlying algorithm (and hash length) may change in future PHP versions.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/password/src/Psl/Password/">src/Psl/Password/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

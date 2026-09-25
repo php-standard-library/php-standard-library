@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Async - PSL</title>
+        <meta name="description" content="The Async component brings concurrency into PHP using cooperative multitasking.">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/async/">
+        <meta property="og:title" content="Async - PSL">
+        <meta property="og:description" content="The Async component brings concurrency into PHP using cooperative multitasking.">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/async/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Async - PSL">
+        <meta name="twitter:description" content="The Async component brings concurrency into PHP using cooperative multitasking.">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link active" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Async</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/async</div></div>
+<p>The <code>Async</code> component brings concurrency into PHP using <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>.</p>
+<blockquote>
+<p><strong>Note</strong></p>
+<p>The Async component is built on top of <a href="https://github.com/revoltphp/event-loop">RevoltPHP</a>, which makes it compatible with <a href="https://github.com/amphp">Amphp</a>,
+and other libraries that use the same event loop.</p>
+</blockquote>
+<h2 id="quick-start"><a href="#quick-start" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Quick Start</h2>
+<pre><code class="language-php">use Psl\Async;
+use Psl\IO;
+use Psl\Shell;
+
+$watcher = Async\Scheduler::onSignal(SIGINT, function (): never {
+    IO\write_error_line('SIGINT received, stopping...');
+    exit(0);
+});
+
+Async\Scheduler::unreference($watcher);
+
+IO\write_error_line('Press Ctrl+C to stop');
+
+Async\concurrently([
+    static fn(): string =&gt; Shell\execute('sleep', ['3']),
+    static fn(): string =&gt; Shell\execute('echo', ['Hello World!']),
+    static fn(): string =&gt; Shell\execute('echo', ['Hello World!']),
+]);
+
+IO\write_error_line('Done!');
+</code></pre>
+<h2 id="core-concepts"><a href="#core-concepts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Core Concepts</h2>
+<h3 id="entry-point"><a href="#entry-point" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Entry Point</h3>
+<p><code>Async\main()</code> is the entry point for async applications. It executes a closure in the main fiber, then keeps the event loop running until all pending callbacks complete. The closure must return an integer exit code.</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+Async\main(static function (): int {
+    Async\Scheduler::delay(Duration::seconds(1), static function (): void {
+        IO\write_line('hello');
+    });
+
+    return 0;
+});
+
+// Output:
+// hello
+</code></pre>
+<h3 id="running-async-operations"><a href="#running-async-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Running Async Operations</h3>
+<p><code>Async\run()</code> creates a new fiber and returns an <code>Awaitable</code> that resolves to its result:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$awaitable = Async\run(static function (): string {
+    Async\sleep(Duration::seconds(1));
+    return 'Hello world!';
+});
+
+$result = $awaitable-&gt;await(); // 'Hello world!'
+</code></pre>
+<h3 id="awaitables"><a href="#awaitables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Awaitables</h3>
+<p>An <code>Awaitable</code> is a promise-like object representing a value that may not yet be available. It can be awaited, mapped, chained, and composed. The <code>await()</code> method accepts an optional <code>CancellationTokenInterface</code> to cancel the wait.</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Str;
+
+$awaitable = Async\run(static fn() =&gt; 'hello');
+
+// Chain transformations
+$awaitable = $awaitable-&gt;map(static fn($result) =&gt; Str\format('%s world', $result));
+
+$result = $awaitable-&gt;await(); // 'hello world'
+</code></pre>
+<p>Error handling works naturally with <code>catch()</code>:</p>
+<pre><code class="language-php">use Psl\Async;
+
+$awaitable = Async\run(static function (): string {
+    throw new Exception('Something went wrong!');
+});
+
+$awaitable = $awaitable-&gt;catch(static fn($error) =&gt; $error-&gt;getMessage());
+
+$result = $awaitable-&gt;await(); // 'Something went wrong!'
+</code></pre>
+<p>You can also iterate awaitables in completion order, regardless of the order they were started:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$handles = [
+    Async\run(static function () {
+        Async\sleep(Duration::seconds(1));
+        return 'a';
+    }),
+    Async\run(static fn() =&gt; 'b'),
+    Async\run(static function () {
+        Async\sleep(Duration::milliseconds(300));
+        return 'c';
+    }),
+    Async\run(static function () {
+        Async\sleep(Duration::milliseconds(100));
+        return 'd';
+    }),
+];
+
+foreach (Async\Awaitable::iterate($handles) as $k =&gt; $awaitable) {
+    $result = $awaitable-&gt;await();
+    IO\write_line($k . ': ' . $result);
+}
+
+// Output:
+// 1: b
+// 3: d
+// 2: c
+// 0: a
+</code></pre>
+<h2 id="combinators"><a href="#combinators" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Combinators</h2>
+<h3 id="concurrently----run-tasks-in-parallel"><a href="#concurrently----run-tasks-in-parallel" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>concurrently -- Run Tasks in Parallel</h3>
+<p>Runs all closures concurrently and returns their results in the original order:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$results = Async\concurrently([
+    static function (): string {
+        Async\sleep(Duration::milliseconds(100));
+        return 'users created';
+    },
+    static function (): string {
+        Async\sleep(Duration::milliseconds(50));
+        return 'organizations created';
+    },
+    static function (): string {
+        Async\sleep(Duration::milliseconds(75));
+        return 'roles created';
+    },
+]);
+</code></pre>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p><code>concurrently(...)</code> is about kicking-off I/O functions concurrently, not about concurrent execution of code.
+If your functions do not use any timers or perform any non-blocking I/O, they will actually be executed in series.</p>
+</blockquote>
+<p>Use <code>Psl\Result\reflect(...)</code> to continue execution even when individual tasks fail:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Result;
+use Psl\Shell;
+
+[$version, $foo] = Async\concurrently([
+    Result\reflect(static fn() =&gt; Shell\execute('php', ['-v'])),
+    Result\reflect(static fn() =&gt; Shell\execute('php', ['-r', 'foo();'])),
+]);
+
+// $version-&gt;isSucceeded() === true
+// $foo-&gt;isFailed() === true
+</code></pre>
+<h3 id="series----run-tasks-sequentially"><a href="#series----run-tasks-sequentially" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>series -- Run Tasks Sequentially</h3>
+<p>Runs closures one after another. If any throws, execution stops:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$results = Async\series([
+    static function (): string {
+        Async\sleep(Duration::milliseconds(50));
+        return 'users created';
+    },
+    static function (): string {
+        Async\sleep(Duration::milliseconds(50));
+        return 'organizations created';
+    },
+    static function (): string {
+        Async\sleep(Duration::milliseconds(50));
+        return 'roles created';
+    },
+    static function (): string {
+        Async\sleep(Duration::milliseconds(50));
+        return 'user organization roles created';
+    },
+]);
+</code></pre>
+<h3 id="all----await-multiple-awaitables"><a href="#all----await-multiple-awaitables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>all -- Await Multiple Awaitables</h3>
+<p>Waits for all <code>Awaitable</code>s to complete. If multiple fail, throws <code>CompositeException</code>:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\Shell;
+
+Async\all([
+    Async\run(static fn() =&gt; Shell\execute('echo', ['tests passed'])),
+    Async\run(static fn() =&gt; Shell\execute('echo', ['analysis passed'])),
+    Async\run(static fn() =&gt; Shell\execute('echo', ['formatting ok'])),
+]);
+</code></pre>
+<h3 id="any--first----race-awaitables"><a href="#any--first----race-awaitables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>any / first -- Race Awaitables</h3>
+<p><code>any()</code> returns the first successful result. <code>first()</code> returns the first completed result regardless of success or failure:</p>
+<pre><code class="language-php">use Psl\Async;
+
+// Returns 'hello' -- the first successful result
+$result = Async\any([
+    Async\Awaitable::error(new Exception('failed')),
+    Async\Awaitable::complete('hello'),
+]);
+</code></pre>
+<h3 id="sleep--later"><a href="#sleep--later" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>sleep / later</h3>
+<p><code>Async\sleep()</code> provides a non-blocking sleep. Multiple concurrent sleeps run in parallel:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$time = time();
+
+Async\concurrently([
+    static fn() =&gt; Async\sleep(Duration::seconds(2)),
+    static fn() =&gt; Async\sleep(Duration::seconds(2)),
+    static fn() =&gt; Async\sleep(Duration::seconds(2)),
+]);
+
+// Total time: ~2 seconds, not 6
+</code></pre>
+<p><code>sleep()</code> also accepts a <code>CancellationTokenInterface</code> to wake early, which is useful for interruptible retry delays:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$token = new Async\SignalCancellationToken();
+
+// Cancel the sleep after 50ms
+Async\Scheduler::delay(Duration::milliseconds(50), static fn(string $_) =&gt; $token-&gt;cancel());
+
+try {
+    // Sleep for 5 seconds, but wake early if the token is cancelled
+    Async\sleep(Duration::seconds(5), $token);
+} catch (Async\Exception\CancelledException) {
+    IO\write_line('Woke early!');
+}
+</code></pre>
+<p><code>Async\later()</code> reschedules the current fiber, allowing other pending callbacks to execute.</p>
+<h2 id="concurrency-control"><a href="#concurrency-control" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Concurrency Control</h2>
+<h3 id="semaphore"><a href="#semaphore" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Semaphore</h3>
+<p>Limits the number of concurrent operations. All operations use the same processing function:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$semaphore = new Async\Semaphore(2, static function (int $input): void {
+    IO\write_error_line('&gt; started : %d', $input);
+    Async\sleep(Duration::seconds(1));
+    IO\write_error_line('&gt; finished: %d', $input);
+});
+
+Async\concurrently([
+    fn() =&gt; $semaphore-&gt;waitFor(1),
+    fn() =&gt; $semaphore-&gt;waitFor(2),
+    fn() =&gt; $semaphore-&gt;waitFor(3),
+]);
+
+// Output:
+// &gt; started: 1
+// &gt; started: 2
+// &gt; finished: 1
+// &gt; started: 3
+// &gt; finished: 2
+// &gt; finished: 3
+
+$semaphore-&gt;cancel(new Exception('shutting down'));
+</code></pre>
+<p>The semaphore provides methods to inspect state (<code>getPendingOperations()</code>, <code>getOngoingOperations()</code>, <code>hasPendingOperations()</code>) and to cancel pending work. Both <code>waitFor()</code> and <code>waitForPending()</code> accept an optional <code>CancellationTokenInterface</code>.</p>
+<h3 id="keyedsemaphore"><a href="#keyedsemaphore" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>KeyedSemaphore</h3>
+<p>Like <code>Semaphore</code>, but applies concurrency limits per key. This is useful when you want to limit concurrent access to individual resources:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$semaphore = new Async\KeyedSemaphore(2, static function (string $_key, int $_input): void {
+    Async\sleep(Duration::seconds(1));
+});
+
+Async\concurrently([
+    fn() =&gt; $semaphore-&gt;waitFor('foo', 1), // starts immediately
+    fn() =&gt; $semaphore-&gt;waitFor('foo', 2), // starts immediately (limit 2 for 'foo')
+    fn() =&gt; $semaphore-&gt;waitFor('foo', 3), // waits for one 'foo' to finish
+    fn() =&gt; $semaphore-&gt;waitFor('bar', 1), // starts immediately (separate key)
+]);
+</code></pre>
+<p>Both <code>waitFor()</code> and <code>waitForPending()</code> accept an optional <code>CancellationTokenInterface</code>.</p>
+<h3 id="sequence"><a href="#sequence" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sequence</h3>
+<p>A specialized semaphore with a concurrency limit of 1 -- operations run one at a time:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$sequence = new Async\Sequence(static function (int $input): void {
+    IO\write_error_line('&gt; started : %d', $input);
+    Async\sleep(Duration::seconds(1));
+    IO\write_error_line('&gt; finished: %d', $input);
+});
+
+Async\concurrently([
+    fn() =&gt; $sequence-&gt;waitFor(1),
+    fn() =&gt; $sequence-&gt;waitFor(2),
+    fn() =&gt; $sequence-&gt;waitFor(3),
+]);
+
+// Output:
+// &gt; started: 1
+// &gt; finished: 1
+// &gt; started: 2
+// &gt; finished: 2
+// &gt; started: 3
+// &gt; finished: 3
+</code></pre>
+<p>Both <code>waitFor()</code> and <code>waitForPending()</code> accept an optional <code>CancellationTokenInterface</code>.</p>
+<h3 id="keyedsequence"><a href="#keyedsequence" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>KeyedSequence</h3>
+<p>Like <code>Sequence</code>, but applies the sequential constraint per key. Different keys can run concurrently while the same key is serialized:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+$sequence = new Async\KeyedSequence(static function (string $_key, int $_input): void {
+    Async\sleep(Duration::seconds(1));
+});
+
+Async\concurrently([
+    fn() =&gt; $sequence-&gt;waitFor('foo', 1), // starts immediately
+    fn() =&gt; $sequence-&gt;waitFor('foo', 2), // waits for foo:1
+    fn() =&gt; $sequence-&gt;waitFor('bar', 1), // starts immediately (different key)
+]);
+</code></pre>
+<p>Both <code>waitFor()</code> and <code>waitForPending()</code> accept an optional <code>CancellationTokenInterface</code>.</p>
+<h3 id="taskgroup"><a href="#taskgroup" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TaskGroup</h3>
+<p><code>TaskGroup</code> lets you defer multiple closures for concurrent execution and await them all at once. If any task throws, the exception is propagated after all tasks finish. If multiple tasks throw, a <code>CompositeException</code> is raised:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$results = [];
+$group = new Async\TaskGroup();
+
+$group-&gt;defer(static function () use (&amp;$results): void {
+    Async\sleep(Duration::milliseconds(20));
+    $results[] = 'slow';
+});
+
+$group-&gt;defer(static function () use (&amp;$results): void {
+    $results[] = 'fast';
+});
+
+$group-&gt;awaitAll();
+
+IO\write_line('Order: %s', Psl\Str\join($results, ', ')); // &quot;fast, slow&quot;
+</code></pre>
+<p><code>awaitAll()</code> accepts an optional <code>CancellationTokenInterface</code>. The task list is cleared after each <code>awaitAll()</code> call, so the group is reusable.</p>
+<h3 id="waitgroup"><a href="#waitgroup" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>WaitGroup</h3>
+<p><code>WaitGroup</code> is a counter-based synchronization primitive inspired by Go's <code>sync.WaitGroup</code>. Call <code>add()</code> before starting work, <code>done()</code> when work completes, and <code>wait()</code> to block until the counter reaches zero:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$wg = new Async\WaitGroup();
+
+for ($i = 0; $i &lt; 3; $i++) {
+    $wg-&gt;add();
+    Async\run(static function () use ($wg, $i): void {
+        Async\sleep(Duration::milliseconds(10 * ($i + 1)));
+        IO\write_line('Task %d done', $i);
+        $wg-&gt;done();
+    })-&gt;ignore();
+}
+
+$wg-&gt;wait();
+IO\write_line('All tasks done');
+</code></pre>
+<p><code>wait()</code> accepts an optional <code>CancellationTokenInterface</code>. Multiple fibers can wait on the same <code>WaitGroup</code> concurrently.</p>
+<h2 id="deferred"><a href="#deferred" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Deferred</h2>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p>The <code>Deferred</code> API is an advanced API that many applications probably don't need.
+Use <code>run(...)</code> and other combinators when possible.</p>
+</blockquote>
+<p><code>Deferred</code> is the low-level primitive for resolving future values. It produces an <code>Awaitable</code> that is completed manually:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+
+/**
+ * @return Async\Awaitable&lt;'hello'&gt;
+ */
+function get_message(): Async\Awaitable
+{
+    /** @var Async\Deferred&lt;'hello'&gt; $deferred */
+    $deferred = new Async\Deferred();
+
+    // Complete the deferred with 'hello' after 2 seconds.
+    Async\Scheduler::delay(Duration::seconds(2), static fn() =&gt; $deferred-&gt;complete('hello'));
+
+    return $deferred-&gt;getAwaitable();
+}
+
+get_message()-&gt;await(); // 'hello'
+</code></pre>
+<p>The <code>Deferred</code> and <code>Awaitable</code> are intentionally separated: always return <code>$deferred-&gt;getAwaitable()</code> to API consumers. If you're passing <code>Deferred</code> objects around, you're probably doing something wrong.</p>
+<h2 id="scheduler"><a href="#scheduler" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Scheduler</h2>
+<p>The <code>Scheduler</code> is a wrapper around the Revolt event loop. It provides static methods for registering callbacks:</p>
+<ul>
+<li><code>Scheduler::defer($callback)</code> -- execute on next tick</li>
+<li><code>Scheduler::delay($duration, $callback)</code> -- execute after a delay</li>
+<li><code>Scheduler::repeat($interval, $callback)</code> -- execute repeatedly</li>
+<li><code>Scheduler::onSignal($signal, $callback)</code> -- execute on OS signal</li>
+<li><code>Scheduler::onReadable($stream, $callback)</code> -- execute when stream is readable</li>
+<li><code>Scheduler::onWritable($stream, $callback)</code> -- execute when stream is writable</li>
+<li><code>Scheduler::queue($callback)</code> -- queue a microtask</li>
+</ul>
+<p>All registration methods return a string identifier that can be used with <code>cancel()</code>, <code>enable()</code>, <code>disable()</code>, <code>reference()</code>, and <code>unreference()</code>.</p>
+<p>See <a href="https://revolt.run/">revolt.run</a> for more information on the underlying event loop.</p>
+<h2 id="cancellation"><a href="#cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancellation</h2>
+<p>Cancellation tokens allow you to cancel in-flight async operations from external code. Every suspension point in PSL (<code>await()</code>, <code>read()</code>, <code>write()</code>, <code>waitFor()</code>, <code>connect()</code>, etc.) accepts an optional <code>CancellationTokenInterface</code>.</p>
+<h3 id="cancellationtokeninterface"><a href="#cancellationtokeninterface" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>CancellationTokenInterface</h3>
+<p>The base interface. Implementations provide:</p>
+<ul>
+<li><code>subscribe(Closure $callback): string</code> -- register a callback invoked on cancellation</li>
+<li><code>unsubscribe(string $id): void</code> -- remove a callback</li>
+<li><code>isCancelled(): bool</code> -- check cancellation state</li>
+<li><code>throwIfCancelled(): void</code> -- throw <code>CancelledException</code> if cancelled</li>
+</ul>
+<h3 id="signalcancellationtoken"><a href="#signalcancellationtoken" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SignalCancellationToken</h3>
+<p>Manually triggered. Call <code>cancel()</code> from any fiber to cancel all subscribed operations:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$token = new Async\SignalCancellationToken();
+
+// Simulate cancelling after 50ms
+Async\Scheduler::delay(Duration::milliseconds(50), static fn() =&gt; $token-&gt;cancel(
+    new RuntimeException('Client disconnected'),
+));
+
+$deferred = new Async\Deferred();
+
+try {
+    // This will be cancelled before the deferred completes
+    $deferred-&gt;getAwaitable()-&gt;await($token);
+} catch (Async\Exception\CancelledException $e) {
+    IO\write_line('Cancelled: %s', $e-&gt;getPrevious()?-&gt;getMessage() ?? 'no cause');
+    IO\write_line('Token type: %s', $e-&gt;getToken()::class);
+}
+</code></pre>
+<h3 id="timeoutcancellationtoken"><a href="#timeoutcancellationtoken" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TimeoutCancellationToken</h3>
+<p>Auto-cancels after a duration. Replaces the old <code>Duration $timeout</code> pattern:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+// TimeoutCancellationToken auto-cancels after the given duration
+$token = new Async\TimeoutCancellationToken(Duration::milliseconds(50));
+
+$deferred = new Async\Deferred();
+
+// Keep the loop alive
+Async\run(static function () use ($deferred): void {
+    Async\sleep(Duration::seconds(5));
+    $deferred-&gt;complete('too late');
+})-&gt;ignore();
+
+try {
+    $deferred-&gt;getAwaitable()-&gt;await($token);
+} catch (Async\Exception\CancelledException $e) {
+    $cause = $e-&gt;getPrevious();
+    IO\write_line('Timed out: %s', $cause !== null ? $cause::class : 'unknown'); // Psl\Async\Exception\TimeoutException
+}
+</code></pre>
+<h3 id="linkedcancellationtoken"><a href="#linkedcancellationtoken" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>LinkedCancellationToken</h3>
+<p>Combines two tokens, cancelled when either fires. This is useful for layering a request-scoped token with an operation-specific timeout:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+// Simulate a request-scoped token that cancels when the client disconnects
+$requestToken = new Async\SignalCancellationToken();
+
+// Combine with a per-operation timeout
+$linked = new Async\LinkedCancellationToken(
+    $requestToken,
+    new Async\TimeoutCancellationToken(Duration::milliseconds(50)),
+);
+
+$deferred = new Async\Deferred();
+
+Async\run(static function () use ($deferred): void {
+    Async\sleep(Duration::seconds(5));
+    $deferred-&gt;complete('too late');
+})-&gt;ignore();
+
+try {
+    // Cancelled by whichever fires first
+    $deferred-&gt;getAwaitable()-&gt;await($linked);
+} catch (Async\Exception\CancelledException $e) {
+    $cause = $e-&gt;getToken();
+    IO\write_line('Cancelled by: %s', $cause::class);
+}
+</code></pre>
+<p>The <code>CancelledException</code> thrown by a linked token is forwarded directly from the inner token that fired -- <code>getToken()</code> returns the actual token that triggered cancellation (e.g., the <code>TimeoutCancellationToken</code> or <code>SignalCancellationToken</code>), not the linked wrapper.</p>
+<h3 id="nullcancellationtoken"><a href="#nullcancellationtoken" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>NullCancellationToken</h3>
+<p>A no-op token that is never cancelled. Used as the default parameter value -- you never need to construct it explicitly.</p>
+<h3 id="cancelling-semaphoresequence-waits"><a href="#cancelling-semaphoresequence-waits" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancelling Semaphore/Sequence Waits</h3>
+<p>All concurrency primitives accept cancellation tokens. If a token fires while waiting for a slot, the wait is cancelled without affecting other pending operations:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+
+$semaphore = new Async\Semaphore(1, static function (string $task): string {
+    Async\sleep(Duration::milliseconds(100));
+
+    return $task . ' done';
+});
+
+// First task starts immediately
+Async\run(static function () use ($semaphore): void {
+    $result = $semaphore-&gt;waitFor('task-1');
+    IO\write_line($result);
+})-&gt;ignore();
+
+// Second task must wait - but we cancel it after 50ms
+$token = new Async\TimeoutCancellationToken(Duration::milliseconds(50));
+
+try {
+    $semaphore-&gt;waitFor('task-2', $token);
+} catch (Async\Exception\CancelledException) {
+    IO\write_line('task-2 cancelled while waiting for semaphore slot');
+}
+</code></pre>
+<h3 id="cancelledexception"><a href="#cancelledexception" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>CancelledException</h3>
+<p>When a token fires, <code>CancelledException</code> is thrown. It carries:</p>
+<ul>
+<li><code>getPrevious()</code> -- the cause (e.g., <code>TimeoutException</code> for timeout tokens, or a custom exception passed to <code>SignalCancellationToken::cancel()</code>)</li>
+<li><code>getToken()</code> -- the token that triggered the cancellation</li>
+</ul>
+<h2 id="error-handling"><a href="#error-handling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Error Handling</h2>
+<ul>
+<li><strong><code>CancelledException</code></strong> -- thrown when a cancellation token is triggered. Use <code>$e-&gt;getToken()</code> to identify the source and <code>$e-&gt;getPrevious()</code> for the cause.</li>
+<li><strong><code>CompositeException</code></strong> -- wraps multiple exceptions when several concurrent operations fail. Use <code>$e-&gt;getReasons()</code> to get all underlying exceptions.</li>
+<li><strong><code>TimeoutException</code></strong> -- used internally as the cause inside <code>CancelledException</code> when a <code>TimeoutCancellationToken</code> fires.</li>
+<li><strong><code>UnhandledAwaitableException</code></strong> -- thrown by the scheduler when a failed <code>Awaitable</code> is never awaited or handled. Use <code>$awaitable-&gt;ignore()</code> to suppress this.</li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/async/src/Psl/Async/">src/Psl/Async/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

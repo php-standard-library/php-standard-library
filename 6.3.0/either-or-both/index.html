@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>EitherOrBoth - PSL</title>
+        <meta name="description" content="Unlike Either (which carries a loose &quot;one vs the other&quot; convention where Right is the happy path)...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/either-or-both/">
+        <meta property="og:title" content="EitherOrBoth - PSL">
+        <meta property="og:description" content="Unlike Either (which carries a loose &quot;one vs the other&quot; convention where Right is the happy path)...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/either-or-both/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="EitherOrBoth - PSL">
+        <meta name="twitter:description" content="Unlike Either (which carries a loose &quot;one vs the other&quot; convention where Right is the happy path)...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link active" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>EitherOrBoth</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/either-or-both</div></div>
+<p><code>EitherOrBoth</code> is a three-variant disjoint union: <code>Left</code>, <code>Right</code>, or <code>Both</code>. It models a value that may be present on either of two sides, or on both simultaneously.</p>
+<p>Unlike <code>Either</code> (which carries a loose &quot;one vs the other&quot; convention where <code>Right</code> is the happy path), <code>EitherOrBoth</code> treats all three variants as equal citizens. No side is privileged. The canonical use case is a three-way diff between two collections -- insert / delete / update events -- but the type is useful anywhere two partially-overlapping sources describe the same domain.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<ul>
+<li><strong><code>Left&lt;TLeft&gt;</code></strong> -- only the left value is present</li>
+<li><strong><code>Right&lt;TRight&gt;</code></strong> -- only the right value is present</li>
+<li><strong><code>Both&lt;TLeft, TRight&gt;</code></strong> -- both sides are present simultaneously</li>
+<li><strong><code>EitherOrBoth&lt;TLeft, TRight&gt;</code></strong> -- the common interface all three implement</li>
+</ul>
+<p>Inspired by Rust's <a href="https://docs.rs/itertools/latest/itertools/enum.EitherOrBoth.html"><code>itertools::EitherOrBoth</code></a> and Haskell's <code>Data.These</code>.</p>
+<h2 id="when-to-use"><a href="#when-to-use" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use</h2>
+<p>Reach for <code>EitherOrBoth</code> any time two collections, streams, or sources describe the same domain with potential partial overlap:</p>
+<ul>
+<li><strong>Three-way diff / synchronization</strong> -- the canonical producer. Pair with <code>Psl\Iter\merge_join_by</code> or <code>merge_join_by_key</code> to emit insert / delete / update events.</li>
+<li><strong>Layered configuration merge</strong> -- defaults vs overrides. <code>Left</code> = key only in defaults, <code>Right</code> = key only in overrides, <code>Both(default, override)</code> = key in both (inspect the conflict before resolving).</li>
+<li><strong>Multi-source enrichment</strong> -- a primary record paired with optional data from a cache or secondary store.</li>
+<li><strong>Dual-validation</strong> -- two parallel validators that can both fail, where the handling differs.</li>
+<li><strong>Snapshot comparison</strong> -- expected vs actual, current vs desired, old-format vs new-format.</li>
+<li><strong>Full outer join at the language level</strong> -- any time a SQL <code>FULL OUTER JOIN</code> is the mental model.</li>
+</ul>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="creating-eitherorboth-values"><a href="#creating-eitherorboth-values" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Creating EitherOrBoth Values</h3>
+<p>Use the concrete classes or the <code>left()</code> / <code>right()</code> / <code>both()</code> free functions:</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+
+// Via constructors
+$onlyNew = new EitherOrBoth\Left('new-record');
+$onlyOld = new EitherOrBoth\Right('old-record');
+$conflict = new EitherOrBoth\Both('new-version', 'old-version');
+
+// Via free functions
+$onlyNew = EitherOrBoth\left('new-record');
+$onlyOld = EitherOrBoth\right('old-record');
+$conflict = EitherOrBoth\both('new-version', 'old-version');
+</code></pre>
+<h3 id="predicates-is-vs-has"><a href="#predicates-is-vs-has" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Predicates: <code>is*</code> vs <code>has*</code></h3>
+<p><code>EitherOrBoth</code> has two tiers of predicates. The exclusive <code>isLeft()</code> / <code>isRight()</code> / <code>isBoth()</code> each return true for exactly one variant. The inclusive <code>hasLeft()</code> / <code>hasRight()</code> return true whenever the corresponding side is present -- so <code>hasLeft()</code> is true for both <code>Left</code> and <code>Both</code>.</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+
+$both = new EitherOrBoth\Both('l', 'r');
+
+// Exclusive predicates: true for exactly one variant
+$both-&gt;isLeft(); // false
+$both-&gt;isRight(); // false
+$both-&gt;isBoth(); // true
+
+// Inclusive predicates: true whenever the side is present
+$both-&gt;hasLeft(); // true -- Both has a left side
+$both-&gt;hasRight(); // true -- Both has a right side
+
+$leftOnly = new EitherOrBoth\Left('l');
+$leftOnly-&gt;isLeft(); // true
+$leftOnly-&gt;hasLeft(); // true
+$leftOnly-&gt;hasRight(); // false
+</code></pre>
+<h3 id="extracting-values"><a href="#extracting-values" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Extracting Values</h3>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+
+$both = new EitherOrBoth\Both('hello', 'world');
+
+// Direct access -- throws if the side is missing
+$both-&gt;getLeft(); // 'hello'
+$both-&gt;getRight(); // 'world'
+
+$left = new EitherOrBoth\Left('only-left');
+$left-&gt;getLeft(); // 'only-left'
+// $left-&gt;getRight();            // throws MissingRightException
+
+// Safe access via Option
+$left-&gt;unwrapLeft(); // Some('only-left')
+$left-&gt;unwrapRight(); // None
+
+// Option methods cover the &quot;or default&quot; variations without duplicate surface on EitherOrBoth:
+$left-&gt;unwrapRight()-&gt;unwrapOr('fallback'); // 'fallback'
+$left-&gt;unwrapLeft()-&gt;unwrapOrElse(static fn(): string =&gt; 'computed'); // 'only-left'
+</code></pre>
+<h3 id="transforming-values"><a href="#transforming-values" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming Values</h3>
+<p><code>mapLeft()</code> and <code>mapRight()</code> each transform one side, leaving the other untouched. On <code>Both</code>, only the addressed side changes. <code>mapAny()</code> applies two closures, one per side. <code>map()</code> applies the same closure to whichever side(s) are present -- useful when both sides have the same type:</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+use Psl\Str;
+
+$both = new EitherOrBoth\Both('hello', 'world');
+
+// mapLeft / mapRight: transform one side, leave the other untouched
+$both-&gt;mapLeft(Str\uppercase(...)); // Both('HELLO', 'world')
+$both-&gt;mapRight(Str\uppercase(...)); // Both('hello', 'WORLD')
+
+// mapAny: two closures, one per side. On Both, both run.
+$both-&gt;mapAny(Str\uppercase(...), Str\length(...)); // Both('HELLO', 5)
+
+// map: same closure applied to whichever side(s) are present.
+// On Both, the closure runs twice.
+$both-&gt;map(Str\uppercase(...)); // Both('HELLO', 'WORLD')
+
+// mapLeft on a Right is a no-op and returns the same instance:
+$right = new EitherOrBoth\Right('unchanged');
+$right-&gt;mapLeft(Str\uppercase(...)); // still Right('unchanged'), same object
+</code></pre>
+<h3 id="pattern-matching-with-proceed"><a href="#pattern-matching-with-proceed" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Pattern Matching with proceed()</h3>
+<p><code>proceed()</code> takes three closures -- one per variant -- and dispatches to exactly one. Arguments are positional: <code>left</code>, <code>right</code>, then <code>both</code> (no happy-path convention applies here, since the three variants are equal citizens):</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+
+/** @var EitherOrBoth\EitherOrBoth&lt;string, string&gt; $event */
+$event = new EitherOrBoth\Both('new-value', 'old-value');
+
+$description = $event-&gt;proceed(
+    left: static fn(string $new): string =&gt; &quot;insert: {$new}&quot;,
+    right: static fn(string $old): string =&gt; &quot;delete: {$old}&quot;,
+    both: static fn(string $new, string $old): string =&gt; &quot;update: {$old} -&gt; {$new}&quot;,
+);
+
+// 'update: old-value -&gt; new-value'
+</code></pre>
+<h3 id="swapping-sides"><a href="#swapping-sides" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Swapping Sides</h3>
+<p><code>swap()</code> flips Left into Right and vice versa. On <code>Both(l, r)</code> it produces <code>Both(r, l)</code>:</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+
+$left = new EitherOrBoth\Left('hello');
+$swappedLeft = $left-&gt;swap(); // Right('hello')
+
+$right = new EitherOrBoth\Right('world');
+$swappedRight = $right-&gt;swap(); // Left('world')
+
+$both = new EitherOrBoth\Both('l', 'r');
+$swappedBoth = $both-&gt;swap(); // Both('r', 'l')
+</code></pre>
+<h3 id="side-effects-with-apply"><a href="#side-effects-with-apply" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Side Effects with apply()</h3>
+<p><code>apply()</code> runs a single side-effect closure on whichever side(s) are present and returns the value unchanged. On <code>Both</code> it runs twice, once per side -- same invocation shape as <code>map()</code>. Useful for logging inside a pipeline:</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+use Psl\IO;
+
+// Single-closure apply: runs on whichever side(s) are present.
+// On Left/Right the closure is called once; on Both it runs twice (once per side).
+$event = new EitherOrBoth\Both('new', 'old');
+
+$event-&gt;apply(static fn(string $v): mixed =&gt; IO\write_error_line('value: %s', $v));
+
+// Logs:
+//   value: new
+//   value: old
+// and returns the Both unchanged.
+</code></pre>
+<h3 id="composing-with-iter-producers"><a href="#composing-with-iter-producers" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Composing with iter producers</h3>
+<p><code>EitherOrBoth</code> is the element type of <code>Psl\Iter\merge_join_by</code> (sorted inputs, O(1) memory on first traversal) and <code>Psl\Iter\merge_join_by_key</code> (keyed inputs, O(|right|) memory). Both return a rewindable <code>Iter\Iterator</code>. The four most common composition patterns -- side effects, pure mapping, filtering before dispatch, and per-side transformation -- all fall out naturally:</p>
+<pre><code class="language-php">use Psl\EitherOrBoth;
+use Psl\Iter;
+use Psl\Vec;
+
+/** @var list&lt;array{id: int, name: string}&gt; $incoming */
+$incoming = [['id' =&gt; 1, 'name' =&gt; 'Ada'], ['id' =&gt; 3, 'name' =&gt; 'Grace']];
+
+/** @var list&lt;array{id: int, name: string}&gt; $current */
+$current = [['id' =&gt; 1, 'name' =&gt; 'Ada (old)'], ['id' =&gt; 2, 'name' =&gt; 'Linus']];
+
+// 1. Side effects (DB sync). `Iter\apply` is a drop-in for a foreach loop when
+// you do not need the loop variable after the iteration finishes.
+$ops = [];
+Iter\apply(
+    Iter\merge_join_by_key(
+        $incoming,
+        $current,
+        /** @param array{id: int, name: string} $r */
+        static fn(array $r): int =&gt; $r['id'],
+    ),
+    /** @param EitherOrBoth\EitherOrBoth&lt;array{id: int, name: string}, array{id: int, name: string}&gt; $event */
+    static fn(EitherOrBoth\EitherOrBoth $event): mixed =&gt; $event-&gt;proceed(
+        /** @param array{id: int, name: string} $new */
+        left: static fn(array $new) =&gt; $ops[] = ['insert', $new['id']],
+        /** @param array{id: int, name: string} $old */
+        right: static fn(array $old) =&gt; $ops[] = ['delete', $old['id']],
+        /**
+         * @param array{id: int, name: string} $new
+         * @param array{id: int, name: string} $old
+         */
+        both: static fn(array $new, array $old) =&gt; $ops[] = ['update', $new['id'], $old['id']],
+    ),
+);
+// $ops: [['update', 1, 1], ['delete', 2], ['insert', 3]]
+
+// 2. Pure mapping (build a changelog line for each event)
+$changelog = Vec\map(
+    Iter\merge_join_by_key(
+        $incoming,
+        $current,
+        /** @param array{id: int, name: string} $r */
+        static fn(array $r): int =&gt; $r['id'],
+    ),
+    /** @param EitherOrBoth\EitherOrBoth&lt;array{id: int, name: string}, array{id: int, name: string}&gt; $e */
+    static fn(EitherOrBoth\EitherOrBoth $e): string =&gt; $e-&gt;proceed(
+        /** @param array{id: int, name: string} $r */
+        left: static fn(array $r): string =&gt; &quot;+ {$r['id']} {$r['name']}&quot;,
+        /** @param array{id: int, name: string} $r */
+        right: static fn(array $r): string =&gt; &quot;- {$r['id']} {$r['name']}&quot;,
+        /**
+         * @param array{id: int, name: string} $n
+         * @param array{id: int, name: string} $o
+         */
+        both: static fn(array $n, array $o): string =&gt; &quot;~ {$n['id']} {$o['name']} -&gt; {$n['name']}&quot;,
+    ),
+);
+// ['~ 1 Ada (old) -&gt; Ada', '- 2 Linus', '+ 3 Grace']
+
+// 3. Filtering before applying (only care about deletes)
+$deletes = Vec\filter(
+    Vec\values(Iter\merge_join_by_key(
+        $incoming,
+        $current,
+        /** @param array{id: int, name: string} $r */
+        static fn(array $r): int =&gt; $r['id'],
+    )),
+    static fn(EitherOrBoth\EitherOrBoth $e): bool =&gt; $e-&gt;isRight(),
+);
+
+// 4. Mapping each side independently (hydrate old + new differently)
+$hydrated = Vec\map(
+    Iter\merge_join_by_key(
+        $incoming,
+        $current,
+        /** @param array{id: int, name: string} $r */
+        static fn(array $r): int =&gt; $r['id'],
+    ),
+    /** @param EitherOrBoth\EitherOrBoth&lt;array{id: int, name: string}, array{id: int, name: string}&gt; $e */
+    static fn(EitherOrBoth\EitherOrBoth $e): EitherOrBoth\EitherOrBoth =&gt; $e-&gt;mapAny(
+        /** @param array{id: int, name: string} $new */
+        static fn(array $new): string =&gt; &quot;NEW:{$new['name']}&quot;,
+        /** @param array{id: int, name: string} $old */
+        static fn(array $old): string =&gt; &quot;OLD:{$old['name']}&quot;,
+    ),
+);
+</code></pre>
+<h2 id="when-to-use-eitherorboth-vs-either"><a href="#when-to-use-eitherorboth-vs-either" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use EitherOrBoth vs Either</h2>
+<ul>
+<li><strong>Either</strong> -- two mutually exclusive outcomes; one is the primary/success path, the other is secondary/error.</li>
+<li><strong>EitherOrBoth</strong> -- two sides that may independently be present, absent, or both present. No privileged side.</li>
+</ul>
+<p>If &quot;both present&quot; is a meaningful state in your domain, use <code>EitherOrBoth</code>. If it cannot occur, use <code>Either</code>.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/either-or-both/src/Psl/EitherOrBoth/">src/Psl/EitherOrBoth/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

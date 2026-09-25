@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Filesystem - PSL</title>
+        <meta name="description" content="The Filesystem component provides type-safe functions for common file system operations. It repla...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/filesystem/">
+        <meta property="og:title" content="Filesystem - PSL">
+        <meta property="og:description" content="The Filesystem component provides type-safe functions for common file system operations. It repla...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/filesystem/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Filesystem - PSL">
+        <meta name="twitter:description" content="The Filesystem component provides type-safe functions for common file system operations. It repla...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link active" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Filesystem</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/filesystem</div></div>
+<p>The <code>Filesystem</code> component provides type-safe functions for common file system operations. It replaces PHP's procedural file functions with proper error handling through exceptions, clear parameter types, and consistent behavior.</p>
+<p>Unlike the <code>File</code> component (which deals with reading and writing file contents through handles), <code>Filesystem</code> focuses on managing files and directories themselves: checking existence, creating, copying, deleting, and inspecting metadata.</p>
+<h2 id="checking-existence-and-type"><a href="#checking-existence-and-type" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Checking Existence and Type</h2>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+// Create temp directory and file for demonstration
+$dir = sys_get_temp_dir() . '/psl-fs-check-' . uniqid();
+Filesystem\create_directory($dir);
+$file = $dir . '/test.txt';
+Filesystem\create_file($file);
+$link = $dir . '/test-link';
+Filesystem\create_symbolic_link($file, $link);
+
+IO\write_line('exists(file):       %s', Filesystem\exists($file) ? 'true' : 'false');
+IO\write_line('is_file(file):      %s', Filesystem\is_file($file) ? 'true' : 'false');
+IO\write_line('is_directory(dir):  %s', Filesystem\is_directory($dir) ? 'true' : 'false');
+IO\write_line('is_symbolic_link:   %s', Filesystem\is_symbolic_link($link) ? 'true' : 'false');
+IO\write_line('is_readable(file):  %s', Filesystem\is_readable($file) ? 'true' : 'false');
+IO\write_line('is_writable(file):  %s', Filesystem\is_writable($file) ? 'true' : 'false');
+
+Filesystem\delete_file($link);
+Filesystem\delete_file($file);
+Filesystem\delete_directory($dir);
+</code></pre>
+<h2 id="creating-files-and-directories"><a href="#creating-files-and-directories" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Creating Files and Directories</h2>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+$base = sys_get_temp_dir() . '/psl-fs-create-' . uniqid();
+
+// Create a file (parent directories are created automatically)
+$file = $base . '/nested/file.txt';
+Filesystem\create_file($file);
+IO\write_line('File created: %s', Filesystem\is_file($file) ? 'yes' : 'no');
+
+// Create a directory (recursive by default)
+$dir = $base . '/another/nested/dir';
+Filesystem\create_directory($dir);
+Filesystem\create_directory($dir, 0o755);
+IO\write_line('Directory created: %s', Filesystem\is_directory($dir) ? 'yes' : 'no');
+
+// Create a temporary file
+$tmp = Filesystem\create_temporary_file();
+IO\write_line('Temp file: %s', $tmp);
+
+$tmp2 = Filesystem\create_temporary_file($base, prefix: 'app_');
+IO\write_line('Prefixed temp file: %s', Filesystem\get_basename($tmp2));
+
+// Clean up
+Filesystem\delete_file($tmp);
+Filesystem\delete_file($tmp2);
+Filesystem\delete_directory($base, recursive: true);
+</code></pre>
+<h2 id="copying-and-deleting"><a href="#copying-and-deleting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Copying and Deleting</h2>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$base = sys_get_temp_dir() . '/psl-fs-copy-' . uniqid();
+Filesystem\create_directory($base);
+
+$src = $base . '/source.txt';
+$dst = $base . '/dest.txt';
+File\write($src, 'hello world');
+
+// Copy a file (preserves executable bits)
+Filesystem\copy($src, $dst);
+IO\write_line('Copied: %s', File\read($dst));
+
+// Copy with overwrite
+File\write($src, 'updated content');
+Filesystem\copy($src, $dst, overwrite: true);
+IO\write_line('Overwritten: %s', File\read($dst));
+
+// Delete a file
+Filesystem\delete_file($dst);
+IO\write_line('File deleted: %s', !Filesystem\exists($dst) ? 'yes' : 'no');
+
+// Delete a directory (empty, or recursive)
+$subDir = $base . '/subdir';
+Filesystem\create_directory($subDir);
+Filesystem\delete_directory($subDir);
+
+// Delete a directory with contents recursively
+Filesystem\delete_directory($base, recursive: true);
+IO\write_line('Directory deleted: %s', !Filesystem\exists($base) ? 'yes' : 'no');
+</code></pre>
+<h2 id="metadata-and-permissions"><a href="#metadata-and-permissions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Metadata and Permissions</h2>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\IO;
+
+$tmp = Filesystem\create_temporary_file(prefix: 'psl_meta_');
+File\write($tmp, 'some content here');
+
+$bytes = Filesystem\file_size($tmp);
+$mtime = Filesystem\get_modification_time($tmp);
+$perms = Filesystem\get_permissions($tmp);
+$owner = Filesystem\get_owner($tmp);
+
+IO\write_line('Size: %d bytes', $bytes);
+IO\write_line('Modified: %s', date('Y-m-d H:i:s', $mtime));
+IO\write_line('Permissions: %o', $perms);
+IO\write_line('Owner UID: %d', $owner);
+
+Filesystem\change_permissions($tmp, 0o644);
+IO\write_line('New permissions: %o', Filesystem\get_permissions($tmp));
+
+Filesystem\delete_file($tmp);
+</code></pre>
+<h2 id="symbolic-links"><a href="#symbolic-links" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Symbolic Links</h2>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+$base = sys_get_temp_dir() . '/psl-fs-links-' . uniqid();
+Filesystem\create_directory($base);
+
+$target = $base . '/target.txt';
+$symlink = $base . '/symlink.txt';
+$hardlink = $base . '/hardlink.txt';
+
+Filesystem\create_file($target);
+
+Filesystem\create_symbolic_link($target, $symlink);
+Filesystem\create_hard_link($target, $hardlink);
+
+$resolved = Filesystem\read_symbolic_link($symlink);
+IO\write_line('Symlink points to: %s', $resolved);
+IO\write_line('Is symbolic link: %s', Filesystem\is_symbolic_link($symlink) ? 'true' : 'false');
+IO\write_line('Hard link exists: %s', Filesystem\is_file($hardlink) ? 'true' : 'false');
+
+Filesystem\delete_directory($base, recursive: true);
+</code></pre>
+<h2 id="path-operations"><a href="#path-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Path Operations</h2>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+$base = sys_get_temp_dir() . '/psl-fs-paths-' . uniqid();
+Filesystem\create_directory($base . '/subdir', 0o755);
+$file = $base . '/subdir/file.txt';
+Filesystem\create_file($file);
+
+// Resolve to absolute path (returns null if path does not exist)
+$real = Filesystem\canonicalize($base . '/subdir/../subdir/file.txt');
+IO\write_line('Canonical: %s', $real ?? 'null');
+
+IO\write_line('Basename: %s', Filesystem\get_basename($file)); // &quot;file.txt&quot;
+IO\write_line('Without ext: %s', Filesystem\get_basename($file, '.txt')); // &quot;file&quot;
+IO\write_line('Directory: %s', Filesystem\get_directory($file));
+IO\write_line('Extension: %s', Filesystem\get_extension($file) ?? 'null'); // &quot;txt&quot;
+
+$noExt = $base . '/subdir/Makefile';
+Filesystem\create_file($noExt);
+IO\write_line('No extension: %s', Filesystem\get_extension($noExt) ?? 'null'); // null
+
+Filesystem\delete_directory($base, recursive: true);
+</code></pre>
+<h2 id="reading-directory-contents"><a href="#reading-directory-contents" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reading Directory Contents</h2>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+$dir = sys_get_temp_dir() . '/psl-fs-readdir-' . uniqid();
+Filesystem\create_directory($dir);
+Filesystem\create_file($dir . '/alpha.txt');
+Filesystem\create_file($dir . '/beta.txt');
+Filesystem\create_directory($dir . '/subdir');
+
+$entries = Filesystem\read_directory($dir);
+// Returns a list of absolute path strings (excludes . and ..)
+foreach ($entries as $entry) {
+    IO\write_line('  %s', Filesystem\get_basename($entry));
+}
+
+Filesystem\delete_directory($dir, recursive: true);
+</code></pre>
+<h2 id="error-handling"><a href="#error-handling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Error Handling</h2>
+<p>All operations throw specific exceptions on failure:</p>
+<pre><code class="language-php">use Psl\Filesystem;
+use Psl\IO;
+
+$missing = sys_get_temp_dir() . '/psl-fs-missing-' . uniqid() . '.txt';
+
+try {
+    Filesystem\delete_file($missing);
+} catch (Filesystem\Exception\NotFoundException) {
+    IO\write_line('Caught NotFoundException: file does not exist');
+} catch (Filesystem\Exception\NotFileException) {
+    IO\write_line('Caught NotFileException: path exists but is not a file');
+}
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/filesystem/src/Psl/Filesystem/">src/Psl/Filesystem/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

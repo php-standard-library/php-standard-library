@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Result - PSL</title>
+        <meta name="description" content="The Result component represents a computation that either succeeded or failed. Instead of letting...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/result/">
+        <meta property="og:title" content="Result - PSL">
+        <meta property="og:description" content="The Result component represents a computation that either succeeded or failed. Instead of letting...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/result/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Result - PSL">
+        <meta name="twitter:description" content="The Result component represents a computation that either succeeded or failed. Instead of letting...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link active" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Result</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/result</div></div>
+<p>The <code>Result</code> component represents a computation that either succeeded or failed. Instead of letting exceptions propagate uncontrolled, you capture the outcome as a value that can be inspected, transformed, and passed around.</p>
+<p>This is useful when you want to defer error handling, aggregate results from multiple operations, or build transformation pipelines without scattering try/catch blocks throughout your code.</p>
+<h2 id="design"><a href="#design" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Design</h2>
+<ul>
+<li><strong><code>Success&lt;T&gt;</code></strong> -- Wraps a successful return value of type <code>T</code></li>
+<li><strong><code>Failure&lt;T&gt;</code></strong> -- Wraps a <code>Throwable</code> from a failed operation</li>
+<li><strong><code>ResultInterface&lt;T&gt;</code></strong> -- The common interface both implement</li>
+</ul>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="wrapping-operations"><a href="#wrapping-operations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Wrapping Operations</h3>
+<p>The <code>wrap()</code> function executes a closure and captures the outcome:</p>
+<pre><code class="language-php">use Psl\Json;
+use Psl\Result;
+use Psl\Type;
+
+$result = Result\wrap(
+    /** @return array&lt;string, string&gt; */
+    fn(): array =&gt; Json\typed('{&quot;name&quot;:&quot;Alice&quot;}', Type\dict(Type\string(), Type\string())),
+);
+
+if ($result-&gt;isSucceeded()) {
+    $data = $result-&gt;getResult();
+} else {
+    $error = $result-&gt;getThrowable();
+}
+
+// Get the value with a fallback
+$data = $result-&gt;unwrapOr([]);
+</code></pre>
+<h3 id="transforming-results"><a href="#transforming-results" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Transforming Results</h3>
+<p><code>map()</code> transforms a successful value, leaving failures untouched. <code>catch()</code> recovers from failures, leaving successes untouched:</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Result;
+use Psl\Str;
+
+$lines = Result\wrap(fn() =&gt; File\read(__FILE__))
+    -&gt;map(fn(string $content) =&gt; Str\split($content, &quot;\n&quot;))
+    -&gt;catch(fn(Throwable $_e) =&gt; []);
+
+// Success: maps content to lines
+// Failure: recovers with empty array
+</code></pre>
+<p><code>then()</code> handles both cases at once, returning a new <code>ResultInterface</code>:</p>
+<pre><code class="language-php">use Psl\Json;
+use Psl\Result;
+
+$normalized = Result\wrap(fn() =&gt; Json\decode('{&quot;name&quot;:&quot;Alice&quot;,&quot;age&quot;:30}'))
+    -&gt;then(fn(mixed $data) =&gt; ['status' =&gt; 'ok', 'data' =&gt; $data], fn(Throwable $e) =&gt; ['error' =&gt; $e-&gt;getMessage()]);
+
+// $normalized is ResultInterface&lt;array&gt;, still wrapped
+</code></pre>
+<h3 id="pattern-matching-with-proceed"><a href="#pattern-matching-with-proceed" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Pattern Matching with proceed()</h3>
+<p>The <code>proceed()</code> method unwraps the result by calling the appropriate closure and returning the value directly (not wrapped in a Result):</p>
+<pre><code class="language-php">use Psl\Iter;
+use Psl\Json;
+use Psl\Result;
+use Psl\Type;
+
+$message = Result\wrap(fn(): array =&gt; Json\typed('{&quot;a&quot;:1,&quot;b&quot;:2,&quot;c&quot;:3}', Type\dict(Type\string(), Type\int())))
+    -&gt;proceed(
+        fn(array $data): string =&gt; 'Parsed: ' . Iter\count($data) . ' items',
+        fn(Throwable $e): string =&gt; 'Failed: ' . $e-&gt;getMessage(),
+    );
+</code></pre>
+<h3 id="cleanup-with-always"><a href="#cleanup-with-always" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cleanup with always()</h3>
+<p>Run cleanup logic regardless of outcome:</p>
+<pre><code class="language-php">use Psl\File;
+use Psl\Filesystem;
+use Psl\Result;
+
+$temp = Filesystem\create_temporary_file();
+File\write($temp, 'temporary data');
+
+$result = Result\wrap(fn() =&gt; File\read($temp))-&gt;always(fn() =&gt; Filesystem\delete_file($temp));
+</code></pre>
+<h3 id="convenience-functions"><a href="#convenience-functions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Convenience Functions</h3>
+<p><code>try_catch()</code> wraps and recovers in a single step:</p>
+<pre><code class="language-php">use Psl\Json;
+use Psl\Result;
+
+$_ = Result\try_catch(fn() =&gt; Json\decode('not valid json'), fn(Throwable $_e) =&gt; []);
+</code></pre>
+<p><code>reflect()</code> converts a throwing closure into one that returns a Result:</p>
+<pre><code class="language-php">use Psl\Json;
+use Psl\Result;
+
+$safeParse = Result\reflect(fn() =&gt; Json\decode('{&quot;key&quot;:&quot;value&quot;}'));
+$result = $safeParse(); // ResultInterface, never throws
+</code></pre>
+<h3 id="collecting-statistics"><a href="#collecting-statistics" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Collecting Statistics</h3>
+<p>When processing batches, <code>collect_stats()</code> summarizes outcomes:</p>
+<pre><code class="language-php">use Psl\Json;
+use Psl\Result;
+use Psl\Vec;
+
+$inputs = ['{&quot;a&quot;:1}', 'invalid', '{&quot;b&quot;:2}', '{bad}', '{&quot;c&quot;:3}'];
+
+$results = Vec\map($inputs, fn(string $input) =&gt; Result\wrap(fn() =&gt; Json\decode($input)));
+
+$stats = Result\collect_stats($results);
+$stats-&gt;total(); // total number of results
+$stats-&gt;succeeded(); // number of successes
+$stats-&gt;failed(); // number of failures
+</code></pre>
+<h2 id="when-to-use-result"><a href="#when-to-use-result" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use Result</h2>
+<ul>
+<li><strong>Batch processing</strong>: Collect results from multiple operations without stopping at the first error</li>
+<li><strong>Pipeline transformations</strong>: Chain <code>map()</code> calls to build data transformation pipelines</li>
+<li><strong>Deferred error handling</strong>: Capture errors as values and handle them at the right level</li>
+<li><strong>API boundaries</strong>: Return Result from service methods instead of throwing across layers</li>
+</ul>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/result/src/Psl/Result/">src/Psl/Result/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Encoding - PSL</title>
+        <meta name="description" content="The Encoding component provides functions for encoding and decoding binary data to and from text-...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/encoding/">
+        <meta property="og:title" content="Encoding - PSL">
+        <meta property="og:description" content="The Encoding component provides functions for encoding and decoding binary data to and from text-...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/encoding/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Encoding - PSL">
+        <meta name="twitter:description" content="The Encoding component provides functions for encoding and decoding binary data to and from text-...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link active" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Encoding</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/encoding</div></div>
+<p>The <code>Encoding</code> component provides functions for encoding and decoding binary data to and from text-safe representations. It supports Base64 (with multiple variants) and hexadecimal encoding, making it straightforward to prepare binary data for transport over text-based protocols like HTTP, email, or JSON.</p>
+<h2 id="base64"><a href="#base64" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Base64</h2>
+<h3 id="encoding-and-decoding"><a href="#encoding-and-decoding" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Encoding and Decoding</h3>
+<pre><code class="language-php">use Psl\Encoding\Base64;
+
+$encoded = Base64\encode('Hello, World!');
+// 'SGVsbG8sIFdvcmxkIQ=='
+
+$decoded = Base64\decode($encoded);
+
+// 'Hello, World!'
+</code></pre>
+<h3 id="url-safe-variant"><a href="#url-safe-variant" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>URL-Safe Variant</h3>
+<p>Standard Base64 uses <code>+</code> and <code>/</code>, which conflict with URLs. The <code>UrlSafe</code> variant replaces them with <code>-</code> and <code>_</code>:</p>
+<pre><code class="language-php">use Psl\Encoding\Base64;
+use Psl\SecureRandom;
+
+// Standard encoding may produce URL-unfriendly characters
+$binaryToken = SecureRandom\bytes(8);
+$token = Base64\encode($binaryToken);
+
+// URL-safe encoding is better for query parameters, filenames, and tokens
+$token = Base64\encode($binaryToken, Base64\Variant::UrlSafe);
+$original = Base64\decode($token, Base64\Variant::UrlSafe);
+</code></pre>
+<p>The <code>Variant</code> enum supports <code>Standard</code>, <code>UrlSafe</code>, <code>DotSlash</code>, <code>DotSlashOrdered</code>, and <code>Mime</code> for specialized use cases.</p>
+<p>The <code>Mime</code> variant uses the standard alphabet but wraps output at 76 characters with CRLF line endings per RFC 2045, and strips whitespace on decode.</p>
+<h3 id="padding-control"><a href="#padding-control" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Padding Control</h3>
+<p>Both <code>encode()</code> and <code>decode()</code> accept a padding parameter. You can strip padding on encode and decode without it:</p>
+<pre><code class="language-php">use Psl\Encoding\Base64;
+
+$encoded = Base64\encode('Hello!', padding: false);
+// 'SGVsbG8h' (no trailing '=')
+
+$decoded = Base64\decode($encoded, explicitPadding: false);
+
+// 'Hello!'
+</code></pre>
+<h3 id="error-handling"><a href="#error-handling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Error Handling</h3>
+<p>Decoding invalid input throws typed exceptions rather than returning <code>false</code>:</p>
+<pre><code class="language-php">use Psl\Encoding\Base64;
+use Psl\Encoding\Exception;
+
+try {
+    Base64\decode('not-valid-base64!');
+} catch (Exception\RangeException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+</code></pre>
+<h2 id="hex"><a href="#hex" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Hex</h2>
+<p>Hexadecimal encoding converts each byte into two hex characters. This is useful for displaying binary data like hashes, checksums, or cryptographic keys in a human-readable form.</p>
+<pre><code class="language-php">use Psl\Encoding\Exception;
+use Psl\Encoding\Hex;
+
+$hex = Hex\encode('Hello');
+// '48656c6c6f'
+
+$binary = Hex\decode('48656c6c6f');
+// 'Hello'
+
+// Invalid hex throws immediately
+try {
+    Hex\decode('xyz');
+} catch (Exception\RangeException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+
+// Odd-length strings are rejected
+try {
+    Hex\decode('abc');
+} catch (Exception\RangeException $e) {
+    echo $e-&gt;getMessage() . &quot;\n&quot;;
+}
+</code></pre>
+<h2 id="quoted-printable"><a href="#quoted-printable" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Quoted-Printable</h2>
+<p>Quoted-printable encoding represents 8-bit data using only printable ASCII characters, as defined by RFC 2045 §6.7. It is commonly used in email (MIME) to encode content that is mostly ASCII with occasional special characters. Unlike Base64, quoted-printable keeps readable text readable.</p>
+<pre><code class="language-php">use Psl\Encoding\QuotedPrintable;
+use Psl\IO;
+
+$encoded = QuotedPrintable\encode(&quot;Hello =World!\r\nLine 2 with trailing space &quot;);
+IO\write_line('Encoded: %s', $encoded);
+
+$decoded = QuotedPrintable\decode($encoded);
+IO\write_line('Decoded: %s', $decoded);
+
+// Custom line length
+$short = QuotedPrintable\encode(str_repeat('A', 50), maxLineLength: 30);
+IO\write_line('Short lines: %s', $short);
+
+// Custom line ending
+$unix = QuotedPrintable\encode(&quot;line1\r\nline2&quot;, lineEnding: &quot;\n&quot;);
+IO\write_line('Unix endings: %s', $unix);
+</code></pre>
+<p>Both <code>encode()</code> and <code>encode_line()</code> accept optional <code>$max_line_length</code> (default 76) and <code>$line_ending</code> (default <code>&quot;\r\n&quot;</code>) parameters.</p>
+<h2 id="encoded-word-rfc-2047"><a href="#encoded-word-rfc-2047" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Encoded-Word (RFC 2047)</h2>
+<p>Encoded-word encoding is used in MIME headers (Subject, From, etc.) to represent non-ASCII text. <code>encode()</code> automatically selects Q-encoding (for mostly ASCII text) or B-encoding (for mostly non-ASCII text) based on the proportion of non-printable bytes.</p>
+<pre><code class="language-php">use Psl\Encoding\EncodedWord;
+use Psl\IO;
+
+// Encode a non-ASCII string for use in a MIME header
+$encoded = EncodedWord\encode(&quot;caf\xC3\xA9 latt\xC3\xA9 is great&quot;);
+IO\write_line('Encoded: %s', $encoded);
+
+// Decode encoded-words back to UTF-8
+$decoded = EncodedWord\decode($encoded);
+IO\write_line('Decoded: %s', $decoded);
+
+// Decode a B-encoded header
+$subject = EncodedWord\decode('=?utf-8?B?Y2Fmw6k=?=');
+IO\write_line('Subject: %s', $subject);
+
+// Decode a Q-encoded header with underscores as spaces
+$from = EncodedWord\decode('=?utf-8?Q?John_Doe?=');
+IO\write_line('From: %s', $from);
+
+// Plain ASCII passes through unchanged
+$plain = EncodedWord\encode('Hello, World!');
+IO\write_line('Plain: %s', $plain);
+</code></pre>
+<p><code>encode()</code> accepts an optional <code>$charset</code> parameter of type <code>Psl\Str\Encoding</code> (default <code>Encoding::Utf8</code>). <code>decode()</code> handles charset conversion automatically, and per RFC 2047 §6.2, whitespace between adjacent encoded-words is removed.</p>
+<h2 id="streaming-io-handles"><a href="#streaming-io-handles" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Streaming IO Handles</h2>
+<p>Each encoding namespace (Base64, Hex, QuotedPrintable) provides four IO handle decorators that transparently encode or decode data as it flows through:</p>
+<ul>
+<li><strong><code>EncodingReadHandle</code></strong> wraps a raw readable handle; read() returns encoded data</li>
+<li><strong><code>DecodingReadHandle</code></strong> wraps an encoded readable handle; read() returns decoded data</li>
+<li><strong><code>EncodingWriteHandle</code></strong> accepts raw data via write(); encodes and writes to the inner handle</li>
+<li><strong><code>DecodingWriteHandle</code></strong> accepts encoded data via write(); decodes and writes to the inner handle</li>
+</ul>
+<p>Write handles have a <code>flush()</code> method to encode/decode any remaining buffered data.</p>
+<p>This bridges <code>Psl\IO</code> with <code>Psl\Encoding</code>, allowing you to compose encoding into any IO pipeline:</p>
+<pre><code class="language-php">use Psl\Encoding\Base64;
+use Psl\IO;
+
+// Encode: wrap a raw handle, read() returns base64-encoded output
+$raw = new IO\MemoryHandle('Hello, World!');
+$encoder = new Base64\EncodingReadHandle($raw);
+$encoded = $encoder-&gt;readAll();
+IO\write_line('Encoded: %s', $encoded);
+
+// Decode: wrap an encoded handle, read() returns raw bytes
+$encodedHandle = new IO\MemoryHandle($encoded);
+$decoder = new Base64\DecodingReadHandle($encodedHandle);
+$decoded = $decoder-&gt;readAll();
+IO\write_line('Decoded: %s', $decoded);
+
+// Write handles work the other direction
+$output = new IO\MemoryHandle();
+$encodingWriter = new Base64\EncodingWriteHandle($output);
+$encodingWriter-&gt;writeAll('Binary data here');
+$encodingWriter-&gt;flush();
+
+$output-&gt;seek(0);
+IO\write_line('Written encoded: %s', $output-&gt;readAll());
+</code></pre>
+<p>Read handles also implement <code>BufferedReadHandleInterface</code>, providing <code>readByte()</code>, <code>readLine()</code>, <code>readUntil()</code>, and <code>readUntilBounded()</code> directly on the decoded/encoded output with zero wrapper overhead.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/encoding/src/Psl/Encoding/">src/Psl/Encoding/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

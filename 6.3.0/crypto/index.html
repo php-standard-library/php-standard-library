@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Crypto - PSL</title>
+        <meta name="description" content="The Crypto component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/crypto/">
+        <meta property="og:title" content="Crypto - PSL">
+        <meta property="og:description" content="The Crypto component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/crypto/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Crypto - PSL">
+        <meta name="twitter:description" content="The Crypto component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link active" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Crypto</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/crypto</div></div>
+<p>The <code>Crypto</code> component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL. It covers symmetric encryption, asymmetric encryption, digital signatures, AEAD, key exchange, and key derivation -- all through a type-safe API with dedicated key types that prevent misuse.</p>
+<h2 id="symmetric-encryption"><a href="#symmetric-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Symmetric Encryption</h2>
+<p><code>Crypto\Symmetric</code> provides authenticated encryption using XChaCha20-Poly1305. A single shared key encrypts and decrypts. Nonces are managed automatically, so you never have to generate or track them:</p>
+<pre><code class="language-php">use Psl\Crypto\Symmetric;
+use Psl\IO;
+
+$key = Symmetric\generate_key();
+
+$ciphertext = Symmetric\seal('Hello, World!', $key);
+$plaintext = Symmetric\open($ciphertext, $key);
+
+IO\write_line('Decrypted: %s', $plaintext);
+
+// Decrypted: Hello, World!
+</code></pre>
+<h3 id="additional-authenticated-data"><a href="#additional-authenticated-data" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Additional Authenticated Data</h3>
+<p>You can bind extra context to the ciphertext with additional authenticated data (AAD). The AAD is not encrypted, but decryption will fail if it does not match exactly:</p>
+<pre><code class="language-php">use Psl\Crypto\Exception;
+use Psl\Crypto\Symmetric;
+use Psl\IO;
+
+$key = Symmetric\generate_key();
+
+// Additional authenticated data (AAD) is authenticated but not encrypted.
+// Use it for metadata that must be verified alongside the ciphertext.
+$ciphertext = Symmetric\seal('secret payload', $key, additionalData: 'user-id:42');
+
+// Decryption succeeds only if the same AAD is provided
+$plaintext = Symmetric\open($ciphertext, $key, additionalData: 'user-id:42');
+IO\write_line('Decrypted: %s', $plaintext);
+
+// Wrong or missing AAD causes decryption to fail
+try {
+    Symmetric\open($ciphertext, $key, additionalData: 'user-id:99');
+} catch (Exception\DecryptionException) {
+    IO\write_line('Decryption failed: AAD mismatch.');
+}
+</code></pre>
+<p>This is useful for tying ciphertext to a specific user, session, or record without including that metadata in the encrypted payload.</p>
+<h3 id="stream-encryption"><a href="#stream-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Stream Encryption</h3>
+<p>For large data or file encryption, the <code>StreamEncryptor</code> class provides streaming encryption. Data is processed in chunks so memory usage stays constant regardless of input size:</p>
+<pre><code class="language-php">use Psl\Crypto\Symmetric;
+use Psl\IO;
+
+$key = Symmetric\generate_key();
+$streamEncryptor = new Symmetric\StreamEncryptor($key);
+
+// Encrypt a stream in chunks (useful for large files)
+$source = new IO\MemoryHandle('This is a large message that will be encrypted in chunks.');
+$encrypted = new IO\MemoryHandle();
+
+$streamEncryptor-&gt;copySealed($source, $encrypted, chunkSize: 4096);
+
+// Decrypt the stream back
+$encrypted-&gt;seek(0);
+$decrypted = new IO\MemoryHandle();
+$streamEncryptor-&gt;copyOpened($encrypted, $decrypted);
+
+$decrypted-&gt;seek(0);
+IO\write_line('Decrypted: %s', $decrypted-&gt;readAll());
+</code></pre>
+<p>The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk individually and detects reordering or truncation.</p>
+<h2 id="asymmetric-encryption"><a href="#asymmetric-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Asymmetric Encryption</h2>
+<p><code>Crypto\Asymmetric</code> provides public-key encryption using X25519. Each party has a key pair consisting of a secret key and a public key.</p>
+<h3 id="sealed-boxes-anonymous-sender"><a href="#sealed-boxes-anonymous-sender" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sealed Boxes (Anonymous Sender)</h3>
+<p>Sealed boxes let you encrypt a message for a recipient using only their public key. The sender remains anonymous -- the recipient cannot determine who sent the message:</p>
+<pre><code class="language-php">use Psl\Crypto\Asymmetric;
+use Psl\IO;
+
+$keyPair = Asymmetric\generate_key_pair();
+
+// Sealed boxes: encrypt with just a public key (anonymous sender).
+// Only the holder of the secret key can decrypt.
+$ciphertext = Asymmetric\seal('Anonymous tip: the cake is a lie.', $keyPair-&gt;publicKey);
+$plaintext = Asymmetric\open($ciphertext, $keyPair-&gt;secretKey, $keyPair-&gt;publicKey);
+
+IO\write_line('Decrypted: %s', $plaintext);
+</code></pre>
+<p>Use sealed boxes when the sender's identity does not need to be verified, such as anonymous feedback or one-way secret submission.</p>
+<h3 id="authenticated-encryption"><a href="#authenticated-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Authenticated Encryption</h3>
+<p>When both parties have key pairs, <code>Asymmetric\encrypt()</code> provides authenticated encryption. The recipient can verify the message came from the expected sender:</p>
+<pre><code class="language-php">use Psl\Crypto\Asymmetric;
+use Psl\IO;
+
+// Both parties generate key pairs
+$alice = Asymmetric\generate_key_pair();
+$bob = Asymmetric\generate_key_pair();
+
+// Alice sends an authenticated message to Bob
+$ciphertext = Asymmetric\encrypt(
+    'Hello Bob, this is Alice.',
+    senderSecretKey: $alice-&gt;secretKey,
+    recipientPublicKey: $bob-&gt;publicKey,
+);
+
+// Bob decrypts and verifies it came from Alice
+$plaintext = Asymmetric\decrypt($ciphertext, recipientSecretKey: $bob-&gt;secretKey, senderPublicKey: $alice-&gt;publicKey);
+
+IO\write_line('From Alice: %s', $plaintext);
+</code></pre>
+<p>A random nonce is generated and prepended to the ciphertext automatically, so each message is unique even if the plaintext is the same.</p>
+<h3 id="encryptor-class"><a href="#encryptor-class" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Encryptor Class</h3>
+<p>The <code>Encryptor</code> class implements <code>Crypto\EncryptorInterface</code> for sealed-box encryption, useful for dependency injection:</p>
+<pre><code class="language-php">use Psl\Crypto\Asymmetric;
+use Psl\IO;
+
+$keyPair = Asymmetric\generate_key_pair();
+
+// The Encryptor class implements the EncryptorInterface for sealed-box encryption.
+// Useful when you need an object to pass around or inject as a dependency.
+$encryptor = new Asymmetric\Encryptor($keyPair-&gt;secretKey, $keyPair-&gt;publicKey);
+
+$ciphertext = $encryptor-&gt;seal('Encrypt me');
+$plaintext = $encryptor-&gt;open($ciphertext);
+
+IO\write_line('Decrypted: %s', $plaintext);
+</code></pre>
+<h2 id="digital-signatures"><a href="#digital-signatures" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Digital Signatures</h2>
+<p><code>Crypto\Signing</code> provides Ed25519 digital signatures. A signature proves that a message was created by the holder of a specific secret key and has not been modified. Unlike HMAC, the verifier only needs the public key, so the signing key is never shared.</p>
+<h3 id="signing-and-verifying"><a href="#signing-and-verifying" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Signing and Verifying</h3>
+<p><code>Signing\sign()</code> creates a detached signature, and <code>Signing\verify()</code> checks it against the original message:</p>
+<pre><code class="language-php">use Psl\Crypto\Signing;
+use Psl\IO;
+
+$keyPair = Signing\generate_key_pair();
+
+$message = 'This message is authentic.';
+$signature = Signing\sign($message, $keyPair-&gt;secretKey);
+
+$valid = Signing\verify($signature, $message, $keyPair-&gt;publicKey);
+IO\write_line('Signature valid: %s', $valid ? 'yes' : 'no');
+// Signature valid: yes
+
+$valid = Signing\verify($signature, 'tampered message', $keyPair-&gt;publicKey);
+IO\write_line('Tampered valid: %s', $valid ? 'yes' : 'no');
+
+// Tampered valid: no
+</code></pre>
+<p>If any byte of the message changes, verification fails. The signature does not reveal the message contents.</p>
+<h3 id="signer-and-verifier-classes"><a href="#signer-and-verifier-classes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Signer and Verifier Classes</h3>
+<p>The <code>Signer</code> and <code>Verifier</code> classes wrap the signing and verification logic. They are useful for dependency injection, letting you separate the signing side (which holds the secret key) from the verification side (which only needs the public key):</p>
+<pre><code class="language-php">use Psl\Crypto\Signing;
+use Psl\IO;
+
+$keyPair = Signing\generate_key_pair();
+
+// The Signer and Verifier classes are useful for dependency injection.
+$signer = new Signing\Signer($keyPair-&gt;secretKey);
+$verifier = new Signing\Verifier($keyPair-&gt;publicKey);
+
+$signature = $signer-&gt;sign('Important document contents');
+$valid = $verifier-&gt;verify($signature, 'Important document contents');
+
+IO\write_line('Valid: %s', $valid ? 'yes' : 'no');
+</code></pre>
+<h2 id="aead-encryption"><a href="#aead-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>AEAD Encryption</h2>
+<p><code>Crypto\Aead</code> provides low-level authenticated encryption with associated data. Unlike <code>Crypto\Symmetric</code>, you manage the nonce yourself. This gives you full control but requires care: reusing a nonce with the same key is catastrophic for security.</p>
+<blockquote>
+<p><strong>Use <code>Crypto\Symmetric</code> instead</strong> unless you have a specific reason to manage nonces manually. The symmetric API handles nonces automatically and is harder to misuse.</p>
+</blockquote>
+<pre><code class="language-php">use Psl\Crypto\Aead;
+use Psl\IO;
+use Psl\SecureRandom;
+
+$algorithm = Aead\Algorithm::XChaCha20Poly1305;
+$key = Aead\generate_key($algorithm);
+
+// AEAD requires a unique nonce for each message.
+// Never reuse a nonce with the same key.
+$nonce = SecureRandom\bytes(24);
+
+$ciphertext = Aead\encrypt(
+    'Sensitive data',
+    $key,
+    nonce: $nonce,
+    additionalData: 'context-info',
+    algorithm: $algorithm,
+);
+
+$plaintext = Aead\decrypt($ciphertext, $key, $nonce, 'context-info', $algorithm);
+IO\write_line('Decrypted: %s', $plaintext);
+</code></pre>
+<p>The <code>Aead\Algorithm</code> enum supports three constructions:</p>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Nonce Size</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>XChaCha20Poly1305</code></td>
+<td>24 bytes</td>
+<td>Recommended. Large nonce makes accidental reuse unlikely.</td>
+</tr>
+<tr>
+<td><code>ChaCha20Poly1305</code></td>
+<td>8 bytes</td>
+<td>IETF standard. Smaller nonce requires careful management.</td>
+</tr>
+<tr>
+<td><code>Aes256Gcm</code></td>
+<td>12 bytes</td>
+<td>Hardware-accelerated on supported CPUs. Not available everywhere.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-exchange"><a href="#key-exchange" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Key Exchange</h2>
+<p><code>Crypto\KeyExchange</code> provides X25519 Diffie-Hellman key agreement. Two parties can each combine their own secret key with the other's public key to arrive at the same shared secret, without ever transmitting the secret itself:</p>
+<pre><code class="language-php">use Psl\Crypto\KeyExchange;
+use Psl\IO;
+
+// Both parties generate key pairs
+$alice = KeyExchange\generate_key_pair();
+$bob = KeyExchange\generate_key_pair();
+
+// Each party computes a shared secret using their secret key and the other's public key
+$aliceShared = KeyExchange\agree($alice-&gt;secretKey, $bob-&gt;publicKey);
+$bobShared = KeyExchange\agree($bob-&gt;secretKey, $alice-&gt;publicKey);
+
+// Both arrive at the same shared secret
+IO\write_line('Secrets match: %s', $aliceShared-&gt;bytes === $bobShared-&gt;bytes ? 'yes' : 'no');
+
+// Secrets match: yes
+</code></pre>
+<p>The shared secret can then be used as input keying material for key derivation to produce session keys.</p>
+<h2 id="key-derivation"><a href="#key-derivation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Key Derivation</h2>
+<p>PSL provides two key derivation mechanisms: <code>Crypto\Kdf</code> for deriving subkeys from a master key, and <code>Crypto\Hkdf</code> for deriving keys from arbitrary input keying material using the HMAC-based extract-and-expand pattern (RFC 5869).</p>
+<h3 id="kdf-subkey-derivation"><a href="#kdf-subkey-derivation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>KDF: Subkey Derivation</h3>
+<p><code>Kdf\derive()</code> produces deterministic subkeys from a master key. Each subkey is identified by a numeric ID and an 8-byte context string:</p>
+<pre><code class="language-php">use Psl\Crypto\Kdf;
+use Psl\IO;
+use Psl\Str\Byte;
+
+$masterKey = Kdf\generate_key();
+
+// Derive subkeys for different purposes using a context string (exactly 8 bytes)
+// and a numeric subkey ID.
+$encryptionKey = Kdf\derive($masterKey, subKeyId: 1, context: 'encryptn', length: 32);
+$signingKey = Kdf\derive($masterKey, subKeyId: 2, context: 'encryptn', length: 32);
+
+IO\write_line('Encryption key length: %d bytes', Byte\length($encryptionKey));
+IO\write_line('Signing key length: %d bytes', Byte\length($signingKey));
+IO\write_line('Keys are different: %s', $encryptionKey !== $signingKey ? 'yes' : 'no');
+</code></pre>
+<p>This is useful when you need multiple keys for different purposes (encryption, signing, tokens) but want to store and manage only a single master key.</p>
+<h3 id="hkdf-extract-and-expand"><a href="#hkdf-extract-and-expand" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>HKDF: Extract and Expand</h3>
+<p><code>Hkdf\derive()</code> implements the full HKDF construction from RFC 5869. It takes raw input keying material (such as a shared secret from key exchange) and produces cryptographically strong key material:</p>
+<pre><code class="language-php">use Psl\Crypto\Hkdf;
+use Psl\Hash\Hmac;
+use Psl\IO;
+use Psl\Str\Byte;
+
+// HKDF (RFC 5869) derives keys from input keying material.
+// Useful when you have a shared secret from key exchange and need session keys.
+$inputKeyingMaterial = 'raw-shared-secret-from-key-exchange';
+
+// One-step derivation (extract + expand combined)
+$derivedKey = Hkdf\derive(
+    inputKeyingMaterial: $inputKeyingMaterial,
+    salt: 'optional-salt',
+    info: 'session-encryption-key',
+    length: 32,
+    algorithm: Hmac\Algorithm::Sha256,
+);
+
+IO\write_line('Derived key length: %d bytes', Byte\length($derivedKey));
+
+// Two-step derivation for deriving multiple keys from the same PRK
+$prk = Hkdf\extract($inputKeyingMaterial, salt: 'my-salt');
+$key1 = Hkdf\expand($prk, info: 'encryption', length: 32);
+$key2 = Hkdf\expand($prk, info: 'authentication', length: 32);
+
+IO\write_line('Keys are different: %s', $key1 !== $key2 ? 'yes' : 'no');
+</code></pre>
+<p>The two-step API (<code>Hkdf\extract()</code> + <code>Hkdf\expand()</code>) is useful when you need to derive multiple keys from the same source material, as you only pay the extraction cost once.</p>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/crypto/src/Psl/Crypto/">src/Psl/Crypto/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

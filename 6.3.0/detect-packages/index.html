@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Detect Packages - PSL</title>
+        <meta name="description" content="The detect-packages command scans PHP source directories for PSL namespace usage and reports whic...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/detect-packages/">
+        <meta property="og:title" content="Detect Packages - PSL">
+        <meta property="og:description" content="The detect-packages command scans PHP source directories for PSL namespace usage and reports whic...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/detect-packages/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Detect Packages - PSL">
+        <meta name="twitter:description" content="The detect-packages command scans PHP source directories for PSL namespace usage and reports whic...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link active" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Detect Packages</h1>
+<p>The <code>detect-packages</code> command scans PHP source directories for PSL namespace usage and reports which <code>php-standard-library/*</code> standalone packages are needed. This helps migrate from the monorepo to individual packages.</p>
+<p>This tool is only available when using the monorepo (<code>php-standard-library/php-standard-library</code>).</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<pre><code class="language-bash">vendor/bin/psl detect-packages &lt;path&gt;... [--dev &lt;path&gt;...] [--composer]
+</code></pre>
+<h3 id="options"><a href="#options" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Options</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--src</code></td>
+<td>Mark following paths as <code>require</code> dependencies (default)</td>
+</tr>
+<tr>
+<td><code>--dev</code></td>
+<td>Mark following paths as <code>require-dev</code> dependencies</td>
+</tr>
+<tr>
+<td><code>--composer</code></td>
+<td>Output a JSON snippet for <code>composer.json</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="examples"><a href="#examples" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Examples</h2>
+<h3 id="basic-scan"><a href="#basic-scan" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Basic scan</h3>
+<p>Scan a single source directory:</p>
+<pre><code class="language-bash">vendor/bin/psl detect-packages src/
+</code></pre>
+<pre><code>Detected PSL packages:
+
+  require:
+    php-standard-library/dict
+    php-standard-library/foundation
+    php-standard-library/str
+    php-standard-library/vec
+</code></pre>
+<h3 id="separating-require-and-require-dev"><a href="#separating-require-and-require-dev" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Separating require and require-dev</h3>
+<p>Scan source and test directories separately. Packages found in both are placed in <code>require</code> only:</p>
+<pre><code class="language-bash">vendor/bin/psl detect-packages src/ --dev tests/
+</code></pre>
+<pre><code>Detected PSL packages:
+
+  require:
+    php-standard-library/dict
+    php-standard-library/foundation
+    php-standard-library/str
+    php-standard-library/vec
+
+  require-dev:
+    php-standard-library/filesystem
+    php-standard-library/os
+</code></pre>
+<h3 id="json-output-for-composerjson"><a href="#json-output-for-composerjson" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>JSON output for composer.json</h3>
+<p>Use <code>--composer</code> to get output you can paste directly into your <code>composer.json</code>:</p>
+<pre><code class="language-bash">vendor/bin/psl detect-packages src/ --dev tests/ --composer
+</code></pre>
+<pre><code class="language-json">{
+    &quot;require&quot;: {
+        &quot;php-standard-library/dict&quot;: &quot;^6.1&quot;,
+        &quot;php-standard-library/str&quot;: &quot;^6.1&quot;,
+        &quot;php-standard-library/vec&quot;: &quot;^6.1&quot;
+    },
+    &quot;require-dev&quot;: {
+        &quot;php-standard-library/filesystem&quot;: &quot;^6.1&quot;,
+        &quot;php-standard-library/os&quot;: &quot;^6.1&quot;
+    }
+}
+</code></pre>
+<h3 id="multiple-source-paths"><a href="#multiple-source-paths" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Multiple source paths</h3>
+<p>You can pass multiple directories. Bare paths default to <code>require</code>:</p>
+<pre><code class="language-bash">vendor/bin/psl detect-packages src/ lib/ --dev tests/
+</code></pre>
+<h2 id="how-it-works"><a href="#how-it-works" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>How it works</h2>
+<p>The tool scans all <code>.php</code> files in the given directories and matches <code>Psl\&lt;Namespace&gt;</code> references using regex. Each namespace is mapped to its corresponding standalone package. The <code>foundation</code> package is always included when any PSL usage is detected, since all PSL packages depend on it.</p>
+<p>Transitive dependencies are not resolved — only direct usage in your code is reported. Composer handles transitive dependencies automatically when you install the standalone packages.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

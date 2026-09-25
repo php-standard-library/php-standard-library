@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Shell - PSL</title>
+        <meta name="description" content="The Shell component provides a single function, Shell\execute(), for running external commands an...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/shell/">
+        <meta property="og:title" content="Shell - PSL">
+        <meta property="og:description" content="The Shell component provides a single function, Shell\execute(), for running external commands an...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/shell/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Shell - PSL">
+        <meta name="twitter:description" content="The Shell component provides a single function, Shell\execute(), for running external commands an...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link active" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Shell</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/shell</div></div>
+<p>The <code>Shell</code> component provides a single function, <code>Shell\execute()</code>, for running external commands and capturing their output. It handles argument escaping, error output management, and proper exception handling for failed commands.</p>
+<p>For more advanced process management (streaming I/O, signals, non-blocking operation), see the <code>Process</code> component. <code>Shell</code> is the simpler choice when you just need to run a command and get the result.</p>
+<h2 id="basic-usage"><a href="#basic-usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Basic Usage</h2>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Shell;
+
+// Run a command and capture stdout
+$output = Shell\execute('echo', ['Hello from shell']);
+IO\write_line('Output: %s', $output);
+
+// With a specific working directory
+$output = Shell\execute('ls', ['-la'], __DIR__);
+IO\write_line('Directory listing:\n%s', $output);
+
+// With environment variables
+$output = Shell\execute(
+    'php',
+    ['-r', 'echo getenv(&quot;APP_ENV&quot;);'],
+    environment: [
+        'APP_ENV' =&gt; 'production',
+        'DEBUG' =&gt; '0',
+    ],
+);
+IO\write_line('Env value: %s', $output);
+</code></pre>
+<h2 id="handling-error-output"><a href="#handling-error-output" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Handling Error Output</h2>
+<p>By default, stderr is discarded. The <code>ErrorOutputBehavior</code> enum controls how stderr is handled relative to stdout:</p>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Shell;
+use Psl\Shell\ErrorOutputBehavior;
+
+// Discard stderr (default)
+$stdout = Shell\execute(
+    'php',
+    ['-r', 'echo &quot;out&quot;; fwrite(STDERR, &quot;err&quot;);'],
+    errorOutputBehavior: ErrorOutputBehavior::Discard,
+);
+IO\write_line('Discard:  stdout=%s', $stdout);
+
+// Append stderr after stdout
+$combined = Shell\execute(
+    'php',
+    ['-r', 'echo &quot;out&quot;; fwrite(STDERR, &quot;err&quot;);'],
+    errorOutputBehavior: ErrorOutputBehavior::Append,
+);
+IO\write_line('Append:   %s', $combined);
+
+// Prepend stderr before stdout
+$combined = Shell\execute(
+    'php',
+    ['-r', 'echo &quot;out&quot;; fwrite(STDERR, &quot;err&quot;);'],
+    errorOutputBehavior: ErrorOutputBehavior::Prepend,
+);
+IO\write_line('Prepend:  %s', $combined);
+
+// Return only stderr, discard stdout
+$stderr = Shell\execute(
+    'php',
+    ['-r', 'echo &quot;out&quot;; fwrite(STDERR, &quot;err&quot;);'],
+    errorOutputBehavior: ErrorOutputBehavior::Replace,
+);
+IO\write_line('Replace:  %s', $stderr);
+
+// Pack both streams for later separation
+$packed = Shell\execute(
+    'php',
+    ['-r', 'echo &quot;out&quot;; fwrite(STDERR, &quot;err&quot;);'],
+    errorOutputBehavior: ErrorOutputBehavior::Packed,
+);
+[$stdout, $stderr] = Shell\unpack($packed);
+IO\write_line('Packed:   stdout=%s, stderr=%s', $stdout, $stderr);
+</code></pre>
+<h2 id="cancellation"><a href="#cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancellation</h2>
+<p>Pass a <code>CancellationTokenInterface</code> to cancel a running command. Use <code>TimeoutCancellationToken</code> to enforce a time limit:</p>
+<pre><code class="language-php">use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\IO;
+use Psl\Shell;
+
+try {
+    $output = Shell\execute('sleep', ['10'], cancellation: new Async\TimeoutCancellationToken(Duration::seconds(1)));
+} catch (Async\Exception\CancelledException) {
+    IO\write_line('Command exceeded the time limit (as expected)');
+}
+</code></pre>
+<h2 id="error-handling"><a href="#error-handling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Error Handling</h2>
+<p><code>execute()</code> throws specific exceptions depending on what went wrong:</p>
+<ul>
+<li><strong><code>FailedExecutionException</code></strong> -- the command exited with a non-zero status. Provides <code>getCommand()</code>, <code>getOutput()</code>, and <code>getErrorOutput()</code> for inspection.</li>
+<li><strong><code>PossibleAttackException</code></strong> -- the command or an argument contains a NULL byte, indicating a potential injection attack.</li>
+<li><strong><code>CancelledException</code></strong> -- the command was cancelled via the cancellation token.</li>
+<li><strong><code>RuntimeException</code></strong> -- the working directory does not exist, or the process could not be created.</li>
+</ul>
+<pre><code class="language-php">use Psl\IO;
+use Psl\Shell;
+
+try {
+    $output = Shell\execute('php', ['-r', 'exit(1);']);
+} catch (Shell\Exception\FailedExecutionException $e) {
+    IO\write_line('Command failed: %s', $e-&gt;getCommand());
+    IO\write_line('Exit code: %d', $e-&gt;getCode());
+    IO\write_line('Stderr: %s', $e-&gt;getErrorOutput());
+}
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/shell/src/Psl/Shell/">src/Psl/Shell/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

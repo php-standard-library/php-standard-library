@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Binary - PSL</title>
+        <meta name="description" content="The Binary component provides typed functions and classes for encoding and decoding binary data, ...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/binary/">
+        <meta property="og:title" content="Binary - PSL">
+        <meta property="og:description" content="The Binary component provides typed functions and classes for encoding and decoding binary data, ...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/binary/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Binary - PSL">
+        <meta name="twitter:description" content="The Binary component provides typed functions and classes for encoding and decoding binary data, ...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link active" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Binary</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/binary</div></div>
+<p>The <code>Binary</code> component provides typed functions and classes for encoding and decoding binary data, replacing PHP's cryptic <code>pack()</code> / <code>unpack()</code> format strings with a clear, type-safe API. It supports explicit endianness control via the <code>Endianness</code> enum.</p>
+<h2 id="why-use-this"><a href="#why-use-this" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Why Use This?</h2>
+<p>PHP's <code>pack()</code> and <code>unpack()</code> rely on single-character format codes (<code>N</code>, <code>v</code>, <code>J</code>, <code>P</code>, etc.) that are hard to remember and easy to misuse. PSL's Binary component provides:</p>
+<ul>
+<li><strong>Named functions</strong> like <code>encode_u32()</code> and <code>decode_i16()</code> instead of cryptic format strings.</li>
+<li><strong>Explicit endianness</strong> via an enum instead of remembering which format code is big-endian vs little-endian.</li>
+<li><strong>Type-safe validation</strong> that throws on overflow or underflow.</li>
+<li><strong>An immutable Writer</strong> for building binary messages in memory.</li>
+<li><strong>A cursor-based Reader</strong> for parsing binary data from a string.</li>
+<li><strong>Handle-based Writer and Reader</strong> for streaming binary data directly to/from IO handles without buffering.</li>
+</ul>
+<h2 id="one-shot-functions"><a href="#one-shot-functions" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>One-Shot Functions</h2>
+<p>For encoding or decoding individual values, use the standalone functions. Each function validates its input and throws on error.</p>
+<pre><code class="language-php">use Psl\Binary;
+use Psl\Binary\Endianness;
+use Psl\IO;
+
+// Encode an unsigned 16-bit integer in big-endian (network byte order)
+$bytes = Binary\encode_u16(0x0102, Endianness::Big);
+IO\write_line('u16 big-endian bytes: %s', bin2hex($bytes)); // 0102
+
+// Decode it back
+$value = Binary\decode_u16($bytes, Endianness::Big);
+IO\write_line('Decoded u16: 0x%04X', $value); // 0x0102
+
+// Encode a signed 32-bit integer in little-endian
+$bytes = Binary\encode_i32(-1, Endianness::Little);
+IO\write_line('i32 little-endian bytes: %s', bin2hex($bytes)); // ffffffff
+
+// Decode it back
+$value = Binary\decode_i32($bytes, Endianness::Little);
+IO\write_line('Decoded i32: %d', $value); // -1
+
+// Encode a 64-bit float
+$bytes = Binary\encode_f64(3.14, Endianness::Big);
+IO\write_line('f64 bytes: %s', bin2hex($bytes));
+IO\write_line('Decoded f64: %f', Binary\decode_f64($bytes, Endianness::Big)); // 3.140000
+</code></pre>
+<h2 id="writer"><a href="#writer" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Writer</h2>
+<p>The <code>Writer</code> is an immutable builder for binary data. Each method returns a new instance with the appended bytes. Use this when you need the result as a string.</p>
+<pre><code class="language-php">use Psl\Binary\Endianness;
+use Psl\Binary\Writer;
+use Psl\IO;
+
+// Build a binary protocol message: version(u8) + type(u16) + length(u32) + payload
+// Writer::default() creates a new Writer with default settings (big-endian)
+$message = Writer::default()
+    -&gt;u8(1) // protocol version
+    -&gt;u16(0x0042) // message type
+    -&gt;u32(5) // payload length
+    -&gt;bytes('Hello') // payload
+    -&gt;toString();
+
+IO\write_line('Message hex: %s', bin2hex($message));
+// 01004200000005 48656c6c6f
+
+// The Writer is immutable -- each call returns a new instance
+$base = new Writer(endianness: Endianness::Little);
+$a = $base-&gt;u16(1)-&gt;u16(2);
+$b = $base-&gt;u16(3)-&gt;u16(4);
+
+IO\write_line('A: %s', bin2hex($a-&gt;toString())); // 01000200
+IO\write_line('B: %s', bin2hex($b-&gt;toString())); // 03000400
+
+// You can also mix endianness per call
+$mixed = new Writer(endianness: Endianness::Big)
+    -&gt;u16(0x0102) // big-endian (default)
+    -&gt;u16(0x0304, Endianness::Little) // little-endian override
+    -&gt;toString();
+
+IO\write_line('Mixed: %s', bin2hex($mixed)); // 01020403
+</code></pre>
+<h2 id="reader"><a href="#reader" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reader</h2>
+<p>The <code>Reader</code> provides cursor-based sequential reading of binary data from a string. Each read advances the internal cursor.</p>
+<pre><code class="language-php">use Psl\Binary\Endianness;
+use Psl\Binary\Reader;
+use Psl\Binary\Writer;
+use Psl\IO;
+
+// Build a message, then parse it
+$data = new Writer(endianness: Endianness::Big)
+    -&gt;u8(1) // version
+    -&gt;u16(0x0042) // type
+    -&gt;u32(5) // payload length
+    -&gt;bytes('Hello') // payload
+    -&gt;toString();
+
+$reader = new Reader($data, Endianness::Big);
+
+$version = $reader-&gt;u8();
+$type = $reader-&gt;u16();
+$length = $reader-&gt;u32();
+$payload = $reader-&gt;bytes($length);
+
+IO\write_line('Version: %d', $version); // 1
+IO\write_line('Type: 0x%04X', $type); // 0x0042
+IO\write_line('Length: %d', $length); // 5
+IO\write_line('Payload: %s', $payload); // Hello
+
+// Track cursor position
+IO\write_line('Cursor: %d / %d', $reader-&gt;cursor(), $reader-&gt;length()); // 12 / 12
+IO\write_line('Remaining: %d', $reader-&gt;remaining()); // 0
+IO\write_line('Consumed: %s', $reader-&gt;isConsumed() ? 'yes' : 'no'); // yes
+</code></pre>
+<h2 id="handle-based-io"><a href="#handle-based-io" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Handle-Based IO</h2>
+<p><code>HandleWriter</code> and <code>HandleReader</code> operate directly on <code>IO\WriteHandleInterface</code> and <code>IO\ReadHandleInterface</code>, writing and reading binary data without buffering entire messages in PHP memory. This is ideal for network protocols over TCP/Unix sockets.</p>
+<pre><code class="language-php">use Psl\Binary\Endianness;
+use Psl\Binary\HandleReader;
+use Psl\Binary\HandleWriter;
+use Psl\IO;
+use Psl\IO\MemoryHandle;
+
+// HandleWriter writes directly to any IO\WriteHandleInterface.
+// In production, this could be a TCP socket - here we use MemoryHandle for demo.
+$handle = new MemoryHandle();
+
+$writer = new HandleWriter($handle, Endianness::Big);
+// version
+$writer-&gt;u8(1);
+// type
+$writer-&gt;u16(0x0042);
+// payload length
+$writer-&gt;u32(5);
+// payload
+$writer-&gt;bytes('Hello');
+
+IO\write_line('Wrote %d bytes to handle', strlen($handle-&gt;getBuffer()));
+
+// Seek back to start so we can read what was written
+$handle-&gt;seek(0);
+
+// HandleReader reads directly from any IO\ReadHandleInterface
+$reader = new HandleReader($handle, Endianness::Big);
+
+$version = $reader-&gt;u8();
+$type = $reader-&gt;u16();
+$length = $reader-&gt;u32();
+$payload = $reader-&gt;bytes($length);
+
+IO\write_line('Version: %d', $version); // 1
+IO\write_line('Type: 0x%04X', $type); // 0x0042
+IO\write_line('Length: %d', $length); // 5
+IO\write_line('Payload: %s', $payload); // Hello
+</code></pre>
+<h2 id="length-prefixed-bytes"><a href="#length-prefixed-bytes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Length-Prefixed Bytes</h2>
+<p>All writers and readers support length-prefixed byte strings, a common pattern in binary protocols where the payload length is written before the payload itself. The prefix size determines the maximum payload length.</p>
+<pre><code class="language-php">use Psl\Binary\Reader;
+use Psl\Binary\Writer;
+use Psl\IO;
+
+// Length-prefixed bytes: write the payload length as a typed integer,
+// followed by the raw payload bytes, in a single method call.
+
+$data = Writer::default()
+    -&gt;u8(1) // version
+    -&gt;u16(0x0042) // message type
+    -&gt;u32PrefixedBytes('Hello, PSL!') // u32 length prefix + payload
+    -&gt;u8PrefixedBytes('OK') // u8 length prefix + short status
+    -&gt;toString();
+
+IO\write_line('Message hex: %s', bin2hex($data));
+
+// Read it back
+$reader = new Reader($data);
+
+$version = $reader-&gt;u8();
+$type = $reader-&gt;u16();
+$payload = $reader-&gt;u32PrefixedBytes(); // reads u32 length, then that many bytes
+$status = $reader-&gt;u8PrefixedBytes();
+
+IO\write_line('Version: %d', $version); // 1
+IO\write_line('Type: 0x%04X', $type); // 0x0042
+IO\write_line('Payload: %s', $payload); // Hello, PSL!
+IO\write_line('Status: %s', $status); // OK
+
+// skip() advances the reader without returning the data
+$data2 = Writer::default()-&gt;u32(0xDEAD)-&gt;u32PrefixedBytes('Important')-&gt;toString(); // header we want to skip
+
+$reader2 = new Reader($data2);
+$reader2-&gt;skip(4); // skip the 4-byte header
+IO\write_line('Skipped to: %s', $reader2-&gt;u32PrefixedBytes()); // Important
+</code></pre>
+<h2 id="implementing-custom-writers-and-readers"><a href="#implementing-custom-writers-and-readers" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Implementing Custom Writers and Readers</h2>
+<p>The <code>WriterConvenienceMethodsTrait</code> and <code>ReaderConvenienceMethodsTrait</code> provide default implementations of <code>skip()</code> and the length-prefixed methods. When implementing <code>WriterInterface</code> or <code>ReaderInterface</code>, use these traits to avoid re-implementing the convenience methods:</p>
+<pre><code class="language-php">use Psl\Binary\WriterInterface;
+use Psl\Binary\WriterConvenienceMethodsTrait;
+
+final class MyCustomWriter implements WriterInterface
+{
+    use WriterConvenienceMethodsTrait;
+
+    // Only implement the primitive methods: u8, u16, u32, u64,
+    // i8, i16, i32, i64, f32, f64, bytes
+    // The prefixed methods come from the trait for free.
+}
+</code></pre>
+<h2 id="supported-types"><a href="#supported-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Supported Types</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Size</th>
+<th>Signed</th>
+<th>Function Pair</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>u8</td>
+<td>1 byte</td>
+<td>No</td>
+<td><code>encode_u8</code> / <code>decode_u8</code></td>
+</tr>
+<tr>
+<td>u16</td>
+<td>2 bytes</td>
+<td>No</td>
+<td><code>encode_u16</code> / <code>decode_u16</code></td>
+</tr>
+<tr>
+<td>u32</td>
+<td>4 bytes</td>
+<td>No</td>
+<td><code>encode_u32</code> / <code>decode_u32</code></td>
+</tr>
+<tr>
+<td>u64</td>
+<td>8 bytes</td>
+<td>No</td>
+<td><code>encode_u64</code> / <code>decode_u64</code></td>
+</tr>
+<tr>
+<td>i8</td>
+<td>1 byte</td>
+<td>Yes</td>
+<td><code>encode_i8</code> / <code>decode_i8</code></td>
+</tr>
+<tr>
+<td>i16</td>
+<td>2 bytes</td>
+<td>Yes</td>
+<td><code>encode_i16</code> / <code>decode_i16</code></td>
+</tr>
+<tr>
+<td>i32</td>
+<td>4 bytes</td>
+<td>Yes</td>
+<td><code>encode_i32</code> / <code>decode_i32</code></td>
+</tr>
+<tr>
+<td>i64</td>
+<td>8 bytes</td>
+<td>Yes</td>
+<td><code>encode_i64</code> / <code>decode_i64</code></td>
+</tr>
+<tr>
+<td>f32</td>
+<td>4 bytes</td>
+<td>N/A</td>
+<td><code>encode_f32</code> / <code>decode_f32</code></td>
+</tr>
+<tr>
+<td>f64</td>
+<td>8 bytes</td>
+<td>N/A</td>
+<td><code>encode_f64</code> / <code>decode_f64</code></td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/binary/src/Psl/Binary/">src/Psl/Binary/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

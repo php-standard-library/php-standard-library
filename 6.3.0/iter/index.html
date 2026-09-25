@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Iter - PSL</title>
+        <meta name="description" content="The Iter component provides utility functions for inspecting and reducing iterables. Unlike Vec a...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/iter/">
+        <meta property="og:title" content="Iter - PSL">
+        <meta property="og:description" content="The Iter component provides utility functions for inspecting and reducing iterables. Unlike Vec a...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/iter/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Iter - PSL">
+        <meta name="twitter:description" content="The Iter component provides utility functions for inspecting and reducing iterables. Unlike Vec a...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link active" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Iter</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/iter</div></div>
+<p>The <code>Iter</code> component provides utility functions for inspecting and reducing iterables. Unlike Vec and Dict, which eagerly produce arrays, Iter functions work directly with any <code>iterable</code> -- arrays, generators, and iterators -- making them ideal for querying data without creating intermediate collections.</p>
+<h2 id="when-to-use-iter-vs-vecdict"><a href="#when-to-use-iter-vs-vecdict" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>When to Use Iter vs Vec/Dict</h2>
+<p>Use <strong>Vec</strong> or <strong>Dict</strong> when you need a transformed array as output (mapping, filtering, sorting). Use <strong>Iter</strong> when you need to answer a question about an iterable (does it contain X? what is the first element? how many items?) or reduce it to a single value.</p>
+<pre><code class="language-php">use Psl\Iter;
+use Psl\Vec;
+
+// Vec: &quot;give me a new array with doubled values&quot;
+Vec\map([1, 2, 3], fn($n) =&gt; $n * 2); // [2, 4, 6]
+
+// Iter: &quot;what is the sum of these values?&quot;
+Iter\reduce([1, 2, 3], fn($sum, $n) =&gt; $sum + $n, 0); // 6
+</code></pre>
+<h2 id="querying"><a href="#querying" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Querying</h2>
+<pre><code class="language-php">use Psl\Iter;
+
+// First and last element (null if empty)
+Iter\first([10, 20, 30]); // 10
+Iter\last([10, 20, 30]); // 30
+
+// Check for emptiness
+Iter\is_empty([]); // true
+Iter\is_empty([1]); // false
+
+// Count elements
+Iter\count([1, 2, 3]); // 3
+
+// Contains: check if a value exists (strict equality)
+Iter\contains([1, 2, 3], 2); // true
+Iter\contains([1, 2, 3], '2'); // false (strict)
+
+// Contains key: check if a key exists
+Iter\contains_key(['a' =&gt; 1, 'b' =&gt; 2], 'a'); // true
+
+// Random: get a random element
+Iter\random([10, 20, 30, 40]); // e.g. 30
+</code></pre>
+<h2 id="predicates"><a href="#predicates" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Predicates</h2>
+<pre><code class="language-php">use Psl\Iter;
+
+// All: do all elements satisfy the predicate? (short-circuits on false)
+Iter\all([2, 4, 6], fn(int $n) =&gt; ($n % 2) === 0); // true
+Iter\all([2, 3, 6], fn(int $n) =&gt; ($n % 2) === 0); // false
+
+// Any: does at least one element satisfy the predicate? (short-circuits on true)
+Iter\any([1, 3, 5], fn(int $n) =&gt; $n &gt; 4); // true
+Iter\any([1, 3, 5], fn(int $n) =&gt; $n &gt; 9); // false
+</code></pre>
+<h2 id="searching"><a href="#searching" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Searching</h2>
+<pre><code class="language-php">use Psl\Iter;
+use Psl\Str;
+
+// Search: find the first value matching a predicate
+Iter\search(['foo', 'bar', 'baz'], fn(string $v) =&gt; Str\starts_with($v, 'ba'));
+// 'bar'
+
+Iter\search([1, 2, 3], fn(int $v) =&gt; $v &gt; 10);
+
+// null (not found)
+</code></pre>
+<h2 id="reducing"><a href="#reducing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reducing</h2>
+<pre><code class="language-php">use Psl\Iter;
+
+// Reduce: fold an iterable into a single value
+Iter\reduce([1, 2, 3, 4], fn(int $carry, int $v) =&gt; $carry + $v, 0);
+// 10
+
+// Reduce with keys: the callback also receives the key
+$cart = ['apple' =&gt; 2, 'banana' =&gt; 3];
+$prices = ['apple' =&gt; 1.50, 'banana' =&gt; 0.75];
+
+Iter\reduce_with_keys($cart, fn(float $total, string $item, int $qty) =&gt; $total + ($prices[$item] * $qty), 0.0);
+
+// 5.25
+</code></pre>
+<h2 id="side-effects"><a href="#side-effects" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Side Effects</h2>
+<pre><code class="language-php">use Psl\Iter;
+
+// Apply: execute a function on each element (returns void)
+Iter\apply(['alice', 'bob'], fn(string $name) =&gt; print &quot;Hello, {$name}!\n&quot;);
+
+// Prints:
+//   Hello, alice!
+//   Hello, bob!
+</code></pre>
+<h2 id="joining-two-iterables"><a href="#joining-two-iterables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Joining Two Iterables</h2>
+<p><code>Iter\merge_join_by</code> and <code>Iter\merge_join_by_key</code> perform a full outer join of two iterables, yielding an <code>EitherOrBoth</code> event for each element that is present on the left only, the right only, or both. The sorted variant is lazy and uses O(1) memory on first traversal; the keyed variant materializes the right-hand side into a lookup and streams the left. Both return a rewindable <code>Iter\Iterator</code> -- a second iteration replays the cached events without re-walking the inputs.</p>
+<pre><code class="language-php">use Psl\Comparison\Order;
+use Psl\EitherOrBoth;
+use Psl\Iter;
+use Psl\Vec;
+
+// -- Sorted inputs: merge_join_by
+// Both inputs must already be sorted according to the comparator. Lazy, O(1) memory
+// on first traversal. The returned `Iter\Iterator` is rewindable.
+$events = Vec\map(
+    Iter\merge_join_by([1, 2, 4], [2, 3, 4], static fn(int $a, int $b): Order =&gt; Order::from($a &lt;=&gt; $b)),
+    static fn(EitherOrBoth\EitherOrBoth $e): string =&gt; $e-&gt;proceed(
+        left: static fn(int $v): string =&gt; &quot;left:{$v}&quot;,
+        right: static fn(int $v): string =&gt; &quot;right:{$v}&quot;,
+        both: static fn(int $l, int $r): string =&gt; &quot;both:{$l}={$r}&quot;,
+    ),
+);
+// ['left:1', 'both:2=2', 'right:3', 'both:4=4']
+
+// -- Keyed inputs: merge_join_by_key
+// Inputs do not need to be sorted. O(|right|) memory. Ideal when records carry an id.
+
+/** @var list&lt;array{id: int, name: string}&gt; $incoming */
+$incoming = [['id' =&gt; 1, 'name' =&gt; 'Ada'], ['id' =&gt; 3, 'name' =&gt; 'Grace']];
+
+/** @var list&lt;array{id: int, name: string}&gt; $current */
+$current = [['id' =&gt; 1, 'name' =&gt; 'Ada (old)'], ['id' =&gt; 2, 'name' =&gt; 'Linus']];
+
+$changelog = Vec\map(
+    Iter\merge_join_by_key(
+        $incoming,
+        $current,
+        /** @param array{id: int, name: string} $r */
+        static fn(array $r): int =&gt; $r['id'],
+    ),
+    /** @param EitherOrBoth\EitherOrBoth&lt;array{id: int, name: string}, array{id: int, name: string}&gt; $e */
+    static fn(EitherOrBoth\EitherOrBoth $e): string =&gt; $e-&gt;proceed(
+        /** @param array{id: int, name: string} $r */
+        left: static fn(array $r): string =&gt; &quot;+ {$r['id']} {$r['name']}&quot;,
+        /** @param array{id: int, name: string} $r */
+        right: static fn(array $r): string =&gt; &quot;- {$r['id']} {$r['name']}&quot;,
+        /**
+         * @param array{id: int, name: string} $n
+         * @param array{id: int, name: string} $o
+         */
+        both: static fn(array $n, array $o): string =&gt; &quot;~ {$n['id']} {$o['name']} -&gt; {$n['name']}&quot;,
+    ),
+);
+
+// ['~ 1 Ada (old) -&gt; Ada', '- 2 Linus', '+ 3 Grace']
+</code></pre>
+<p>See the <a href="#either-or-both">EitherOrBoth</a> page for the shape of the events and patterns for consuming them.</p>
+<h2 id="rewindable-iterators"><a href="#rewindable-iterators" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Rewindable Iterators</h2>
+<p>Generators in PHP can only be iterated once. The <code>Iter\Iterator</code> class wraps a generator so it can be rewound and iterated multiple times without re-executing the generator.</p>
+<pre><code class="language-php">use Psl\Iter;
+
+$gen = (function () {
+    yield 'a';
+    yield 'b';
+    yield 'c';
+})();
+
+$iterator = Iter\rewindable($gen);
+
+Iter\count($iterator); // 3
+$iterator-&gt;rewind();
+Iter\first($iterator); // 'a' -- still accessible after counting
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/iter/src/Psl/Iter/">src/Psl/Iter/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

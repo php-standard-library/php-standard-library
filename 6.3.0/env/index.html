@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Env - PSL</title>
+        <meta name="description" content="The Env component provides functions for inspecting and modifying the process environment. It cov...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/env/">
+        <meta property="og:title" content="Env - PSL">
+        <meta property="og:description" content="The Env component provides functions for inspecting and modifying the process environment. It cov...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/env/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Env - PSL">
+        <meta name="twitter:description" content="The Env component provides functions for inspecting and modifying the process environment. It cov...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link active" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>Env</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/env</div></div>
+<p>The <code>Env</code> component provides functions for inspecting and modifying the process environment. It covers environment variables, the current working directory, temporary paths, command-line arguments, and <code>PATH</code> manipulation.</p>
+<h2 id="usage"><a href="#usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Usage</h2>
+<h3 id="environment-variables"><a href="#environment-variables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Environment Variables</h3>
+<p>Read, write, and remove environment variables for the current process:</p>
+<pre><code class="language-php">use Psl\Env;
+use Psl\IO;
+
+// Read -- returns null if not set
+$home = Env\get_var('HOME');
+IO\write_line('HOME: %s', $home ?? '(not set)');
+
+// Write
+Env\set_var('APP_ENV', 'production');
+IO\write_line('APP_ENV: %s', Env\get_var('APP_ENV') ?? '(not set)');
+
+// Remove
+Env\remove_var('APP_ENV');
+IO\write_line('APP_ENV after remove: %s', Env\get_var('APP_ENV') ?? '(not set)');
+
+// Get all environment variables as an associative array
+$allVars = Env\get_vars();
+IO\write_line('Total env vars: %d', count($allVars));
+</code></pre>
+<p>Keys containing <code>=</code> or the NUL character are rejected with an <code>InvariantViolationException</code>.</p>
+<h3 id="working-directory"><a href="#working-directory" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Working Directory</h3>
+<pre><code class="language-php">use Psl\Env;
+use Psl\IO;
+
+$cwd = Env\current_dir();
+IO\write_line('Current directory: %s', $cwd);
+</code></pre>
+<h3 id="system-paths"><a href="#system-paths" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>System Paths</h3>
+<pre><code class="language-php">use Psl\Env;
+use Psl\IO;
+
+$tmp = Env\temp_dir();
+IO\write_line('Temp directory: %s', $tmp);
+</code></pre>
+<h3 id="command-line-arguments-and-executable-path"><a href="#command-line-arguments-and-executable-path" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Command-Line Arguments and Executable Path</h3>
+<pre><code class="language-php">use Psl\Env;
+use Psl\IO;
+
+$args = Env\args();
+IO\write_line('Arguments: %s', implode(', ', $args));
+
+$binary = Env\current_exec();
+IO\write_line('Executable: %s', $binary);
+</code></pre>
+<h3 id="path-manipulation"><a href="#path-manipulation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>PATH Manipulation</h3>
+<p>Split and join PATH-style strings using the platform's path separator (<code>:</code> on Unix, <code>;</code> on Windows):</p>
+<pre><code class="language-php">use Psl\Env;
+use Psl\IO;
+
+$dirs = Env\split_paths('/usr/local/bin:/usr/bin:/bin');
+IO\write_line('Split paths: %s', implode(', ', $dirs));
+
+$path = Env\join_paths('/usr/local/bin', '/usr/bin', '/bin');
+IO\write_line('Joined path: %s', $path);
+</code></pre>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/env/src/Psl/Env/">src/Psl/Env/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>DNS - PSL</title>
+        <meta name="description" content="The DNS component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS...">
+        <link rel="canonical" href="https://php-standard-library.dev/6.3.0/dns/">
+        <meta property="og:title" content="DNS - PSL">
+        <meta property="og:description" content="The DNS component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS...">
+        <meta property="og:image" content="https://php-standard-library.dev/assets/banner.png">
+        <meta property="og:url" content="https://php-standard-library.dev/6.3.0/dns/">
+        <meta property="og:type" content="website">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="DNS - PSL">
+        <meta name="twitter:description" content="The DNS component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS...">
+        <meta name="twitter:image" content="https://php-standard-library.dev/assets/banner.png">
+        <link rel="alternate" type="text/markdown" href="index.md" title="Markdown source">
+        <link rel="stylesheet" href="../assets/style.css">
+    </head>
+    <body>
+        <a class="skip-link" href="#content">Skip to content</a>
+        <button id="hamburger" aria-label="Menu">&#9776;</button>
+        <div id="overlay"></div>
+        <nav id="sidebar">
+            <div class="sidebar-header">
+            <p class="sidebar-brand"><a href="../">PSL</a></p>
+            <p class="sidebar-tagline">PHP Standard Library</p>
+            <input type="text" id="search" placeholder="Search... ( / )" aria-label="Search components">
+            <select id="version-select" aria-label="Version"></select>
+            <button id="theme-toggle" aria-label="Toggle dark mode">Dark</button>
+            </div>
+            <div id="nav-links"><a class="nav-link" href="../" data-slug="">Home</a><div class="nav-category">Basics</div><a class="nav-link" href="../dict/" data-slug="dict">Dict</a><a class="nav-link" href="../foundation/" data-slug="foundation">Foundation</a><a class="nav-link" href="../fun/" data-slug="fun">Fun</a><a class="nav-link" href="../iter/" data-slug="iter">Iter</a><a class="nav-link" href="../math/" data-slug="math">Math</a><a class="nav-link" href="../str/" data-slug="str">Str</a><a class="nav-link" href="../vec/" data-slug="vec">Vec</a><div class="nav-category">Types &amp; Error Handling</div><a class="nav-link" href="../comparison/" data-slug="comparison">Comparison</a><a class="nav-link" href="../default/" data-slug="default">Default</a><a class="nav-link" href="../either-or-both/" data-slug="either-or-both">EitherOrBoth</a><a class="nav-link" href="../either/" data-slug="either">Either</a><a class="nav-link" href="../option/" data-slug="option">Option</a><a class="nav-link" href="../result/" data-slug="result">Result</a><a class="nav-link" href="../type/" data-slug="type">Type</a><div class="nav-category">Async</div><a class="nav-link" href="../async/" data-slug="async">Async</a><a class="nav-link" href="../channel/" data-slug="channel">Channel</a><a class="nav-link" href="../promise/" data-slug="promise">Promise</a><div class="nav-category">Collections</div><a class="nav-link" href="../collection/" data-slug="collection">Collection</a><a class="nav-link" href="../data-structure/" data-slug="data-structure">DataStructure</a><a class="nav-link" href="../graph/" data-slug="graph">Graph</a><a class="nav-link" href="../range/" data-slug="range">Range</a><a class="nav-link" href="../tree/" data-slug="tree">Tree</a><div class="nav-category">Text &amp; Encoding</div><a class="nav-link" href="../binary/" data-slug="binary">Binary</a><a class="nav-link" href="../encoding/" data-slug="encoding">Encoding</a><a class="nav-link" href="../html/" data-slug="html">Html</a><a class="nav-link" href="../json/" data-slug="json">Json</a><a class="nav-link" href="../punycode/" data-slug="punycode">Punycode</a><a class="nav-link" href="../regex/" data-slug="regex">Regex</a><div class="nav-category">I/O</div><a class="nav-link" href="../compression/" data-slug="compression">Compression</a><a class="nav-link" href="../file/" data-slug="file">File</a><a class="nav-link" href="../filesystem/" data-slug="filesystem">Filesystem</a><a class="nav-link" href="../io/" data-slug="io">IO</a><a class="nav-link" href="../process/" data-slug="process">Process</a><a class="nav-link" href="../shell/" data-slug="shell">Shell</a><div class="nav-category">Identifiers</div><a class="nav-link" href="../cidr/" data-slug="cidr">CIDR</a><a class="nav-link" href="../ip/" data-slug="ip">IP</a><a class="nav-link" href="../iri/" data-slug="iri">IRI</a><a class="nav-link" href="../uri/" data-slug="uri">URI</a><a class="nav-link" href="../url/" data-slug="url">URL</a><div class="nav-category">Networking</div><a class="nav-link" href="../network/" data-slug="network">Network</a><a class="nav-link" href="../socks/" data-slug="socks">Socks</a><a class="nav-link" href="../tcp/" data-slug="tcp">TCP</a><a class="nav-link" href="../tls/" data-slug="tls">TLS</a><a class="nav-link" href="../udp/" data-slug="udp">UDP</a><a class="nav-link" href="../unix/" data-slug="unix">Unix</a><div class="nav-category">Protocols</div><a class="nav-link active" href="../dns/" data-slug="dns">DNS</a><a class="nav-link" href="../dnssec/" data-slug="dnssec">DNSSEC</a><a class="nav-link" href="../h2/" data-slug="h2">H2</a><a class="nav-link" href="../hpack/" data-slug="hpack">HPACK</a><a class="nav-link" href="../http-client/" data-slug="http-client">HTTP Client</a><a class="nav-link" href="../http-message/" data-slug="http-message">HTTP Message</a><a class="nav-link" href="../message/" data-slug="message">Message</a><a class="nav-link" href="../mime/" data-slug="mime">MIME</a><a class="nav-link" href="../smtp/" data-slug="smtp">SMTP</a><div class="nav-category">Terminal</div><a class="nav-link" href="../ansi/" data-slug="ansi">Ansi</a><a class="nav-link" href="../terminal/" data-slug="terminal">Terminal</a><div class="nav-category">Security</div><a class="nav-link" href="../crypto/" data-slug="crypto">Crypto</a><a class="nav-link" href="../hash/" data-slug="hash">Hash</a><a class="nav-link" href="../password/" data-slug="password">Password</a><a class="nav-link" href="../pseudo-random/" data-slug="pseudo-random">PseudoRandom</a><a class="nav-link" href="../random-sequence/" data-slug="random-sequence">RandomSequence</a><a class="nav-link" href="../secure-random/" data-slug="secure-random">SecureRandom</a><div class="nav-category">System</div><a class="nav-link" href="../date-time/" data-slug="date-time">DateTime</a><a class="nav-link" href="../env/" data-slug="env">Env</a><a class="nav-link" href="../locale/" data-slug="locale">Locale</a><a class="nav-link" href="../os/" data-slug="os">OS</a><a class="nav-link" href="../runtime/" data-slug="runtime">Runtime</a><div class="nav-category">Other</div><a class="nav-link" href="../cache/" data-slug="cache">Cache</a><a class="nav-link" href="../class/" data-slug="class">Class</a><a class="nav-link" href="../interface/" data-slug="interface">Interface</a><a class="nav-link" href="../interoperability/" data-slug="interoperability">Interoperability</a><a class="nav-link" href="../observer/" data-slug="observer">Observer</a><a class="nav-link" href="../trait/" data-slug="trait">Trait</a><div class="nav-category">Tools</div><a class="nav-link" href="../detect-packages/" data-slug="detect-packages">Detect Packages</a></div>
+        </nav>
+        <main id="content" tabindex="-1"><article id="rendered"><h1>DNS</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/dns</div></div>
+<p>The <code>DNS</code> component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. All resolvers are non-blocking and composable via the decorator pattern.</p>
+<h2 id="basic-usage"><a href="#basic-usage" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Basic Usage</h2>
+<p><code>SystemResolver</code> mirrors your operating system's DNS behavior. It can be used as a default parameter value since it requires no arguments.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\Record\ARecord;
+use Psl\DNS\Record\RecordType;
+
+// System resolver mirrors your OS DNS settings
+$resolver = new DNS\SystemResolver();
+
+// Query A records
+$response = $resolver-&gt;query('example.com', RecordType::A);
+
+// Check the result
+if ($response-&gt;code-&gt;isSuccess()) {
+    foreach ($response-&gt;getAnswerRecords(ARecord::class) as $record) {
+        $record-&gt;address; // Psl\IP\Address
+    }
+}
+</code></pre>
+<p>By default, <code>SystemResolver</code> uses plain UDP with TCP fallback for each nameserver discovered from the OS. You can encrypt all system DNS traffic with DNS-over-TLS by disabling UDP and passing a TLS-enabled connector. With <code>udp: false</code>, all queries go directly over TCP — no plaintext UDP is sent. Combined with a TLS connector, this turns all system nameserver communication into DNS-over-TLS (DoT, RFC 7858) while still using the OS-configured nameserver addresses.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\TCP;
+use Psl\TLS;
+
+// Encrypt all system DNS traffic with DNS-over-TLS.
+// udp: false ensures no plaintext UDP queries are sent.
+// The TLS connector wraps every TCP connection in TLS (DoT, RFC 7858).
+// Nameserver addresses are still read from the OS configuration.
+$resolver = new DNS\SystemResolver(
+    udp: false,
+    connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+);
+</code></pre>
+<h2 id="resolver-types"><a href="#resolver-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Resolver Types</h2>
+<p>Resolvers can be composed for different strategies: direct UDP/TCP, fallback on truncation, racing multiple nameservers, DNS-over-TLS, or DNS-over-HTTPS.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\TCP;
+use Psl\TLS;
+
+// UDP resolver (standard DNS, port 53)
+$udp = new DNS\UDPResolver('8.8.8.8');
+
+// TCP resolver with connection pooling
+$tcp = new DNS\TCPResolver('8.8.8.8');
+
+// DNS-over-TLS (port 853)
+$dot = new DNS\TCPResolver(
+    '8.8.8.8',
+    port: 853,
+    connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+);
+
+// DNS-over-HTTPS (RFC 8484)
+$doh = new DNS\HTTPSResolver('https://1.1.1.1/dns-query');
+
+// UDP with automatic TCP fallback on truncated responses
+$fallback = new DNS\FallbackResolver([$udp, $tcp]);
+
+// Race multiple nameservers, return the fastest response
+$racing = new DNS\RacingResolver([
+    new DNS\UDPResolver('8.8.8.8'),
+    new DNS\UDPResolver('1.1.1.1'),
+]);
+</code></pre>
+<h2 id="record-types"><a href="#record-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Record Types</h2>
+<p>Over 20 DNS record types are supported. Responses provide typed access via <code>getAnswerRecords()</code> and <code>getFirstAnswerRecord()</code>.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\Record;
+use Psl\IP\Address;
+
+$resolver = new DNS\SystemResolver();
+
+// Query different record types
+$a = $resolver-&gt;query('example.com', Record\RecordType::A);
+$aaaa = $resolver-&gt;query('example.com', Record\RecordType::AAAA);
+$mx = $resolver-&gt;query('example.com', Record\RecordType::MX);
+$txt = $resolver-&gt;query('example.com', Record\RecordType::TXT);
+$srv = $resolver-&gt;query('_http._tcp.example.com', Record\RecordType::SRV);
+
+// Extract typed records from a response
+foreach ($a-&gt;getAnswerRecords(Record\ARecord::class) as $record) {
+    $record-&gt;name; // &quot;example.com&quot;
+    $record-&gt;duration; // TTL as Duration
+    $record-&gt;address; // Psl\IP\Address
+}
+
+foreach ($mx-&gt;getAnswerRecords(Record\MXRecord::class) as $record) {
+    $record-&gt;preference; // int
+    $record-&gt;exchange; // &quot;mail.example.com&quot;
+}
+
+// Reverse lookup
+$ptr = $resolver-&gt;reverseQuery(Address::parse('8.8.8.8'));
+foreach ($ptr-&gt;getAnswerRecords(Record\PTRRecord::class) as $record) {
+    $record-&gt;target; // &quot;dns.google&quot;
+}
+</code></pre>
+<h2 id="caching"><a href="#caching" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Caching</h2>
+<p><code>CachedResolver</code> wraps any resolver with TTL-aware caching. Cache TTL is derived from the minimum record TTL in each response.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DNS;
+
+// Wrap any resolver with caching
+$resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStore());
+
+// First query hits the network
+$response = $resolver-&gt;query('example.com', DNS\Record\RecordType::A);
+
+// Second query returns from cache (TTL-aware)
+$cached = $resolver-&gt;query('example.com', DNS\Record\RecordType::A);
+</code></pre>
+<h2 id="split-horizon-dns"><a href="#split-horizon-dns" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Split-Horizon DNS</h2>
+<p><code>SplitHorizonResolver</code> routes queries to different resolvers based on the domain name. Domain matching is suffix-based on domain boundaries.</p>
+<pre><code class="language-php">use Psl\DNS;
+
+// Route queries for internal domains to a private nameserver,
+// everything else to a public resolver
+$resolver = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(domains: ['corp.internal', 'dev.internal'], resolver: new DNS\UDPResolver('10.0.0.53')),
+], default: new DNS\SystemResolver());
+
+// Uses the private nameserver (matches corp.internal)
+$resolver-&gt;query('db.corp.internal', DNS\Record\RecordType::A);
+
+// Uses the system resolver (no matching route)
+$resolver-&gt;query('example.com', DNS\Record\RecordType::A);
+</code></pre>
+<h2 id="search-domains"><a href="#search-domains" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Search Domains</h2>
+<p><code>SearchDomainResolver</code> expands short names by appending search domains. Names with sufficient dots (configurable via <code>$numberOfDots</code>) are queried as-is.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\Record\RecordType;
+
+// Expand short names by appending search domains
+$resolver = new DNS\SearchDomainResolver(
+    inner: new DNS\SystemResolver(),
+    searchDomains: ['example.com', 'corp.example.com'],
+);
+
+// Queries &quot;db.example.com&quot;, then &quot;db.corp.example.com&quot; if NXDOMAIN
+$resolver-&gt;query('db', RecordType::A);
+
+// Fully qualified names skip expansion
+$resolver-&gt;query('google.com', RecordType::A);
+</code></pre>
+<h2 id="system-configuration"><a href="#system-configuration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>System Configuration</h2>
+<p>Load your OS DNS settings and hosts file directly. Both use async process execution for non-blocking reads.</p>
+<pre><code class="language-php">use Psl\DNS\System\HostsFile\HostsFile;
+use Psl\DNS\System\Settings;
+
+// Load system DNS settings (nameservers, search domains)
+$settings = Settings::load();
+foreach ($settings-&gt;nameservers as $ns) {
+    $ns-&gt;host; // &quot;8.8.8.8&quot;
+    $ns-&gt;port; // 53
+    $ns-&gt;forDomains; // [] for global, [&quot;corp.internal&quot;] for scoped
+}
+
+$settings-&gt;searchDomains; // [&quot;example.com&quot;, &quot;corp.example.com&quot;]
+
+// Load and query the hosts file
+$hosts = HostsFile::load();
+$addresses = $hosts-&gt;lookup('localhost');
+
+// [Address(&quot;127.0.0.1&quot;), Address(&quot;::1&quot;)]
+</code></pre>
+<h2 id="edns0-options"><a href="#edns0-options" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>EDNS0 Options</h2>
+<p>Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\EDNS;
+use Psl\DNS\Record\RecordType;
+use Psl\IP;
+use Psl\SecureRandom;
+
+$resolver = new DNS\SystemResolver();
+
+// Query with EDNS0 options
+$response = $resolver-&gt;query('example.com', RecordType::A, ednsOptions: [
+    new EDNS\CookieOption(clientCookie: SecureRandom\bytes(8)),
+    new EDNS\ECSOption(IP\Address::parse('203.0.113.0'), sourcePrefixLength: 24, scopePrefixLength: 0),
+    new EDNS\PaddingOption(128),
+    new EDNS\NSIDOption(),
+]);
+</code></pre>
+<h2 id="dns-over-https"><a href="#dns-over-https" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>DNS-over-HTTPS</h2>
+<p><code>HTTPSResolver</code> sends queries over HTTPS (RFC 8484) using the HTTP client. HTTP/2 multiplexing allows concurrent queries to share a single connection. Pass your own <code>ClientInterface</code> to share connection pools across resolvers.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DNS;
+use Psl\HTTP\Client;
+
+// Default client — creates one internally
+$resolver = new DNS\HTTPSResolver('https://1.1.1.1/dns-query');
+
+// Bring your own client for shared connection pooling
+$client = new Client\Client();
+$cloudflare = new DNS\HTTPSResolver('https://1.1.1.1/dns-query', $client);
+$google = new DNS\HTTPSResolver('https://dns.google/dns-query', $client);
+
+// Race two DoH providers
+$racing = new DNS\RacingResolver([$cloudflare, $google]);
+
+// Compose with caching
+$cache = new Cache\LocalStore();
+$cached = new DNS\CachedResolver($racing, $cache);
+
+$response = $cached-&gt;query('example.com', DNS\Record\RecordType::A);
+</code></pre>
+<h2 id="blocking-system-resolver"><a href="#blocking-system-resolver" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Blocking System Resolver</h2>
+<p><code>BlockingSystemResolver</code> wraps PHP's built-in <code>dns_get_record()</code> for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Useful as a lightweight fallback behind a <code>StaticResolver</code>, or in environments where async DNS is unnecessary.</p>
+<p>Supports A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT, CAA, and NAPTR record types. EDNS0 options are ignored. Queries for unsupported types return NXDOMAIN.</p>
+<pre><code class="language-php">use Psl\DNS;
+use Psl\DNS\Record\RecordType;
+
+// BlockingSystemResolver wraps PHP's dns_get_record() for synchronous,
+// zero-overhead DNS resolution. No event loop, no fibers, no connection pooling.
+$resolver = new DNS\BlockingSystemResolver();
+
+// Query A records
+$response = $resolver-&gt;query('example.com', RecordType::A);
+foreach ($response-&gt;answers as $record) {
+    /** @var DNS\Record\ARecord $record */
+    $record-&gt;address-&gt;toString();
+    $record-&gt;duration-&gt;getSeconds();
+}
+
+// Query MX records
+$response = $resolver-&gt;query('example.com', RecordType::MX);
+foreach ($response-&gt;answers as $record) {
+    /** @var DNS\Record\MXRecord $record */
+    $record-&gt;exchange;
+    $record-&gt;preference;
+}
+
+// Non-existent domain returns NXDOMAIN, never throws
+$response = $resolver-&gt;query('nonexistent.invalid', RecordType::A);
+$response-&gt;code; // ResponseCode::NonExistentDomain
+
+// Reverse lookup via PTR
+$response = $resolver-&gt;reverseQuery(Psl\IP\Address::parse('8.8.8.8'));
+foreach ($response-&gt;answers as $record) {
+    /** @var DNS\Record\PTRRecord $record */
+    $record-&gt;target; // &quot;dns.google&quot;
+}
+</code></pre>
+<h2 id="http-client-integration"><a href="#http-client-integration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>HTTP Client Integration</h2>
+<p><code>DNS\HTTP\Connector</code> is a connector decorator that resolves hostnames via any DNS resolver before delegating to an inner HTTP client connector. This enables fully async DNS resolution, DNS-over-TLS, DNS-over-HTTPS, DNSSEC validation, or custom resolution strategies for all HTTP requests.</p>
+<p>When the origin host is already an IP address, no DNS query is performed. For HTTPS connections, the original hostname is preserved for TLS SNI so certificate validation works correctly even though the TCP connection targets the resolved IP.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DNS;
+use Psl\HTTP\Client;
+use Psl\HTTP\Message;
+use Psl\URL;
+
+// Build a resolver chain: cached async UDP resolution with TCP fallback on truncation.
+$resolver = new DNS\CachedResolver(new DNS\FallbackResolver([
+    new DNS\UDPResolver(host: '1.1.1.1'),
+    new DNS\TCPResolver(host: '1.1.1.1'),
+]), new Cache\LocalStore());
+
+// Wrap the pooled connector with DNS resolution.
+// All HTTP requests will resolve hostnames through the resolver above,
+// benefiting from caching, async I/O, and custom nameserver selection.
+$connector = new DNS\HTTP\Connector(new Client\Connection\PooledConnector(), $resolver);
+
+$client = new Client\Client(connector: $connector);
+
+$tx = $client-&gt;send(new Message\Request(method: 'GET', url: URL\parse('https://example.com')));
+
+$tx-&gt;response-&gt;status;
+$tx-&gt;response-&gt;body?-&gt;readAll();
+</code></pre>
+<h2 id="kitchen-sink"><a href="#kitchen-sink" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Kitchen Sink</h2>
+<p>Compose static entries, hosts file, search domains, split-horizon routing, multiple racing nameservers with DNS-over-TLS or DNS-over-HTTPS, TCP fallback, and caching into a single resolver that uses every feature.</p>
+<pre><code class="language-php">use Psl\Cache;
+use Psl\DateTime\Duration;
+use Psl\DNS;
+use Psl\DNS\Record\ARecord;
+use Psl\DNS\Record\RecordType;
+use Psl\DNS\System\HostsFile\HostsFile;
+use Psl\IO;
+use Psl\IP\Address;
+use Psl\TCP;
+use Psl\TLS;
+
+$cache = new Cache\LocalStore();
+
+// 1. Static entries for internal services (never hit the network)
+$static = new DNS\StaticResolver([
+    'db.internal' =&gt; [
+        RecordType::A-&gt;value =&gt; [
+            new ARecord('db.internal', Duration::hours(999), Address::parse('10.0.0.5')),
+        ],
+    ],
+    'cache.internal' =&gt; [
+        RecordType::A-&gt;value =&gt; [
+            new ARecord('cache.internal', Duration::hours(999), Address::parse('10.0.0.6')),
+        ],
+    ],
+]);
+
+// 2. Internal nameserver for corporate domains (split-horizon)
+$internalDns = new DNS\FallbackResolver([
+    new DNS\UDPResolver('10.0.0.53'),
+    new DNS\TCPResolver('10.0.0.53'),
+]);
+
+// 3. Race multiple public nameservers for fastest response
+$public = new DNS\RacingResolver([
+    // Cloudflare DNS-over-TLS
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('1.1.1.1', dnssec: true),
+        new DNS\TCPResolver(
+            '1.1.1.1',
+            port: 853,
+            dnssec: true,
+            connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+        ),
+    ]),
+    // Google DNS-over-TLS
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('8.8.8.8', dnssec: true),
+        new DNS\TCPResolver(
+            '8.8.8.8',
+            port: 853,
+            dnssec: true,
+            connector: new TLS\TCPConnector(new TCP\Connector(), new TLS\Connector(new TLS\ClientConfiguration())),
+        ),
+    ]),
+    // Cloudflare secondary (plain TCP fallback)
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('1.0.0.1', dnssec: true),
+        new DNS\TCPResolver('1.0.0.1', dnssec: true),
+    ]),
+    // Google secondary (plain TCP fallback)
+    new DNS\FallbackResolver([
+        new DNS\UDPResolver('8.8.4.4', dnssec: true),
+        new DNS\TCPResolver('8.8.4.4', dnssec: true),
+    ]),
+]);
+
+// 4. Static overrides first, then public nameservers
+$base = new DNS\FallbackResolver([$static, $public]);
+
+// 5. Route corporate domains to internal DNS, everything else to public
+$routed = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['corp.internal', 'dev.internal'], $internalDns),
+], default: $base);
+
+// 6. Expand short names using search domains
+$searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.internal']);
+
+// 7. Check the hosts file before any network query
+$hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
+
+// 8. Cache everything on top
+$resolver = new DNS\CachedResolver($hostsAware, $cache);
+
+// 9. Profit!
+$response = $resolver-&gt;query('php-standard-library.dev', RecordType::A);
+
+IO\write_line(
+    'php-standard-library.dev -&gt; %s',
+    $response-&gt;getFirstAnswerRecord(ARecord::class)?-&gt;address-&gt;toString() ?? '&lt;unknown&gt;',
+);
+</code></pre>
+<h2 id="supported-record-types"><a href="#supported-record-types" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Supported Record Types</h2>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>RFC</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>RFC 1035</td>
+<td>IPv4 address</td>
+</tr>
+<tr>
+<td>AAAA</td>
+<td>RFC 3596</td>
+<td>IPv6 address</td>
+</tr>
+<tr>
+<td>NS</td>
+<td>RFC 1035</td>
+<td>Authoritative nameserver</td>
+</tr>
+<tr>
+<td>CNAME</td>
+<td>RFC 1035</td>
+<td>Canonical name alias</td>
+</tr>
+<tr>
+<td>MX</td>
+<td>RFC 1035</td>
+<td>Mail exchange</td>
+</tr>
+<tr>
+<td>TXT</td>
+<td>RFC 1035</td>
+<td>Text records (SPF, DKIM, etc.)</td>
+</tr>
+<tr>
+<td>SRV</td>
+<td>RFC 2782</td>
+<td>Service location</td>
+</tr>
+<tr>
+<td>SOA</td>
+<td>RFC 1035</td>
+<td>Start of authority</td>
+</tr>
+<tr>
+<td>PTR</td>
+<td>RFC 1035</td>
+<td>Reverse lookup pointer</td>
+</tr>
+<tr>
+<td>CAA</td>
+<td>RFC 8659</td>
+<td>Certificate authority authorization</td>
+</tr>
+<tr>
+<td>SSHFP</td>
+<td>RFC 4255</td>
+<td>SSH fingerprint</td>
+</tr>
+<tr>
+<td>TLSA</td>
+<td>RFC 6698</td>
+<td>TLS certificate association (DANE)</td>
+</tr>
+<tr>
+<td>SVCB</td>
+<td>RFC 9460</td>
+<td>Service binding</td>
+</tr>
+<tr>
+<td>HTTPS</td>
+<td>RFC 9460</td>
+<td>HTTPS service binding</td>
+</tr>
+<tr>
+<td>LOC</td>
+<td>RFC 1876</td>
+<td>Geographic location</td>
+</tr>
+<tr>
+<td>NAPTR</td>
+<td>RFC 3403</td>
+<td>Naming authority pointer</td>
+</tr>
+<tr>
+<td>DS</td>
+<td>RFC 4034</td>
+<td>DNSSEC delegation signer</td>
+</tr>
+<tr>
+<td>DNSKEY</td>
+<td>RFC 4034</td>
+<td>DNSSEC public key</td>
+</tr>
+<tr>
+<td>RRSIG</td>
+<td>RFC 4034</td>
+<td>DNSSEC signature</td>
+</tr>
+<tr>
+<td>NSEC</td>
+<td>RFC 4034</td>
+<td>DNSSEC authenticated denial</td>
+</tr>
+<tr>
+<td>NSEC3</td>
+<td>RFC 5155</td>
+<td>DNSSEC hashed denial</td>
+</tr>
+</tbody>
+</table>
+<h2 id="system-configuration-sources"><a href="#system-configuration-sources" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>System Configuration Sources</h2>
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>Source</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux/FreeBSD</td>
+<td><code>/etc/resolv.conf</code></td>
+<td><code>cat</code> via Process</td>
+</tr>
+<tr>
+<td>macOS</td>
+<td><code>scutil --dns</code></td>
+<td>Process (includes split DNS, custom ports)</td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>ipconfig /all</code></td>
+<td>Process</td>
+</tr>
+<tr>
+<td>All platforms</td>
+<td>hosts file</td>
+<td>Process</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rfc-compliance"><a href="#rfc-compliance" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RFC Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 1035</td>
+<td>DNS wire format, A, NS, CNAME, MX, TXT, SOA, PTR records</td>
+</tr>
+<tr>
+<td>RFC 2782</td>
+<td>SRV records</td>
+</tr>
+<tr>
+<td>RFC 3403</td>
+<td>NAPTR records</td>
+</tr>
+<tr>
+<td>RFC 3596</td>
+<td>AAAA records</td>
+</tr>
+<tr>
+<td>RFC 4034</td>
+<td>DNSSEC record types (DS, DNSKEY, RRSIG, NSEC)</td>
+</tr>
+<tr>
+<td>RFC 4255</td>
+<td>SSHFP records</td>
+</tr>
+<tr>
+<td>RFC 5155</td>
+<td>NSEC3 and NSEC3PARAM records</td>
+</tr>
+<tr>
+<td>RFC 6698</td>
+<td>TLSA records (DANE)</td>
+</tr>
+<tr>
+<td>RFC 6891</td>
+<td>EDNS0 (OPT record, extended RCODE, UDP payload size)</td>
+</tr>
+<tr>
+<td>RFC 7858</td>
+<td>DNS-over-TLS via TLS client configuration</td>
+</tr>
+<tr>
+<td>RFC 8484</td>
+<td>DNS-over-HTTPS via HTTP client</td>
+</tr>
+<tr>
+<td>RFC 7871</td>
+<td>EDNS Client Subnet option</td>
+</tr>
+<tr>
+<td>RFC 7873</td>
+<td>DNS Cookies option</td>
+</tr>
+<tr>
+<td>RFC 7830</td>
+<td>EDNS TCP Keepalive option</td>
+</tr>
+<tr>
+<td>RFC 8467</td>
+<td>EDNS Padding option</td>
+</tr>
+<tr>
+<td>RFC 8659</td>
+<td>CAA records</td>
+</tr>
+<tr>
+<td>RFC 9460</td>
+<td>SVCB and HTTPS records</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/6.3.0/packages/dns/src/Psl/DNS/">src/Psl/DNS/</a> for the full API.</p>
+</article></main>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/languages/php.min.js"></script>
+        <script>
+            const CURRENT_VERSION="6.3.0";
+
+        </script>
+        <script src="../assets/app.js"></script>
+    </body>
+</html>
