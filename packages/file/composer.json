@@ -22,9 +22,9 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0",
         "php-standard-library/async": "^6.0",
+        "php-standard-library/date-time": "^6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/io": "^6.0",
-        "php-standard-library/date-time": "^6.0"
+        "php-standard-library/io": "^6.0"
     },
     "require-dev": {
         "php-standard-library/env": "^6.0",
@@ -52,7 +52,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-next": "6.2.x-dev"
+            "dev-next": "6.3.x-dev"
         }
     }
 }

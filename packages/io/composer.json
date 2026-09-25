@@ -48,14 +48,14 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Psl\\IO\\Tests\\Unit\\": "tests/unit/",
+            "Psl\\IO\\Tests\\Benchmark\\\\": "tests/benchmark/",
             "Psl\\IO\\Tests\\Fixture\\": "tests/fixture/",
-            "Psl\\IO\\Tests\\Benchmark\\\\": "tests/benchmark/"
+            "Psl\\IO\\Tests\\Unit\\": "tests/unit/"
         }
     },
     "extra": {
         "branch-alias": {
-            "dev-next": "6.2.x-dev"
+            "dev-next": "6.3.x-dev"
         }
     }
 }
