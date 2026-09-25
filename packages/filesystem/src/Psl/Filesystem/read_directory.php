@@ -42,6 +42,5 @@ function read_directory(string $directory): array
         $result[] = $entry;
     }
 
-    /** @var list<non-empty-string> */
     return $result;
 }
