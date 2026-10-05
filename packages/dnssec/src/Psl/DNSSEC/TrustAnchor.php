@@ -43,7 +43,7 @@ final readonly class TrustAnchor
                 20_326,
                 Algorithm::RSASHA256,
                 DigestAlgorithm::SHA256,
-                'e06d44b80b8f1d39a95c0b0d7c65d08458e880409bbc683457104237c7f8ec8d',
+                '683D2D0ACB8C9B712A1948B27F741219298D0A450D612C483AF444A4C0FB2B16',
             ),
         ]);
     }
