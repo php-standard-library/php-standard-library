@@ -21,7 +21,7 @@
     ],
     "homepage": "https://php-standard-library.dev",
     "require": {
-        "php": "~8.4.0 || ~8.5.0",
+        "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "php-standard-library/async": "^6.2",
         "php-standard-library/cidr": "^6.0",
         "php-standard-library/date-time": "^6.0",
