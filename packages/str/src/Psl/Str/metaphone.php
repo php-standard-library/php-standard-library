@@ -16,6 +16,9 @@ use function metaphone as php_metaphone;
  *
  * @pure
  *
+ * @deprecated The underlying PHP metaphone() function is deprecated as of PHP 8.6.
+ *             Use a userland phonetic matching library instead.
+ *
  * @api
  */
 function metaphone(string $string, int $phonemes = 0): string
