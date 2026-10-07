@@ -34,7 +34,7 @@ final class DecodeTest extends TestCase
     public function testDecodeThrowsForInvalidSyntax(): void
     {
         $this->expectException(Json\Exception\DecodeException::class);
-        $this->expectExceptionMessage('The decoded property name is invalid.');
+        $this->expectExceptionMessage('The decoded property name is invalid');
 
         Json\decode('{"\u0000": 1}', false);
     }
@@ -42,7 +42,7 @@ final class DecodeTest extends TestCase
     public function testDecodeMalformedUTF8(): void
     {
         $this->expectException(Json\Exception\DecodeException::class);
-        $this->expectExceptionMessage('Malformed UTF-8 characters, possibly incorrectly encoded.');
+        $this->expectExceptionMessage('Malformed UTF-8 characters, possibly incorrectly encoded');
 
         Json\decode("\"\xC1\xBF\"");
     }
