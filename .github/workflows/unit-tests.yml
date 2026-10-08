@@ -16,6 +16,7 @@ jobs:
         php-version:
           - "8.4"
           - "8.5"
+          - "8.6"
         operating-system:
           - "macos-latest"
           - "ubuntu-latest"
@@ -68,6 +69,9 @@ jobs:
 
       - name: "installing dependencies"
         run: just install
+        env:
+          # No Brotli DLL is available for PHP 8.6 on Windows; its tests skip when the extension is missing.
+          COMPOSER_IGNORE_PLATFORM_REQ: ${{ matrix.php-version == '8.6' && matrix.operating-system == 'windows-latest' && 'ext-brotli' || '' }}
 
       - name: "running unit tests"
         run: just test

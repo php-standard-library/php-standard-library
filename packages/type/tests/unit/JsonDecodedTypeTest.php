@@ -9,6 +9,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Psl\Str;
 use Psl\Type;
 
+use const PHP_VERSION_ID;
+
 final class JsonDecodedTypeTest extends TypeTestCase
 {
     #[Override]
@@ -65,7 +67,10 @@ final class JsonDecodedTypeTest extends TypeTestCase
         yield 'invalid json' => [
             Type\json_decoded(Type\dict(Type\string(), Type\mixed())),
             '{invalid}',
-            'Could not coerce "string" to type "json-decoded<dict<string, mixed>>" at path "coerce_input(string): dict<string, mixed>": Syntax error.',
+            Str\format(
+                'Could not coerce "string" to type "json-decoded<dict<string, mixed>>" at path "coerce_input(string): dict<string, mixed>": %s.',
+                PHP_VERSION_ID >= 80_600 ? 'Syntax error near location 1:2' : 'Syntax error',
+            ),
         ];
         yield 'decoded value does not match inner type' => [
             Type\json_decoded(Type\vec(Type\int())),
