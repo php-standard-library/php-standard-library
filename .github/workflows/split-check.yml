@@ -16,7 +16,7 @@ jobs:
           extensions: bcmath, mbstring, intl, sodium, json, brotli
           coverage: none
 
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
 
       - run: just install
       - run: just split-install
