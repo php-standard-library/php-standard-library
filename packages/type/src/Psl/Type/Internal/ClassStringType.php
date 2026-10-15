@@ -10,6 +10,7 @@ use Psl\Type\Exception\CoercionException;
 use Psl\Type\Type;
 
 use function class_exists;
+use function interface_exists;
 use function is_a;
 use function is_string;
 
@@ -44,7 +45,7 @@ final readonly class ClassStringType extends Type
     public function matches(mixed $value): bool
     {
         if ($this->classname === null) {
-            return is_string($value) && class_exists($value);
+            return is_string($value) && (class_exists($value) || interface_exists($value));
         }
 
         return is_string($value) && is_a($value, $this->classname, true);

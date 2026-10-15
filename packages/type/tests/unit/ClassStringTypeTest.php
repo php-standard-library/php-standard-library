@@ -57,6 +57,9 @@ final class ClassStringTypeTest extends TypeTestCase
         yield [Collection\Map::class];
         yield [Collection\MutableMap::class];
         yield [Exception::class];
+        yield [Collection\MutableMapInterface::class];
+        yield [Collection\CollectionInterface::class];
+        yield [Throwable::class];
     }
 
     #[DataProvider('validValuesForUnrestrictedType')]
@@ -69,9 +72,6 @@ final class ClassStringTypeTest extends TypeTestCase
     public static function invalidValuesForUnspecifiedType(): iterable
     {
         yield from self::getInvalidCoercions();
-        yield [Collection\MutableMapInterface::class];
-        yield [Collection\CollectionInterface::class];
-        yield [Throwable::class];
     }
 
     #[DataProvider('invalidValuesForUnspecifiedType')]
