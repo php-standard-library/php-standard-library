@@ -17,6 +17,7 @@ declare(strict_types=1);
         'Psl\Vec\filter_with_key' => __DIR__ . '/Vec/filter_with_key.php',
         'Psl\Vec\flat_map' => __DIR__ . '/Vec/flat_map.php',
         'Psl\Vec\flatten' => __DIR__ . '/Vec/flatten.php',
+        'Psl\Vec\intersect' => __DIR__ . '/Vec/intersect.php',
         'Psl\Vec\keys' => __DIR__ . '/Vec/keys.php',
         'Psl\Vec\map' => __DIR__ . '/Vec/map.php',
         'Psl\Vec\map_nonnull' => __DIR__ . '/Vec/map_nonnull.php',
