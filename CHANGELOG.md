@@ -9,6 +9,7 @@
 ### fixes
 
 - fix(http-client): validate all `Transfer-Encoding` response fields and reject invalid or unsupported transfer codings instead of falling back to `Content-Length` - [#806](https://github.com/php-standard-library/php-standard-library/pull/806)
+- fix(type): allow interface names in `Type\class_string()` when no class is specified - [#802](https://github.com/php-standard-library/php-standard-library/issues/802)
 
 ## 6.2.1
 
