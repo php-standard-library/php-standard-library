@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: "checkout"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
 
       - name: "start httpbun"
         if: matrix.operating-system == 'ubuntu-latest'
