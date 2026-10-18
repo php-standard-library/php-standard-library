@@ -40,7 +40,7 @@ jobs:
           extensions: bcmath, mbstring, intl, sodium, json, openssl, brotli
           coverage: none
 
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
 
       - if: matrix.dependency-versions == 'highest'
         run: just install-packages
