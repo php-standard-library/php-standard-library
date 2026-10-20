@@ -164,6 +164,8 @@ Middleware is registered via the `Client` constructor and applied in order: the 
 
 @example('protocols/http-client-middleware.php')
 
+`DeniedDestinationsMiddleware::forPrivateNetworkRanges()` also blocks current-network, shared, reserved, benchmarking, multicast, IPv6 translation, and 6to4 ranges. IPv4-mapped IPv6 addresses use the same checks as IPv4, including exact deny-list entries. Bracketed IPv6 peer addresses are accepted. Unix sockets have no peer IP and skip these checks.
+
 ## HTTP/1.0 Mode
 
 Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. Connection: close is implicit per RFC 1945, so each request uses a separate TCP connection. Keep-alive and chunked transfer encoding are not available. Trailers are not supported.

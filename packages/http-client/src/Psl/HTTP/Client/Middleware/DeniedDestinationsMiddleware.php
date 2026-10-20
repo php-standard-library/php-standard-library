@@ -15,6 +15,11 @@ use Psl\HTTP\Client\Handler\HandlerInterface;
 use Psl\HTTP\Message\Request;
 use Psl\HTTP\Message\Transaction;
 use Psl\IP;
+use Psl\Network\SocketScheme;
+
+use function str_ends_with;
+use function str_starts_with;
+use function substr;
 
 /**
  * Connection-level middleware that blocks requests to denied IP addresses and CIDR ranges.
@@ -53,9 +58,9 @@ use Psl\IP;
  * ## Preset: private network ranges
  *
  * The {@see forPrivateNetworkRanges()} factory method returns a preconfigured instance
- * that blocks all private, loopback, link-local, and unspecified addresses for both
- * IPv4 and IPv6, including their IPv4-mapped IPv6 equivalents. This is suitable for
- * any application that fetches user-supplied URLs.
+ * that blocks private, loopback, link-local, unspecified, shared, reserved, multicast,
+ * translation, and 6to4 ranges, including IPv4-mapped IPv6 equivalents.
+ * Unix sockets have no peer IP and do not undergo these checks.
  *
  * @link https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html OWASP SSRF Prevention
  *
@@ -73,18 +78,23 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
     ) {}
 
     /**
-     * Create a preset that denies all private, loopback, link-local, and unspecified IP ranges.
+     * Create a preset that denies private and other special-purpose IP ranges.
      *
      * This covers the most common SSRF attack vectors by blocking connections to:
      *
      * - **IPv4 loopback** (`127.0.0.0/8`): localhost and loopback addresses.
      * - **IPv4 private** (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`): RFC 1918 private networks.
      * - **IPv4 link-local** (`169.254.0.0/16`): APIPA and cloud metadata endpoints (e.g., AWS `169.254.169.254`).
-     * - **IPv4 unspecified** (`0.0.0.0`): the unspecified address.
+     * - **IPv4 current network** (`0.0.0.0/8`): includes the unspecified address.
+     * - **IPv4 shared** (`100.64.0.0/10`): carrier-grade NAT.
+     * - **IPv4 special-purpose** (`192.0.0.0/24`, `198.18.0.0/15`): protocol assignments and benchmarking.
+     * - **IPv4 multicast and reserved** (`224.0.0.0/4`, `240.0.0.0/4`): includes the limited broadcast address.
      * - **IPv6 loopback** (`::1`): the IPv6 loopback address.
      * - **IPv6 unique local** (`fc00::/7`): RFC 4193 unique local addresses.
      * - **IPv6 link-local** (`fe80::/10`): IPv6 link-local addresses.
      * - **IPv6 unspecified** (`::`): the IPv6 unspecified address.
+     * - **IPv6 translation and 6to4** (`64:ff9b::/96`, `2002::/16`): can encode an IPv4 destination.
+     * - **IPv6 multicast** (`ff00::/8`).
      * - **IPv4-mapped IPv6**: The IPv6 equivalents of the above IPv4 ranges (e.g., `::ffff:127.0.0.0/104`).
      *
      * Suitable for any application that fetches user-supplied URLs and needs to prevent
@@ -101,8 +111,13 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
             new CIDR\Block('192.168.0.0/16'),
             // IPv4 link-local
             new CIDR\Block('169.254.0.0/16'),
-            // IPv4 unspecified
-            IP\Address::v4('0.0.0.0'),
+            // IPv4 current network, shared, special-purpose, multicast, and reserved
+            new CIDR\Block('0.0.0.0/8'),
+            new CIDR\Block('100.64.0.0/10'),
+            new CIDR\Block('192.0.0.0/24'),
+            new CIDR\Block('198.18.0.0/15'),
+            new CIDR\Block('224.0.0.0/4'),
+            new CIDR\Block('240.0.0.0/4'),
             // IPv6 loopback
             IP\Address::v6('::1'),
             // IPv6 private (unique local)
@@ -111,12 +126,10 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
             new CIDR\Block('fe80::/10'),
             // IPv6 unspecified
             IP\Address::v6('::'),
-            // IPv4-mapped IPv6 loopback
-            new CIDR\Block('::ffff:127.0.0.0/104'),
-            // IPv4-mapped IPv6 private
-            new CIDR\Block('::ffff:10.0.0.0/104'),
-            new CIDR\Block('::ffff:172.16.0.0/108'),
-            new CIDR\Block('::ffff:192.168.0.0/112'),
+            // IPv6 translation, 6to4, and multicast
+            new CIDR\Block('64:ff9b::/96'),
+            new CIDR\Block('2002::/16'),
+            new CIDR\Block('ff00::/8'),
         ]);
     }
 
@@ -148,10 +161,18 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
         HandlerInterface $handler,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): Transaction {
-        $peerHost = $connection->metadata->peerAddress->host;
+        $peerAddress = $connection->metadata->peerAddress;
+        $peerHost = $peerAddress->host;
 
-        if ($this->denied !== []) {
-            $address = IP\Address::parse($peerHost);
+        if ($this->denied !== [] && $peerAddress->scheme !== SocketScheme::Unix) {
+            $host = str_starts_with($peerHost, '[') && str_ends_with($peerHost, ']')
+                ? substr($peerHost, 1, -1)
+                : $peerHost;
+            if ($host === '') {
+                throw new RuntimeException('Connection has an empty peer IP address.');
+            }
+
+            $address = self::normalize(IP\Address::parse($host));
             foreach ($this->denied as $denied) {
                 if ($denied instanceof CIDR\Block) {
                     if ($denied->contains($address)) {
@@ -159,12 +180,26 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
                             'Connection to ' . $peerHost . ' is denied by client configuration.',
                         );
                     }
-                } elseif ($denied->equals($address)) {
+                } elseif (self::normalize($denied)->equals($address)) {
                     throw new RuntimeException('Connection to ' . $peerHost . ' is denied by client configuration.');
                 }
             }
         }
 
         return $handler->handle($connection, $request, $configuration, $cancellation);
+    }
+
+    private static function normalize(IP\Address $address): IP\Address
+    {
+        $bytes = $address->toBytes();
+
+        if (!str_starts_with($bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff")) {
+            return $address;
+        }
+
+        /** @var non-empty-string $ipv4 */
+        $ipv4 = substr($bytes, 12);
+
+        return IP\Address::fromBytes($ipv4);
     }
 }
