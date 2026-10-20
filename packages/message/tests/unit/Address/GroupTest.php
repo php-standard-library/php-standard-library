@@ -449,4 +449,62 @@ final class GroupTest extends TestCase
 
         static::assertSame('Solo: user@example.com;', $result);
     }
+
+    #[Test]
+    #[DataProvider('specialDisplayNames')]
+    public function roundTripsSpecialDisplayNames(string $displayName): void
+    {
+        $group = new Group($displayName, [
+            new Mailbox('alice', 'example.com', 'Doe, Alice'),
+            new Mailbox('bob', 'example.com', 'Bob "on call", Europe'),
+        ]);
+        $parsed = Group::parse($group->toString());
+
+        static::assertSame($displayName, $parsed->displayName);
+        static::assertSame($group->toString(), $parsed->toString());
+        static::assertCount(2, $parsed->mailboxes);
+        static::assertSame('Doe, Alice', $parsed->mailboxes[0]->displayName);
+        static::assertSame('Bob "on call", Europe', $parsed->mailboxes[1]->displayName);
+        static::assertSame($displayName, Group::parse(new Group($displayName)->toString())->displayName);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function specialDisplayNames(): iterable
+    {
+        yield 'colon' => ['Team: Europe'];
+        yield 'comma' => ['Friends, family'];
+        yield 'semicolon' => ['Team; Europe'];
+        yield 'quotes and backslash' => ['Team "on call" \\ Europe'];
+        yield 'brackets' => ['Team <Europe> (work)'];
+        yield 'UTF-8' => ['Équipe'];
+    }
+
+    #[Test]
+    public function parsesQuotedGroupSeparatorAndMemberCommas(): void
+    {
+        $group = Group::parse('"Team: Europe": "Doe, Alice" <alice@example.com>, bob@example.com;');
+
+        static::assertSame('Team: Europe', $group->displayName);
+        static::assertCount(2, $group->mailboxes);
+        static::assertSame('Doe, Alice', $group->mailboxes[0]->displayName);
+        static::assertSame('bob@example.com', $group->mailboxes[1]->address);
+    }
+
+    #[Test]
+    public function parsesMemberDomainLiterals(): void
+    {
+        $group = Group::parse('Team: alice@[IPv6:::1], bob@example.com;');
+
+        static::assertCount(2, $group->mailboxes);
+        static::assertSame('alice@[IPv6:::1]', $group->mailboxes[0]->address);
+        static::assertSame('bob@example.com', $group->mailboxes[1]->address);
+    }
+
+    #[Test]
+    public function rejectsNestedGroups(): void
+    {
+        $this->expectException(ParsingException::class);
+
+        Group::parse('Outer: Inner: alice@example.com;;');
+    }
 }

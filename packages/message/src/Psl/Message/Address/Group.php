@@ -10,12 +10,16 @@ use Psl\Message\Exception\ParsingException;
 use Stringable;
 
 use function array_map;
-use function explode;
 use function implode;
+use function preg_match;
+use function preg_replace;
+use function preg_split;
 use function str_ends_with;
+use function str_starts_with;
+use function strlen;
 use function strpbrk;
-use function strpos;
 use function strrpos;
+use function strtr;
 use function substr;
 use function trim;
 
@@ -68,8 +72,23 @@ final readonly class Group implements Stringable
     {
         $input = trim($input, " \t\r\n");
 
-        $colonPos = strpos($input, ':');
-        if ($colonPos === false || $colonPos === 0) {
+        $colonPos = null;
+        $inQuote = false;
+        for ($i = 0, $length = strlen($input); $i < $length; $i++) {
+            if ($input[$i] === '\\' && $inQuote) {
+                $i++;
+                continue;
+            }
+
+            if ($input[$i] === '"') {
+                $inQuote = !$inQuote;
+            } elseif ($input[$i] === ':' && !$inQuote) {
+                $colonPos = $i;
+                break;
+            }
+        }
+
+        if ($colonPos === null || $colonPos === 0) {
             throw ParsingException::forInvalidGroup($input);
         }
 
@@ -77,7 +96,12 @@ final readonly class Group implements Stringable
             throw ParsingException::forInvalidGroup($input);
         }
 
-        $displayName = EncodedWord\decode(trim(substr($input, 0, $colonPos), " \t\r\n"));
+        $displayName = trim(substr($input, 0, $colonPos), " \t\r\n");
+        if (str_starts_with($displayName, '"') && str_ends_with($displayName, '"') && strlen($displayName) >= 2) {
+            $displayName = preg_replace('/\\\\([\x09\x20-\x7e])/', '$1', substr($displayName, 1, -1)) ?? '';
+        } else {
+            $displayName = EncodedWord\decode($displayName);
+        }
 
         if (strpbrk($displayName, "\r\n\0") !== false) {
             throw ParsingException::forInvalidGroup($input);
@@ -93,7 +117,11 @@ final readonly class Group implements Stringable
             return new self($displayName);
         }
 
-        $parts = explode(',', $mailboxListStr);
+        $parts = preg_split('~"(?:[^"\\\\]|\\\\.)*"(*SKIP)(*F)|,~s', $mailboxListStr);
+        if ($parts === false) {
+            throw ParsingException::forInvalidGroup($input);
+        }
+
         $mailboxes = [];
         foreach ($parts as $part) {
             $part = trim($part, " \t\r\n");
@@ -119,6 +147,9 @@ final readonly class Group implements Stringable
     public function toString(): string
     {
         $encoded = EncodedWord\encode($this->displayName);
+        if ($encoded === $this->displayName && preg_match('/[^a-zA-Z0-9 ]/', $this->displayName)) {
+            $encoded = '"' . strtr($this->displayName, ['\\' => '\\\\', '"' => '\\"']) . '"';
+        }
 
         if ($this->mailboxes === []) {
             return $encoded . ':;';

@@ -24,3 +24,9 @@ $message->to; // AddressList
 $message->subject; // "Hello from PSL"
 $message->messageId; // MessageId
 $message->content; // PartInterface (the text part)
+
+// Groups quote punctuation in their names and preserve member display names.
+$team = new Message\Address\Group('Team: Europe', [
+    new Message\Address\Mailbox('alice', 'example.com', 'Doe, Alice'),
+]);
+$team->toString(); // '"Team: Europe": "Doe, Alice" <alice@example.com>;'

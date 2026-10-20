@@ -42,7 +42,7 @@ The `Address` namespace provides RFC 5322 compliant address parsing:
 - `Group` represents a named group of mailboxes (`display-name : mailbox-list ;`)
 - `AddressList` holds an ordered list of mailboxes and groups, with merge and exclude operations
 
-All address types support RFC 2047 encoded-word display names for non-ASCII characters. `Mailbox` accepts dot-atom or quoted local parts and dot-atom or domain-literal domains, including UTF-8 addresses. It escapes quotes and backslashes in display names, and parentheses and backslashes in comments.
+All address types support RFC 2047 encoded-word display names for non-ASCII characters. `Mailbox` accepts dot-atom or quoted local parts and dot-atom or domain-literal domains, including UTF-8 addresses. It escapes quotes and backslashes in display names, and parentheses and backslashes in comments. `Group` also quotes ASCII display names with punctuation and preserves quoted colons and commas when parsing.
 
 Direct `Mailbox` construction rejects leading, trailing, or repeated dots in unquoted local parts, obsolete mixed quoted words, and a final domain dot. `Mailbox::parse()` accepts these forms: it quotes legacy local parts, joins obsolete quoted words, and removes the final domain dot. For example, `user.@ezweb.ne.jp` becomes `"user."@ezweb.ne.jp`, and `"john".doe@example.com` becomes `"john.doe"@example.com`.
 
