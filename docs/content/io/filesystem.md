@@ -12,6 +12,8 @@ Unlike the `File` component (which deals with reading and writing file contents 
 
 @example('io/filesystem-create.php')
 
+`create_temporary_file()` creates a new file exclusively with permissions `0600`. If a name already exists, it tries another name without changing the existing file. It adds 16 random hexadecimal characters to the prefix to keep names short enough for Unix socket paths under macOS's temporary directory.
+
 ## Copying and Deleting
 
 @example('io/filesystem-copy-delete.php')

@@ -8,7 +8,13 @@ use Psl\Env;
 use Psl\Filesystem;
 use Psl\Str;
 
+use function stream_wrapper_register;
+use function stream_wrapper_unregister;
+use function strlen;
 use function time;
+use function umask;
+
+use const STREAM_META_ACCESS;
 
 final class FileTest extends AbstractFilesystemTestCase
 {
@@ -20,6 +26,92 @@ final class FileTest extends AbstractFilesystemTestCase
 
         static::assertTrue(Filesystem\is_file($file));
         static::assertSame($this->directory, Filesystem\get_directory($file));
+    }
+
+    public function testTemporaryFileIsPrivateWithAnOpenUmask(): void
+    {
+        $previous = umask(0);
+
+        try {
+            $file = Filesystem\create_temporary_file($this->directory);
+            static::assertSame(0o600, Filesystem\get_permissions($file) & 0o777);
+            static::assertSame(0, umask());
+        } finally {
+            umask($previous);
+        }
+    }
+
+    public function testTemporaryFilenameFitsTheMacOsUnixSocketExamples(): void
+    {
+        $prefix = 'psl-unix-timeout-sock-';
+        $file = Filesystem\create_temporary_file($this->directory, $prefix);
+
+        // A canonical macOS temporary directory takes 56 bytes of the path.
+        static::assertLessThan(104, 56 + 1 + strlen(Filesystem\get_filename($file)));
+    }
+
+    public function testTemporaryFileRetriesAnExclusiveCreationCollision(): void
+    {
+        $wrapper = new class {
+            /** @var resource|null */
+            public $context = null;
+            /** @var list<string> */
+            public static array $modes = [];
+            /** @var list<int> */
+            public static array $masks = [];
+            public static null|string $collision = null;
+
+            /**
+             * @return array<string, int>|false
+             */
+            public function url_stat(string $path, int $flags): array|false
+            {
+                if ($path === 'psl-temp-collision://directory') {
+                    return ['mode' => 0o40_777];
+                }
+
+                return $path === self::$collision ? ['mode' => 0o100_666] : false;
+            }
+
+            public function stream_open(string $path, string $mode, int $options, null|string &$openedPath): bool
+            {
+                self::$modes[] = $mode;
+                self::$masks[] = umask();
+                if (self::$collision === null) {
+                    self::$collision = $path;
+
+                    return false;
+                }
+
+                return true;
+            }
+
+            public function stream_close(): void {}
+
+            public function stream_metadata(string $path, int $option, mixed $value): bool
+            {
+                if ($option === STREAM_META_ACCESS) {
+                    return true;
+                }
+
+                self::$collision = $path;
+
+                return true;
+            }
+        };
+
+        static::assertTrue(stream_wrapper_register('psl-temp-collision', $wrapper::class));
+
+        try {
+            $path = Filesystem\create_temporary_file('psl-temp-collision://directory', 'prefix-');
+
+            static::assertNotSame($wrapper::$collision, $path);
+            static::assertSame(['x', 'x'], $wrapper::$modes);
+            static::assertSame([0o077, 0o077], $wrapper::$masks);
+            static::assertMatchesRegularExpression('~/prefix-[a-f0-9]{16}$~', $path);
+        } finally {
+            stream_wrapper_unregister('psl-temp-collision');
+        }
     }
 
     public function testTemporaryFileWithPrefix(): void

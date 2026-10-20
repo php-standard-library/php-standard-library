@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace Psl\Filesystem;
 
 use function bin2hex;
+use function chmod;
+use function fclose;
+use function fopen;
 use function random_bytes;
 use function realpath;
 use function sprintf;
 use function str_contains;
 use function sys_get_temp_dir;
+use function umask;
+use function unlink;
 
 /**
- * Create a temporary file.
+ * Create a temporary file with permissions 0600.
  *
  * @param non-empty-string|null $directory The directory where the temporary file will be created.
  *                                         If none specified, the system default temporary directory will be used.
@@ -59,9 +64,39 @@ function create_temporary_file(null|string $directory = null, null|string $prefi
         $prefix = '';
     }
 
-    $filename = $directory . $separator . $prefix . bin2hex(random_bytes(4));
+    for ($attempt = 0; $attempt < 10; $attempt++) {
+        $filename = $directory . $separator . $prefix . bin2hex(random_bytes(8));
+        $previousMask = umask(0o077);
+        try {
+            [$handle, $errorMessage] = Internal\box(static fn() => fopen($filename, 'x'));
+        } finally {
+            umask($previousMask);
+        }
 
-    namespace\create_file($filename);
+        if ($handle !== false) {
+            [$private, $errorMessage] = Internal\box(static fn(): bool => chmod($filename, 0o600));
+            fclose($handle);
+            if (!$private) {
+                Internal\box(static fn(): bool => unlink($filename));
 
-    return $filename;
+                throw new Exception\RuntimeException(sprintf(
+                    'Failed to set temporary file permissions for "%s": %s.',
+                    $filename,
+                    $errorMessage ?? 'internal error',
+                ));
+            }
+
+            return $filename;
+        }
+
+        if (!namespace\exists($filename) && !namespace\is_symbolic_link($filename)) {
+            break;
+        }
+    }
+
+    throw new Exception\RuntimeException(sprintf(
+        'Failed to create temporary file in "%s": %s.',
+        $directory,
+        $errorMessage ?? 'internal error',
+    ));
 }

@@ -20,7 +20,7 @@ Filesystem\create_directory($dir);
 Filesystem\create_directory($dir, 0o755);
 IO\write_line('Directory created: %s', Filesystem\is_directory($dir) ? 'yes' : 'no');
 
-// Create a temporary file
+// Create a private temporary file without reusing an existing name.
 $tmp = Filesystem\create_temporary_file();
 IO\write_line('Temp file: %s', $tmp);
 
