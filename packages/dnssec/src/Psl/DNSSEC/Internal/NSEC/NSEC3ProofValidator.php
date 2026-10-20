@@ -11,6 +11,7 @@ use Psl\DNS\Record\NSEC3Record;
 use Psl\DNS\Record\RecordType;
 use Psl\DNSSEC\Exception\InvalidProofException;
 
+use function in_array;
 use function strpos;
 use function strtoupper;
 use function substr;
@@ -154,13 +155,15 @@ final class NSEC3ProofValidator
      *
      * @param list<NSEC3Record> $nsec3Records
      *
+     * @return bool Whether the proof establishes an unsigned delegation.
+     *
      * @throws InvalidProofException If the NSEC3 parameters are invalid.
      * @throws InvalidProofException If the NSEC3 proof is invalid.
      * @throws InvalidProofException If the NSEC3 iteration count exceeds safety limits.
      * @throws InvalidArgumentException If the zone name cannot be encoded.
      * @throws InvalidProofException If the NSEC3 hash computation fails.
      */
-    public static function validateDsNonExistence(string $queryName, array $nsec3Records): void
+    public static function validateDsNonExistence(string $queryName, array $nsec3Records): bool
     {
         $first = $nsec3Records[0];
         $algorithm = $first->hashAlgorithm;
@@ -185,18 +188,18 @@ final class NSEC3ProofValidator
                 continue;
             }
 
-            foreach ($nsec3->types as $type) {
-                if ($type === RecordType::DS) {
-                    throw InvalidProofException::forNSEC3TypeExists($queryName, 'DS');
+            foreach ([RecordType::DS, RecordType::CNAME, RecordType::SOA] as $type) {
+                if (in_array($type, $nsec3->types, true)) {
+                    throw InvalidProofException::forNSEC3TypeExists($queryName, $type->name);
                 }
             }
 
-            return;
+            return in_array(RecordType::NS, $nsec3->types, true);
         }
 
         $covering = self::findCovering($nsec3Records, $hashEncoded);
         if ($covering !== null && ($covering->flags & 0x01) !== 0) {
-            return;
+            return true;
         }
 
         throw InvalidProofException::forDSNotProven($queryName);

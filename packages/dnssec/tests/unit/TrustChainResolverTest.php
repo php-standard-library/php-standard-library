@@ -595,12 +595,16 @@ final class TrustChainResolverTest extends TestCase
             $rootSignature,
         );
 
-        $nsec = new NSECRecord('com', Duration::seconds(3600), 'com.au', [
-            RecordType::NS,
-            RecordType::SOA,
-            RecordType::RRSIG,
-            RecordType::NSEC,
-        ]);
+        $nsec = new NSECRecord(
+            'com',
+            Duration::seconds(3600),
+            'com.au',
+            [
+                RecordType::NS,
+                RecordType::RRSIG,
+                RecordType::NSEC,
+            ],
+        );
 
         $nsecSignedData = self::buildNsecSignedData($nsec, $rootKeyTag, $expiration, $inception);
         $nsecSignature = null;
@@ -1199,7 +1203,7 @@ final class TrustChainResolverTest extends TestCase
             $rootSignature,
         );
 
-        $nsec = new NSECRecord('com', Duration::seconds(3600), 'com.au', [
+        $nsec = new NSECRecord('com', Duration::seconds(3600), 'edu', [
             RecordType::NS,
             RecordType::SOA,
             RecordType::RRSIG,

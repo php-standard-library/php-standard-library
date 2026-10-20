@@ -12,6 +12,9 @@ use Psl\DNS\Record\RecordInterface;
 use Psl\DNS\Record\RecordType;
 use Psl\DNSSEC\Exception\InvalidProofException;
 
+use function in_array;
+use function rtrim;
+use function str_ends_with;
 use function strtolower;
 
 /**
@@ -24,6 +27,8 @@ use function strtolower;
  * @see https://datatracker.ietf.org/doc/html/rfc5155
  *
  * @internal
+ *
+ * @mago-expect lint:kan-defect - NSEC proof types need separate validation paths.
  */
 final class NSECProofValidator
 {
@@ -212,6 +217,8 @@ final class NSECProofValidator
      *
      * @param list<RecordInterface> $authorityRecords
      *
+     * @return bool Whether the proof establishes an unsigned delegation.
+     *
      * @throws InvalidProofException If the required NSEC/NSEC3 proof records are missing.
      * @throws InvalidProofException If the NSEC3 iteration count exceeds safety limits.
      * @throws InvalidArgumentException If the zone name cannot be encoded.
@@ -220,22 +227,46 @@ final class NSECProofValidator
      * @throws InvalidProofException If the NSEC3 proof is invalid.
      * @throws InvalidProofException If the NSEC3 parameters are invalid.
      */
-    public static function validateDsNonExistence(string $queryName, array $authorityRecords): void
+    public static function validateDsNonExistence(string $queryName, array $authorityRecords): bool
     {
         $nsecRecords = self::filterNsec($authorityRecords);
         $nsec3Records = self::filterNsec3($authorityRecords);
 
         if ($nsec3Records !== []) {
-            NSEC3ProofValidator::validateDsNonExistence($queryName, $nsec3Records);
-            return;
+            return NSEC3ProofValidator::validateDsNonExistence($queryName, $nsec3Records);
         }
 
-        if ($nsecRecords !== []) {
-            self::validateNsecNodata($queryName, RecordType::DS, $nsecRecords);
-            return;
+        foreach ($nsecRecords as $nsec) {
+            if (!DNSName::caselessEquals($nsec->name, $queryName)) {
+                continue;
+            }
+
+            foreach ([RecordType::DS, RecordType::CNAME, RecordType::SOA] as $type) {
+                if (in_array($type, $nsec->types, true)) {
+                    throw InvalidProofException::forTypeExists($queryName, $type->name);
+                }
+            }
+
+            return in_array(RecordType::NS, $nsec->types, true);
         }
 
-        throw InvalidProofException::forDSProof($queryName);
+        foreach ($nsecRecords as $nsec) {
+            if (self::nsecCoversName($nsec, $queryName)) {
+                if (
+                    in_array(RecordType::NS, $nsec->types, true)
+                    && !in_array(RecordType::SOA, $nsec->types, true)
+                    && str_ends_with(rtrim(strtolower($queryName), '.'), '.' . rtrim(strtolower($nsec->name), '.'))
+                ) {
+                    throw InvalidProofException::forDSNotProven($queryName);
+                }
+
+                return false;
+            }
+        }
+
+        throw $nsecRecords === []
+            ? InvalidProofException::forDSProof($queryName)
+            : InvalidProofException::forNameNotMatched($queryName);
     }
 
     /**

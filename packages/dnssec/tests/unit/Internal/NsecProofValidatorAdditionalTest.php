@@ -73,7 +73,7 @@ final class NsecProofValidatorAdditionalTest extends TestCase
     {
         $nsec = new NSECRecord('example.com', Duration::seconds(3600), 'mail.example.com', [
             RecordType::A,
-            RecordType::SOA,
+            RecordType::NS,
             RecordType::RRSIG,
             RecordType::NSEC,
         ]);
@@ -144,7 +144,7 @@ final class NsecProofValidatorAdditionalTest extends TestCase
             $iterations,
             $salt,
             self::nextHash($hash),
-            [RecordType::A, RecordType::SOA],
+            [RecordType::A, RecordType::NS],
         );
 
         NSECProofValidator::validateDsNonExistence('example.com', [$nsec3]);

@@ -10,6 +10,7 @@ use Psl\Crypto\Exception\InvalidArgumentException;
 use Psl\DNS\Exception\InvalidArgumentException as DNSInvalidArgumentException;
 use Psl\DNS\Exception\ProtocolException;
 use Psl\DNS\Exception\RuntimeException;
+use Psl\DNS\Internal\DNSName;
 use Psl\DNS\Record\DNSKEYRecord;
 use Psl\DNS\Record\DSRecord;
 use Psl\DNS\Record\RecordInterface;
@@ -26,6 +27,7 @@ use Psl\DNSSEC\Internal\RRSIG\RRSIGVerifier;
 use Psl\Exception\LogicException;
 
 use function array_filter;
+use function array_key_last;
 use function array_slice;
 use function array_values;
 use function count;
@@ -170,7 +172,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
                 return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
             }
 
-            return new TrustChainResult(TrustChainStatus::Insecure, []);
+            return isset($validated[$zone]) ? null : new TrustChainResult(TrustChainStatus::Insecure, []);
         }
 
         $dsRrsigs = DNSSECVerification::filterRecords($dsResponse->answers, RecordType::RRSIG);
@@ -178,18 +180,14 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::UnsignedDs);
         }
 
-        $firstRrsig = $dsRrsigs[0];
-        if ($firstRrsig instanceof RRSIGRecord) {
-            $parentZone = $firstRrsig->signer === '' || $firstRrsig->signer === '.' ? '.' : $firstRrsig->signer;
-            $parentKeys = $validated[$parentZone] ?? [];
-            if ($parentKeys === []) {
-                return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
-            }
+        $parentKeys = $validated[array_key_last($validated) ?? '.'] ?? [];
+        if ($parentKeys === []) {
+            return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
+        }
 
-            $failure = self::verifyRrsigs($dsRecords, $dsRrsigs, $parentKeys);
-            if ($failure !== null) {
-                return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
-            }
+        $failure = self::verifyRrsigs($dsRecords, $dsRrsigs, $parentKeys);
+        if ($failure !== null) {
+            return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
         }
 
         $dnskeyResponse = $this->resolver->query($fqdn, RecordType::DNSKEY, $cancellation);
@@ -278,12 +276,13 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
      * Validate that DS non-existence is properly proven via NSEC/NSEC3.
      *
      * Returns null if the proof is valid, or a ChainFailure reason if not.
+     * Keeps the parent's keys when the name is not a delegation.
      *
      * @param array<string, list<DNSKEYRecord>> $validated
      *
      * @throws DNSInvalidArgumentException If the zone name cannot be encoded.
      */
-    private function validateDsNonExistence(string $zone, Response $dsResponse, array $validated): null|ChainFailure
+    private function validateDsNonExistence(string $zone, Response $dsResponse, array &$validated): null|ChainFailure
     {
         $authority = array_values(array_filter(
             $dsResponse->authority,
@@ -306,22 +305,32 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return ChainFailure::UnsignedDs;
         }
 
-        $firstRrsig = $rrsigs[0];
-        if ($firstRrsig instanceof RRSIGRecord) {
-            $parentZone = $firstRrsig->signer === '' || $firstRrsig->signer === '.' ? '.' : $firstRrsig->signer;
-            $parentKeys = $validated[$parentZone] ?? [];
-            if ($parentKeys === []) {
-                return ChainFailure::ChainBroken;
-            }
+        $parentKeys = $validated[array_key_last($validated) ?? '.'] ?? [];
+        if ($parentKeys === []) {
+            return ChainFailure::ChainBroken;
+        }
 
-            $failure = self::verifyRrsigs($authority, $rrsigs, $parentKeys);
-            if ($failure !== null) {
-                return $failure;
+        foreach ($authority as $record) {
+            if (
+                $record->kind === RecordType::NSEC3
+                && rtrim(strtolower(DNSName::getParentName(rtrim($record->name, '.'))), '.') !== rtrim(
+                    strtolower($parentKeys[0]->name),
+                    '.',
+                )
+            ) {
+                return ChainFailure::MissingDs;
             }
         }
 
+        $failure = self::verifyRrsigs($authority, $rrsigs, $parentKeys);
+        if ($failure !== null) {
+            return $failure;
+        }
+
         try {
-            NSECProofValidator::validateDsNonExistence($zone, $authority);
+            if (!NSECProofValidator::validateDsNonExistence($zone, $authority)) {
+                $validated[$zone] = $parentKeys;
+            }
         } catch (ProtocolException|DNSInvalidArgumentException|RuntimeException|Exception\RuntimeException) {
             return ChainFailure::MissingDs;
         }
@@ -444,6 +453,17 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
         $failure = self::enforceRecordLimits($dnskeys, $rrsigs);
         if ($failure !== null) {
             return $failure;
+        }
+
+        $parentSignatures = array_filter(
+            $rrsigs,
+            static fn(RecordInterface $rrsig): bool => (
+                $rrsig instanceof RRSIGRecord
+                && rtrim(strtolower($rrsig->signer), '.') === rtrim(strtolower($dnskeys[0]->name ?? '.'), '.')
+            ),
+        );
+        if ($parentSignatures === []) {
+            return ChainFailure::ChainBroken;
         }
 
         /** @var array<string, non-empty-list<RecordInterface>> $rrsets */
