@@ -1875,4 +1875,28 @@ final class ParserTest extends TestCase
         static::assertCount(1, $parts);
         static::assertSame("line\r\n--abc" . $padding . "\r\nmore", $parts[0]->body->readAll());
     }
+
+    public function testMaxPartsIsEnforcedBeforeTheExtraPartIsRead(): void
+    {
+        // The extra part has a large body and no closing delimiter: the limit must be hit before
+        // any of it is read, rather than after spooling it whole.
+        $body =
+            "--boundary\r\n\r\nfirst\r\n--boundary\r\nContent-Type: text/plain\r\n\r\n"
+            . Str\repeat('x', 4 * 1024 * 1024);
+        $handle = new IO\MemoryHandle($body);
+
+        $bodies = [];
+        try {
+            foreach (new Parser('boundary', maxParts: 1)->parse($handle) as $part) {
+                $bodies[] = $part->body->readAll();
+            }
+
+            static::fail('Expected a MultiPartException.');
+        } catch (MultiPartException $e) {
+            static::assertSame('Multipart body exceeds the maximum number of parts (1).', $e->getMessage());
+        }
+
+        static::assertSame(['first'], $bodies);
+        static::assertLessThan(64 * 1024, $handle->tell());
+    }
 }

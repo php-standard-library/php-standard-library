@@ -166,6 +166,12 @@ final class Parser implements ParserInterface
                 break;
             }
 
+            // Another part starts here: enforce the limit before reading any of it.
+            $count++;
+            if ($this->maxParts > 0 && $count > $this->maxParts) {
+                throw MultiPartException::forTooManyParts($this->maxParts);
+            }
+
             $headerSection = self::bufferReadHeaderSection($handle, $buffer, $this->maxHeaderSize, $cancellation);
             if ($headerSection === null) {
                 throw MultiPartException::forMalformedMultipartBody('malformed part headers');
@@ -187,11 +193,6 @@ final class Parser implements ParserInterface
             $part = new Part($headers, $spool);
             if ($this->decodeTransferEncoding) {
                 $part = $this->decodePart($part);
-            }
-
-            $count++;
-            if ($this->maxParts > 0 && $count > $this->maxParts) {
-                throw MultiPartException::forTooManyParts($this->maxParts);
             }
 
             yield $part;
