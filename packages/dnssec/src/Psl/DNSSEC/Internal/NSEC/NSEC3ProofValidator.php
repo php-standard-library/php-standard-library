@@ -148,10 +148,10 @@ final class NSEC3ProofValidator
     }
 
     /**
-     * Validate DS non-existence per RFC 5155 Section 8.5 and 8.6.
+     * Validate DS non-existence per RFC 5155 Sections 8.3 and 8.6.
      *
      * Handles both standard NODATA (exact match, DS not in bitmap) and
-     * opt-out (no exact match, covering NSEC3 with opt-out flag).
+     * opt-out (a closest-encloser match and next-closer cover with the opt-out flag).
      *
      * @param list<NSEC3Record> $nsec3Records
      *
@@ -197,9 +197,38 @@ final class NSEC3ProofValidator
             return in_array(RecordType::NS, $nsec3->types, true);
         }
 
-        $covering = self::findCovering($nsec3Records, $hashEncoded);
-        if ($covering !== null && ($covering->flags & 0x01) !== 0) {
-            return true;
+        $ancestors = DNSName::getAncestors($queryName);
+        foreach ($ancestors as $index => $ancestor) {
+            if ($index === 0) {
+                continue;
+            }
+
+            $ancestorHash = Base32Hex::encode(NSEC3Hash::compute($ancestor, $algorithm, $iterations, $salt));
+            foreach ($nsec3Records as $nsec3) {
+                if (!DNSName::caselessEquals(self::extractOwnerHash($nsec3), $ancestorHash)) {
+                    continue;
+                }
+
+                if (
+                    in_array(RecordType::DNAME, $nsec3->types, true)
+                    || in_array(RecordType::NS, $nsec3->types, true) && !in_array(RecordType::SOA, $nsec3->types, true)
+                ) {
+                    throw InvalidProofException::forDSNotProven($queryName);
+                }
+
+                $nextCloserHash = Base32Hex::encode(NSEC3Hash::compute(
+                    $ancestors[$index - 1],
+                    $algorithm,
+                    $iterations,
+                    $salt,
+                ));
+                $covering = self::findCovering($nsec3Records, $nextCloserHash);
+                if ($covering !== null && ($covering->flags & 0x01) !== 0) {
+                    return true;
+                }
+
+                throw InvalidProofException::forDSNotProven($queryName);
+            }
         }
 
         throw InvalidProofException::forDSNotProven($queryName);

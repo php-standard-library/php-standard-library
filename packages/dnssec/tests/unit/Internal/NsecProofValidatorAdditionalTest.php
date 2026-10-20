@@ -177,7 +177,7 @@ final class NsecProofValidatorAdditionalTest extends TestCase
         NSECProofValidator::validateDsNonExistence('example.com', [$nsec3]);
     }
 
-    public function testNsec3DsNonExistenceWithOptOut(): void
+    public function testNsec3DsNonExistenceRejectsOptOutWithoutClosestEncloser(): void
     {
         $salt = '';
         $iterations = 0;
@@ -187,9 +187,9 @@ final class NsecProofValidatorAdditionalTest extends TestCase
 
         $nsec3 = self::coveringNsec3WithOptOut($hash, $algorithm, $iterations, $salt);
 
-        NSECProofValidator::validateDsNonExistence('example.com', [$nsec3]);
+        $this->expectException(InvalidProofException::class);
 
-        static::assertTrue(true);
+        NSECProofValidator::validateDsNonExistence('example.com', [$nsec3]);
     }
 
     public function testNsec3DsNonExistenceThrowsWhenNotProven(): void
