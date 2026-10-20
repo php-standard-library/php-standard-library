@@ -149,6 +149,64 @@ final class ChildTest extends TestCase
         static::assertFalse($status->isSuccessful());
     }
 
+    public function testWaitReportsTerminationSignal(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Signal tests are not reliable on Windows.');
+        }
+
+        $child = self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('sleep(60);')
+            ->withStdout(Stdio::null())
+            ->withStderr(Stdio::null())
+            ->spawn();
+
+        $child->signal(Signal::Terminate);
+        $status = $child->wait();
+
+        static::assertTrue($status->hasBeenSignaled());
+        static::assertSame(Signal::Terminate, $status->getTerminationSignal());
+    }
+
+    public function testWaitWithOutputReportsTerminationSignal(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Signal tests are not reliable on Windows.');
+        }
+
+        $child = self::phpCommand()->withArgument('-r')->withArgument('sleep(60);')->spawn();
+
+        $child->kill();
+        $output = $child->waitWithOutput();
+
+        static::assertTrue($output->status->hasBeenSignaled());
+        static::assertSame(Signal::Kill, $output->status->getTerminationSignal());
+    }
+
+    public function testTryWaitReportsTerminationSignal(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Signal tests are not reliable on Windows.');
+        }
+
+        $child = self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('sleep(60);')
+            ->withStdout(Stdio::null())
+            ->withStderr(Stdio::null())
+            ->spawn();
+
+        $child->kill();
+        while (null === ($status = $child->tryWait())) {
+            Async\sleep(Duration::milliseconds(5));
+        }
+
+        static::assertTrue($status->hasBeenSignaled());
+        static::assertSame(Signal::Kill, $status->getTerminationSignal());
+        static::assertGreaterThan(0, $child->getProcessId());
+    }
+
     public function testSignalOnExitedProcessIsNoop(): void
     {
         $child = self::phpCommand()

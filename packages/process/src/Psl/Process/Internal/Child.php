@@ -31,6 +31,16 @@ final class Child implements ChildInterface
     private null|ExitStatus $exitStatus = null;
 
     /**
+     * The status reported by proc_get_status() when it first observed the process as exited.
+     *
+     * PHP reports a termination by signal only the first time proc_get_status() observes the
+     * exit; later calls report the process as not signaled, so the status is kept here.
+     *
+     * @var null|array{command: string, pid: int, running: bool, signaled: bool, stopped: bool, exitcode: int, termsig: int, stopsig: int}
+     */
+    private null|array $exitedStatus = null;
+
+    /**
      * @param resource $process
      */
     public function __construct(
@@ -43,7 +53,7 @@ final class Child implements ChildInterface
     #[Override]
     public function getProcessId(): int
     {
-        $status = proc_get_status($this->process);
+        $status = $this->getStatus();
 
         return (int) $status['pid'];
     }
@@ -55,7 +65,7 @@ final class Child implements ChildInterface
             return false;
         }
 
-        $status = proc_get_status($this->process);
+        $status = $this->getStatus();
 
         return $status['running'];
     }
@@ -254,6 +264,23 @@ final class Child implements ChildInterface
         return $this->close();
     }
 
+    /**
+     * @return array{command: string, pid: int, running: bool, signaled: bool, stopped: bool, exitcode: int, termsig: int, stopsig: int}
+     */
+    private function getStatus(): array
+    {
+        if (null !== $this->exitedStatus) {
+            return $this->exitedStatus;
+        }
+
+        $status = proc_get_status($this->process);
+        if (!$status['running']) {
+            $this->exitedStatus = $status;
+        }
+
+        return $status;
+    }
+
     private function closeHandles(): void
     {
         $this->stdout?->close();
@@ -270,12 +297,12 @@ final class Child implements ChildInterface
 
         $this->exited = true;
 
-        $info = proc_get_status($this->process);
+        $info = $this->getStatus();
         $code = proc_close($this->process);
 
-        // proc_get_status only returns the real exit code on the first call after exit.
-        // After that, it returns -1. proc_close returns the exit code too, but it's
-        // shifted on Unix. Use the info exitcode when available.
+        // proc_get_status only returns the real exit code and termination signal on the
+        // first call after exit, which getStatus() keeps. proc_close returns the exit code
+        // too, but it's shifted on Unix. Use the info exitcode when available.
         $exitCode = -1 !== $info['exitcode'] ? $info['exitcode'] : $code;
 
         $signaled = $info['signaled'];
