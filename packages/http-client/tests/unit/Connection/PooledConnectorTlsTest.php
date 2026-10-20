@@ -371,7 +371,7 @@ final class PooledConnectorTlsTest extends TestCase
         static::assertSame(1, $acceptCount);
     }
 
-    public function testTlsH1NegotiationErrorsWaitingFibers(): void
+    public function testTlsH1NegotiationConnectsWaitingFibers(): void
     {
         $cert = TLS\Certificate::create(self::CERT_FILE, self::KEY_FILE);
         $serverConfig = TLS\ServerConfiguration::create($cert)->withAlpnProtocols(['http/1.1']);
@@ -380,38 +380,25 @@ final class PooledConnectorTlsTest extends TestCase
         $listener = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));
         /** @var int<0, 65535> $port */
         $port = $listener->getLocalAddress()->port;
-
-        /** @var null|string $firstConnectionClass */
-        $firstConnectionClass = null;
-        $waiterError = false;
+        $acceptCount = 0;
 
         Async\concurrently([
-            'server' => static function () use ($listener, $acceptor): void {
+            'server' => static function () use ($listener, $acceptor, &$acceptCount): void {
                 try {
-                    $conn = $listener->accept(new TimeoutCancellationToken(Duration::seconds(5)));
-                    $tls = $acceptor->accept($conn);
-
-                    $buffer = '';
-                    while (!str_contains($buffer, "\r\n\r\n")) {
-                        $chunk = $tls->read(cancellation: new TimeoutCancellationToken(Duration::seconds(2)));
-                        if ($chunk === '') {
-                            break;
-                        }
-
-                        $buffer .= $chunk;
+                    for ($i = 0; $i < 3; $i++) {
+                        $conn = $listener->accept(new TimeoutCancellationToken(Duration::seconds(5)));
+                        $acceptCount++;
+                        $tls = $acceptor->accept($conn);
+                        $reader = new IO\Reader($tls);
+                        $reader->readUntil("\r\n\r\n", new TimeoutCancellationToken(Duration::seconds(5)));
+                        $tls->writeAll("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+                        $tls->close();
                     }
-
-                    $tls->writeAll("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
-                    $tls->close();
-                } catch (
-                    IO\Exception\ExceptionInterface|Network\Exception\ExceptionInterface|TLS\Exception\ExceptionInterface|Async\Exception\CancelledException
-                ) {
-                    // @mago-expect lint:no-empty-catch-clause
                 } finally {
                     $listener->close();
                 }
             },
-            'client' => static function () use ($port, &$firstConnectionClass, &$waiterError): void {
+            'client' => static function () use ($port): void {
                 $connector = new PooledConnector();
                 $configuration = new ClientConfiguration(
                     tlsConfiguration: TLS\ClientConfiguration::default()
@@ -423,55 +410,27 @@ final class PooledConnectorTlsTest extends TestCase
                 $url = URL\parse('https://127.0.0.1:' . $port . '/');
                 $request = new Request(method: 'GET', url: $url);
                 $origin = Origin::fromUrl($request->url);
-
-                $firstFiber = Async\run(static function () use (
-                    $connector,
-                    $origin,
-                    $request,
-                    $configuration,
-                    &$firstConnectionClass,
-                ): void {
-                    $conn = $connector->connect(
-                        $origin,
-                        $request,
-                        $configuration,
-                        new TimeoutCancellationToken(Duration::seconds(5)),
-                    );
-                    $firstConnectionClass = $conn::class;
-                    $tx = $conn->exchange($request, $configuration);
-                    $tx->response->body?->readAll();
-                });
-
-                $secondFiber = Async\run(static function () use (
-                    $connector,
-                    $origin,
-                    $request,
-                    $configuration,
-                    &$waiterError,
-                ): void {
-                    try {
-                        $connector->connect(
+                $tasks = [];
+                for ($i = 0; $i < 3; $i++) {
+                    $tasks[] = static function () use ($connector, $origin, $request, $configuration): string {
+                        $connection = $connector->connect(
                             $origin,
                             $request,
                             $configuration,
                             new TimeoutCancellationToken(Duration::seconds(5)),
                         );
-                    } catch (Network\Exception\RuntimeException) {
-                        $waiterError = true;
-                    }
-                });
+                        static::assertInstanceOf(H1Connection::class, $connection);
+                        $tx = $connection->exchange($request, $configuration);
 
-                $firstFiber->await();
-                try {
-                    $secondFiber->await();
-                } catch (Network\Exception\RuntimeException) {
-                    $waiterError = true;
+                        return $tx->response->body?->readAll() ?? '';
+                    };
                 }
+
+                static::assertSame(['ok', 'ok', 'ok'], Async\concurrently($tasks));
             },
         ]);
 
-        static::assertSame(H1Connection::class, $firstConnectionClass);
-        static::assertTrue($waiterError);
+        static::assertSame(3, $acceptCount);
     }
 
     public function testTlsH1KeepAliveConnectionPooledAndReused(): void

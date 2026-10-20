@@ -173,7 +173,7 @@ final class PooledConnector implements ConnectorInterface
      * targeting the same origin wait on this awaitable instead of opening redundant
      * connections. If HTTP/2 is negotiated, the waiting fibers reuse the session.
      *
-     * @var array<string, Async\Awaitable<list{H2Session, ConnectionMetadata}>>
+     * @var array<string, Async\Awaitable<null|list{H2Session, ConnectionMetadata}>>
      */
     private array $pendingConnections = [];
 
@@ -294,8 +294,12 @@ final class PooledConnector implements ConnectorInterface
         }
 
         if (array_key_exists($key, $this->pendingConnections)) {
-            [$session, $metadata] = $this->pendingConnections[$key]->await($cancellation);
-            return new H2Connection($session, $metadata, $this->h2Reconnect(...));
+            $shared = $this->pendingConnections[$key]->await($cancellation);
+            if ($shared !== null) {
+                return new H2Connection($shared[0], $shared[1], $this->h2Reconnect(...));
+            }
+
+            return $this->connectTLS($origin, $key, $versions, $cancellation, $configuration);
         }
 
         $supportsH1 =
@@ -353,7 +357,7 @@ final class PooledConnector implements ConnectorInterface
      *
      * If HTTP/2 is negotiated (or known via prior-knowledge), the session is
      * shared with waiting fibers. If HTTP/1.1 is negotiated, waiting fibers
-     * are notified via an error to establish their own independent connections.
+     * establish their own independent connections.
      *
      * This coalescing prevents a thundering-herd of TLS handshakes when many
      * concurrent fibers target the same origin simultaneously.
@@ -373,7 +377,7 @@ final class PooledConnector implements ConnectorInterface
         CancellationTokenInterface $cancellation,
         ClientConfiguration $configuration,
     ): ConnectionInterface {
-        /** @var Async\Deferred<array{H2Session, ConnectionMetadata}> $deferred */
+        /** @var Async\Deferred<null|list{H2Session, ConnectionMetadata}> $deferred */
         $deferred = new Async\Deferred();
         $awaitable = $deferred->getAwaitable();
         $awaitable->ignore();
@@ -389,9 +393,8 @@ final class PooledConnector implements ConnectorInterface
                 [$session, $metadata] = $this->h2Sessions[$key];
                 $deferred->complete([$session, $metadata]);
             } else {
-                // H1 over TLS - connections can't be shared. Error
-                // waiting fibers so they establish their own.
-                $deferred->error(new RuntimeException('ALPN negotiated HTTP/1.1; connection cannot be shared.'));
+                // Each waiting request needs its own HTTP/1.1 connection.
+                $deferred->complete(null);
             }
 
             return $connection;
