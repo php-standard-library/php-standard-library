@@ -136,6 +136,41 @@ final class FormatPatternTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable<array{int, string}>
+     */
+    public static function provideAstronomicalYears(): iterable
+    {
+        yield [-5, '-0005']; // 6 BC
+        yield [0, '0000']; // 1 BC
+        yield [1, '0001'];
+        yield [2024, '2024'];
+    }
+
+    #[DataProvider('provideAstronomicalYears')]
+    public function testYearsAreAstronomical(int $year, string $text): void
+    {
+        $datetime = DateTime::fromParts(Timezone::UTC, $year, 1, 15, 12);
+
+        static::assertSame($text . '-01-15T12:00:00.000Z', $datetime->format(FormatPattern::Iso8601));
+        static::assertSame($text . '-01-15T12:00:00Z', $datetime->format(FormatPattern::Rfc3339WithoutMicroseconds));
+        static::assertSame($text . '-01-15', $datetime->format(FormatPattern::SqlDate));
+        static::assertSame($text . '-015', $datetime->format(FormatPattern::IsoOrdinalDate));
+
+        foreach (FormatPattern::cases() as $pattern) {
+            if (FormatPattern::XmlRpc === $pattern && $year < 0) {
+                // ICU cannot parse a signed year in abutting numeric fields; XML-RPC has no negative years.
+                static::assertSame($text . '0115T12:00:00', $datetime->format($pattern));
+
+                continue;
+            }
+
+            $parsed = DateTime::parse($datetime->format($pattern), $pattern, Timezone::UTC);
+
+            static::assertSame($datetime->getDate(), $parsed->getDate(), $pattern->name);
+        }
+    }
+
     public function testUnixTimestampParsingAcceptsLeadingZeros(): void
     {
         static::assertSame(7, Timestamp::parse('007', FormatPattern::UnixTimestamp)->getSeconds());

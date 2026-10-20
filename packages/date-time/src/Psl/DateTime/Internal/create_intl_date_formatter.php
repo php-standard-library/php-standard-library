@@ -12,6 +12,8 @@ use Psl\DateTime\TimeStyle;
 use Psl\DateTime\Timezone;
 use Psl\Locale\Locale;
 
+use function str_replace;
+
 /**
  * @param null|Locale|string $locale The locale; a string is used as an ICU locale identifier as-is.
  *
@@ -46,7 +48,10 @@ function create_intl_date_formatter(
     }
 
     if ($pattern instanceof FormatPattern) {
-        $pattern = $pattern->value;
+        // `yyyy` is ICU's era-relative year, which prints 1 BC as "0001" and reads "0001" as AD 1. Use the
+        // astronomical year (`uuuu`, 1 BC is "0000" and 2 BC is "-0001") that `DateTimeInterface::getYear()`
+        // returns, so that every date round-trips.
+        $pattern = str_replace('yyyy', 'uuuu', $pattern->value);
     }
 
     $dateStyle ??= DateStyle::default();

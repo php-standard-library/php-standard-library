@@ -18,6 +18,9 @@ use Psl\Default\DefaultInterface;
  * {@see FormatPattern::FullDateTime}) are formatted and parsed with the "en_US_POSIX" locale instead of the
  * default locale, so they always use ASCII digits and English month and weekday names.
  *
+ * The year field `yyyy` of every case is formatted and parsed as the astronomical year (ICU's `uuuu`), as
+ * returned by {@see DateTimeInterface::getYear()}: 1 BC is "0000", 2 BC is "-0001", and so on.
+ *
  * @api
  */
 enum FormatPattern: string implements DefaultInterface
