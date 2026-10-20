@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Psl\Type\Internal;
 
 use Override;
+use Psl;
+use Psl\Exception\InvariantViolationException;
 use Psl\Type;
 use Psl\Type\Exception\AssertException;
 use Psl\Type\Exception\CoercionException;
@@ -26,10 +28,15 @@ use const PHP_INT_MIN;
  */
 final readonly class IntRangeType extends Type\Type
 {
+    /**
+     * @throws InvariantViolationException If $min is greater than $max.
+     */
     public function __construct(
         private int $min,
         private int $max,
-    ) {}
+    ) {
+        Psl\invariant($min <= $max, 'Expected $min (%d) to be less than or equal to $max (%d).', $min, $max);
+    }
 
     /**
      * @psalm-assert-if-true int $value

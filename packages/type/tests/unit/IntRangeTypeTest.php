@@ -6,6 +6,7 @@ namespace Psl\Type\Tests\Unit;
 
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psl\Exception\InvariantViolationException;
 use Psl\Math;
 use Psl\Type;
 
@@ -109,5 +110,23 @@ final class IntRangeTypeTest extends TypeTestCase
         $type = Type\int_range(0, 100);
         $this->expectException(Type\Exception\AssertException::class);
         $type->assert($value);
+    }
+
+    public function testSingleValueRange(): void
+    {
+        $type = Type\int_range(5, 5);
+
+        static::assertTrue($type->matches(5));
+        static::assertFalse($type->matches(4));
+        static::assertFalse($type->matches(6));
+        static::assertSame('int<5, 5>', $type->toString());
+    }
+
+    public function testMinGreaterThanMaxThrows(): void
+    {
+        $this->expectException(InvariantViolationException::class);
+        $this->expectExceptionMessage('Expected $min (10) to be less than or equal to $max (5).');
+
+        Type\int_range(10, 5);
     }
 }

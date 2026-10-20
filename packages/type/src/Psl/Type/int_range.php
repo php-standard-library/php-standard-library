@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace Psl\Type;
 
+use Psl\Exception\InvariantViolationException;
+
 /**
+ * Returns a type that matches integers between $min and $max, both inclusive.
+ *
+ * @throws InvariantViolationException If $min is greater than $max.
+ *
  * @return TypeInterface<int>
  *
  * @api
