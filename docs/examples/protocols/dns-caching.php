@@ -13,6 +13,7 @@ $resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStor
 // First query hits the network
 $response = $resolver->query('example.com', DNS\Record\RecordType::A);
 
+// Cached records carry their remaining TTL.
 // A positive TTL lets the second query use the cache.
 // Errors and zero-TTL answers require a new query.
 $cached = $resolver->query('example.com', DNS\Record\RecordType::A);

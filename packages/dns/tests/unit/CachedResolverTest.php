@@ -1399,7 +1399,7 @@ final class CachedResolverTest extends TestCase
         ]);
 
         static::assertSame(1, $calls);
-        static::assertSame($first, $second);
+        static::assertEquals($first, $second);
     }
 
     /** @return iterable<string, array{ResponseCode}> */

@@ -8,6 +8,8 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\Cache\StoreInterface;
 use Psl\DateTime\Duration;
+use Psl\DateTime\Timestamp;
+use Psl\DNS\Internal\CachedResponse;
 use Psl\DNS\Record\RecordType;
 use Psl\DNS\Record\SOARecord;
 use Psl\Ref;
@@ -56,15 +58,16 @@ final readonly class CachedResolver implements ResolverInterface
         /** @var Ref<Duration|null> $ttl */
         $ttl = new Ref(null);
 
-        $response = $this->cache->compute(
+        $entry = $this->cache->compute(
             $cacheKey,
-            function () use ($name, $type, $cancellation, $ednsOptions, $ttl): Response {
+            function () use ($name, $type, $cancellation, $ednsOptions, $ttl): Response|CachedResponse {
                 $response = $this->inner->query($name, $type, $cancellation, $ednsOptions);
 
                 if ($response->code === ResponseCode::NoError || $response->code === ResponseCode::NonExistentDomain) {
                     $minTtl = self::extractMinTtl($response, $type);
                     if ($minTtl > 0) {
                         $ttl->value = Duration::seconds($minTtl);
+                        return new CachedResponse($response, Timestamp::monotonic(), $minTtl);
                     }
                 }
 
@@ -74,10 +77,10 @@ final readonly class CachedResolver implements ResolverInterface
         );
 
         if ($ttl->value !== null) {
-            $this->cache->update($cacheKey, static fn(): Response => $response, $ttl->value);
+            $this->cache->update($cacheKey, static fn(): Response|CachedResponse => $entry, $ttl->value);
         }
 
-        return $response;
+        return $entry instanceof CachedResponse ? $entry->response() : $entry;
     }
 
     /**
