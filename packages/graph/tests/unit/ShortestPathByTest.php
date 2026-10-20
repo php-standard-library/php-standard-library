@@ -121,4 +121,38 @@ final class ShortestPathByTest extends TestCase
 
         static::assertSame(['A', 'B', 'C'], $path);
     }
+
+    public function testUnweightedPathThroughNullNode(): void
+    {
+        $graph = Graph\directed();
+        $graph = Graph\add_edge($graph, 'A', null);
+        $graph = Graph\add_edge($graph, null, 'C');
+
+        static::assertSame(['A', null, 'C'], Graph\shortest_path_by($graph, 'A', 'C', static fn(int $w): int => $w));
+        static::assertSame([null, 'C'], Graph\shortest_path_by($graph, null, 'C', static fn(int $w): int => $w));
+        static::assertSame(['A', null], Graph\shortest_path_by($graph, 'A', null, static fn(int $w): int => $w));
+    }
+
+    public function testWeightedPathThroughNullNode(): void
+    {
+        $graph = Graph\directed();
+        $graph = Graph\add_edge($graph, 'A', null, 1);
+        $graph = Graph\add_edge($graph, null, 'C', 1);
+        $graph = Graph\add_edge($graph, 'A', 'C', 5);
+
+        static::assertSame(['A', null, 'C'], Graph\shortest_path_by($graph, 'A', 'C', static fn(int $w): int => $w));
+        static::assertSame([null, 'C'], Graph\shortest_path_by($graph, null, 'C', static fn(int $w): int => $w));
+        static::assertSame(['A', null], Graph\shortest_path_by($graph, 'A', null, static fn(int $w): int => $w));
+    }
+
+    public function testShortestPathThroughNullNode(): void
+    {
+        $graph = Graph\undirected();
+        $graph = Graph\add_edge($graph, 1, null, 2);
+        $graph = Graph\add_edge($graph, null, 3, 2);
+        $graph = Graph\add_edge($graph, 1, 3, 10);
+
+        static::assertSame([1, null, 3], Graph\shortest_path($graph, 1, 3));
+        static::assertSame([3, null, 1], Graph\shortest_path($graph, 3, 1));
+    }
 }

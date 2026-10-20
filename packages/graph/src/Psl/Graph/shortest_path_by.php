@@ -8,8 +8,6 @@ use Closure;
 use Psl\DataStructure\PriorityQueue;
 use Psl\DataStructure\Queue;
 
-use function array_reverse;
-
 use const PHP_INT_MAX;
 
 /**
@@ -82,22 +80,12 @@ function shortest_path_by(
         $queue->enqueue($from);
         $fromKey = Internal\get_node_key($from);
         $visited[$fromKey] = true;
-        $parent[$fromKey] = null;
 
         while ($queue->count() !== 0) {
             $node = $queue->dequeue();
 
             if ($node === $to) {
-                /** @var list<TNode> $path */
-                $path = [];
-                $current = $to;
-                while (null !== $current) {
-                    $path[] = $current;
-                    $currentKey = Internal\get_node_key($current);
-                    $current = $parent[$currentKey];
-                }
-
-                return array_reverse($path);
+                return Internal\build_path($parent, $to);
             }
 
             foreach (namespace\neighbors($graph, $node) as $neighbor) {
@@ -122,9 +110,7 @@ function shortest_path_by(
     $pq = new PriorityQueue();
 
     foreach (namespace\nodes($graph) as $node) {
-        $key = Internal\get_node_key($node);
-        $distances[$key] = PHP_INT_MAX;
-        $parent[$key] = null;
+        $distances[Internal\get_node_key($node)] = PHP_INT_MAX;
     }
 
     $fromKey = Internal\get_node_key($from);
@@ -132,7 +118,7 @@ function shortest_path_by(
     $pq->enqueue([0, $from], 0);
 
     while ($pq->count() !== 0) {
-        [$currentDist, $node] = $pq->dequeue();
+        [, $node] = $pq->dequeue();
         $nodeKey = Internal\get_node_key($node);
 
         if (isset($visited[$nodeKey])) {
@@ -142,16 +128,7 @@ function shortest_path_by(
         $visited[$nodeKey] = true;
 
         if ($node === $to) {
-            /** @var list<TNode> $path */
-            $path = [];
-            $current = $to;
-            while (null !== $current) {
-                $path[] = $current;
-                $currentKey = Internal\get_node_key($current);
-                $current = $parent[$currentKey];
-            }
-
-            return array_reverse($path);
+            return Internal\build_path($parent, $to);
         }
 
         foreach ($graph->getEdgesFrom($node) as $edge) {

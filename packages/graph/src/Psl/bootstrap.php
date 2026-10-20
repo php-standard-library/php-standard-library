@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 (static function (): void {
     $functions = [
+        'Psl\Graph\Internal\build_path' => __DIR__ . '/Graph/Internal/build_path.php',
         'Psl\Graph\Internal\get_node_key' => __DIR__ . '/Graph/Internal/get_node_key.php',
         'Psl\Graph\add_edge' => __DIR__ . '/Graph/add_edge.php',
         'Psl\Graph\add_node' => __DIR__ . '/Graph/add_node.php',
