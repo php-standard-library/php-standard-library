@@ -31,8 +31,7 @@ final readonly class WriteHandle extends Internal\AbstractHandleWrapper implemen
      * @param non-empty-string $file
      *
      * @throws Exception\NotFileException If $file points to a non-file node on the filesystem.
-     * @throws Exception\AlreadyCreatedException If $file is already created, and $writeMode is {@see WriteMode::MUST_CREATE}.
-     * @throws Exception\NotFoundException If $file does not exist, and $writeMode is {@see WriteMode::TRUNCATE} or {@see WriteMode::APPEND}.
+     * @throws Exception\AlreadyCreatedException If $file is already created, and $writeMode is {@see WriteMode::MustCreate}.
      * @throws Exception\NotWritableException If $file is non-writable.
      * @throws Exception\RuntimeException If unable to create the $file if it does not exist.
      * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
