@@ -9,6 +9,8 @@ use Psl;
 use Psl\Async;
 use Psl\DateTime;
 
+use function max;
+
 final class SemaphoreTest extends TestCase
 {
     public function testItCallsTheOperation(): void
@@ -312,5 +314,72 @@ final class SemaphoreTest extends TestCase
 
         static::assertSame('first', $first->await());
         static::assertFalse($semaphore->hasPendingOperations());
+    }
+
+    public function testSlotIsHandedOverToThePendingOperation(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'order' => []]);
+
+        /**
+         * @var Async\Semaphore<string, void>
+         */
+        $semaphore = new Async\Semaphore(1, static function (string $input) use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+            $spy->value['order'][] = $input;
+
+            Async\sleep(DateTime\Duration::milliseconds(1));
+
+            $spy->value['current']--;
+        });
+
+        $first = Async\run(static function () use ($semaphore): void {
+            $semaphore->waitFor('a1');
+            // The slot released by "a1" belongs to "b", which was already waiting for it.
+            $semaphore->waitFor('a2');
+        });
+
+        $second = Async\run(static fn(): null => $semaphore->waitFor('b'));
+
+        $first->await();
+        $second->await();
+
+        static::assertSame(1, $spy->value['max']);
+        static::assertSame(['a1', 'b', 'a2'], $spy->value['order']);
+        static::assertSame(0, $semaphore->getOngoingOperations());
+        static::assertFalse($semaphore->hasPendingOperations());
+    }
+
+    public function testConcurrencyLimitIsNeverExceeded(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'count' => 0]);
+
+        /**
+         * @var Async\Semaphore<null, void>
+         */
+        $semaphore = new Async\Semaphore(2, static function () use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['count']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+
+            Async\later();
+
+            $spy->value['current']--;
+        });
+
+        $awaitables = [];
+        for ($i = 0; $i < 4; $i++) {
+            $awaitables[] = Async\run(static function () use ($semaphore): void {
+                for ($j = 0; $j < 5; $j++) {
+                    $semaphore->waitFor(null);
+                }
+            });
+        }
+
+        Async\all($awaitables);
+
+        static::assertSame(2, $spy->value['max']);
+        static::assertSame(20, $spy->value['count']);
+        static::assertSame(0, $semaphore->getOngoingOperations());
     }
 }

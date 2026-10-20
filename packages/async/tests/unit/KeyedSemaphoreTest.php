@@ -9,6 +9,8 @@ use Psl;
 use Psl\Async;
 use Psl\DateTime;
 
+use function max;
+
 final class KeyedSemaphoreTest extends TestCase
 {
     public function testItCallsTheOperation(): void
@@ -520,5 +522,126 @@ final class KeyedSemaphoreTest extends TestCase
         static::assertSame('inner-done', $resultA);
         static::assertSame('filler-done', $resultB);
         static::assertSame(3, $callCount); // outer, filler, inner (from outer's re-entry)
+    }
+
+    public function testSlotIsHandedOverToThePendingOperation(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'order' => []]);
+
+        /**
+         * @var Async\KeyedSemaphore<string, string, void>
+         */
+        $ks = new Async\KeyedSemaphore(1, static function (string $_key, string $input) use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+            $spy->value['order'][] = $input;
+
+            Async\sleep(DateTime\Duration::milliseconds(1));
+
+            $spy->value['current']--;
+        });
+
+        $first = Async\run(static function () use ($ks): void {
+            $ks->waitFor('k', 'a1');
+            // The slot released by "a1" belongs to "b", which was already waiting for it.
+            $ks->waitFor('k', 'a2');
+        });
+
+        $second = Async\run(static fn(): null => $ks->waitFor('k', 'b'));
+
+        $first->await();
+        $second->await();
+
+        static::assertSame(1, $spy->value['max']);
+        static::assertSame(['a1', 'b', 'a2'], $spy->value['order']);
+        static::assertSame(0, $ks->getOngoingOperations('k'));
+        static::assertFalse($ks->hasOngoingOperations('k'));
+        static::assertFalse($ks->hasPendingOperations('k'));
+    }
+
+    public function testConcurrencyLimitIsNeverExceeded(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'count' => 0]);
+
+        /**
+         * @var Async\KeyedSemaphore<string, null, void>
+         */
+        $ks = new Async\KeyedSemaphore(2, static function () use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['count']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+
+            Async\later();
+
+            $spy->value['current']--;
+        });
+
+        $awaitables = [];
+        for ($i = 0; $i < 4; $i++) {
+            $awaitables[] = Async\run(static function () use ($ks): void {
+                for ($j = 0; $j < 5; $j++) {
+                    $ks->waitFor('k', null);
+                }
+            });
+        }
+
+        Async\all($awaitables);
+
+        static::assertSame(2, $spy->value['max']);
+        static::assertSame(20, $spy->value['count']);
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
+
+    public function testReentrantCallDoesNotLetOtherOperationsExceedTheLimit(): void
+    {
+        $spy = new Psl\Ref([]);
+
+        /** @var Async\KeyedSemaphore<string, string, string> */
+        $ks = new Async\KeyedSemaphore(1, static function (string $key, string $input) use (&$ks, $spy): string {
+            if ($input === 'outer') {
+                return $ks->waitFor($key, 'inner');
+            }
+
+            $spy->value[] = 'start:' . $input;
+            Async\sleep(DateTime\Duration::milliseconds(1));
+            $spy->value[] = 'end:' . $input;
+
+            return $input;
+        });
+
+        $a = Async\run(static fn(): string => $ks->waitFor('k', 'outer'));
+        $b = Async\run(static fn(): string => $ks->waitFor('k', 'other'));
+
+        static::assertSame('inner', $a->await());
+        static::assertSame('other', $b->await());
+        static::assertSame(['start:inner', 'end:inner', 'start:other', 'end:other'], $spy->value);
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
+
+    public function testWaitForPendingWaitsWhileReentrantCallIsOngoing(): void
+    {
+        $spy = new Psl\Ref([]);
+
+        /** @var Async\KeyedSemaphore<string, string, string> */
+        $ks = new Async\KeyedSemaphore(1, static function (string $key, string $input) use (&$ks, $spy): string {
+            if ($input === 'outer') {
+                return $ks->waitFor($key, 'inner');
+            }
+
+            Async\sleep(DateTime\Duration::milliseconds(1));
+            $spy->value[] = 'done:' . $input;
+
+            return $input;
+        });
+
+        $a = Async\run(static fn(): string => $ks->waitFor('k', 'outer'));
+        Async\later();
+
+        $ks->waitForPending('k');
+        $spy->value[] = 'waited';
+
+        $a->await();
+
+        static::assertSame(['done:inner', 'waited'], $spy->value);
     }
 }

@@ -91,7 +91,8 @@ final class KeyedSemaphore
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): mixed {
         $this->ongoing[$key] ??= 0;
-        if ($this->ongoing[$key] === $this->concurrencyLimit) {
+        // Re-entrant calls can take the count above the limit, so `===` is not enough here.
+        if ($this->ongoing[$key] >= $this->concurrencyLimit) {
             $currentContext = Fiber::getCurrent() ?? $this;
             if (in_array($currentContext, $this->holders[$key] ?? [], true)) {
                 $this->ongoing[$key]++;
@@ -136,16 +137,19 @@ final class KeyedSemaphore
             }
 
             try {
+                // Once resumed, the slot of the operation that completed has been handed over to us,
+                // and is already accounted for in `$this->ongoing[$key]`.
                 $suspension->suspend();
             } finally {
                 if (null !== $id) {
                     $cancellation->unsubscribe($id);
                 }
             }
+        } else {
+            $this->ongoing[$key]++;
         }
 
         $currentContext = Fiber::getCurrent() ?? $this;
-        $this->ongoing[$key]++;
         $this->holders[$key][] = $currentContext;
 
         try {
@@ -162,12 +166,11 @@ final class KeyedSemaphore
                     unset($this->pending[$key]);
                 }
 
+                // Hand the slot over to the next pending operation without releasing it; the resumed
+                // operation runs later, and releasing the slot now would let a new caller take it in between.
                 if (null !== $suspension) {
                     $suspension->resume();
                 }
-
-                // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
-                $this->ongoing[$key]--;
             } else {
                 foreach ($this->waits[$key] ?? [] as $suspension) {
                     $suspension->resume();
@@ -338,7 +341,7 @@ final class KeyedSemaphore
         string|int $key,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
-        if (($this->ongoing[$key] ?? 0) !== $this->concurrencyLimit) {
+        if (($this->ongoing[$key] ?? 0) < $this->concurrencyLimit) {
             return;
         }
 

@@ -68,7 +68,9 @@ final class Semaphore
      */
     public function waitFor(mixed $input, CancellationTokenInterface $cancellation = new NullCancellationToken()): mixed
     {
-        if ($this->ongoing === $this->concurrencyLimit) {
+        if ($this->ongoing < $this->concurrencyLimit) {
+            $this->ongoing++;
+        } else {
             if ($cancellation->cancellable) {
                 $cancellation->throwIfCancelled();
             }
@@ -88,6 +90,8 @@ final class Semaphore
             }
 
             try {
+                // Once resumed, the slot of the operation that completed has been handed over to us,
+                // and is already accounted for in `$this->ongoing`.
                 $suspension->suspend();
             } finally {
                 if (null !== $id) {
@@ -96,13 +100,13 @@ final class Semaphore
             }
         }
 
-        $this->ongoing++;
-
         try {
             return ($this->operation)($input);
         } finally {
             $suspension = array_shift($this->pending);
             if (null !== $suspension) {
+                // Hand the slot over to the next pending operation without releasing it; the resumed
+                // operation runs later, and releasing the slot now would let a new caller take it in between.
                 $suspension->resume();
             } else {
                 foreach ($this->waits as $suspension) {
@@ -110,9 +114,10 @@ final class Semaphore
                 }
 
                 $this->waits = [];
-            }
 
-            $this->ongoing--;
+                // @mago-expect analysis:invalid-property-assignment-value - this operation holds a slot, so the count is positive.
+                $this->ongoing--;
+            }
         }
     }
 
