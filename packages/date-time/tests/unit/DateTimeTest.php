@@ -1344,6 +1344,78 @@ final class DateTimeTest extends TestCase
         }
     }
 
+    public function testStartAndEndHelpersOnDaysWithASkippedOrRepeatedBoundary(): void
+    {
+        // Midnight is skipped when daylight saving time starts in these zones; the day starts at 01:00.
+        $dt = DateTime::fromParts(Timezone::AfricaCairo, 2024, 4, 26, 12);
+        static::assertSame('2024-04-26T01:00:00+03:00', $dt->atStartOfDay()->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::AmericaSantiago, 2024, 9, 8, 12);
+        static::assertSame('2024-09-08T01:00:00-03:00', $dt->atStartOfDay()->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::AmericaAsuncion, 2023, 10, 15, 12);
+        static::assertSame('2023-10-01T01:00:00-03:00', $dt->atStartOfMonth()->toRfc3339());
+
+        // America/Nuuk skips 23:00-00:00 on 2024-03-30; the day ends just before the transition.
+        $dt = DateTime::fromParts(Timezone::AmericaNuuk, 2024, 3, 30, 12);
+        static::assertSame('2024-03-30T22:59:59.999999999-02:00', $dt->atEndOfDay()->toRfc3339());
+
+        // Cuba repeats 00:00-01:00 on 2024-11-03; the day starts at the first midnight.
+        $dt = DateTime::fromParts(Timezone::AmericaHavana, 2024, 11, 3, 12);
+        static::assertSame('2024-11-03T00:00:00-04:00', $dt->atStartOfDay()->toRfc3339());
+    }
+
+    public function testStartAndEndHelpersOnAGapThatStraddlesMidnight(): void
+    {
+        // America/Toronto skipped 23:30-00:30 on 1919-03-30/31, so neither boundary is on the edge of the gap
+        // shifted by its length: Monday 1919-03-31 starts at 00:30, and Sunday 1919-03-30 ends at 23:29:59.
+        $dt = DateTime::fromParts(Timezone::AmericaToronto, 1919, 3, 31, 0, 45);
+        static::assertSame('1919-03-31T00:30:00-04:00', $dt->atStartOfDay()->toRfc3339());
+        static::assertSame('1919-03-31T00:30:00-04:00', $dt->atStartOfWeek()->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::AmericaToronto, 1919, 3, 30, 23, 15);
+        static::assertSame('1919-03-30T23:29:59.999999999-05:00', $dt->atEndOfDay()->toRfc3339());
+        static::assertSame('1919-03-30T23:29:59.999999999-05:00', $dt->atEndOfWeek()->toRfc3339());
+
+        // Pacific/Kiritimati skipped the whole of 1994-12-31, so 1994 ends on December 30th.
+        $dt = DateTime::fromParts(Timezone::PacificKiritimati, 1994, 12, 30, 12);
+        static::assertSame('1994-12-30T23:59:59.999999999-10:00', $dt->atEndOfYear()->toRfc3339());
+    }
+
+    public function testWeekHelpersMoveTheDateBeforeResolvingTheBoundary(): void
+    {
+        // Africa/Algiers skipped 23:00-00:00 on Sunday 1971-04-25. The week of Wednesday 23:30 still ends on
+        // that Sunday, just before the transition, even though Sunday 23:30 does not exist.
+        $dt = DateTime::fromParts(Timezone::AfricaAlgiers, 1971, 4, 21, 23, 30);
+        static::assertSame('1971-04-25T22:59:59.999999999+00:00', $dt->atEndOfWeek()->toRfc3339());
+
+        // Asia/Tehran skipped 23:00-00:00 on Monday 1977-03-21. The week of Wednesday 23:30 still starts on
+        // that Monday, even though Monday 23:30 does not exist.
+        $dt = DateTime::fromParts(Timezone::AsiaTehran, 1977, 3, 23, 23, 30);
+        static::assertSame('1977-03-21T00:00:00+03:30', $dt->atStartOfWeek()->toRfc3339());
+    }
+
+    public function testStartAndEndHelpersOutsideTheSupportedRangeThrow(): void
+    {
+        // About the year 5389000: an instant ICU represents, but whose dates it cannot compute times for.
+        $dt = DateTime::fromTimestamp(Timestamp::fromParts(170_000_000_000_000), Timezone::UTC);
+
+        foreach ([
+            $dt->atStartOfDay(...),
+            $dt->atEndOfDay(...),
+            $dt->atStartOfMonth(...),
+            $dt->atEndOfYear(...),
+            $dt->atStartOfWeek(...),
+        ] as $operation) {
+            try {
+                $operation();
+                static::fail('Expected an OverflowException.');
+            } catch (OverflowException $e) {
+                static::assertStringContainsString('5368709', $e->getMessage());
+            }
+        }
+    }
+
     public function testDayArithmeticOverflow(): void
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);

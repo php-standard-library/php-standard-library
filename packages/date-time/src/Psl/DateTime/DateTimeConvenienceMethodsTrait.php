@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\DateTime;
 
+use IntlCalendar;
 use Override;
 use Psl\Locale\Locale;
 
@@ -185,35 +186,59 @@ trait DateTimeConvenienceMethodsTrait
     /**
      * Returns a new instance representing the start of the same day (00:00:00.000000000).
      *
+     * This is the first instant of the day: when midnight is skipped by a daylight saving time transition
+     * (e.g. Africa/Cairo on 2024-04-26), it is the end of the transition (01:00), and when midnight happens
+     * twice, it is the first occurrence.
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfDay(): static
     {
-        return $this->withTime(0, 0, 0, 0);
+        return $this->atStartOfLocalDay($this->getYear(), $this->getMonth(), $this->getDay());
     }
 
     /**
      * Returns a new instance representing the end of the same day (23:59:59.999999999).
      *
+     * This is the last instant of the day: when 23:59:59 is skipped by a daylight saving time transition
+     * (e.g. America/Nuuk on 2024-03-30), it is the last instant before the transition, and when it happens
+     * twice, it is the second occurrence.
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atEndOfDay(): static
     {
-        return $this->withTime(23, 59, 59, 999_999_999);
+        return $this->atEndOfLocalDay($this->getYear(), $this->getMonth(), $this->getDay());
     }
 
     /**
      * Returns a new instance representing the start of the current month (1st day at 00:00:00.000000000).
      *
+     * @see DateTimeConvenienceMethodsTrait::atStartOfDay()
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfMonth(): static
     {
-        return $this->withDate($this->getYear(), $this->getMonth(), 1)->withTime(0, 0, 0, 0);
+        return $this->atStartOfLocalDay($this->getYear(), $this->getMonth(), 1);
     }
 
     /**
      * Returns a new instance representing the end of the current month (last day at 23:59:59.999999999).
+     *
+     * @see DateTimeConvenienceMethodsTrait::atEndOfDay()
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
      *
      * @psalm-mutation-free
      */
@@ -222,27 +247,90 @@ trait DateTimeConvenienceMethodsTrait
         $monthEnum = Month::from($this->getMonth());
         $lastDay = $monthEnum->getDaysForYear($this->getYear());
 
-        return $this->withDate($this->getYear(), $this->getMonth(), $lastDay)->withTime(23, 59, 59, 999_999_999);
+        return $this->atEndOfLocalDay($this->getYear(), $this->getMonth(), $lastDay);
     }
 
     /**
      * Returns a new instance representing the start of the current year (January 1st at 00:00:00.000000000).
      *
+     * @see DateTimeConvenienceMethodsTrait::atStartOfDay()
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfYear(): static
     {
-        return $this->withDate($this->getYear(), 1, 1)->withTime(0, 0, 0, 0);
+        return $this->atStartOfLocalDay($this->getYear(), 1, 1);
     }
 
     /**
      * Returns a new instance representing the end of the current year (December 31st at 23:59:59.999999999).
      *
+     * @see DateTimeConvenienceMethodsTrait::atEndOfDay()
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atEndOfYear(): static
     {
-        return $this->withDate($this->getYear(), 12, 31)->withTime(23, 59, 59, 999_999_999);
+        return $this->atEndOfLocalDay($this->getYear(), 12, 31);
+    }
+
+    /**
+     * Returns the first instant of the given local day in this instance's timezone.
+     *
+     * @param int<1, 12> $month
+     * @param int<1, 31> $day
+     *
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     *
+     * @psalm-mutation-free
+     */
+    private function atStartOfLocalDay(int $year, int $month, int $day): static
+    {
+        $timezone = $this->getTimezone();
+        $calendar = Internal\create_intl_calendar_from_date_time($timezone, $year, $month, $day, 0, 0, 0);
+        // A skipped midnight resolves to the next valid wall-clock time, the end of the transition (00:30 in
+        // America/Toronto on 1919-03-31, which skipped 23:30-00:30); a repeated one resolves to its first
+        // occurrence. The time is computed from the fields lazily, so the options still apply.
+        $calendar->setSkippedWallTimeOption(IntlCalendar::WALLTIME_NEXT_VALID);
+        $calendar->setRepeatedWallTimeOption(IntlCalendar::WALLTIME_FIRST);
+        $seconds = (int) ($calendar->getTime() / namespace\MILLISECONDS_PER_SECOND);
+
+        return static::fromTimestamp(Timestamp::fromParts($seconds), $timezone);
+    }
+
+    /**
+     * Returns the last instant of the given local day in this instance's timezone.
+     *
+     * @param int<1, 12> $month
+     * @param int<1, 31> $day
+     *
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     *
+     * @psalm-mutation-free
+     */
+    private function atEndOfLocalDay(int $year, int $month, int $day): static
+    {
+        $timezone = $this->getTimezone();
+        $calendar = Internal\create_intl_calendar_from_date_time($timezone, $year, $month, $day, 23, 59, 59);
+        // A skipped 23:59:59 resolves to the next valid wall-clock time, the end of the transition, which falls
+        // on a later day: the day then ends one second before the transition. A repeated 23:59:59 resolves to
+        // its last occurrence. The time is computed from the fields lazily, so the options still apply.
+        $calendar->setSkippedWallTimeOption(IntlCalendar::WALLTIME_NEXT_VALID);
+        $calendar->setRepeatedWallTimeOption(IntlCalendar::WALLTIME_LAST);
+        $seconds = (int) ($calendar->getTime() / namespace\MILLISECONDS_PER_SECOND);
+        if ($calendar->get(IntlCalendar::FIELD_DAY_OF_MONTH) !== $day) {
+            --$seconds;
+        }
+
+        return static::fromTimestamp(Timestamp::fromParts($seconds, 999_999_999), $timezone);
     }
 
     /**
@@ -256,8 +344,15 @@ trait DateTimeConvenienceMethodsTrait
     public function atStartOfWeek(): static
     {
         $daysBack = $this->getWeekday()->value - Weekday::Monday->value;
+        // Move the date only: resolving this wall-clock time on the Monday could move it into the Tuesday.
+        [$year, $month, $day] = Internal\add_days_to_date(
+            $this->getYear(),
+            $this->getMonth(),
+            $this->getDay(),
+            -$daysBack,
+        );
 
-        return $this->minusDays($daysBack)->atStartOfDay();
+        return $this->atStartOfLocalDay($year, $month, $day);
     }
 
     /**
@@ -271,8 +366,15 @@ trait DateTimeConvenienceMethodsTrait
     public function atEndOfWeek(): static
     {
         $daysForward = Weekday::Sunday->value - $this->getWeekday()->value;
+        // Move the date only: resolving this wall-clock time on the Sunday could move it into the Monday.
+        [$year, $month, $day] = Internal\add_days_to_date(
+            $this->getYear(),
+            $this->getMonth(),
+            $this->getDay(),
+            $daysForward,
+        );
 
-        return $this->plusDays($daysForward)->atEndOfDay();
+        return $this->atEndOfLocalDay($year, $month, $day);
     }
 
     /**

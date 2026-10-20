@@ -177,12 +177,18 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Returns a new instance representing the start of the same day (00:00:00.000000000).
      *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfDay(): static;
 
     /**
      * Returns a new instance representing the end of the same day (23:59:59.999999999).
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
      *
      * @psalm-mutation-free
      */
@@ -191,12 +197,18 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Returns a new instance representing the start of the current month (1st day at 00:00:00.000000000).
      *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfMonth(): static;
 
     /**
      * Returns a new instance representing the end of the current month (last day at 23:59:59.999999999).
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
      *
      * @psalm-mutation-free
      */
@@ -205,12 +217,18 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Returns a new instance representing the start of the current year (January 1st at 00:00:00.000000000).
      *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     *
      * @psalm-mutation-free
      */
     public function atStartOfYear(): static;
 
     /**
      * Returns a new instance representing the end of the current year (December 31st at 23:59:59.999999999).
+     *
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
      *
      * @psalm-mutation-free
      */
