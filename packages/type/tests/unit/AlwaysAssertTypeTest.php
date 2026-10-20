@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Psl\Type\Tests\Unit;
 
+use Generator;
+use IteratorIterator;
 use Override;
+use Psl\Dict;
+use Psl\Iter;
 use Psl\Math;
 use Psl\Type;
+use Psl\Type\Exception\CoercionException;
 
 final class AlwaysAssertTypeTest extends TypeTestCase
 {
@@ -58,6 +63,50 @@ final class AlwaysAssertTypeTest extends TypeTestCase
         yield ['007'];
         yield ['000'];
         yield [1.0];
+    }
+
+    public function testCoercesGeneratorsByAssertingThem(): void
+    {
+        $type = Type\always_assert(Type\iterable(Type\int(), Type\string()));
+
+        $coerced = $type->coerce((static fn(): iterable => yield from [1 => 'a', 2 => 'b'])());
+
+        static::assertInstanceOf(Iter\Iterator::class, $coerced);
+        static::assertSame([1 => 'a', 2 => 'b'], Dict\from_iterable($coerced));
+        // values that match are still returned as they are.
+        static::assertSame([1 => 'a'], $type->coerce([1 => 'a']));
+    }
+
+    public function testDoesNotCoerceInvalidGenerators(): void
+    {
+        $type = Type\always_assert(Type\iterable(Type\int(), Type\int()));
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage('Could not coerce "Generator" to type "iterable<int, int>".');
+
+        $type->coerce((static fn(): iterable => yield 1 => '1')());
+    }
+
+    public function testDoesNotCoerceInvalidTraversablesThatCanNotBeIteratedTwice(): void
+    {
+        $type = Type\always_assert(Type\iterable(Type\int(), Type\int()));
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage('Could not coerce "IteratorIterator" to type "iterable<int, int>".');
+
+        $type->coerce(new IteratorIterator((static fn(): Generator => yield from [1, 'x', 3])()));
+    }
+
+    public function testDoesNotCoerceStartedGenerators(): void
+    {
+        $type = Type\always_assert(Type\iterable(Type\int(), Type\int()));
+        $generator = (static fn(): Generator => yield from [1, 2, 3])();
+        $generator->next();
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage('Could not coerce "Generator" to type "iterable<int, int>".');
+
+        $type->coerce($generator);
     }
 
     #[Override]

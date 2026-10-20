@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Psl\Type\Tests\Unit;
 
+use ArrayIterator;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psl\Collection;
 use Psl\Dict;
 use Psl\Iter;
 use Psl\Str;
@@ -183,5 +185,45 @@ final class IterableTypeTest extends TypeTestCase
         } catch (Type\Exception\CoercionException $e) {
             static::assertSame($expectedMessage, $e->getMessage());
         }
+    }
+
+    public function testMatchesDoesNotConsumeGenerators(): void
+    {
+        $pulled = 0;
+        $generator = (static function () use (&$pulled): iterable {
+            foreach ([1, 2, 3] as $value) {
+                ++$pulled;
+                yield $value;
+            }
+        })();
+
+        static::assertFalse(Type\iterable(Type\int(), Type\int())->matches($generator));
+        static::assertTrue(Type\iterable(Type\mixed(), Type\mixed())->matches($generator));
+        static::assertSame(0, $pulled);
+
+        // the generator is still usable, and can be validated with `assert()`.
+        static::assertSame([1, 2, 3], Dict\from_iterable(Type\iterable(Type\int(), Type\int())->assert($generator)));
+        static::assertSame(3, $pulled);
+    }
+
+    public function testMatchesDoesNotTraverseStartedGenerators(): void
+    {
+        $generator = (static fn(): iterable => yield from [1, 2, 3])();
+        $generator->next();
+
+        // traversing a started generator would throw "Cannot rewind a generator that was already run".
+        static::assertFalse(Type\iterable(Type\int(), Type\int())->matches($generator));
+        static::assertSame(2, $generator->current());
+    }
+
+    public function testMatchesInspectsOtherTraversables(): void
+    {
+        $type = Type\iterable(Type\int(), Type\int());
+
+        static::assertTrue($type->matches(new ArrayIterator([1, 2, 3])));
+        static::assertFalse($type->matches(new ArrayIterator([1, 'nope', 3])));
+        static::assertFalse($type->matches(new ArrayIterator(['nope' => 1])));
+        static::assertTrue($type->matches(Collection\Vector::fromArray([1, 2, 3])));
+        static::assertTrue($type->matches($type->coerce(['1', '2', '3'])));
     }
 }

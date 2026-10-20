@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Psl\Type\Tests\Unit;
 
+use Generator;
+use IteratorIterator;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psl\Dict;
+use Psl\Iter;
 use Psl\Str;
 use Psl\Type;
+use Psl\Type\Exception\CoercionException;
 
 use const PHP_VERSION_ID;
 
@@ -146,5 +151,52 @@ final class JsonDecodedTypeTest extends TypeTestCase
 
         static::assertSame(42, $type->coerce('42'));
         static::assertSame(42, $type->coerce(42));
+    }
+
+    public function testCoercesGeneratorsByAssertingThem(): void
+    {
+        $type = Type\json_decoded(Type\iterable(Type\int(), Type\string()));
+
+        $coerced = $type->coerce((static fn(): iterable => yield from [1 => 'a', 2 => 'b'])());
+
+        static::assertInstanceOf(Iter\Iterator::class, $coerced);
+        static::assertSame([1 => 'a', 2 => 'b'], Dict\from_iterable($coerced));
+        // values that match are still returned as they are.
+        static::assertSame([1 => 'a'], $type->coerce([1 => 'a']));
+        static::assertSame([1 => 'a'], Dict\from_iterable($type->coerce('{"1": "a"}')));
+    }
+
+    public function testDoesNotCoerceInvalidGenerators(): void
+    {
+        $type = Type\json_decoded(Type\iterable(Type\int(), Type\int()));
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage('Could not coerce "Generator" to type "json-decoded<iterable<int, int>>".');
+
+        $type->coerce((static fn(): iterable => yield 1 => '1')());
+    }
+
+    public function testDoesNotCoerceInvalidTraversablesThatCanNotBeIteratedTwice(): void
+    {
+        $type = Type\json_decoded(Type\iterable(Type\int(), Type\int()));
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage(
+            'Could not coerce "IteratorIterator" to type "json-decoded<iterable<int, int>>".',
+        );
+
+        $type->coerce(new IteratorIterator((static fn(): Generator => yield from [1, 'x', 3])()));
+    }
+
+    public function testDoesNotCoerceStartedGenerators(): void
+    {
+        $type = Type\json_decoded(Type\iterable(Type\int(), Type\int()));
+        $generator = (static fn(): Generator => yield from [1, 2, 3])();
+        $generator->next();
+
+        $this->expectException(CoercionException::class);
+        $this->expectExceptionMessage('Could not coerce "Generator" to type "json-decoded<iterable<int, int>>".');
+
+        $type->coerce($generator);
     }
 }

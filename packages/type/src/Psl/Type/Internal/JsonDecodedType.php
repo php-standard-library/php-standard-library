@@ -47,7 +47,14 @@ final readonly class JsonDecodedType extends Type\Type
         }
 
         if (!is_string($value)) {
-            throw CoercionException::withValue($value, $this->toString());
+            // `matches()` returns `false` for a value it can not inspect without consuming it, such as a
+            // `Generator`, which `assert()` still accepts, returning a validated copy of it. Any failure is a
+            // coercion failure: a `Traversable` that `matches()` already iterated may throw when iterated again.
+            try {
+                return $this->inner->assert($value);
+            } catch (Throwable) {
+                throw CoercionException::withValue($value, $this->toString());
+            }
         }
 
         try {

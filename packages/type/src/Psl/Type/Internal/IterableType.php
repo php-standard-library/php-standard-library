@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Type\Internal;
 
+use Generator;
 use Override;
 use Psl\Iter;
 use Psl\Type;
@@ -34,6 +35,37 @@ final readonly class IterableType extends Type\Type
         private Type\TypeInterface $keyType,
         private Type\TypeInterface $valueType,
     ) {}
+
+    /**
+     * Checks whether the given value is an iterable whose keys and values match the key and value types.
+     *
+     * Arrays and `Traversable` objects are iterated to inspect their elements, except for a `Generator`: it
+     * can not be rewound, so its elements can not be inspected without consuming it. Unless both the key and
+     * the value types are `mixed`, `false` is returned for a `Generator`; use `assert()` or `coerce()`
+     * instead, which consume it and return a validated, re-iterable copy.
+     *
+     * @psalm-assert-if-true iterable<Tk, Tv> $value
+     */
+    #[Override]
+    public function matches(mixed $value): bool
+    {
+        if (!is_iterable($value)) {
+            return false;
+        }
+
+        if ($value instanceof Generator) {
+            return $this->keyType instanceof MixedType && $this->valueType instanceof MixedType;
+        }
+
+        // @mago-expect analysis:mixed-assignment(2)
+        foreach ($value as $k => $v) {
+            if (!$this->keyType->matches($k) || !$this->valueType->matches($v)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /**
      * @throws CoercionException
