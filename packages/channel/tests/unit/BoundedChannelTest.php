@@ -567,4 +567,79 @@ final class BoundedChannelTest extends TestCase
 
         $sending->await();
     }
+
+    public function testReceiveWaitsAgainWhenTheMessageItWasWokenForIsTaken(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $receiving = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // Wake the receiver up, then take the message before it gets to run.
+        $sender->send('foo');
+        static::assertSame('foo', $receiver->tryReceive());
+
+        Async\later();
+
+        static::assertFalse($receiving->isComplete());
+
+        $sender->send('bar');
+
+        static::assertSame('bar', $receiving->await());
+    }
+
+    public function testSendWaitsAgainWhenTheSpaceItWasWokenForIsTaken(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $sending = Async\run(static fn(): null => $sender->send('bar'));
+
+        Async\later();
+
+        // Wake the sender up, then take the free space before it gets to run.
+        static::assertSame('foo', $receiver->receive());
+        $sender->trySend('baz');
+
+        Async\later();
+
+        static::assertFalse($sending->isComplete());
+        static::assertSame('baz', $receiver->receive());
+
+        $sending->await();
+
+        static::assertSame('bar', $receiver->receive());
+    }
+
+    public function testSendWokenUpThenCancelledThrowsCancelledExceptionWhenTheSpaceIsTaken(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $token = new Async\SignalCancellationToken();
+        $sending = Async\run(static fn(): null => $sender->send('bar', $token));
+
+        Async\later();
+
+        static::assertSame('foo', $receiver->receive());
+        $token->cancel();
+        $sender->trySend('baz');
+
+        try {
+            $sending->await();
+
+            static::fail('Expected CancelledException to be thrown.');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame('baz', $receiver->receive());
+        static::assertTrue($receiver->isEmpty());
+    }
 }

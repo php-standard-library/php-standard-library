@@ -43,61 +43,17 @@ final class BoundedSender implements SenderInterface
     #[Override]
     public function send(mixed $message, CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        if ($this->suspension) {
-            if ($cancellation->cancellable) {
-                $cancellation->throwIfCancelled();
-            }
-
-            $suspension = EventLoop::getSuspension();
-            $this->suspension = $suspension;
-            $this->state->waitForSpace($suspension);
-
-            $id = null;
-            if ($cancellation->cancellable) {
-                $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
-                    if ($this->state->removeFromWaitingForSpace($suspension)) {
-                        $suspension->throw($e);
-                    }
-                });
-            }
-
-            try {
-                $suspension->suspend();
-            } finally {
-                if (null !== $id) {
-                    $cancellation->unsubscribe($id);
-                }
-            }
-        }
-
         try {
-            $this->state->send($message);
-        } catch (Exception\FullChannelException) {
-            if ($cancellation->cancellable) {
-                $cancellation->throwIfCancelled();
+            // If another send() is already waiting on this sender, queue behind it instead of
+            // taking the space it may have been woken up for.
+            if (null !== $this->suspension) {
+                $this->waitForSpace($cancellation);
             }
 
-            $suspension = EventLoop::getSuspension();
-            $this->suspension = $suspension;
-            $this->state->waitForSpace($suspension);
-
-            $id2 = null;
-            if ($cancellation->cancellable) {
-                $id2 = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
-                    if ($this->state->removeFromWaitingForSpace($suspension)) {
-                        $suspension->throw($e);
-                    }
-                });
-            }
-
-            try {
-                $suspension->suspend();
-            } finally {
-                if (null !== $id2) {
-                    $cancellation->unsubscribe($id2);
-                }
+            // Being woken up does not guarantee space: another sender may have taken it
+            // before this fiber got to run, in which case we wait again.
+            while ($this->state->isFull() && !$this->state->isClosed()) {
+                $this->waitForSpace($cancellation);
             }
 
             $this->state->send($message);
@@ -113,5 +69,40 @@ final class BoundedSender implements SenderInterface
     public function trySend(mixed $message): void
     {
         $this->state->send($message);
+    }
+
+    /**
+     * Wait until this sender is woken up by a received message.
+     *
+     * @throws Exception\ClosedChannelException If the channel is closed while waiting.
+     * @throws CancelledException If the cancellation token is cancelled while waiting.
+     */
+    private function waitForSpace(CancellationTokenInterface $cancellation): void
+    {
+        if ($cancellation->cancellable) {
+            $cancellation->throwIfCancelled();
+        }
+
+        $suspension = EventLoop::getSuspension();
+        $this->suspension = $suspension;
+        $this->state->waitForSpace($suspension);
+
+        $id = null;
+        if ($cancellation->cancellable) {
+            $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
+                // The suspension may have already been resumed by a receive, or thrown into by close().
+                if ($this->state->removeFromWaitingForSpace($suspension)) {
+                    $suspension->throw($e);
+                }
+            });
+        }
+
+        try {
+            $suspension->suspend();
+        } finally {
+            if (null !== $id) {
+                $cancellation->unsubscribe($id);
+            }
+        }
     }
 }

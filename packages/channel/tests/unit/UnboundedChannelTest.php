@@ -313,4 +313,45 @@ final class UnboundedChannelTest extends TestCase
 
         $receiving->await();
     }
+
+    public function testReceiveWaitsAgainWhenTheMessageItWasWokenForIsTaken(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $receiving = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // Wake the receiver up, then take the message before it gets to run.
+        $sender->send('foo');
+        static::assertSame('foo', $receiver->tryReceive());
+
+        Async\later();
+
+        static::assertFalse($receiving->isComplete());
+
+        $sender->send('bar');
+
+        static::assertSame('bar', $receiving->await());
+    }
+
+    public function testReceiveWokenUpThenCancelledThrowsCancelledExceptionWhenTheMessageIsTaken(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $token = new Async\SignalCancellationToken();
+        $receiving = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        $sender->send('foo');
+        $token->cancel();
+        static::assertSame('foo', $receiver->tryReceive());
+
+        $this->expectException(Async\Exception\CancelledException::class);
+
+        $receiving->await();
+    }
 }

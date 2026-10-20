@@ -43,61 +43,17 @@ final class UnboundedReceiver implements ReceiverInterface
     #[Override]
     public function receive(CancellationTokenInterface $cancellation = new NullCancellationToken()): mixed
     {
-        if ($this->suspension) {
-            if ($cancellation->cancellable) {
-                $cancellation->throwIfCancelled();
-            }
-
-            $suspension = EventLoop::getSuspension();
-            $this->suspension = $suspension;
-            $this->state->waitForMessage($suspension);
-
-            $id = null;
-            if ($cancellation->cancellable) {
-                $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
-                    if ($this->state->removeFromWaitingForMessage($suspension)) {
-                        $suspension->throw($e);
-                    }
-                });
-            }
-
-            try {
-                $suspension->suspend();
-            } finally {
-                if (null !== $id) {
-                    $cancellation->unsubscribe($id);
-                }
-            }
-        }
-
         try {
-            return $this->state->receive();
-        } catch (Exception\EmptyChannelException) {
-            if ($cancellation->cancellable) {
-                $cancellation->throwIfCancelled();
+            // If another receive() is already waiting on this receiver, queue behind it instead of
+            // taking the message it may have been woken up for.
+            if (null !== $this->suspension) {
+                $this->waitForMessage($cancellation);
             }
 
-            $suspension = EventLoop::getSuspension();
-            $this->suspension = $suspension;
-            $this->state->waitForMessage($suspension);
-
-            $id2 = null;
-            if ($cancellation->cancellable) {
-                $id2 = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
-                    if ($this->state->removeFromWaitingForMessage($suspension)) {
-                        $suspension->throw($e);
-                    }
-                });
-            }
-
-            try {
-                $suspension->suspend();
-            } finally {
-                if (null !== $id2) {
-                    $cancellation->unsubscribe($id2);
-                }
+            // Being woken up does not guarantee a message: another receiver may have taken it
+            // before this fiber got to run, in which case we wait again.
+            while ($this->state->isEmpty() && !$this->state->isClosed()) {
+                $this->waitForMessage($cancellation);
             }
 
             return $this->state->receive();
@@ -113,5 +69,40 @@ final class UnboundedReceiver implements ReceiverInterface
     public function tryReceive(): mixed
     {
         return $this->state->receive();
+    }
+
+    /**
+     * Wait until this receiver is woken up by a sent message.
+     *
+     * @throws Exception\ClosedChannelException If the channel is closed while waiting.
+     * @throws CancelledException If the cancellation token is cancelled while waiting.
+     */
+    private function waitForMessage(CancellationTokenInterface $cancellation): void
+    {
+        if ($cancellation->cancellable) {
+            $cancellation->throwIfCancelled();
+        }
+
+        $suspension = EventLoop::getSuspension();
+        $this->suspension = $suspension;
+        $this->state->waitForMessage($suspension);
+
+        $id = null;
+        if ($cancellation->cancellable) {
+            $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
+                // The suspension may have already been resumed by a send, or thrown into by close().
+                if ($this->state->removeFromWaitingForMessage($suspension)) {
+                    $suspension->throw($e);
+                }
+            });
+        }
+
+        try {
+            $suspension->suspend();
+        } finally {
+            if (null !== $id) {
+                $cancellation->unsubscribe($id);
+            }
+        }
     }
 }
