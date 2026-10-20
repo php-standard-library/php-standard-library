@@ -46,6 +46,33 @@ final class GroupTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('provideCommentsWithSeparators')]
+    public function parseCommentsWithSeparators(string $comment, string $expectedComment): void
+    {
+        $group = Group::parse('Team: alice@example.com (' . $comment . '), bob@example.com;');
+
+        self::assertCount(2, $group->mailboxes);
+        self::assertSame('alice@example.com', $group->mailboxes[0]->address);
+        self::assertSame($expectedComment, $group->mailboxes[0]->comment);
+        self::assertSame('bob@example.com', $group->mailboxes[1]->address);
+        self::assertEquals($group, Group::parse($group->toString()));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideCommentsWithSeparators(): iterable
+    {
+        yield 'comma' => ['Doe, Alice', 'Doe, Alice'];
+        yield 'nested comment' => ['outer (Doe, Alice) team', 'outer (Doe, Alice) team'];
+        yield 'escaped closing parenthesis' => ['Doe \\), Alice', 'Doe ), Alice'];
+        yield 'escaped opening parenthesis' => ['Doe \\(, Alice', 'Doe (, Alice'];
+        yield 'escaped backslash' => ['Doe \\\\, Alice', 'Doe \\, Alice'];
+        yield 'quote in comment' => ['Doe ", Alice', 'Doe ", Alice'];
+        yield 'address delimiters in comment' => ['<:;, Alice', '<:;, Alice'];
+    }
+
+    #[Test]
     public function parseEmptyGroup(): void
     {
         $group = Group::parse('Undisclosed Recipients:;');

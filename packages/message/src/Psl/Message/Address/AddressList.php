@@ -207,7 +207,7 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
     /**
      * Split an address header value into individual address/group segments.
      *
-     * Commas inside angle brackets or group colons are not treated as separators.
+     * Commas inside quoted strings, comments, angle brackets or groups do not split addresses.
      *
      * @return list<string>
      */
@@ -217,11 +217,26 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
         $current = '';
         /** @var int $depth */
         $depth = 0;
+        /** @var int $commentDepth */
+        $commentDepth = 0;
         $inGroup = false;
         $len = strlen($input);
 
         for ($i = 0; $i < $len; $i++) {
             $char = $input[$i];
+
+            if ($char === '(' || $commentDepth > 0) {
+                $current .= $char;
+                if ($char === '\\' && ($i + 1) < $len) {
+                    $current .= $input[++$i];
+                } elseif ($char === '(') {
+                    $commentDepth++;
+                } elseif ($char === ')') {
+                    $commentDepth--;
+                }
+
+                continue;
+            }
 
             if ($char === '"') {
                 $current .= $char;

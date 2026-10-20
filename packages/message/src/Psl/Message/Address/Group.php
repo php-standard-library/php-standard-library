@@ -13,7 +13,6 @@ use function array_map;
 use function implode;
 use function preg_match;
 use function preg_replace;
-use function preg_split;
 use function str_ends_with;
 use function str_starts_with;
 use function strlen;
@@ -117,10 +116,34 @@ final readonly class Group implements Stringable
             return new self($displayName);
         }
 
-        $parts = preg_split('~"(?:[^"\\\\]|\\\\.)*"(*SKIP)(*F)|,~s', $mailboxListStr);
-        if ($parts === false) {
-            throw ParsingException::forInvalidGroup($input);
+        $parts = [];
+        $current = '';
+        $inQuote = false;
+        /** @var int $commentDepth */
+        $commentDepth = 0;
+        for ($i = 0, $length = strlen($mailboxListStr); $i < $length; $i++) {
+            $char = $mailboxListStr[$i];
+            if ($char === '\\' && ($inQuote || $commentDepth > 0) && ($i + 1) < $length) {
+                $current .= $char . $mailboxListStr[++$i];
+                continue;
+            }
+
+            if ($char === '(' && !$inQuote) {
+                $commentDepth++;
+            } elseif ($char === ')' && $commentDepth > 0) {
+                $commentDepth--;
+            } elseif ($char === '"' && $commentDepth === 0) {
+                $inQuote = !$inQuote;
+            } elseif ($char === ',' && !$inQuote && $commentDepth === 0) {
+                $parts[] = $current;
+                $current = '';
+                continue;
+            }
+
+            $current .= $char;
         }
+
+        $parts[] = $current;
 
         $mailboxes = [];
         foreach ($parts as $part) {

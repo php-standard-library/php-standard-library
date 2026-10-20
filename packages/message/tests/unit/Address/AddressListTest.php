@@ -68,6 +68,47 @@ final class AddressListTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('provideCommentsWithSeparators')]
+    public function parseCommentsWithSeparators(string $comment, string $expectedComment): void
+    {
+        $list = AddressList::parse('alice@example.com (' . $comment . '), bob@example.com');
+
+        self::assertCount(2, $list);
+        self::assertSame('alice@example.com', $list->mailboxes()[0]->address);
+        self::assertSame($expectedComment, $list->mailboxes()[0]->comment);
+        self::assertSame('bob@example.com', $list->mailboxes()[1]->address);
+        self::assertEquals($list, AddressList::parse($list->toString()));
+    }
+
+    #[Test]
+    #[DataProvider('provideCommentsWithSeparators')]
+    public function parseGroupCommentsWithSeparators(string $comment, string $expectedComment): void
+    {
+        $list = AddressList::parse('Team: alice@example.com (' . $comment . ');, bob@example.com');
+
+        self::assertCount(2, $list);
+        self::assertInstanceOf(Group::class, $list->addresses[0]);
+        self::assertSame('alice@example.com', $list->mailboxes()[0]->address);
+        self::assertSame($expectedComment, $list->mailboxes()[0]->comment);
+        self::assertSame('bob@example.com', $list->mailboxes()[1]->address);
+        self::assertEquals($list, AddressList::parse($list->toString()));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideCommentsWithSeparators(): iterable
+    {
+        yield 'comma' => ['Doe, Alice', 'Doe, Alice'];
+        yield 'nested comment' => ['outer (Doe, Alice) team', 'outer (Doe, Alice) team'];
+        yield 'escaped closing parenthesis' => ['Doe \\), Alice', 'Doe ), Alice'];
+        yield 'escaped opening parenthesis' => ['Doe \\(, Alice', 'Doe (, Alice'];
+        yield 'escaped backslash' => ['Doe \\\\, Alice', 'Doe \\, Alice'];
+        yield 'quote in comment' => ['Doe ", Alice', 'Doe ", Alice'];
+        yield 'address delimiters in comment' => ['<:;, Alice', '<:;, Alice'];
+    }
+
+    #[Test]
     public function parseWithDisplayNames(): void
     {
         $list = AddressList::parse('"Alice" <alice@example.com>, "Bob" <bob@example.com>');
