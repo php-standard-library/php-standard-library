@@ -446,6 +446,20 @@ final class ReaderTest extends TestCase
         static::assertSame('body', $reader->readAll());
     }
 
+    public function testReadByteWithDelayedHandle(): void
+    {
+        $handle = new DelayedHandle('ab', 2);
+        $reader = new IO\Reader($handle);
+
+        static::assertSame('a', $reader->readByte());
+        static::assertSame('b', $reader->readByte());
+
+        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Reached EOF without any more data.');
+
+        $reader->readByte();
+    }
+
     public function testReadUntilBoundedWithDelayedHandle(): void
     {
         $handle = new DelayedHandle('short:end rest');

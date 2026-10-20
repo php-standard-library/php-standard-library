@@ -105,7 +105,8 @@ final class Reader implements BufferedReadHandleInterface
      */
     public function readByte(CancellationTokenInterface $cancellation = new NullCancellationToken()): string
     {
-        if ('' === $this->buffer && !$this->eof) {
+        // an empty read is not EOF unless the handle says so; keep waiting for data.
+        while ('' === $this->buffer && !$this->eof) {
             $this->fillBuffer(null, $cancellation);
         }
 
