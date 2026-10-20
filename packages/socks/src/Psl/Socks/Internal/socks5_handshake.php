@@ -44,9 +44,9 @@ function socks5_handshake(
     $password = $configuration->password;
 
     if ($username !== null && $password !== null) {
-        $stream->write("\x05\x02\x00\x02", $cancellation);
+        $stream->writeAll("\x05\x02\x00\x02", $cancellation);
     } else {
-        $stream->write("\x05\x01\x00", $cancellation);
+        $stream->writeAll("\x05\x01\x00", $cancellation);
     }
 
     $response = $stream->readFixedSize(2, $cancellation);
@@ -91,7 +91,7 @@ function socks5_handshake(
     }
 
     $request .= pack('n', $port);
-    $stream->write($request, $cancellation);
+    $stream->writeAll($request, $cancellation);
 
     $response = $stream->readFixedSize(4, $cancellation);
     if ($response[0] !== "\x05") {

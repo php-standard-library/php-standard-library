@@ -46,7 +46,7 @@ function socks5_authenticate(
     }
 
     $auth = "\x01" . chr($usernameLen) . $username . chr($passwordLen) . $password;
-    $stream->write($auth, $cancellation);
+    $stream->writeAll($auth, $cancellation);
 
     $response = $stream->readFixedSize(2, $cancellation);
     if ($response[1] !== "\x00") {
