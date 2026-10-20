@@ -284,16 +284,14 @@ final class ValidationTest extends TestCase
         $sm->receive($raw);
     }
 
-    public function testFrameSizeValidationAllowsConnectionFrames(): void
+    public function testFrameSizeValidationRejectsOversizedConnectionFrames(): void
     {
         $sm = new StateMachine(false);
         $sm->initialize();
 
         $raw = new RawFrame(0xFF, 0x00, 0, str_repeat('x', 16_385));
-        [$frames, $events] = $sm->receive($raw);
-
-        static::assertSame([], $frames);
-        static::assertSame([], $events);
+        $this->expectException(ProtocolException::class);
+        $sm->receive($raw);
     }
 
     public function testReceiveWindowEnforcement(): void

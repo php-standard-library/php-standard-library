@@ -150,10 +150,11 @@ trait ConnectionTrait
     #[Override]
     public function readEvent(CancellationTokenInterface $cancellation = new NullCancellationToken()): array
     {
-        $rawFrame = $this->readFrame($cancellation);
-
         try {
+            $rawFrame = $this->readFrame($cancellation);
             [$responseFrames, $events] = $this->stateMachine->receive($rawFrame);
+        } catch (ConnectionException $e) {
+            throw $e;
         } catch (RuntimeException $e) {
             // Auto-send GOAWAY before re-throwing.
             $errorCode = $e instanceof ProtocolException ? $e->errorCode : ErrorCode::ProtocolError;
@@ -449,6 +450,26 @@ trait ConnectionTrait
     }
 
     /**
+     * @param positive-int $size
+     *
+     * @throws ConnectionException If the transport ends before the requested bytes arrive.
+     * @throws IO\Exception\RuntimeException If the read fails.
+     * @throws CancelledException If the read is cancelled.
+     */
+    private function readTransportBytes(int $size, CancellationTokenInterface $cancellation): string
+    {
+        try {
+            return $this->reader->readFixedSize($size, $cancellation);
+        } catch (IO\Exception\RuntimeException $exception) {
+            if ($this->reader->getHandle()->reachedEndOfDataSource()) {
+                throw ConnectionException::forConnectionClosed();
+            }
+
+            throw $exception;
+        }
+    }
+
+    /**
      * Read a complete frame from the underlying transport.
      *
      * @throws ConnectionException If the connection is closed.
@@ -461,8 +482,8 @@ trait ConnectionTrait
         $available = $this->readBufferLength - $this->readBufferOffset;
 
         while ($available < FRAME_HEADER_SIZE) {
-            $chunk = $this->reader->read(cancellation: $cancellation);
-            if ($chunk === '' && $this->reader->reachedEndOfDataSource()) {
+            $chunk = $this->handle->read(4096, $cancellation);
+            if ($chunk === '') {
                 throw ConnectionException::forConnectionClosed();
             }
 
@@ -474,11 +495,14 @@ trait ConnectionTrait
         $o = $this->readBufferOffset;
         $length =
             (ord($this->readBuffer[$o]) << 16) | (ord($this->readBuffer[$o + 1]) << 8) | ord($this->readBuffer[$o + 2]);
+        $this->stateMachine->validateFrameSize($length);
         $totalNeeded = FRAME_HEADER_SIZE + $length;
 
         while ($available < $totalNeeded) {
-            $chunk = $this->reader->read(cancellation: $cancellation);
-            if ($chunk === '' && $this->reader->reachedEndOfDataSource()) {
+            /** @var positive-int $missing */
+            $missing = $totalNeeded - $available;
+            $chunk = $this->handle->read($missing, $cancellation);
+            if ($chunk === '') {
                 throw ConnectionException::forConnectionClosed();
             }
 

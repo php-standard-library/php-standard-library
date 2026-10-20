@@ -8,16 +8,20 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
+use function min;
 use function strlen;
 use function substr;
 
 final class ChunkedHandle implements IO\ReadHandleInterface, IO\WriteHandleInterface
 {
-    private int $readPos = 0;
+    public private(set) int $readPos = 0;
 
     private bool $eof = false;
 
     public private(set) string $written = '';
+
+    /** @var list<null|positive-int> */
+    public private(set) array $readLimits = [];
 
     /**
      * @param positive-int $chunkSize
@@ -41,6 +45,7 @@ final class ChunkedHandle implements IO\ReadHandleInterface, IO\WriteHandleInter
         null|int $maxBytes = null,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): string {
+        $this->readLimits[] = $maxBytes;
         if ($this->readPos >= strlen($this->data)) {
             $this->eof = true;
 
@@ -49,7 +54,7 @@ final class ChunkedHandle implements IO\ReadHandleInterface, IO\WriteHandleInter
 
         /** @var int<0, max> $readPos */
         $readPos = $this->readPos;
-        $chunk = substr($this->data, $readPos, $this->chunkSize);
+        $chunk = substr($this->data, $readPos, min($maxBytes ?? $this->chunkSize, $this->chunkSize));
         $this->readPos += strlen($chunk);
 
         return $chunk;

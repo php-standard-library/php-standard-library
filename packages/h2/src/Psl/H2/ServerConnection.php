@@ -7,14 +7,12 @@ namespace Psl\H2;
 use Override;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
-use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Internal\BDPEstimator;
 use Psl\H2\Internal\StateMachine;
 use Psl\IO;
 
 use function strlen;
-use function substr;
 
 /**
  * Server-side HTTP/2 connection over a read/write stream.
@@ -85,29 +83,11 @@ final class ServerConnection implements ServerConnectionInterface
     #[Override]
     public function readClientPreface(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        $preface = '';
-        $prefaceLength = 0;
-        $needed = strlen(namespace\CONNECTION_PREFACE);
-        while ($prefaceLength < $needed) {
-            $chunk = $this->reader->read(cancellation: $cancellation);
-
-            if ($chunk === '') {
-                throw ConnectionException::forConnectionClosed();
-            }
-
-            $preface .= $chunk;
-            $prefaceLength += strlen($chunk);
-        }
-
-        $received = substr($preface, 0, $needed);
+        /** @var positive-int $size */
+        $size = strlen(namespace\CONNECTION_PREFACE);
+        $received = $this->readTransportBytes($size, $cancellation);
         if ($received !== namespace\CONNECTION_PREFACE) {
             throw ProtocolException::forConnectionError('Invalid client connection preface');
-        }
-
-        $leftover = substr($preface, $needed);
-        if ($leftover !== '') {
-            $this->readBuffer = $leftover . $this->readBuffer;
-            $this->readBufferLength += $prefaceLength - $needed;
         }
     }
 

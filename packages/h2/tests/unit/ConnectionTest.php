@@ -532,7 +532,7 @@ final class ConnectionTest extends TestCase
         $dataFrame = new DataFrame(1, str_repeat('A', 100), true)->toRaw();
         $dataData = Frame\encode($dataFrame);
 
-        $handle = new IO\MemoryHandle($settingsData . $headersData . $dataData);
+        $handle = new ChunkedHandle($settingsData . $headersData . $dataData);
         $conn = new ServerConnection($handle);
 
         /** @var non-empty-list<SettingsReceived> $events */
@@ -889,7 +889,7 @@ final class ConnectionTest extends TestCase
         $settings2 = new SettingsFrame([Setting::MaxFrameSize->value => 16_384], false)->toRaw();
         $data = CONNECTION_PREFACE . Frame\encode($settings1) . Frame\encode($settings2);
 
-        $handle = new IO\MemoryHandle($data);
+        $handle = new ChunkedHandle($data);
         $conn = new ServerConnection($handle);
 
         $conn->readClientPreface();

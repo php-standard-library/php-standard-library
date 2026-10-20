@@ -238,13 +238,10 @@ final class StateMachine
         $type = $rawFrame->type;
         $streamId = $rawFrame->streamId;
 
-        if ($streamId !== 0) {
-            /** @var int $payloadLength */
-            $payloadLength = strlen($rawFrame->payload);
-            if ($payloadLength > $this->localMaxFrameSize) {
-                throw ProtocolException::forFrameSizeError($this->localMaxFrameSize, $payloadLength);
-            }
+        $payloadLength = strlen($rawFrame->payload);
+        $this->validateFrameSize($payloadLength);
 
+        if ($streamId !== 0) {
             if ($type === 2 && $payloadLength !== 5) {
                 throw FrameDecodingException::forInvalidPayload('PRIORITY', 'payload must be exactly 5 bytes');
             }
@@ -286,6 +283,18 @@ final class StateMachine
             0x10 => $this->receivePriorityUpdate(PriorityUpdateFrame::fromRaw($rawFrame)),
             default => [[], []],
         };
+    }
+
+    /**
+     * Reject oversized frames before reading their payload.
+     *
+     * @throws ProtocolException
+     */
+    public function validateFrameSize(int $length): void
+    {
+        if ($length > $this->localMaxFrameSize) {
+            throw ProtocolException::forFrameSizeError($this->localMaxFrameSize, $length);
+        }
     }
 
     /**
