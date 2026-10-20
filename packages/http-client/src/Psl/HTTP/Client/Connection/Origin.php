@@ -12,7 +12,7 @@ use Stringable;
  * Represents a connection origin (scheme + host + port).
  *
  * The origin identifies the target server for a connection. Two requests share
- * a connection pool entry if and only if they have the same origin. The origin
+ * a connection pool entry only if their origin, SNI host, and transport settings match. The origin
  * is derived from the request URL's scheme, host, and port (with default ports
  * applied per the scheme).
  *

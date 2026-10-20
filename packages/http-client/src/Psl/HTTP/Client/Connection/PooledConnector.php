@@ -34,13 +34,15 @@ use function array_key_first;
 use function array_pop;
 use function array_shift;
 use function count;
+use function hash;
 use function in_array;
+use function serialize;
 
 /**
  * Connection-pooling connector that reuses HTTP/1.x connections and shares HTTP/2 sessions.
  *
  * This is the default {@see ConnectorInterface} implementation used by {@see Client\Client}.
- * It maintains a pool of idle connections keyed by origin (scheme + host + port) and
+ * It keys connections by origin, SNI host, transport settings, and protocol versions, and
  * automatically selects the appropriate protocol based on the resolved protocol versions
  * and ALPN negotiation results.
  *
@@ -234,7 +236,7 @@ final class PooledConnector implements ConnectorInterface
      *
      * The connection strategy depends on the origin and negotiated protocol:
      *
-     * 1. **Unix socket**: Bypasses the pool entirely; connects directly to the socket.
+     * 1. **Unix socket**: Reuses a matching H2 session or connects directly to the socket.
      * 2. **Existing HTTP/2 session**: If an active session exists for the origin, a
      *    new stream is created on it without any network I/O.
      * 3. **Pending HTTPS connection**: If another fiber is already connecting to the
@@ -268,11 +270,7 @@ final class PooledConnector implements ConnectorInterface
 
         $versions = Internal\resolve_protocol_versions($request, $configuration);
 
-        if ($configuration->unixSocket !== null) {
-            return $this->connectUnix($configuration->unixSocket, $versions, $cancellation, $configuration);
-        }
-
-        $key = $origin->toString();
+        $key = self::poolKey($origin, $versions, $configuration);
 
         $this->pruneClosedH2Sessions();
 
@@ -283,6 +281,10 @@ final class PooledConnector implements ConnectorInterface
             } else {
                 return new H2Connection($session, $metadata, $this->h2Reconnect(...));
             }
+        }
+
+        if ($configuration->unixSocket !== null) {
+            return $this->connectUnix($configuration->unixSocket, $key, $versions, $cancellation, $configuration);
         }
 
         if (array_key_exists($key, $this->pendingConnections)) {
@@ -312,6 +314,28 @@ final class PooledConnector implements ConnectorInterface
         }
 
         return $this->connectTCP($origin, $key, $versions, $cancellation, $configuration);
+    }
+
+    /**
+     * Keep transport credentials and protocol settings within their own pool.
+     *
+     * @param list<ProtocolVersion> $versions
+     */
+    private static function poolKey(Origin $origin, array $versions, ClientConfiguration $configuration): string
+    {
+        $proxy = $configuration->proxyConfiguration;
+
+        return hash('sha256', serialize([
+            $origin,
+            $versions,
+            $configuration->tlsConfiguration,
+            $configuration->h2ClientConfiguration,
+            $configuration->unixSocket,
+            $configuration->socksConfiguration,
+            $proxy === null
+                ? null
+                : [$proxy->url->toString(), $proxy->authorization, $proxy->sni, $proxy->skipProxyFor],
+        ]));
     }
 
     /**
@@ -531,8 +555,8 @@ final class PooledConnector implements ConnectorInterface
      * Connect to a Unix domain socket and create the appropriate connection type.
      *
      * Bypasses DNS resolution and TCP connection entirely, connecting directly to
-     * the specified socket path. Unix socket connections are not pooled; each call
-     * creates a new connection.
+     * the specified socket path. H2 sessions use the same pool key as TCP sessions;
+     * H1 connections are not pooled.
      *
      * For HTTP/2 prior-knowledge mode (only {@see ProtocolVersion::V20} in the
      * version list), an H2 session is initialized on the Unix stream and registered
@@ -548,6 +572,7 @@ final class PooledConnector implements ConnectorInterface
      */
     private function connectUnix(
         string $path,
+        string $key,
         array $versions,
         CancellationTokenInterface $cancellation,
         ClientConfiguration $configuration,
@@ -556,7 +581,7 @@ final class PooledConnector implements ConnectorInterface
         $metadata = new ConnectionMetadata($stream->getLocalAddress(), $stream->getPeerAddress(), null);
 
         if ($versions === [ProtocolVersion::V20]) {
-            return $this->createH2Connection($stream, $metadata, 'unix://' . $path, $configuration);
+            return $this->createH2Connection($stream, $metadata, $key, $configuration);
         }
 
         return new H1Connection($stream, $metadata);
@@ -571,8 +596,8 @@ final class PooledConnector implements ConnectorInterface
      * returns a new {@see H2Connection} representing one stream on the session.
      *
      * The returned connection carries a reconnect callback ({@see h2Reconnect()})
-     * so that if the session dies mid-exchange, the connection can transparently
-     * obtain a fresh connection from the pool.
+     * so that a session closed before an exchange starts can be replaced.
+     * Failed exchanges are not replayed.
      *
      * @param Network\StreamInterface $stream The underlying TCP, TLS, or Unix stream.
      * @param ConnectionMetadata $metadata Transport-level metadata for the connection.
@@ -629,8 +654,7 @@ final class PooledConnector implements ConnectorInterface
      *
      * When an HTTP/2 session is terminated (e.g., by a GOAWAY frame or
      * connection error), {@see H2Connection::exchange()} calls this method
-     * to transparently obtain a fresh connection from the pool. The caller
-     * never sees the session lifecycle; the reconnection is fully automatic.
+     * only before starting a new exchange. It does not replay a failed request.
      *
      * Delegates to {@see connect()}, which may return an existing pooled
      * session, a coalesced session from another fiber, or a brand-new

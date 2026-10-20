@@ -184,6 +184,8 @@ Trailers require chunked transfer encoding (HTTP/1.1) or HTTP/2 DATA frames. The
 
 The default `PooledConnector` manages connection reuse across requests:
 
+Pool entries also require matching SNI hosts, TLS settings, HTTP and SOCKS proxy settings, Unix socket paths, resolved HTTP versions, and H2 settings. Requests with different transport or security settings cannot share a connection. Unix H2 sessions reuse connections only within the same pool entry.
+
 - **HTTP/1.x**: Idle connections are pooled per origin (scheme + host + port) with LIFO checkout. When a request completes and the body is fully consumed, the underlying TCP/TLS stream is returned to the pool. A global cap of 256 idle connections and a per-host cap of 32 prevent unbounded memory growth.
 - **HTTP/2**: A single multiplexed connection per origin is shared across concurrent requests. Each request opens one HTTP/2 stream on the shared connection. If the connection is closed (GOAWAY frame or connection error), it is removed and a new connection is established on the next request.
 - **Connection coalescing**: When multiple fibers concurrently request connections to the same HTTPS origin, the first fiber performs the TLS handshake. If HTTP/2 is negotiated, waiting fibers reuse the session instead of opening redundant connections. If HTTP/1.1 is negotiated, waiting fibers establish their own connections.

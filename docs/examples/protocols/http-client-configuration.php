@@ -18,6 +18,7 @@ $configuration = new Client\ClientConfiguration(
     protocolVersions: [ProtocolVersion::V20, ProtocolVersion::V11],
 );
 
+// The pool keeps connections with different TLS or proxy settings separate.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: null, requestTarget: '/users');
