@@ -102,6 +102,18 @@ final class ExecuteTest extends TestCase
         Shell\execute(PHP_BINARY, ['-dopcache.enable=0', '-r', 'echo getcwd();'], $dir);
     }
 
+    public function testItThrowsWhenWorkingDirectoryContainsNULLByte(): void
+    {
+        try {
+            Shell\execute(PHP_BINARY, ['-dopcache.enable=0', '-r', 'echo getcwd();'], Env\temp_dir() . "\0");
+
+            static::fail('Expected a RuntimeException to be thrown.');
+        } catch (Shell\Exception\RuntimeException $exception) {
+            static::assertSame(Shell\Exception\RuntimeException::class, $exception::class);
+            static::assertSame('Working directory contains NULL bytes.', $exception->getMessage());
+        }
+    }
+
     public function testErrorOutputIsDiscarded(): void
     {
         $result = Shell\execute(PHP_BINARY, [

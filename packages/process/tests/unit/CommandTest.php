@@ -249,6 +249,38 @@ final class CommandTest extends TestCase
         self::phpCommand()->withArgument('-r')->withArgument("echo\0injected;")->spawn();
     }
 
+    public function testNullByteInWorkingDirectory(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Working directory contains NULL bytes.');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withWorkingDirectory(Env\temp_dir() . "\0")
+            ->spawn();
+    }
+
+    public function testOutputNullByteInWorkingDirectory(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Working directory contains NULL bytes.');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withWorkingDirectory(Env\temp_dir() . "\0suffix")
+            ->output();
+    }
+
+    public function testStatusNullByteInWorkingDirectory(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Working directory contains NULL bytes.');
+
+        self::phpCommand()->withArgument('-r')->withArgument('echo "hello";')->withWorkingDirectory("\0")->status();
+    }
+
     public function testStdinPiped(): void
     {
         $child = self::phpCommand()

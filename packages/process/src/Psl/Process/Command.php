@@ -297,7 +297,7 @@ final readonly class Command
      * Spawns the process and returns a child handle.
      *
      * @throws Exception\StartFailedException If the process could not be started.
-     * @throws Exception\RuntimeException If the working directory does not exist.
+     * @throws Exception\RuntimeException If the working directory does not exist or contains NULL bytes.
      */
     public function spawn(): ChildInterface
     {
@@ -310,7 +310,7 @@ final readonly class Command
      * Stdin is set to null. Stdout and stderr are forced to piped regardless of configuration.
      *
      * @throws Exception\StartFailedException If the process could not be started.
-     * @throws Exception\RuntimeException If the working directory does not exist.
+     * @throws Exception\RuntimeException If the working directory does not exist or contains NULL bytes.
      * @throws CancelledException If the operation is cancelled.
      */
     public function output(CancellationTokenInterface $cancellation = new NullCancellationToken()): Output
@@ -324,7 +324,7 @@ final readonly class Command
      * Spawns the process with null stdio and waits for exit, returning only the exit status.
      *
      * @throws Exception\StartFailedException If the process could not be started.
-     * @throws Exception\RuntimeException If the working directory does not exist.
+     * @throws Exception\RuntimeException If the working directory does not exist or contains NULL bytes.
      * @throws CancelledException If the operation is cancelled.
      */
     public function status(CancellationTokenInterface $cancellation = new NullCancellationToken()): ExitStatus
@@ -348,6 +348,10 @@ final readonly class Command
             if (str_contains($argument, "\0")) {
                 throw new Exception\RuntimeException('Command line contains NULL bytes.');
             }
+        }
+
+        if (null !== $this->workingDirectory && str_contains($this->workingDirectory, "\0")) {
+            throw new Exception\RuntimeException('Working directory contains NULL bytes.');
         }
 
         $command = $this->buildCommand();
