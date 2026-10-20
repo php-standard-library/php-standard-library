@@ -198,6 +198,8 @@ final class SignerVerificationTest extends TestCase
                     . "X-Tag: third\r\n"
                     . "\r\n"
                     . "Hello\r\n",
+            'empty body' => "From: joe@football.example.com\r\nTo: suzie@shopping.example.net\r\n\r\n",
+            'blank lines only body' => "From: joe@football.example.com\r\n\r\n \t \r\n\r\n\r\n",
         ];
 
         foreach (Algorithm::cases() as $algorithm) {

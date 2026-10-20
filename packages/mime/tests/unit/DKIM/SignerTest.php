@@ -1135,14 +1135,37 @@ final class SignerTest extends TestCase
         static::assertSame($expected, $hash);
     }
 
-    public function testCanonicalizeBodyEmptyReturnsNonEmptyString(): void
+    public function testCanonicalizeBodyRelaxedEmptyReturnsEmptyString(): void
     {
         $method = new ReflectionMethod(Signer::class, 'canonicalizeBody');
 
-        $result = $method->invoke(null, '', Canonicalization::Relaxed);
+        // RFC 6376 §3.4.4: relaxed only appends a CRLF to a non-empty body.
+        static::assertSame('', $method->invoke(null, '', Canonicalization::Relaxed));
+        static::assertSame('', $method->invoke(null, "\r\n", Canonicalization::Relaxed));
+        static::assertSame('', $method->invoke(null, " \t\r\n\r\n\t", Canonicalization::Relaxed));
+        static::assertSame(" \t\r\n", $method->invoke(null, " \t\r\n\r\n", Canonicalization::Simple));
+    }
 
-        static::assertSame("\r\n", $result);
-        static::assertNotSame('', $result);
+    public function testSignEmptyBodyHashesPerCanonicalization(): void
+    {
+        $message = "From: sender@example.com\r\n\r\n";
+
+        $relaxed = $this->createSigner(
+            new SigningConfiguration('example.com', 'default', bodyCanonicalization: Canonicalization::Relaxed),
+        );
+        $simple = $this->createSigner(
+            new SigningConfiguration('example.com', 'default', bodyCanonicalization: Canonicalization::Simple),
+        );
+
+        // SHA-256 of "" (relaxed) and of "\r\n" (simple).
+        static::assertSame('47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=', self::extractTag(
+            $relaxed->sign($message),
+            'bh',
+        ));
+        static::assertSame('frcCV1k9oG9oKj3dpUqdJg1PxRT2RSN/XKdLCPjaYaY=', self::extractTag(
+            $simple->sign($message),
+            'bh',
+        ));
     }
 
     public function testSignatureLineChunkSizeIs73(): void
@@ -1404,7 +1427,7 @@ final class SignerTest extends TestCase
         static::assertSame(2, strlen($simpleResult));
 
         $relaxedResult = $method->invoke(null, '', Canonicalization::Relaxed);
-        static::assertSame("\r\n", $relaxedResult);
+        static::assertSame('', $relaxedResult);
     }
 
     public function testCanonicalizeBodyEmptyReturnValueIsUsed(): void

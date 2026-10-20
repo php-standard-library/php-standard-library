@@ -272,11 +272,17 @@ final readonly class Signer implements SignerInterface
      *
      * Simple mode normalizes line endings to CRLF and strips trailing empty lines.
      * Relaxed mode additionally collapses whitespace and strips trailing whitespace per line.
+     *
+     * An empty body canonicalizes to a single CRLF in simple mode, but stays empty in relaxed
+     * mode, which only appends a CRLF to a non-empty body.
+     *
+     * @link https://datatracker.ietf.org/doc/html/rfc6376#section-3.4.3
+     * @link https://datatracker.ietf.org/doc/html/rfc6376#section-3.4.4
      */
     private static function canonicalizeBody(string $body, Canonicalization $mode): string
     {
         if ($body === '') {
-            return "\r\n";
+            return $mode === Canonicalization::Simple ? "\r\n" : '';
         }
 
         // Normalize line endings
@@ -300,7 +306,12 @@ final readonly class Signer implements SignerInterface
         }
 
         // Strip trailing empty lines, then add single CRLF
-        return rtrim($result, "\r\n") . "\r\n";
+        $result = rtrim($result, "\r\n");
+        if ($result === '' && $mode === Canonicalization::Relaxed) {
+            return '';
+        }
+
+        return $result . "\r\n";
     }
 
     /**
