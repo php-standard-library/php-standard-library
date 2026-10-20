@@ -162,6 +162,27 @@ final class ParserTest extends TestCase
         static::assertCount(2, $hostsFile->lookup('localhost'));
     }
 
+    public function testFormFeedAndVerticalTabAreTreatedAsWhitespace(): void
+    {
+        $content = "\x0C127.0.0.1\x0Clocalhost\x0C\n\x0B::1\x0Blocalhost \x0C# comment\x0B\r\n";
+
+        $hostsFile = Parser::parse($content);
+
+        $addresses = $hostsFile->lookup('localhost');
+        static::assertCount(2, $addresses);
+        static::assertSame('127.0.0.1', $addresses[0]->toString());
+        static::assertSame('::1', $addresses[1]->toString());
+    }
+
+    public function testNulByteIsNotTreatedAsWhitespace(): void
+    {
+        $hostsFile = Parser::parse("\x00127.0.0.1 localhost\n::1 localhost\n");
+
+        $addresses = $hostsFile->lookup('localhost');
+        static::assertCount(1, $addresses);
+        static::assertSame('::1', $addresses[0]->toString());
+    }
+
     public function testRealWorldHostsFile(): void
     {
         $content = <<<'HOSTS'

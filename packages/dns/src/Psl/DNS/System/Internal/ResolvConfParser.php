@@ -33,6 +33,11 @@ use function trim;
 final class ResolvConfParser
 {
     /**
+     * The whitespace characters matched by `\s` in the patterns below.
+     */
+    private const string WHITESPACE = " \t\n\r\x0B\x0C";
+
+    /**
      * @param string $content Raw content of /etc/resolv.conf.
      */
     public static function parse(string $content): Settings
@@ -42,7 +47,7 @@ final class ResolvConfParser
 
         $lines = explode("\n", $content);
         foreach ($lines as $line) {
-            $line = trim($line);
+            $line = trim($line, self::WHITESPACE);
 
             if ($line === '' || $line[0] === '#' || $line[0] === ';') {
                 continue;
@@ -50,7 +55,7 @@ final class ResolvConfParser
 
             $matches = null;
             if (preg_match('/^nameserver\s+(.+)$/i', $line, $matches)) {
-                $entry = self::parseNameserver(trim($matches[1]));
+                $entry = self::parseNameserver(trim($matches[1], self::WHITESPACE));
                 if ($entry !== null) {
                     $nameservers[] = $entry;
                 }
@@ -59,13 +64,13 @@ final class ResolvConfParser
             }
 
             if (preg_match('/^search\s+(.+)$/i', $line, $matches)) {
-                $searchDomains = self::parseSearchDomains(trim($matches[1]));
+                $searchDomains = self::parseSearchDomains(trim($matches[1], self::WHITESPACE));
 
                 continue;
             }
 
             if (preg_match('/^domain\s+(\S+)$/i', $line, $matches)) {
-                $domain = trim($matches[1]);
+                $domain = trim($matches[1], self::WHITESPACE);
                 if ($domain !== '') {
                     $searchDomains = [$domain];
                 }
@@ -88,8 +93,8 @@ final class ResolvConfParser
 
         if (str_contains($value, '#')) {
             [$value, $portStr] = explode('#', $value, 2);
-            $value = trim($value);
-            $parsedPort = (int) trim($portStr);
+            $value = trim($value, self::WHITESPACE);
+            $parsedPort = (int) trim($portStr, self::WHITESPACE);
             if ($parsedPort > 0 && $parsedPort <= 65_535) {
                 $port = $parsedPort;
             }
@@ -97,7 +102,7 @@ final class ResolvConfParser
 
         if (str_contains($value, '%')) {
             [$value] = explode('%', $value, 2);
-            $value = trim($value);
+            $value = trim($value, self::WHITESPACE);
         }
 
         if ($value === '') {
@@ -119,7 +124,7 @@ final class ResolvConfParser
         }
 
         foreach ($searchDomains as $domain) {
-            $domain = trim($domain);
+            $domain = trim($domain, self::WHITESPACE);
             if ($domain !== '') {
                 $domains[] = $domain;
             }

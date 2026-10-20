@@ -30,6 +30,11 @@ use function trim;
 final class Parser
 {
     /**
+     * The whitespace characters matched by `\s` in the patterns below.
+     */
+    private const string WHITESPACE = " \t\n\r\x0B\x0C";
+
+    /**
      * @param string $content Raw content of a hosts file.
      */
     public static function parse(string $content): HostsFile
@@ -38,7 +43,7 @@ final class Parser
         $entries = [];
 
         foreach (explode("\n", $content) as $line) {
-            $line = trim($line);
+            $line = trim($line, self::WHITESPACE);
 
             if ($line === '' || $line[0] === '#') {
                 continue;
@@ -46,7 +51,7 @@ final class Parser
 
             $commentPos = strpos($line, '#');
             if ($commentPos !== false) {
-                $line = trim(substr($line, 0, $commentPos));
+                $line = trim(substr($line, 0, $commentPos), self::WHITESPACE);
                 if ($line === '') {
                     continue;
                 }
@@ -71,7 +76,7 @@ final class Parser
 
             $count = count($parts);
             for ($i = 1; $i < $count; $i++) {
-                $hostname = strtolower(trim($parts[$i]));
+                $hostname = strtolower(trim($parts[$i], self::WHITESPACE));
                 if ($hostname === '') {
                     continue;
                 }

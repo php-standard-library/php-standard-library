@@ -112,6 +112,47 @@ final class IpconfigParserTest extends TestCase
         static::assertSame('1.1.1.1', $config->nameservers[2]->host);
     }
 
+    public function testFormFeedAndVerticalTabAreTreatedAsWhitespace(): void
+    {
+        $output =
+            "Windows IP Configuration\r\n"
+            . "\r\n"
+            . "   DNS Suffix Search List. . . . . . : example.com\r\n"
+            . "                                       corp.example.com\x0C\r\n"
+            . "\r\n"
+            . "Ethernet adapter Ethernet:\r\n"
+            . "\r\n"
+            . "   DNS Servers . . . . . . . . . . . : 8.8.8.8\r\n"
+            . "                                       8.8.4.4\x0C\r\n"
+            . "                                       1.1.1.1\x0B\r\n"
+            . "   NetBIOS over Tcpip. . . . . . . . : Enabled\r\n";
+
+        $config = IpconfigParser::parse($output);
+
+        static::assertCount(3, $config->nameservers);
+        static::assertSame('8.8.8.8', $config->nameservers[0]->host);
+        static::assertSame('8.8.4.4', $config->nameservers[1]->host);
+        static::assertSame('1.1.1.1', $config->nameservers[2]->host);
+        static::assertSame(['example.com', 'corp.example.com'], $config->searchDomains);
+    }
+
+    public function testNulByteIsNotTreatedAsWhitespace(): void
+    {
+        $output =
+            "Ethernet adapter Ethernet:\r\n"
+            . "\r\n"
+            . "   DNS Servers . . . . . . . . . . . : 8.8.8.8\r\n"
+            . "                                       8.8.4.4\x00\r\n"
+            . "                                       1.1.1.1\r\n"
+            . "   NetBIOS over Tcpip. . . . . . . . : Enabled\r\n";
+
+        $config = IpconfigParser::parse($output);
+
+        static::assertCount(2, $config->nameservers);
+        static::assertSame('8.8.8.8', $config->nameservers[0]->host);
+        static::assertSame('1.1.1.1', $config->nameservers[1]->host);
+    }
+
     public function testDeduplicatesAcrossAdapters(): void
     {
         $output = <<<'OUTPUT'

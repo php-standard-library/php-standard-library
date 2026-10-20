@@ -58,6 +58,11 @@ use const PREG_OFFSET_CAPTURE;
 final class IpconfigParser
 {
     /**
+     * The whitespace characters matched by `\s` in the patterns below.
+     */
+    private const string WHITESPACE = " \t\n\r\x0B\x0C";
+
+    /**
      * @param string $output Raw output of `ipconfig /all`.
      */
     public static function parse(string $output): Settings
@@ -102,13 +107,13 @@ final class IpconfigParser
             return [];
         }
 
-        $domains[] = trim($matches[1][0]);
+        $domains[] = trim($matches[1][0], self::WHITESPACE);
         $pos = (int) $matches[0][1] + strlen($matches[0][0]);
         $remaining = substr($output, $pos);
         $lines = explode("\n", $remaining);
         $started = false;
         foreach ($lines as $line) {
-            $trimmed = trim($line);
+            $trimmed = trim($line, self::WHITESPACE);
             if ($trimmed === '') {
                 if ($started) {
                     break;
@@ -169,7 +174,7 @@ final class IpconfigParser
             return [];
         }
 
-        $server = trim($matches[1][0]);
+        $server = trim($matches[1][0], self::WHITESPACE);
         if (self::isIpAddress($server)) {
             $servers[] = $server;
         }
@@ -179,7 +184,7 @@ final class IpconfigParser
         $lines = explode("\n", $remaining);
         $started = false;
         foreach ($lines as $line) {
-            $trimmed = trim($line);
+            $trimmed = trim($line, self::WHITESPACE);
 
             if ($trimmed === '') {
                 if ($started) {
@@ -209,7 +214,7 @@ final class IpconfigParser
     {
         $matches = null;
         if (preg_match('/Connection-specific DNS Suffix[. ]*:[^\S\n]*(\S+)/i', $block, $matches)) {
-            $suffix = trim($matches[1]);
+            $suffix = trim($matches[1], self::WHITESPACE);
             if ($suffix !== '') {
                 return $suffix;
             }

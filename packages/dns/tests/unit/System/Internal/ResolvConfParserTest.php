@@ -93,4 +93,29 @@ final class ResolvConfParserTest extends TestCase
         static::assertCount(1, $config->nameservers);
         static::assertSame('fe80::1', $config->nameservers[0]->host);
     }
+
+    public function testFormFeedAndVerticalTabAreTreatedAsWhitespace(): void
+    {
+        $content =
+            "\x0Cnameserver 1.1.1.1\x0C\n"
+            . "\x0Bnameserver 8.8.8.8 \x0C#5353\x0B\r\n"
+            . "\x0Csearch\x0Cexample.com\x0Bcorp.example.com\x0C\n";
+
+        $config = ResolvConfParser::parse($content);
+
+        static::assertCount(2, $config->nameservers);
+        static::assertSame('1.1.1.1', $config->nameservers[0]->host);
+        static::assertSame(53, $config->nameservers[0]->port);
+        static::assertSame('8.8.8.8', $config->nameservers[1]->host);
+        static::assertSame(5353, $config->nameservers[1]->port);
+        static::assertSame(['example.com', 'corp.example.com'], $config->searchDomains);
+    }
+
+    public function testNulByteIsNotTreatedAsWhitespace(): void
+    {
+        $config = ResolvConfParser::parse("\0nameserver 1.1.1.1\nnameserver 8.8.8.8\n");
+
+        static::assertCount(1, $config->nameservers);
+        static::assertSame('8.8.8.8', $config->nameservers[0]->host);
+    }
 }
