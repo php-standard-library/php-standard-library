@@ -107,13 +107,7 @@ final class KeyedSemaphore
                     }
 
                     // The re-entrant call may have been all that kept the count at the limit.
-                    if (!$this->handOver($key)) {
-                        // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
-                        $this->ongoing[$key]--;
-                        if (0 === $this->ongoing[$key]) {
-                            unset($this->ongoing[$key], $this->holders[$key]);
-                        }
-                    }
+                    $this->release($key);
                 }
             }
 
@@ -163,22 +157,7 @@ final class KeyedSemaphore
                 array_splice($this->holders[$key], $index, 1);
             }
 
-            if (!$this->handOver($key)) {
-                // Operations may still be pending, if re-entrant calls keep the count at the limit.
-                if (($this->pending[$key] ?? []) === []) {
-                    foreach ($this->waits[$key] ?? [] as $suspension) {
-                        $suspension->resume();
-                    }
-
-                    unset($this->waits[$key]);
-                }
-
-                // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
-                $this->ongoing[$key]--;
-                if (0 === $this->ongoing[$key]) {
-                    unset($this->ongoing[$key], $this->holders[$key]);
-                }
-            }
+            $this->release($key);
         }
     }
 
@@ -370,6 +349,36 @@ final class KeyedSemaphore
             if (null !== $id) {
                 $cancellation->unsubscribe($id);
             }
+        }
+    }
+
+    /**
+     * Release the slot of a completing operation, re-entrant or not, for the given key.
+     *
+     * The slot is handed over to the next pending operation if possible. Otherwise, it is released, and
+     * if no operation is pending anymore, the {@see waitForPending()} calls for the given key are resumed.
+     *
+     * @param Tk $key
+     */
+    private function release(string|int $key): void
+    {
+        if ($this->handOver($key)) {
+            return;
+        }
+
+        // Operations may still be pending, if re-entrant calls keep the count at the limit.
+        if (($this->pending[$key] ?? []) === []) {
+            foreach ($this->waits[$key] ?? [] as $suspension) {
+                $suspension->resume();
+            }
+
+            unset($this->waits[$key]);
+        }
+
+        // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
+        $this->ongoing[$key]--;
+        if (0 === $this->ongoing[$key]) {
+            unset($this->ongoing[$key], $this->holders[$key]);
         }
     }
 

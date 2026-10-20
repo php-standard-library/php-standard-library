@@ -775,4 +775,57 @@ final class KeyedSemaphoreTest extends TestCase
         static::assertSame('pending', $pending->await());
         static::assertFalse($ks->hasOngoingOperations('k'));
     }
+
+    public function testCompletedReentrantCallResumesWaitForPendingWhenNothingIsPending(): void
+    {
+        $gates = [
+            'reenter' => new Async\Deferred(),
+            'inner' => new Async\Deferred(),
+            'outer' => new Async\Deferred(),
+            'other' => new Async\Deferred(),
+        ];
+
+        /** @var Async\KeyedSemaphore<string, string, string> */
+        $ks = new Async\KeyedSemaphore(2, static function (string $key, string $input) use (&$ks, $gates): string {
+            if ('outer' === $input) {
+                $gates['reenter']->getAwaitable()->await();
+                $ks->waitFor($key, 'inner');
+            }
+
+            $gates[$input]->getAwaitable()->await();
+
+            return $input;
+        });
+
+        $outer = Async\run(static fn(): string => $ks->waitFor('k', 'outer'));
+        $other = Async\run(static fn(): string => $ks->waitFor('k', 'other'));
+        Async\later();
+
+        // "outer" re-enters while "other" holds the second slot, taking the count above the limit.
+        $gates['reenter']->complete(null);
+        Async\later();
+        static::assertSame(3, $ks->getOngoingOperations('k'));
+
+        // "other" completes: "outer" and "inner" keep the count at the limit.
+        $gates['other']->complete(null);
+        $other->await();
+        static::assertSame(2, $ks->getOngoingOperations('k'));
+
+        $waiting = Async\run(static fn() => $ks->waitForPending('k'));
+        Async\later();
+        static::assertFalse($waiting->isComplete());
+
+        // "inner" completes while "outer" keeps running: nothing is pending anymore.
+        $gates['inner']->complete(null);
+        Async\later();
+        Async\later();
+
+        static::assertTrue($waiting->isComplete());
+        static::assertSame(1, $ks->getOngoingOperations('k'));
+
+        $gates['outer']->complete(null);
+
+        static::assertSame('outer', $outer->await());
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
 }
