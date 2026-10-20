@@ -190,6 +190,42 @@ final class RedirectClientTest extends TestCase
         static::assertSame('GET', $inner->requests[1]->method);
     }
 
+    /** @return iterable<string, array{301|302, non-empty-uppercase-string}> */
+    public static function methodPreservingRedirects(): iterable
+    {
+        foreach ([301, 302] as $status) {
+            foreach (['PUT', 'DELETE', 'PATCH', 'OPTIONS', 'TRACE', 'CUSTOM'] as $method) {
+                yield $status . ' ' . $method => [$status, $method];
+            }
+        }
+    }
+
+    /**
+     * @param 301|302 $status
+     * @param non-empty-uppercase-string $method
+     */
+    #[DataProvider('methodPreservingRedirects')]
+    public function test301And302PreserveOtherMethodsAndBodies(int $status, string $method): void
+    {
+        $inner = self::fakeClient(self::redirect($status, '/new'), self::ok());
+        $body = new IO\MemoryHandle('prefix:payload');
+        $body->seek(7);
+        $client = new RedirectClient($inner);
+        $request = self::request($method, headers: FieldMap::from([
+            ['content-length', '7'],
+            ['content-type',   'text/plain'],
+        ]))
+            ->withBody($body);
+
+        $client->send($request);
+
+        static::assertSame($method, $inner->requests[1]->method);
+        static::assertSame($body, $inner->requests[1]->body);
+        static::assertSame('7', $inner->requests[1]->headers->get('content-length'));
+        static::assertSame('text/plain', $inner->requests[1]->headers->get('content-type'));
+        static::assertSame(['payload', 'payload'], $inner->bodies);
+    }
+
     public function test303RewritesToGet(): void
     {
         $inner = self::fakeClient(self::redirect(303, 'http://example.com/new'), self::ok());

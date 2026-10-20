@@ -30,15 +30,14 @@ use function strtolower;
  *
  * ## Redirect behavior per status code
  *
- * - **301 Moved Permanently / 302 Found**: For methods other than GET and HEAD, the
- *   method is rewritten to GET and the request body is stripped. This follows the
- *   historical browser behavior codified in RFC 7231, even though the specification
- *   technically requires preserving the method.
- * - **303 See Other**: The method is always rewritten to GET and the body is stripped,
- *   regardless of the original method.
+ * - **301 Moved Permanently / 302 Found**: POST changes to GET and loses its body.
+ *   Other methods keep their method and body, per RFC 9110 Sections 15.4.2-15.4.3.
+ * - **303 See Other**: Methods other than GET and HEAD change to GET and lose their body.
  * - **307 Temporary Redirect / 308 Permanent Redirect**: The original method and body
- *   are preserved exactly. The body must be seekable so it can return to its original
- *   position before each redirect; otherwise a {@see RequestException} is thrown.
+ *   are preserved exactly.
+ *
+ * When a redirect preserves the body, it must be seekable so it can return to its
+ * original position; otherwise a {@see RequestException} is thrown.
  *
  * Only status codes 301, 302, 303, 307, and 308 are followed. Other 3xx codes
  * (e.g., 300 Multiple Choices, 304 Not Modified) are returned to the caller as-is.
@@ -102,8 +101,8 @@ final readonly class RedirectClient implements ClientInterface
      *
      * 1. The redirect response body is fully drained to allow connection reuse.
      * 2. The Location header is resolved against the current request URL.
-     * 3. For 301, 302, and 303 responses with non-GET/HEAD methods, the method is
-     *    rewritten to GET and the body and body-related headers are removed.
+     * 3. For 301/302 responses to POST and 303 responses to non-GET/HEAD methods,
+     *    the method changes to GET and the body and body-related headers are removed.
      * 4. For cross-origin redirects, sensitive headers (Authorization, Cookie,
      *    Proxy-Authorization) are stripped.
      * 5. If {@see $autoReferrer} is enabled, the Referer header is set to the previous
@@ -157,16 +156,19 @@ final readonly class RedirectClient implements ClientInterface
             $targetUrl = self::resolveLocation($location, $originalUrl);
             $request = $request->withUrl($targetUrl);
 
-            if ($response->status === 301 || $response->status === 302 || $response->status === 303) {
-                if ($request->method !== Message\METHOD_GET && $request->method !== Message\METHOD_HEAD) {
-                    $request = $request
-                        ->withMethod(Message\METHOD_GET)
-                        ->withBody(null)
-                        ->withTrailers(null);
+            if (
+                ($response->status === 301 || $response->status === 302) && $request->method === Message\METHOD_POST
+                || $response->status === 303
+                && $request->method !== Message\METHOD_GET
+                && $request->method !== Message\METHOD_HEAD
+            ) {
+                $request = $request
+                    ->withMethod(Message\METHOD_GET)
+                    ->withBody(null)
+                    ->withTrailers(null);
 
-                    foreach (self::BODY_HEADERS as $header) {
-                        $request = $request->withoutHeader($header);
-                    }
+                foreach (self::BODY_HEADERS as $header) {
+                    $request = $request->withoutHeader($header);
                 }
             }
 

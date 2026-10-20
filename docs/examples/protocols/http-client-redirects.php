@@ -25,3 +25,10 @@ $upload = new Message\Request(
 );
 
 $client->send($upload);
+
+// 301 and 302 preserve PUT and its body; only POST changes to GET.
+$client->send(new Message\Request(
+    method: Message\METHOD_PUT,
+    url: URL\parse('https://httpbin.org/redirect-to?url=/put&status_code=302'),
+    body: new IO\MemoryHandle('payload'),
+));

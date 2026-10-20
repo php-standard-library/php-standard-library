@@ -28,6 +28,8 @@ Redirects that preserve the request body, including 307 and 308, require a seeka
 
 @example('protocols/http-client-redirects.php')
 
+For 301 and 302, only POST changes to GET. Other methods keep their body and method. For 303, all methods except GET and HEAD change to GET. A body that survives a redirect must be seekable so the client can return to its original position.
+
 ## Retries
 
 `RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff.
@@ -245,6 +247,6 @@ The client throws a structured exception hierarchy. Transport-level exceptions f
 | RFC 8297 | 103 Early Hints informational responses |
 | RFC 3986 | URI resolution for base URL and redirect Location headers |
 | RFC 1928 | SOCKS5 proxy protocol |
-| RFC 7231 | Historical redirect method rewriting (301/302 to GET) |
+| RFC 9110 | Redirect method rewriting (301/302 POST to GET, 303 to GET except HEAD) |
 
 See `src/Psl/HTTP/Client/` for the full API.
