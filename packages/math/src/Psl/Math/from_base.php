@@ -39,7 +39,7 @@ function from_base(string $number, int $fromBase): int
             $dval = 99;
         }
 
-        if ($fromBase < $dval) {
+        if ($dval >= $fromBase) {
             throw new Exception\InvalidArgumentException(sprintf('Invalid digit %s in base %d', $digit, $fromBase));
         }
 
