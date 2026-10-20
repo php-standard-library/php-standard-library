@@ -53,7 +53,7 @@ It serves as an alternative to `proc_*`, `symfony/process`, and `amphp/process`,
 
 ### Environment Variables
 
-The child process starts with a copy of the parent's environment. `withEnvironmentVariable()` and `withEnvironmentVariables()` add or override variables, `withoutEnvironmentVariable()` removes a variable even when it is inherited, and `withClearedEnvironment()` starts the child from an empty environment, so only variables set afterwards are passed to it.
+The child process starts with a copy of the parent's environment. `withEnvironmentVariable()` and `withEnvironmentVariables()` add or override variables, `withoutEnvironmentVariable()` removes a variable even when it is inherited, and `withClearedEnvironment()` starts the child from an empty environment, so only variables set afterwards are passed to it. When PHP runs under the `cli` or `phpdbg` SAPI, a command that leaves the environment unchanged passes the parent's environment on as is. Otherwise the inherited variables are copied from `getenv()`, which does not list variables whose name contains a space, `.` or `[`. Under php-fpm and php-cgi, `getenv()` can also list the request's FastCGI parameters, such as the `fastcgi_param` values set by the web server and the `HTTP_*` request headers, so the child inherits those too; `withoutEnvironmentVariable()` and `withClearedEnvironment()` keep them from it.
 
 @example('io/process-environment.php')
 

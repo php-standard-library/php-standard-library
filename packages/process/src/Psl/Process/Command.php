@@ -19,6 +19,7 @@ use function proc_open;
 use function str_contains;
 
 use const PHP_OS_FAMILY;
+use const PHP_SAPI;
 use const STDERR;
 use const STDIN;
 use const STDOUT;
@@ -409,22 +410,7 @@ final readonly class Command
 
         $command = $this->buildCommand();
 
-        $variables = $this->inheritEnvironment ? getenv() : [];
-        foreach ($this->environment as $name => $value) {
-            if (null === $value) {
-                unset($variables[$name]);
-            } else {
-                $variables[$name] = $value;
-            }
-        }
-
-        // Given a NAME => VALUE map, proc_open() skips variables whose value is empty and
-        // passes integer-keyed entries (integer-like names) through without their name,
-        // so hand it the "NAME=VALUE" entries instead, which it passes through as is.
-        $environment = [];
-        foreach ($variables as $name => $value) {
-            $environment[] = $name . '=' . $value;
-        }
+        $environment = $this->buildEnvironment();
 
         $cwd = getcwd();
         $workingDirectory = $this->workingDirectory ?? ($cwd !== false ? $cwd : '');
@@ -454,7 +440,7 @@ final readonly class Command
 
         $pipes = [];
         // proc_open() accepts a list of "NAME=VALUE" entries for $env_vars, which its stub does not describe.
-        // @mago-expect analysis:invalid-argument
+        // @mago-expect analysis:possibly-invalid-argument
         $process = @proc_open($command, $descriptors, $pipes, $workingDirectory, $environment, $options);
         // @codeCoverageIgnoreStart
         if (!is_resource($process)) {
@@ -479,6 +465,46 @@ final readonly class Command
         }
 
         return new Internal\Child($process, $stdinHandle, $stdoutHandle, $stderrHandle);
+    }
+
+    /**
+     * Builds the environment for proc_open.
+     *
+     * Returns null, which makes the child inherit the parent's environment as is, when the command
+     * does not change it: getenv() does not list variables whose name contains " ", "." or "[", so
+     * an environment built from it would silently drop them.
+     *
+     * This is limited to the cli and phpdbg SAPIs, where getenv() lists the process environment.
+     * Under php-fpm and php-cgi, getenv() can also list the request's FastCGI parameters, which the
+     * worker's own environment does not hold, so the environment is built from getenv() there to
+     * keep passing them on.
+     *
+     * @return null|list<string>
+     */
+    private function buildEnvironment(): null|array
+    {
+        if ($this->inheritEnvironment && [] === $this->environment && ('cli' === PHP_SAPI || 'phpdbg' === PHP_SAPI)) {
+            return null;
+        }
+
+        $variables = $this->inheritEnvironment ? getenv() : [];
+        foreach ($this->environment as $name => $value) {
+            if (null === $value) {
+                unset($variables[$name]);
+            } else {
+                $variables[$name] = $value;
+            }
+        }
+
+        // Given a NAME => VALUE map, proc_open() skips variables whose value is empty and
+        // passes integer-keyed entries (integer-like names) through without their name,
+        // so hand it the "NAME=VALUE" entries instead, which it passes through as is.
+        $environment = [];
+        foreach ($variables as $name => $value) {
+            $environment[] = $name . '=' . $value;
+        }
+
+        return $environment;
     }
 
     /**

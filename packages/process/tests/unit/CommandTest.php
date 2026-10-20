@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Process\Tests\Unit;
 
+use Composer\Autoload\ClassLoader;
 use PHPUnit\Framework\TestCase;
 use Psl\Env;
 use Psl\Filesystem;
@@ -12,8 +13,28 @@ use Psl\OS;
 use Psl\Process\Command;
 use Psl\Process\Exception;
 use Psl\Process\Stdio;
+use ReflectionClass;
 
+use function basename;
+use function chr;
+use function dirname;
+use function explode;
+use function fclose;
+use function file_exists;
+use function file_put_contents;
+use function fwrite;
+use function is_executable;
 use function json_decode;
+use function pack;
+use function preg_replace;
+use function stream_get_contents;
+use function stream_set_timeout;
+use function stream_socket_client;
+use function strlen;
+use function unlink;
+use function unpack;
+use function usleep;
+use function var_export;
 
 use const JSON_THROW_ON_ERROR;
 use const PHP_BINARY;
@@ -293,6 +314,146 @@ final class CommandTest extends TestCase
         }
 
         static::assertSame('', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
+    }
+
+    public function testInheritedEnvironmentVariableWithDotInNameIsPassed(): void
+    {
+        // getenv() does not list a name containing ".", so the child only gets it when the
+        // parent's environment is passed through as is.
+        Env\set_var('PSL.PROCESS_PARENT_VAR', 'inherited');
+
+        try {
+            $output = self::phpCommand()
+                ->withArgument('-r')
+                ->withArgument('echo getenv("PSL.PROCESS_PARENT_VAR");')
+                ->output();
+        } finally {
+            Env\remove_var('PSL.PROCESS_PARENT_VAR');
+        }
+
+        static::assertTrue($output->status->isSuccessful(), $output->stderr);
+        static::assertSame('inherited', $output->stdout);
+    }
+
+    public function testChildInheritsFastCgiParametersUnderPhpCgi(): void
+    {
+        // Under php-fpm and php-cgi, getenv() can also list the request's FastCGI parameters, which
+        // the worker's own environment does not hold; the child gets them whether or not the
+        // command changes its environment.
+        if (OS\is_windows()) {
+            static::markTestSkipped('This test runs php-cgi on a Unix socket.');
+        }
+
+        $phpCgi = dirname(PHP_BINARY) . '/' . preg_replace('/^php/', 'php-cgi', basename(PHP_BINARY));
+        if (!is_executable($phpCgi)) {
+            static::markTestSkipped('php-cgi is not installed next to the PHP binary.');
+        }
+
+        $loader = new ReflectionClass(ClassLoader::class)->getFileName();
+        static::assertIsString($loader);
+
+        $script = Filesystem\create_temporary_file();
+        $socket = $script . '.sock';
+        file_put_contents(
+            $script,
+            '<?php require ' . var_export(dirname($loader, 2) . '/autoload.php', true) . ';' . <<<'PHP'
+            $command = Psl\Process\Command::create('printenv')->withArgument('PSL_PROCESS_FASTCGI_PARAM');
+            echo 'unchanged: ', $command->output()->stdout;
+            echo 'changed: ', $command->withEnvironmentVariable('PSL_PROCESS_SET_VAR', 'set')->output()->stdout;
+            PHP,
+        );
+
+        // php-cgi only lists the FastCGI parameters in getenv() when variables_order includes "E";
+        // php-fpm always lists them.
+        $server = Command::create($phpCgi)
+            ->withArguments(['-dopcache.enable=0', '-dcgi.force_redirect=0', '-dvariables_order=EGPCS', '-b', $socket])
+            ->withEnvironmentVariable('PHP_FCGI_MAX_REQUESTS', '1')
+            ->withStdin(Stdio::null())
+            ->withStdout(Stdio::null())
+            ->withStderr(Stdio::null())
+            ->spawn();
+
+        try {
+            $response = self::fastCgiRequest($socket, [
+                'SCRIPT_FILENAME' => $script,
+                'REQUEST_METHOD' => 'GET',
+                'SERVER_PROTOCOL' => 'HTTP/1.1',
+                'GATEWAY_INTERFACE' => 'CGI/1.1',
+                'PSL_PROCESS_FASTCGI_PARAM' => 'from-request',
+            ]);
+        } finally {
+            $server->kill();
+            $server->wait();
+            Filesystem\delete_file($script);
+            if (file_exists($socket)) {
+                unlink($socket);
+            }
+        }
+
+        $body = explode("\r\n\r\n", $response, 2)[1] ?? $response;
+
+        static::assertSame("unchanged: from-request\nchanged: from-request\n", $body);
+    }
+
+    /**
+     * Sends a FastCGI request to the server listening on the given Unix socket and returns its output.
+     *
+     * @param array<non-empty-string, string> $parameters
+     */
+    private static function fastCgiRequest(string $socket, array $parameters): string
+    {
+        $client = false;
+        for ($attempt = 0; $attempt < 100 && false === $client; $attempt++) {
+            $client = @stream_socket_client('unix://' . $socket, $errorCode, $errorMessage, 1.0);
+            if (false === $client) {
+                usleep(50_000);
+            }
+        }
+
+        static::assertNotFalse($client, 'Could not connect to php-cgi.');
+        stream_set_timeout($client, 30);
+
+        $record = static fn(int $type, string $content): string => (
+            pack('CCnnCx', 1, $type, 1, strlen($content), 0) . $content
+        );
+        $length = static fn(string $value): string => strlen($value) < 128
+            ? chr(strlen($value))
+            : pack('N', strlen($value) | 0x8000_0000);
+
+        $pairs = '';
+        foreach ($parameters as $name => $value) {
+            $pairs .= $length($name) . $length($value) . $name . $value;
+        }
+
+        // FCGI_BEGIN_REQUEST (responder role), FCGI_PARAMS, then an empty FCGI_STDIN.
+        fwrite($client, $record(1, pack('nCx5', 1, 0)) . $record(4, $pairs) . $record(4, '') . $record(5, ''));
+
+        $output = '';
+        while (true) {
+            $header = stream_get_contents($client, 8);
+            if (false === $header || 8 !== strlen($header)) {
+                break;
+            }
+
+            /** @var array{type: int, length: int, padding: int} $fields */
+            $fields = unpack('Cversion/Ctype/nid/nlength/Cpadding/Creserved', $header);
+            $content = $fields['length'] > 0 ? (string) stream_get_contents($client, $fields['length']) : '';
+            if ($fields['padding'] > 0) {
+                stream_get_contents($client, $fields['padding']);
+            }
+
+            if (6 === $fields['type']) {
+                $output .= $content;
+            }
+
+            if (3 === $fields['type']) {
+                break;
+            }
+        }
+
+        fclose($client);
+
+        return $output;
     }
 
     public function testIntegerLikeEnvironmentVariableNameIsPassed(): void
