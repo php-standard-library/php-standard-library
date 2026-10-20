@@ -34,7 +34,7 @@ When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records 
 
 ## Trust Anchors
 
-`TrustChainResolver` uses the IANA root KSK as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
+`TrustChainResolver` uses both IANA root keys, KSK-2017 (20326) and KSK-2024 (38696), as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
 
 @example('protocols/dnssec-trust-anchor.php')
 

@@ -139,7 +139,7 @@ final class SecureResolverTest extends TestCase
     {
         $anchor = TrustAnchor::root();
 
-        static::assertCount(1, $anchor->anchors);
+        static::assertCount(2, $anchor->anchors);
         static::assertSame(20_326, $anchor->anchors[0]->keyTag);
         static::assertSame(Algorithm::RSASHA256, $anchor->anchors[0]->algorithm);
         static::assertSame(DigestAlgorithm::SHA256, $anchor->anchors[0]->digestType);

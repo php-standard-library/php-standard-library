@@ -12,7 +12,7 @@ use Psl\DNSSEC;
 
 $inner = new DNS\SystemResolver(dnssec: true);
 
-// Default: uses IANA root KSK, walks the DS/DNSKEY chain via DNS queries
+// Default: uses IANA root KSK-2017 and KSK-2024, walks the DS/DNSKEY chain via DNS queries
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 
 // Fully offline: pre-loaded DNSKEY records per zone, no network queries

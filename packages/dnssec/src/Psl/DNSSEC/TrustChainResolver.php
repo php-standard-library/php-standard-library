@@ -41,7 +41,7 @@ use function strtolower;
  * Default trust chain resolver that walks the DNSSEC chain of trust from the
  * root down to the target zone.
  *
- * Starting from the configured trust anchor (IANA root KSK by default), this
+ * Starting from the configured trust anchors (IANA root KSKs by default), this
  * resolver queries for DS and DNSKEY records at each level of the DNS hierarchy,
  * verifying cryptographic links at every step. The result indicates whether the
  * target zone is Secure, Insecure (provably unsigned), or Bogus (validation failed).
@@ -64,7 +64,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
 
     /**
      * @param ResolverInterface $resolver The DNS resolver used to query for DS and DNSKEY records.
-     * @param null|TrustAnchor $trustAnchor The trust anchor to use. Defaults to the IANA root KSK.
+     * @param null|TrustAnchor $trustAnchor The trust anchor to use. Defaults to the IANA root KSKs.
      */
     public function __construct(
         private ResolverInterface $resolver,
