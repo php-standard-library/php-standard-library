@@ -9,6 +9,9 @@ use Psl\Comparison;
 use Psl\Comparison\Order;
 use Psl\Locale\Locale;
 
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
+
 /**
  * @require-implements TemporalInterface
  *
@@ -236,6 +239,9 @@ trait TemporalConvenienceMethodsTrait
      *
      * @param TemporalInterface $other The temporal object to calculate the duration to.
      *
+     * @throws Exception\OverflowException If the difference, in seconds, is greater than PHP_INT_MAX.
+     * @throws Exception\UnderflowException If the difference, in seconds, is less than -PHP_INT_MAX.
+     *
      * @return Duration The duration between the two temporal objects.
      *
      * @psalm-mutation-free
@@ -244,6 +250,14 @@ trait TemporalConvenienceMethodsTrait
     {
         $a = $this->getTimestamp()->toParts();
         $b = $other->getTimestamp()->toParts();
+
+        if ($b[0] < 0 && $a[0] > (PHP_INT_MAX + $b[0])) {
+            throw new Exception\OverflowException('The duration between the two temporal objects is too long.');
+        }
+
+        if ($b[0] > 0 && $a[0] < (PHP_INT_MIN + $b[0])) {
+            throw new Exception\UnderflowException('The duration between the two temporal objects is too long.');
+        }
 
         return Duration::fromParts(0, 0, $a[0] - $b[0], $a[1] - $b[1]);
     }

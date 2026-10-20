@@ -10,6 +10,7 @@ use Psl\Comparison;
 
 use function abs;
 use function implode;
+use function intdiv;
 use function rtrim;
 use function str_pad;
 use function substr;
@@ -27,6 +28,10 @@ use const STR_PAD_LEFT;
  * - nanoseconds will be between -999999999 and 999999999 (less than 1 second)
  *
  * For example, Duration::hours(2, -183) normalizes to "-1 hour(s), -3 minute(s)".
+ *
+ * The total number of whole seconds of a duration is always within -PHP_INT_MAX..PHP_INT_MAX (so a duration
+ * can always be negated); operations whose result would fall outside of that range throw
+ * {@see Exception\OverflowException} or {@see Exception\UnderflowException}.
  *
  * @implements Comparison\Comparable<Duration>
  *
@@ -59,29 +64,16 @@ final readonly class Duration implements TemporalAmountInterface, Comparison\Com
      * optionally minutes, seconds, nanoseconds). Due to normalization, the
      * actual values in the returned instance may differ from the provided ones.
      *
+     * @throws Exception\OverflowException If the total number of seconds is greater than PHP_INT_MAX.
+     * @throws Exception\UnderflowException If the total number of seconds is less than -PHP_INT_MAX.
+     *
      * @pure
      */
     public static function fromParts(int $hours, int $minutes = 0, int $seconds = 0, int $nanoseconds = 0): self
     {
         // This is where the normalization happens.
-        $s =
-            (namespace\SECONDS_PER_HOUR * $hours)
-            + (namespace\SECONDS_PER_MINUTE * $minutes)
-            + $seconds
-            + (int) ($nanoseconds / namespace\NANOSECONDS_PER_SECOND);
-        $ns = $nanoseconds % namespace\NANOSECONDS_PER_SECOND;
-        if ($s < 0 && $ns > 0) {
-            ++$s;
-            $ns -= namespace\NANOSECONDS_PER_SECOND;
-        } elseif ($s > 0 && $ns < 0) {
-            --$s;
-            $ns += namespace\NANOSECONDS_PER_SECOND;
-        }
+        [$h, $m, $s, $ns] = Internal\normalize_duration_parts($hours, $minutes, $seconds, $nanoseconds);
 
-        $m = (int) ($s / 60);
-        $s %= 60;
-        $h = (int) ($m / 60);
-        $m %= 60;
         return new self($h, $m, $s, $ns);
     }
 
@@ -135,7 +127,12 @@ final readonly class Duration implements TemporalAmountInterface, Comparison\Com
      */
     public static function milliseconds(int $milliseconds): self
     {
-        return self::fromParts(0, 0, 0, namespace\NANOSECONDS_PER_MILLISECOND * $milliseconds);
+        return self::fromParts(
+            0,
+            0,
+            intdiv($milliseconds, namespace\MILLISECONDS_PER_SECOND),
+            ($milliseconds % namespace\MILLISECONDS_PER_SECOND) * namespace\NANOSECONDS_PER_MILLISECOND,
+        );
     }
 
     /**
@@ -150,7 +147,12 @@ final readonly class Duration implements TemporalAmountInterface, Comparison\Com
      */
     public static function microseconds(int $microseconds): self
     {
-        return self::fromParts(0, 0, 0, namespace\NANOSECONDS_PER_MICROSECOND * $microseconds);
+        return self::fromParts(
+            0,
+            0,
+            intdiv($microseconds, namespace\MICROSECONDS_PER_SECOND),
+            ($microseconds % namespace\MICROSECONDS_PER_SECOND) * namespace\NANOSECONDS_PER_MICROSECOND,
+        );
     }
 
     /**
@@ -724,6 +726,8 @@ final readonly class Duration implements TemporalAmountInterface, Comparison\Com
     /**
      * Converts this {@see Duration} to a PHP {@see DateInterval}.
      *
+     * The whole duration is stored, signed, in the interval's seconds (`s`) and fraction (`f`) properties.
+     *
      * Note: nanosecond precision is truncated to microseconds.
      *
      * @return DateInterval
@@ -733,9 +737,23 @@ final readonly class Duration implements TemporalAmountInterface, Comparison\Com
     #[Override]
     public function toStdlib(): DateInterval
     {
-        $totalSeconds = (int) $this->getTotalSeconds();
-
-        return DateInterval::createFromDateString($totalSeconds . ' seconds');
+        // Integer arithmetic: `(int) $this->getTotalSeconds()` loses precision, or warns, for long durations,
+        // and `DateInterval::createFromDateString()` rejects numbers of seconds with more than 12 digits.
+        return DateInterval::__set_state([
+            'y' => 0,
+            'm' => 0,
+            'd' => 0,
+            'h' => 0,
+            'i' => 0,
+            's' =>
+                ($this->hours * namespace\SECONDS_PER_HOUR)
+                    + ($this->minutes * namespace\SECONDS_PER_MINUTE)
+                    + $this->seconds,
+            'f' =>
+                intdiv($this->nanoseconds, namespace\NANOSECONDS_PER_MICROSECOND) / namespace\MICROSECONDS_PER_SECOND,
+            'invert' => 0,
+            'days' => false,
+        ]);
     }
 
     /**

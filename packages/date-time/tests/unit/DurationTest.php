@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace Psl\DateTime\Tests\Unit;
 
+use Closure;
 use DateInterval;
+use DateTimeImmutable;
+use DateTimeZone;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Comparison\Order;
 use Psl\DateTime;
 use Psl\Json;
+use Throwable;
 
+use function intdiv;
 use function serialize;
 use function unserialize;
+
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 
 final class DurationTest extends TestCase
 {
@@ -757,5 +765,138 @@ final class DurationTest extends TestCase
         static::assertSame(2, $parts[1]);
         static::assertSame(3, $parts[2]);
         static::assertSame(4, $parts[3]);
+    }
+
+    public function testLargestDurations(): void
+    {
+        $maxHours = intdiv(PHP_INT_MAX, 3600);
+
+        static::assertSame([$maxHours, 0, 0, 0], DateTime\Duration::hours($maxHours)->getParts());
+        static::assertSame([-$maxHours, 0, 0, 0], DateTime\Duration::hours(-$maxHours)->getParts());
+        static::assertSame([$maxHours, 30, 7, 0], DateTime\Duration::seconds(PHP_INT_MAX)->getParts());
+        static::assertSame([-$maxHours, -30, -7, 0], DateTime\Duration::seconds(-PHP_INT_MAX)->getParts());
+        // The range is symmetric, so every duration can be negated.
+        static::assertSame([$maxHours, 30, 7, 0], DateTime\Duration::seconds(-PHP_INT_MAX)->invert()->getParts());
+        static::assertSame([-$maxHours, -30, -7, 0], DateTime\Duration::seconds(PHP_INT_MAX)->invert()->getParts());
+        static::assertSame(
+            [2_562_047_788_015, 12, 55, 807_000_000],
+            DateTime\Duration::milliseconds(PHP_INT_MAX)->getParts(),
+        );
+        static::assertSame(
+            [2_562_047_788, 0, 54, 775_807_000],
+            DateTime\Duration::microseconds(PHP_INT_MAX)->getParts(),
+        );
+        static::assertSame(
+            [-2_562_047, -47, -16, -854_775_808],
+            DateTime\Duration::nanoseconds(PHP_INT_MIN)->getParts(),
+        );
+        // 3e15 hours overflow when converted to seconds on their own, but cancel out with the minutes.
+        static::assertSame(
+            [0, 0, 1, 0],
+            DateTime\Duration::fromParts(3_000_000_000_000_000, -180_000_000_000_000_000, 1)->getParts(),
+        );
+    }
+
+    /**
+     * @return iterable<array{Closure(): DateTime\Duration, class-string<Throwable>}>
+     */
+    public static function provideOverflowingDurations(): iterable
+    {
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::seconds(PHP_INT_MIN),
+            DateTime\Exception\UnderflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::fromParts(0, 0, -PHP_INT_MAX, -1_000_000_000),
+            DateTime\Exception\UnderflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::hours(PHP_INT_MAX),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::hours(PHP_INT_MIN),
+            DateTime\Exception\UnderflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::minutes(PHP_INT_MAX),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::hours(intdiv(PHP_INT_MAX, 3600) + 1),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::fromParts(0, 0, PHP_INT_MAX, 1_000_000_000),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::seconds(1)->withHours(PHP_INT_MAX),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::seconds(PHP_INT_MAX)->plus(DateTime\Duration::seconds(
+                1,
+            )),
+            DateTime\Exception\OverflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::seconds(PHP_INT_MIN)->minus(DateTime\Duration::seconds(
+                1,
+            )),
+            DateTime\Exception\UnderflowException::class,
+        ];
+        // The exception follows the sign of the total, not of the first part that does not fit.
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::fromParts(0, PHP_INT_MIN, PHP_INT_MAX, PHP_INT_MAX),
+            DateTime\Exception\UnderflowException::class,
+        ];
+        yield [
+            static fn(): DateTime\Duration => DateTime\Duration::fromParts(0, PHP_INT_MAX, PHP_INT_MIN, PHP_INT_MIN),
+            DateTime\Exception\OverflowException::class,
+        ];
+    }
+
+    /**
+     * @param Closure(): DateTime\Duration $operation
+     * @param class-string<Throwable> $exception
+     */
+    #[DataProvider('provideOverflowingDurations')]
+    public function testOverflowingDurationsThrow(Closure $operation, string $exception): void
+    {
+        $this->expectException($exception);
+
+        $operation();
+    }
+
+    public function testPartsThatDoNotFitOnTheirOwnButWhoseTotalDoes(): void
+    {
+        static::assertSame(
+            [2_562_047_788_014_215, 30, 8, 500_000_000],
+            DateTime\Duration::fromParts(-1000, 0, PHP_INT_MAX, 1_500_000_000)->getParts(),
+        );
+        static::assertSame(
+            [-2_562_047_788_015_214, -30, -8, 0],
+            DateTime\Duration::fromParts(1, 0, -PHP_INT_MAX, -1_000_000_000)->getParts(),
+        );
+    }
+
+    public function testToStdlibLongDurationsAndFractions(): void
+    {
+        static::assertSame(3_600_000_000_000_000, DateTime\Duration::hours(1_000_000_000_000)->toStdlib()->s);
+        static::assertSame(PHP_INT_MAX, DateTime\Duration::seconds(PHP_INT_MAX)->toStdlib()->s);
+        static::assertSame(-PHP_INT_MAX, DateTime\Duration::seconds(-PHP_INT_MAX)->toStdlib()->s);
+
+        $start = new DateTimeImmutable('2024-01-01 00:00:00.000000', new DateTimeZone('UTC'));
+
+        $interval = DateTime\Duration::fromParts(1, 30, 45, 250_999_999)->toStdlib();
+        static::assertSame(5445, $interval->s);
+        static::assertSame(0.250_999, $interval->f);
+        static::assertSame('2024-01-01 01:30:45.250999', $start->add($interval)->format('Y-m-d H:i:s.u'));
+
+        $interval = DateTime\Duration::milliseconds(-1500)->toStdlib();
+        static::assertSame(-1, $interval->s);
+        static::assertSame(-0.5, $interval->f);
+        static::assertSame('2023-12-31 23:59:58.500000', $start->add($interval)->format('Y-m-d H:i:s.u'));
     }
 }

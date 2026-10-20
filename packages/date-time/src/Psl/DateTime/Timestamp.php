@@ -57,25 +57,23 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
      */
     public static function fromParts(int $seconds, int $nanoseconds = 0): Timestamp
     {
-        // Check for potential overflow or underflow before doing any operation
-        if (PHP_INT_MAX === $seconds && $nanoseconds >= namespace\NANOSECONDS_PER_SECOND) {
-            throw new Exception\OverflowException('Adding nanoseconds would cause an overflow.');
-        }
-
-        if (PHP_INT_MIN === $seconds && $nanoseconds <= -namespace\NANOSECONDS_PER_SECOND) {
-            throw new Exception\UnderflowException('Subtracting nanoseconds would cause an underflow.');
-        }
-
         $secondsAdjustment = intdiv($nanoseconds, namespace\NANOSECONDS_PER_SECOND);
-        $adjustedSeconds = $seconds + $secondsAdjustment;
-
         $adjustedNanoseconds = $nanoseconds % namespace\NANOSECONDS_PER_SECOND;
         if ($adjustedNanoseconds < 0) {
-            --$adjustedSeconds;
+            --$secondsAdjustment;
             $adjustedNanoseconds += namespace\NANOSECONDS_PER_SECOND;
         }
 
-        return new self($adjustedSeconds, $adjustedNanoseconds);
+        // Check for an overflow or underflow before adjusting the seconds.
+        if ($secondsAdjustment > 0 && $seconds > (PHP_INT_MAX - $secondsAdjustment)) {
+            throw new Exception\OverflowException('Adding nanoseconds would cause an overflow.');
+        }
+
+        if ($secondsAdjustment < 0 && $seconds < (PHP_INT_MIN - $secondsAdjustment)) {
+            throw new Exception\UnderflowException('Subtracting nanoseconds would cause an underflow.');
+        }
+
+        return new self($seconds + $secondsAdjustment, $adjustedNanoseconds);
     }
 
     /**
@@ -305,6 +303,14 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
 
         [$h, $m, $s, $ns] = $amount->getParts();
         $totalSeconds = (namespace\SECONDS_PER_MINUTE * $m) + (namespace\SECONDS_PER_HOUR * $h) + $s;
+        if ($totalSeconds > 0 && $this->seconds > (PHP_INT_MAX - $totalSeconds)) {
+            throw new Exception\OverflowException('Adding the duration would cause an overflow.');
+        }
+
+        if ($totalSeconds < 0 && $this->seconds < (PHP_INT_MIN - $totalSeconds)) {
+            throw new Exception\UnderflowException('Adding the duration would cause an underflow.');
+        }
+
         $newSeconds = $this->seconds + $totalSeconds;
         $newNanoseconds = $this->nanoseconds + $ns;
 
@@ -333,6 +339,14 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
 
         [$h, $m, $s, $ns] = $amount->getParts();
         $totalSeconds = (namespace\SECONDS_PER_MINUTE * $m) + (namespace\SECONDS_PER_HOUR * $h) + $s;
+        if ($totalSeconds < 0 && $this->seconds > (PHP_INT_MAX + $totalSeconds)) {
+            throw new Exception\OverflowException('Subtracting the duration would cause an overflow.');
+        }
+
+        if ($totalSeconds > 0 && $this->seconds < (PHP_INT_MIN + $totalSeconds)) {
+            throw new Exception\UnderflowException('Subtracting the duration would cause an underflow.');
+        }
+
         $newSeconds = $this->seconds - $totalSeconds;
         $newNanoseconds = $this->nanoseconds - $ns;
 

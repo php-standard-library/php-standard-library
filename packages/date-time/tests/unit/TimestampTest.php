@@ -26,6 +26,8 @@ use Psl\Math;
 use function time;
 use function usleep;
 
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 use const Psl\DateTime\NANOSECONDS_PER_SECOND;
 
 final class TimestampTest extends TestCase
@@ -118,6 +120,74 @@ final class TimestampTest extends TestCase
         static::assertSame(2024, $datetime->getYear());
         static::assertSame(3, $datetime->getMonth());
         static::assertSame(31, $datetime->getDay());
+    }
+
+    public function testArithmeticOverflowThrows(): void
+    {
+        foreach ([
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MAX - 10)->plus(Duration::seconds(20)),
+                OverflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MIN + 10)->plus(Duration::seconds(-20)),
+                UnderflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MAX - 10)->minus(Duration::seconds(-20)),
+                OverflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MIN + 10)->minus(Duration::seconds(20)),
+                UnderflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MIN)->minus(Duration::nanoseconds(1)),
+                UnderflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MAX, 999_999_999)->plus(Duration::nanoseconds(
+                    1,
+                )),
+                OverflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MAX - 1, 3_000_000_000),
+                OverflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MIN + 1, -3_000_000_000),
+                UnderflowException::class,
+            ],
+            [
+                static fn(): Timestamp => Timestamp::fromParts(PHP_INT_MIN, -1),
+                UnderflowException::class,
+            ],
+            [
+                static fn(): Duration => Timestamp::fromParts(PHP_INT_MAX)->since(Timestamp::fromParts(-10)),
+                OverflowException::class,
+            ],
+            [
+                static fn(): Duration => Timestamp::fromParts(PHP_INT_MIN)->since(Timestamp::fromParts(10)),
+                UnderflowException::class,
+            ],
+        ] as [$operation, $exception]) {
+            try {
+                $operation();
+                static::fail('Expected ' . $exception);
+            } catch (OverflowException|UnderflowException $e) {
+                static::assertInstanceOf($exception, $e);
+            }
+        }
+
+        static::assertSame(
+            [PHP_INT_MAX, 0],
+            Timestamp::fromParts(PHP_INT_MAX - 10)
+                ->plus(Duration::seconds(10))
+                ->toParts(),
+        );
+        static::assertSame([PHP_INT_MIN, 999_999_999], Timestamp::fromParts(PHP_INT_MIN + 1, -1)->toParts());
+        static::assertSame([PHP_INT_MAX, 999_999_999], Timestamp::fromParts(PHP_INT_MAX - 1, 1_999_999_999)->toParts());
     }
 
     public function testParseKeepsFractionalSeconds(): void

@@ -18,6 +18,7 @@ declare(strict_types=1);
         'Psl\DateTime\Internal\format_iso8601_period' => __DIR__ . '/DateTime/Internal/format_iso8601_period.php',
         'Psl\DateTime\Internal\format_rfc3339' => __DIR__ . '/DateTime/Internal/format_rfc3339.php',
         'Psl\DateTime\Internal\high_resolution_time' => __DIR__ . '/DateTime/Internal/high_resolution_time.php',
+        'Psl\DateTime\Internal\normalize_duration_parts' => __DIR__ . '/DateTime/Internal/normalize_duration_parts.php',
         'Psl\DateTime\Internal\parse' => __DIR__ . '/DateTime/Internal/parse.php',
         'Psl\DateTime\Internal\parse_iso8601_duration' => __DIR__ . '/DateTime/Internal/parse_iso8601_duration.php',
         'Psl\DateTime\Internal\parse_iso8601_period' => __DIR__ . '/DateTime/Internal/parse_iso8601_period.php',
