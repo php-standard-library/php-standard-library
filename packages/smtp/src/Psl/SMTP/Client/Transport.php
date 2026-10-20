@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\SMTP\Client;
 
+use Normalizer;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
@@ -29,6 +30,7 @@ use WeakMap;
 use function array_shift;
 use function explode;
 use function implode;
+use function mb_strtolower;
 use function preg_match;
 use function strlen;
 use function strrpos;
@@ -387,9 +389,24 @@ final class Transport implements TransportInterface
             return $address;
         }
 
+        $domain = substr($address, $at + 1);
+        if ($domain[0] === '[') {
+            return $address;
+        }
+
         $labels = [];
-        foreach (explode('.', substr($address, $at + 1)) as $label) {
-            $labels[] = preg_match('/[\x80-\xff]/', $label) === 1 ? 'xn--' . Punycode\encode($label) : $label;
+        foreach (explode('.', $domain) as $label) {
+            $label = Normalizer::normalize(mb_strtolower($label, 'UTF-8'), Normalizer::FORM_C);
+            if ($label === false) {
+                throw Exception\TransmissionException::forInvalidAddress($address);
+            }
+
+            $label = preg_match('/[\x80-\xff]/', $label) === 1 ? 'xn--' . Punycode\encode($label) : $label;
+            if (strlen($label) > 63) {
+                throw Exception\TransmissionException::forInvalidAddress($address);
+            }
+
+            $labels[] = $label;
         }
 
         return substr($address, 0, $at + 1) . implode('.', $labels);

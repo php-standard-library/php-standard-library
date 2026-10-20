@@ -6,7 +6,7 @@ The `SMTP` component implements an RFC 5321 SMTP client with connection pooling,
 
 The `Transport` handles the full SMTP lifecycle: connection, EHLO, TLS, authentication, message transmission, and connection reuse. Pass an `Envelope` (derived from message headers) and a `MessageInterface` to send.
 
-For envelope addresses, the transport encodes each Unicode domain label as Punycode with the `xn--` prefix. ASCII labels and domain literals stay unchanged. Non-ASCII envelope local parts require SMTPUTF8; the transport throws `TransmissionException` before MAIL FROM when the server lacks it (RFC 6531 section 3.2).
+For envelope addresses, the transport lowercases and NFC-normalizes domain labels, then encodes each Unicode label as Punycode with the `xn--` prefix. Domain literals stay unchanged. It rejects encoded labels longer than 63 bytes with `TransmissionException`. This handles case and canonical Unicode forms, but does not apply the full UTS #46 mapping. Non-ASCII envelope local parts require SMTPUTF8; the transport throws `TransmissionException` before MAIL FROM when the server lacks it (RFC 6531 section 3.2).
 
 @example('protocols/smtp-basic.php')
 

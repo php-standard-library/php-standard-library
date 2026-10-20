@@ -20,6 +20,8 @@ use ReflectionClass;
 use ReflectionProperty;
 use WeakMap;
 
+use function str_repeat;
+
 final class TransportSafetyTest extends TestCase
 {
     public function testRequireTlsFailsBeforeMailWithoutServerSupport(): void
@@ -66,11 +68,41 @@ final class TransportSafetyTest extends TestCase
     public static function internationalizedAddresses(): iterable
     {
         yield 'one Unicode label' => ['user', 'bücher.example', 'user@xn--bcher-kva.example'];
+        yield 'uppercase Unicode' => ['user', 'BÜCHER.EXAMPLE', 'user@xn--bcher-kva.example'];
+        yield 'decomposed Unicode' => ['user', "bu\u{0308}cher.example", 'user@xn--bcher-kva.example'];
         yield 'two Unicode labels' => ['user', 'bücher.münchen', 'user@xn--bcher-kva.xn--mnchen-3ya'];
+        yield 'maximum ASCII label' => [
+            'user',
+            str_repeat('a', 63) . '.example',
+            'user@' . str_repeat('a', 63) . '.example',
+        ];
         yield 'ASCII domain' => ['user', 'mail.example.com', 'user@mail.example.com'];
         yield 'A-label' => ['user', 'xn--bcher-kva.example', 'user@xn--bcher-kva.example'];
         yield 'quoted local at' => ['"user@home"', 'bücher.example', '"user@home"@xn--bcher-kva.example'];
         yield 'domain literal' => ['user', '[IPv6:::1]', 'user@[IPv6:::1]'];
+    }
+
+    #[DataProvider('overlongDomains')]
+    public function testRejectsLongDomainLabelsBeforeMail(string $domain): void
+    {
+        [$transport, $output] = $this->transport('OK');
+        $mailbox = new Mailbox('sender', $domain);
+
+        try {
+            $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+            static::fail('SMTP domain labels must fit in 63 bytes.');
+        } catch (TransmissionException $e) {
+            static::assertStringContainsString('domain', $e->getMessage());
+            $output->seek(0);
+            static::assertSame("EHLO localhost\r\n", $output->readAll());
+        }
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function overlongDomains(): iterable
+    {
+        yield 'ASCII' => [str_repeat('a', 64) . '.example'];
+        yield 'encoded Unicode' => [str_repeat('ü', 58) . '.example'];
     }
 
     #[DataProvider('utf8LocalParts')]

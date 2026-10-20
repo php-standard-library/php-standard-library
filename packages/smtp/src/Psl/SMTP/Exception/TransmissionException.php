@@ -31,6 +31,11 @@ final class TransmissionException extends RuntimeException
         return new self('REQUIRETLS needs a TLS session; configure TLS or STARTTLS.');
     }
 
+    public static function forInvalidAddress(string $address): self
+    {
+        return new self('Invalid SMTP address domain: ' . $address . '.');
+    }
+
     public static function forSenderRejected(string $address, int $code, string $serverMessage): self
     {
         return new self('SMTP server rejected sender \'' . $address . '\': ' . $code . ' ' . $serverMessage . '.');
