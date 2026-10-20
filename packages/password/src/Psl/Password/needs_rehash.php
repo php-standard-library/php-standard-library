@@ -9,14 +9,11 @@ use Psl;
 use function password_needs_rehash;
 
 /**
- * Verifies that the given hash matches the given password.
+ * Checks if the given hash needs to be rehashed to match the given algorithm and options.
  *
- * Note that `Psl\Password\hash` returns the algorithm, cost and salt as part of the returned hash.
- * Therefore, all information that's needed to verify the hash is included in it. This allows
- * the verify function to verify the hash without needing separate storage for the salt or
- * algorithm information.
- *
- * This function is safe against timing attacks.
+ * Returns true when the hash was not created with the given algorithm and options (including
+ * when it is not a recognized hash at all), in which case the password should be hashed again
+ * with {@see hash()}, typically right after a successful {@see verify()}.
  *
  * @param array{cost?: int}|array{memory_cost?: int, time_cost?: int, threads?: int} $options
  *

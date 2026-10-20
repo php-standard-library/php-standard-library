@@ -23,7 +23,8 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "ext-sodium": "*",
-        "php-standard-library/default": "^6.0"
+        "php-standard-library/default": "^6.0",
+        "php-standard-library/foundation": "^6.0"
     },
     "require-dev": {
         "php-standard-library/secure-random": "^6.0",

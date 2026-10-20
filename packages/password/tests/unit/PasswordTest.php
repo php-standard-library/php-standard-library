@@ -80,6 +80,53 @@ final class PasswordTest extends TestCase
         static::assertFalse(Password\needs_rehash($hash, Password\Algorithm::Argon2id, $options));
     }
 
+    #[DataProvider('provideOtherBcryptPrefixes')]
+    public function testGetInformationReportsBcryptForOtherBcryptPrefixes(string $prefix): void
+    {
+        $hash = $prefix . Str\slice(Password\hash('hunter2', Password\Algorithm::Bcrypt, ['cost' => 5]), 4);
+
+        static::assertTrue(Password\verify('hunter2', $hash));
+
+        $information = Password\get_information($hash);
+        static::assertSame(Password\Algorithm::Bcrypt, $information['algorithm']);
+        static::assertSame(5, $information['options']['cost']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideOtherBcryptPrefixes(): iterable
+    {
+        yield '$2a$' => ['$2a$'];
+        yield '$2b$' => ['$2b$'];
+    }
+
+    #[DataProvider('provideUnsupportedHashes')]
+    public function testGetInformationThrowsForUnsupportedHashes(string $hash): void
+    {
+        $this->expectException(Password\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not a hash created by a supported password hashing algorithm');
+
+        Password\get_information($hash);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideUnsupportedHashes(): iterable
+    {
+        yield 'empty string' => [''];
+        yield 'plain text' => ['hunter2'];
+        yield 'md5-crypt' => ['$1$abcdefgh$ME42TpQ6Nwr.rR3PPKY.Y0'];
+        yield 'sha512-crypt' => [
+            '$6$saltsalt$qFmFH.bQmmtXzyBY0s9v7Oicd2z4XSIecDzlB5KiA2/jctKu9YterLp8wwnSq.qc.eoxqOmSuNp2xS0ktL3nh/',
+        ];
+        yield 'truncated bcrypt' => ['$2y$10$abc'];
+        yield 'truncated $2b$ bcrypt' => ['$2b$10$abc'];
+        yield '$2b$ bcrypt with a trailing line feed' => ["\$2b\$10\$" . Str\repeat('a', 53) . "\n"];
+        yield '$2x$ bcrypt' => ['$2x$10$' . Str\repeat('a', 53)];
+    }
+
     public function testArgon2idBuiltinConstantValue(): void
     {
         static::assertSame(PASSWORD_ARGON2ID, Password\Algorithm::Argon2id->getBuiltinConstantValue());
