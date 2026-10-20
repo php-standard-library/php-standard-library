@@ -24,6 +24,13 @@ final class HexTest extends TestCase
         static::assertSame($random, Hex\decode($enc));
     }
 
+    public function testEmptyString(): void
+    {
+        static::assertSame('', Hex\encode(''));
+        static::assertSame('', Hex\decode(''));
+        static::assertSame('', Hex\decode(Hex\encode('')));
+    }
+
     public function testDecodeThrowsForCharactersOutsideTheHexRange(): void
     {
         $this->expectException(Exception\RangeException::class);

@@ -26,6 +26,11 @@ use function strlen;
  */
 function decode(string $hexadecimal): string
 {
+    // ctype_xdigit() returns false for the empty string, which is nevertheless valid hex.
+    if ('' === $hexadecimal) {
+        return '';
+    }
+
     if (!ctype_xdigit($hexadecimal)) {
         throw new Exception\RangeException(
             'The given hexadecimal string contains characters outside the base16 range.',
