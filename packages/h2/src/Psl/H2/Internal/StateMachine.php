@@ -1743,6 +1743,7 @@ final class StateMachine
         }
 
         $this->validatePeerStreamId($frame->promisedStreamId);
+        $this->lastPeerStreamId = $frame->promisedStreamId;
 
         if ($frame->endHeaders) {
             return $this->completePushPromise($frame->streamId, $frame->promisedStreamId, $frame->headerBlockFragment);
@@ -1767,6 +1768,8 @@ final class StateMachine
         } catch (HPACKException $e) {
             throw ProtocolException::forCompressionError($e);
         }
+
+        HeaderValidator::validate($headers, false, false, $promisedStreamId);
 
         $promised = $this->streams->getOrCreate($promisedStreamId);
         $promised->state = StreamState::ReservedRemote;

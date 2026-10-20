@@ -25,6 +25,7 @@ final class PushPromiseTest extends TestCase
         $block = $encoder->encode([
             new Header(':method', 'GET'),
             new Header(':path', '/push'),
+            new Header(':scheme', 'https'),
         ]);
 
         $raw = new PushPromiseFrame(1, 2, $block, true)->toRaw();
@@ -34,7 +35,7 @@ final class PushPromiseTest extends TestCase
         static::assertInstanceOf(PushPromiseReceived::class, $events[0]);
         static::assertSame(1, $events[0]->streamId);
         static::assertSame(2, $events[0]->promisedStreamId);
-        static::assertCount(2, $events[0]->headers);
+        static::assertCount(3, $events[0]->headers);
     }
 
     public function testPushPromiseDisabledThrows(): void

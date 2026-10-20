@@ -27,6 +27,7 @@ final class ClientReceiveTest extends TestCase
         $pushPromiseBlock = $encoder->encode([
             new Header(':method', 'GET'),
             new Header(':path', '/pushed'),
+            new Header(':scheme', 'https'),
         ]);
         $raw = new PushPromiseFrame(1, 2, $pushPromiseBlock, true)->toRaw();
         [, $events] = $sm->receive($raw);
@@ -59,6 +60,7 @@ final class ClientReceiveTest extends TestCase
         $pushPromiseBlock = $encoder->encode([
             new Header(':method', 'GET'),
             new Header(':path', '/empty-push'),
+            new Header(':scheme', 'https'),
         ]);
         $raw = new PushPromiseFrame(1, 2, $pushPromiseBlock, true)->toRaw();
         $sm->receive($raw);
