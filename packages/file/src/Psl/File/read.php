@@ -37,19 +37,23 @@ function read(
         $cancellation->throwIfCancelled();
         $handle = namespace\open_read_only($file);
 
-        $cancellation->throwIfCancelled();
-        $lock = $handle->lock(namespace\LockType::Shared, $cancellation);
+        // the handle must be closed explicitly: it is kept alive by its event loop watchers.
+        try {
+            $cancellation->throwIfCancelled();
+            $lock = $handle->lock(namespace\LockType::Shared, $cancellation);
 
-        $cancellation->throwIfCancelled();
-        $handle->seek($offset);
+            try {
+                $cancellation->throwIfCancelled();
+                $handle->seek($offset);
 
-        $cancellation->throwIfCancelled();
-        $content = $handle->readAll($length, $cancellation);
-
-        $lock->release();
-        $handle->close();
-
-        return $content;
+                $cancellation->throwIfCancelled();
+                return $handle->readAll($length, $cancellation);
+            } finally {
+                $lock->release();
+            }
+        } finally {
+            $handle->close();
+        }
     } catch (IO\Exception\ExceptionInterface $previous) {
         // @codeCoverageIgnoreStart
         throw new Exception\RuntimeException(sprintf('Failed to read file "%s".', $file), 0, $previous);

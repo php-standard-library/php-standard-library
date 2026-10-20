@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Psl\File\Tests\Unit;
 
 use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\Env;
 use Psl\File;
 use Psl\Filesystem;
 use Psl\OS;
 use Psl\Str;
+
+use function count;
+use function get_resources;
 
 use const DIRECTORY_SEPARATOR;
 
@@ -175,6 +179,58 @@ final class ReadWriteTest extends AbstractFileTestCase
         } catch (Async\Exception\CancelledException) {
             static::addToAssertionCount(1);
         }
+    }
+
+    public function testReadClosesTheHandleWhenItFails(): void
+    {
+        $file = Str\join([$this->directory, 'read-close-on-failure.txt'], Filesystem\SEPARATOR);
+        File\write($file, 'hello');
+
+        $holder = File\open_read_write($file);
+        $lock = $holder->lock(File\LockType::Exclusive);
+
+        $streams = count(get_resources('stream'));
+
+        try {
+            File\read($file, cancellation: new Async\TimeoutCancellationToken(Duration::milliseconds(10)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        $leaked = count(get_resources('stream')) - $streams;
+
+        $lock->release();
+        $holder->close();
+
+        static::assertSame(0, $leaked, 'File\read() did not close its handle.');
+        static::assertSame('hello', File\read($file));
+    }
+
+    public function testWriteClosesTheHandleWhenItFails(): void
+    {
+        $file = Str\join([$this->directory, 'write-close-on-failure.txt'], Filesystem\SEPARATOR);
+        File\write($file, 'hello');
+
+        $holder = File\open_read_write($file);
+        $lock = $holder->lock(File\LockType::Exclusive);
+
+        $streams = count(get_resources('stream'));
+
+        try {
+            File\write($file, 'world', cancellation: new Async\TimeoutCancellationToken(Duration::milliseconds(10)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        $leaked = count(get_resources('stream')) - $streams;
+
+        $lock->release();
+        $holder->close();
+
+        static::assertSame(0, $leaked, 'File\write() did not close its handle.');
+        static::assertSame('hello', File\read($file));
     }
 
     public function testThrowsWhenDirectoryCreationFails(): void

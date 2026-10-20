@@ -37,14 +37,20 @@ function write(
         $cancellation->throwIfCancelled();
         $handle = namespace\open_write_only($file, $mode);
 
-        $cancellation->throwIfCancelled();
-        $lock = $handle->lock(namespace\LockType::Exclusive, $cancellation);
+        // the handle must be closed explicitly: it is kept alive by its event loop watchers.
+        try {
+            $cancellation->throwIfCancelled();
+            $lock = $handle->lock(namespace\LockType::Exclusive, $cancellation);
 
-        $cancellation->throwIfCancelled();
-        $handle->writeAll($content, $cancellation);
-
-        $lock->release();
-        $handle->close();
+            try {
+                $cancellation->throwIfCancelled();
+                $handle->writeAll($content, $cancellation);
+            } finally {
+                $lock->release();
+            }
+        } finally {
+            $handle->close();
+        }
 
         clearstatcache();
     } catch (IO\Exception\ExceptionInterface $previous) {
