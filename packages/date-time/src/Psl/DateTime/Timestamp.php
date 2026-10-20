@@ -149,6 +149,8 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
      *
      * Additionally, the method supports specifying a timezone and locale for parsing, enabling accurate interpretation of locale-specific formats.
      *
+     * Fractional seconds in the input (e.g. the `SSS` field) are kept, to the millisecond.
+     *
      * Example usage:
      *
      * ```php
@@ -176,12 +178,14 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
         null|Timezone $timezone = null,
         null|Locale $locale = null,
     ): static {
-        return self::fromParts(Internal\parse(
+        [$seconds, $nanoseconds] = Internal\parse(
             rawString: $rawString,
             pattern: $pattern,
             timezone: $timezone,
             locale: $locale,
-        ));
+        );
+
+        return self::fromParts($seconds, $nanoseconds);
     }
 
     /**
@@ -223,13 +227,15 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
         null|Timezone $timezone = null,
         null|Locale $locale = null,
     ): static {
-        return self::fromParts(Internal\parse(
+        [$seconds, $nanoseconds] = Internal\parse(
             rawString: $rawString,
             dateStyle: $dateStyle,
             timeStyle: $timeStyle,
             timezone: $timezone,
             locale: $locale,
-        ));
+        );
+
+        return self::fromParts($seconds, $nanoseconds);
     }
 
     /**

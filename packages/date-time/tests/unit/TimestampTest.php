@@ -120,6 +120,41 @@ final class TimestampTest extends TestCase
         static::assertSame(31, $datetime->getDay());
     }
 
+    public function testParseKeepsFractionalSeconds(): void
+    {
+        $timestamp = Timestamp::parse('2024-01-15T12:00:00.123Z', FormatPattern::Iso8601);
+
+        static::assertSame([1_705_320_000, 123_000_000], $timestamp->toParts());
+
+        $timestamp = Timestamp::parse('2024-01-15 13:00:00,045', FormatPattern::LogTimestamp, Timezone::EuropeParis);
+
+        static::assertSame([1_705_320_000, 45_000_000], $timestamp->toParts());
+
+        // Before the epoch, the seconds are floored rather than truncated toward zero.
+        $timestamp = Timestamp::parse('1969-12-31 23:59:59.123', 'yyyy-MM-dd HH:mm:ss.SSS', Timezone::UTC);
+
+        static::assertSame([-1, 123_000_000], $timestamp->toParts());
+
+        $timestamp = Timestamp::parse('1969-12-31 23:59:59', 'yyyy-MM-dd HH:mm:ss', Timezone::UTC);
+
+        static::assertSame([-1, 0], $timestamp->toParts());
+
+        // ICU parses fractional seconds to the millisecond.
+        $timestamp = Timestamp::parse('2024-01-15 12:00:00.123456789', 'yyyy-MM-dd HH:mm:ss.SSSSSSSSS', Timezone::UTC);
+
+        static::assertSame([1_705_320_000, 123_000_000], $timestamp->toParts());
+
+        $datetime = DateTime::fromTimestamp(Timestamp::fromParts(1_705_320_000, 987_000_000), Timezone::AsiaTokyo);
+        $parsed = DateTime::parse(
+            $datetime->format(FormatPattern::Rfc3339),
+            FormatPattern::Rfc3339,
+            Timezone::AsiaTokyo,
+        );
+
+        static::assertTrue($datetime->equalsIncludingTimezone($parsed));
+        static::assertSame(987_000_000, $parsed->getNanoseconds());
+    }
+
     public function testFromPatternFails(): void
     {
         $this->expectException(ParserException::class);
