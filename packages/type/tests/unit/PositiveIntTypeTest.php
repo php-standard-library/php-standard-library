@@ -8,6 +8,9 @@ use Override;
 use Psl\Math;
 use Psl\Type;
 
+use const INF;
+use const NAN;
+
 /**
  * @extends TypeTestCase<positive-int>
  */
@@ -44,6 +47,13 @@ final class PositiveIntTypeTest extends TypeTestCase
         yield [-321];
         yield ['000'];
         yield [1.23];
+        yield [-(float) Math\INT64_MIN]; // 2^63, the smallest float above Math\INT64_MAX
+        yield [(float) Math\INT64_MIN - 2048.0]; // the largest float below Math\INT64_MIN
+        yield [1e30];
+        yield [-1e30];
+        yield [INF];
+        yield [-INF];
+        yield [NAN];
         yield ['1.23'];
         yield ['1e123'];
         yield ['-1e123'];

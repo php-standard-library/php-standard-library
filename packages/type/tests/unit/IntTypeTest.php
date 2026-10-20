@@ -8,6 +8,9 @@ use Override;
 use Psl\Math;
 use Psl\Type;
 
+use const INF;
+use const NAN;
+
 final class IntTypeTest extends TypeTestCase
 {
     #[Override]
@@ -36,12 +39,21 @@ final class IntTypeTest extends TypeTestCase
         yield ['007', 7];
         yield ['000', 0];
         yield [1.0, 1];
+        yield [(float) Math\INT64_MIN, Math\INT64_MIN];
+        yield [-(float) Math\INT64_MIN - 1024.0, Math\INT64_MAX - 1023]; // the largest float below 2^63
     }
 
     #[Override]
     public static function getInvalidCoercions(): iterable
     {
         yield [1.23];
+        yield [-(float) Math\INT64_MIN]; // 2^63, the smallest float above Math\INT64_MAX
+        yield [(float) Math\INT64_MIN - 2048.0]; // the largest float below Math\INT64_MIN
+        yield [1e30];
+        yield [-1e30];
+        yield [INF];
+        yield [-INF];
+        yield [NAN];
         yield ['1.23'];
         yield ['1e123'];
         yield [''];

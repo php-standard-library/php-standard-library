@@ -15,6 +15,8 @@ use function is_int;
 use function is_string;
 use function ltrim;
 
+use const PHP_INT_MIN;
+
 /**
  * @extends Type\Type<positive-int>
  *
@@ -60,7 +62,8 @@ final readonly class PositiveIntType extends Type\Type
             throw CoercionException::withValue($value, $this->toString());
         }
 
-        if (is_float($value)) {
+        // Casting NAN, INF, or a float outside of [PHP_INT_MIN, PHP_INT_MAX] to int emits a warning since PHP 8.5.
+        if (is_float($value) && $value >= (float) PHP_INT_MIN && $value < -(float) PHP_INT_MIN) {
             $integerValue = (int) $value;
             $reconstructed = (float) $integerValue;
             if ($reconstructed === $value && $integerValue > 0) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Type\Tests\Unit;
 
+use ErrorException;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -13,6 +14,9 @@ use Psl\Type\Exception\CoercionException;
 use Psl\Type\Type;
 use Psl\Type\TypeInterface;
 use Psl\Vec;
+
+use function restore_error_handler;
+use function set_error_handler;
 
 /**
  * @template T
@@ -108,10 +112,15 @@ abstract class TypeTestCase extends TestCase
     {
         $this->expectException(CoercionException::class);
 
+        // An invalid value must be rejected with a CoercionException, not with a PHP warning or deprecation.
+        set_error_handler(static function (int $level, string $message): never {
+            throw new ErrorException($message, 0, $level);
+        });
+
         try {
-            $ret = static::getType()->coerce($value);
-        } catch (CoercionException $e) {
-            throw $e;
+            static::getType()->coerce($value);
+        } finally {
+            restore_error_handler();
         }
     }
 

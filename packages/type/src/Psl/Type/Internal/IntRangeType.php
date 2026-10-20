@@ -64,7 +64,8 @@ final readonly class IntRangeType extends Type\Type
             return $value;
         }
 
-        if (is_float($value)) {
+        // Casting NAN, INF, or a float outside of [PHP_INT_MIN, PHP_INT_MAX] to int emits a warning since PHP 8.5.
+        if (is_float($value) && $value >= (float) PHP_INT_MIN && $value < -(float) PHP_INT_MIN) {
             $integerValue = (int) $value;
             if ((float) $integerValue === $value) {
                 return $integerValue;
