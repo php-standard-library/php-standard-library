@@ -116,7 +116,30 @@ final class Transport implements TransportInterface
                 $this->markInitialized($stream);
             }
 
+            $data = Message\serialize($message);
             if (!$connection->supportsCapability(Capability::SMTPUTF8)) {
+                $reader = new IO\Reader($data);
+                $headers = $reader->readUntil("\r\n\r\n", $cancellation) ?? '';
+                if (preg_match('/[\x80-\xff]/', $headers) === 1) {
+                    throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
+                }
+
+                $body = $reader;
+                $mediaType = $message->content->mediaType;
+                if ($mediaType->type === 'multipart' || $mediaType->type === 'message') {
+                    $body = IO\spool();
+                    IO\copy($reader, $body, $cancellation);
+                    $body->seek(0);
+                    Internal\HeaderChecker::check(
+                        $body,
+                        $mediaType,
+                        $message->content->headers->get('Content-Transfer-Encoding'),
+                        $cancellation,
+                    );
+                    $body->seek(0);
+                }
+
+                $data = new IO\ConcatReadHandle(new IO\MemoryHandle($headers . "\r\n\r\n"), $body);
                 foreach ([$envelope->sender, ...$envelope->recipients] as $mailbox) {
                     if ($mailbox !== null && preg_match('/[\x80-\xff]/', $mailbox->localPart) === 1) {
                         throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
@@ -226,9 +249,9 @@ final class Transport implements TransportInterface
             }
 
             if ($chunking) {
-                $this->transmitChunked($connection, Message\serialize($message), $cancellation);
+                $this->transmitChunked($connection, $data, $cancellation);
             } else {
-                IO\copy(new Internal\DotStuffingReadHandle(Message\serialize($message)), $connection, $cancellation);
+                IO\copy(new Internal\DotStuffingReadHandle($data), $connection, $cancellation);
 
                 $finalReply = $connection->readReply($cancellation);
                 if (!$finalReply->isPositiveCompletion()) {

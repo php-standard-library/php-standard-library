@@ -20,7 +20,8 @@ $transport = new Transport(
 $sender = new Mailbox('alice', 'example.com', 'Alice');
 // Lowercasing and NFC normalization produce bob@xn--bcher-kva.example.
 // Encoded domain labels must fit in 63 bytes.
-// Non-ASCII local parts, such as δοκιμή@example.com, require SMTPUTF8.
+// Non-ASCII local parts and transmitted headers require SMTPUTF8.
+// Without it, multipart and embedded message bodies spool before MAIL FROM.
 $recipient = new Mailbox('bob', 'BÜCHER.EXAMPLE');
 
 $message = new Message()
