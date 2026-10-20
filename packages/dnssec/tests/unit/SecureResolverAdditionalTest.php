@@ -30,6 +30,7 @@ use Psl\DNSSEC\Exception\InvalidProofException;
 use Psl\DNSSEC\Exception\SignatureFailedException;
 use Psl\DNSSEC\Internal\KeyTag;
 use Psl\DNSSEC\SecureResolver;
+use Psl\DNSSEC\StaticTrustChainResolver;
 use Psl\DNSSEC\TrustChainResolverInterface;
 use Psl\DNSSEC\TrustChainResult;
 use Psl\DNSSEC\TrustChainStatus;
@@ -524,19 +525,7 @@ final class SecureResolverAdditionalTest extends TestCase
      */
     private static function createMockTrustChainResolver(array $zoneKeys): TrustChainResolverInterface
     {
-        return new class($zoneKeys) implements TrustChainResolverInterface {
-            /** @param array<string, list<DNSKEYRecord>> $zoneKeys */
-            public function __construct(
-                private readonly array $zoneKeys,
-            ) {}
-
-            public function resolve(
-                string $zone,
-                CancellationTokenInterface $cancellation = new NullCancellationToken(),
-            ): TrustChainResult {
-                return new TrustChainResult(TrustChainStatus::Secure, $this->zoneKeys[$zone] ?? []);
-            }
-        };
+        return new StaticTrustChainResolver($zoneKeys);
     }
 
     private static function buildNsecSignedData(

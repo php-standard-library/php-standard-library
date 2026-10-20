@@ -10,7 +10,9 @@ use Psl\Crypto\Exception\InvalidArgumentException as CryptoInvalidArgumentExcept
 use Psl\DNS\Exception\InvalidArgumentException;
 use Psl\DNS\Exception\ProtocolException;
 use Psl\DNS\Exception\RuntimeException;
+use Psl\DNS\Internal\DNSName;
 use Psl\DNS\Record\DNSKEYRecord;
+use Psl\DNS\Record\NSEC3Record;
 use Psl\DNS\Record\RecordInterface;
 use Psl\DNS\Record\RecordType;
 use Psl\DNS\Record\RRSIGRecord;
@@ -48,6 +50,8 @@ use function substr;
  * (NXDOMAIN, NODATA) are validated using NSEC or NSEC3 proofs.
  *
  * @api
+ *
+ * @mago-expect lint:cyclomatic-complexity - Answer and denial checks have separate failure paths.
  */
 final readonly class SecureResolver implements ResolverInterface
 {
@@ -126,15 +130,6 @@ final readonly class SecureResolver implements ResolverInterface
                     && AnswerRrsets::id($r->name, $r->typeCovered) === $id
                 ),
             ));
-            foreach ($signatures as $signature) {
-                if (
-                    $signature instanceof RRSIGRecord
-                    && !RRSIGVerifier::isSignerForName($signature->signer, $record->name)
-                ) {
-                    throw SignatureFailedException::forRRSIG($record->kind->name);
-                }
-            }
-
             // DS records belong to the parent zone, even at a signed delegation.
             $owner = self::normalizeName($record->name);
             $zone = $owner;
@@ -150,6 +145,17 @@ final readonly class SecureResolver implements ResolverInterface
             }
 
             if ($result->status === TrustChainStatus::Insecure) {
+                if (
+                    $signatures !== []
+                    && array_filter(
+                        $signatures,
+                        static fn(RecordInterface $r): bool => $r instanceof RRSIGRecord
+                        && RRSIGVerifier::isSignerForName($r->signer, $record->name),
+                    ) === []
+                ) {
+                    throw SignatureFailedException::forRRSIG($record->kind->name);
+                }
+
                 $secure = false;
                 continue;
             }
@@ -163,6 +169,11 @@ final readonly class SecureResolver implements ResolverInterface
             }
 
             self::verifyRrsigs($rrset, $signatures, $result->keys);
+        }
+
+        $proofs = self::proofRecords($response->authority);
+        if ($proofs !== []) {
+            $secure = $this->verifyAuthority($response, $queryName, $queryType, $cancellation) && $secure;
         }
 
         $answers = array_values(array_filter(
@@ -235,31 +246,68 @@ final readonly class SecureResolver implements ResolverInterface
             throw UnsignedResponseException::forProof($queryName);
         }
 
-        $firstRrsig = $rrsigs[0];
-        if ($firstRrsig instanceof RRSIGRecord) {
-            if (!RRSIGVerifier::isSignerForName($firstRrsig->signer, $queryName)) {
-                throw SignatureFailedException::forRRSIG($firstRrsig->typeCovered->name);
-            }
-
-            $result = $this->trustChainResolver->resolve($firstRrsig->signer, $cancellation);
-            if ($result->status === TrustChainStatus::Insecure) {
-                return self::withoutAuthenticatedData($response);
-            }
-
-            if ($result->status === TrustChainStatus::Bogus) {
-                throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
-            }
-
-            self::verifyRrsigs($response->authority, $rrsigs, $result->keys);
+        if (!$this->verifyAuthority($response, $queryName, $queryKind, $cancellation)) {
+            return self::withoutAuthenticatedData($response);
         }
 
+        $proofs = self::proofRecords($response->authority);
         if ($response->code === ResponseCode::NonExistentDomain) {
-            NSECProofValidator::validateNxdomain($queryName, $response->authority);
+            NSECProofValidator::validateNxdomain($queryName, $proofs);
         } else {
-            NSECProofValidator::validateNodata($queryName, $queryKind, $response->authority);
+            NSECProofValidator::validateNodata($queryName, $queryKind, $proofs);
         }
 
         return $response;
+    }
+
+    /**
+     * Authenticate every denial and SOA RRset with the queried zone's keys.
+     */
+    private function verifyAuthority(
+        Response $response,
+        string $queryName,
+        RecordType $queryKind,
+        CancellationTokenInterface $cancellation,
+    ): bool {
+        $zone = self::normalizeName($queryName);
+        if ($queryKind === RecordType::DS) {
+            $zone = DNSName::getParentName($zone);
+        }
+
+        $result = $this->trustChainResolver->resolve($zone === '' ? '.' : $zone, $cancellation);
+        if ($result->status === TrustChainStatus::Insecure) {
+            return false;
+        }
+
+        if ($result->status === TrustChainStatus::Bogus) {
+            throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
+        }
+
+        $proofs = self::proofRecords($response->authority);
+        self::verifyRrsigs(
+            $proofs,
+            DNSSECVerification::filterRecords($response->authority, RecordType::RRSIG),
+            $result->keys,
+        );
+
+        return true;
+    }
+
+    /**
+     * @param list<RecordInterface> $records
+     *
+     * @return list<RecordInterface>
+     */
+    private static function proofRecords(array $records): array
+    {
+        return array_values(array_filter(
+            $records,
+            static fn(RecordInterface $r): bool => (
+                $r->kind === RecordType::NSEC
+                || $r->kind === RecordType::NSEC3
+                || $r->kind === RecordType::SOA
+            ),
+        ));
     }
 
     /**
@@ -293,58 +341,55 @@ final readonly class SecureResolver implements ResolverInterface
      */
     private static function verifyRrsigs(array $answers, array $rrsigs, array $dnskeys): void
     {
-        $rrsigCount = 0;
-        foreach ($rrsigs as $r) {
-            if (!$r instanceof RRSIGRecord) {
-                continue;
-            }
-
-            $rrsigCount++;
+        if (count($rrsigs) > 8) {
+            throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
         }
 
-        if ($rrsigCount > 8) {
-            throw InvalidProofException::forExcessiveRRSIGCount($rrsigCount);
+        if (count($dnskeys) > 8) {
+            throw InvalidProofException::forExcessiveDNSKEYCount(count($dnskeys));
         }
 
-        foreach ($rrsigs as $rrsig) {
-            if (!$rrsig instanceof RRSIGRecord) {
-                continue;
+        $rrsets = [];
+        foreach ($answers as $record) {
+            if (!$record instanceof RRSIGRecord) {
+                $rrsets[AnswerRrsets::id($record->name, $record->kind)][] = $record;
             }
+        }
 
-            $rrset = array_values(array_filter(
-                $answers,
-                static fn(RecordInterface $r): bool => (
-                    $r->kind === $rrsig->typeCovered
-                    && !$r instanceof RRSIGRecord
-                    && self::normalizeName($r->name) === self::normalizeName($rrsig->name)
-                ),
-            ));
-
-            if ($rrset === []) {
-                continue;
-            }
-
-            $verified = false;
-            foreach ($dnskeys as $dnskey) {
-                if (KeyTag::compute($dnskey) !== $rrsig->keyTag || $dnskey->algorithm !== $rrsig->algorithm) {
+        foreach ($rrsets as $id => $rrset) {
+            foreach ($rrsigs as $rrsig) {
+                if (!$rrsig instanceof RRSIGRecord || AnswerRrsets::id($rrsig->name, $rrsig->typeCovered) !== $id) {
                     continue;
                 }
 
-                try {
-                    if (RRSIGVerifier::verify($rrsig, $dnskey, $rrset)) {
-                        $verified = true;
-                        break;
-                    }
-                } catch (
-                    InvalidArgumentException|SignatureFailedException|CryptoInvalidArgumentException|LogicException
+                // NSEC3 owners contain exactly one hash label before the zone.
+                if (
+                    $rrset[0] instanceof NSEC3Record
+                    && self::normalizeName(DNSName::getParentName(self::normalizeName($rrsig->name))) !== self::normalizeName($rrsig->signer)
                 ) {
-                    // @mago-expect lint:no-empty-catch-clause - continue to the next key
+                    continue;
+                }
+
+                foreach ($dnskeys as $dnskey) {
+                    if (KeyTag::compute($dnskey) !== $rrsig->keyTag || $dnskey->algorithm !== $rrsig->algorithm) {
+                        continue;
+                    }
+
+                    try {
+                        $verified = RRSIGVerifier::verify($rrsig, $dnskey, $rrset);
+                    } catch (
+                        InvalidArgumentException|SignatureFailedException|CryptoInvalidArgumentException|LogicException
+                    ) {
+                        continue;
+                    }
+
+                    if ($verified) {
+                        continue 3;
+                    }
                 }
             }
 
-            if (!$verified) {
-                throw SignatureFailedException::forRRSIG($rrsig->typeCovered->name);
-            }
+            throw SignatureFailedException::forRRSIG($rrset[0]->kind->name);
         }
     }
 }

@@ -32,7 +32,7 @@ The walk for `example.com` goes: root (.) DNSKEY > `com.` DS > `com.` DNSKEY > `
 
 When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records list the names that DO exist in sorted order, proving there is no name between them. NSEC3 records do the same but with hashed names to prevent zone enumeration.
 
-`SecureResolver` validates these proofs automatically. If the proof is missing or invalid, `InvalidProofException` is thrown.
+`SecureResolver` checks every NSEC, NSEC3, and SOA RRset in a signed response with the queried zone's keys. Each RRset needs at least one valid signature with the same owner and covered type. Only verified records reach the denial checks. Missing proof records raise `UnsignedResponseException` or `InvalidProofException`; unsigned or invalid proof RRsets raise `SignatureFailedException`.
 
 ## Trust Anchors
 
