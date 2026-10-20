@@ -161,6 +161,25 @@ final class EncodeDecodeTest extends TestCase
         yield 'between plain text' => ['Re: =?x-made-up-charset?Q?caf=E9?= time'];
     }
 
+    /**
+     * RFC 2231 §5: "encoded-word := "=?" charset ["*" language] "?" encoded-text "?="".
+     */
+    #[DataProvider('provideCharsetsWithLanguage')]
+    public function testDecodeCharsetWithLanguage(string $expected, string $input): void
+    {
+        static::assertSame($expected, EncodedWord\decode($input));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideCharsetsWithLanguage(): iterable
+    {
+        yield 'RFC 2231 example' => ['Keith Moore', '=?US-ASCII*EN?Q?Keith_Moore?='];
+        yield 'converted charset' => ["caf\u{e9}", '=?ISO-8859-1*fr?Q?caf=E9?='];
+        yield 'language with region' => ["caf\u{e9}", '=?utf-8*en-US?B?Y2Fmw6k=?='];
+    }
+
     public function testDecodeUsAsciiCharset(): void
     {
         static::assertSame('hello', EncodedWord\decode('=?US-ASCII?Q?hello?='));

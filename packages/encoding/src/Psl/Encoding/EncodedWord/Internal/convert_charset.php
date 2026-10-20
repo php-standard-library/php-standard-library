@@ -8,7 +8,9 @@ use Psl\Encoding\Exception;
 use ValueError;
 
 use function mb_convert_encoding;
+use function strpos;
 use function strtoupper;
+use function substr;
 
 /**
  * Convert decoded text from the given charset to UTF-8.
@@ -19,6 +21,12 @@ use function strtoupper;
  */
 function convert_charset(string $charset, string $text): string
 {
+    // RFC 2231 §5 allows a language tag after the charset: "=?charset*language?encoding?text?=".
+    $languageSeparator = strpos($charset, '*');
+    if (false !== $languageSeparator) {
+        $charset = substr($charset, 0, $languageSeparator);
+    }
+
     $charset = strtoupper($charset);
 
     if ($charset === 'UTF-8' || $charset === 'US-ASCII' || $charset === 'ASCII') {

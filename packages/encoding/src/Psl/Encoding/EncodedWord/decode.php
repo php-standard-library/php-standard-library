@@ -20,6 +20,8 @@ use const PREG_SET_ORDER;
  * Handles both B-encoding (base64) and Q-encoding. Per RFC 2047 §6.2,
  * linear whitespace (spaces, tabs and line breaks) between adjacent encoded-words is removed.
  *
+ * An RFC 2231 language tag after the charset (`=?UTF-8*en?Q?...?=`) is accepted and ignored.
+ *
  * @throws Exception\ParsingException If an encoded-word is malformed or uses an unsupported charset.
  *
  * @link https://datatracker.ietf.org/doc/html/rfc2047
