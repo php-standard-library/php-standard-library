@@ -327,6 +327,7 @@ trait ConnectionTrait
         if ($this->writeBuffer !== '') {
             $data = $this->writeBuffer;
             $this->writeBuffer = '';
+            $this->writeBufferLength = 0;
             $this->handle->writeAll($data, $cancellation);
         }
 
