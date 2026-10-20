@@ -10,6 +10,8 @@ use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\Network\Tests\Fixture\FakeListener;
 
+use function gc_collect_cycles;
+
 final class CompositeListenerTest extends TestCase
 {
     public function testInnerAcceptErrorIsThrownToTheCaller(): void
@@ -484,6 +486,29 @@ final class CompositeListenerTest extends TestCase
         }
 
         static::assertSame($server, $second->await(new Async\TimeoutCancellationToken(Duration::milliseconds(100))));
+
+        $client->close();
+        $server->close();
+        $composite->close();
+    }
+
+    public function testWaitingCallIsNotDestroyedByTheCycleCollector(): void
+    {
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        // Only the composite listener references the suspension of the waiting call, and its fiber.
+        gc_collect_cycles();
+
+        [$server, $client] = Network\socket_pair();
+        $listener->push($server);
+
+        static::assertSame($server, $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(100))));
 
         $client->close();
         $server->close();

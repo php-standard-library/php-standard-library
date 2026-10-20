@@ -10,11 +10,12 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Revolt\EventLoop\Suspension;
 use Throwable;
-use WeakMap;
 
+use function array_key_first;
 use function array_map;
 use function array_shift;
 use function count;
+use function spl_object_id;
 
 /**
  * A listener that accepts connections from multiple inner listeners concurrently.
@@ -76,9 +77,15 @@ final class CompositeListener implements ListenerInterface
     private Async\SignalCancellationToken $acceptCancellation;
 
     /**
-     * @var WeakMap<Suspension<null>, true>
+     * Waiting accept() calls, by suspension object ID.
+     *
+     * The suspensions are referenced strongly: a fiber waiting in accept() may not be referenced from
+     * anywhere else, and the cycle collector would destroy it, along with its suspension, if they were
+     * only referenced weakly.
+     *
+     * @var array<int, Suspension<null>>
      */
-    private WeakMap $signal;
+    private array $signal = [];
 
     /**
      * Number of waiting accept() calls that have been woken up, but have not run yet.
@@ -94,7 +101,6 @@ final class CompositeListener implements ListenerInterface
     {
         $this->listeners = $listeners;
         $this->acceptCancellation = new Async\SignalCancellationToken();
-        $this->signal = new WeakMap();
     }
 
     /**
@@ -216,14 +222,18 @@ final class CompositeListener implements ListenerInterface
     {
         /** @var Suspension<null> $signal */
         $signal = Async\Scheduler::getSuspension();
-        $this->signal[$signal] = true;
-        $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use ($signal): void {
+        $id = spl_object_id($signal);
+        $this->signal[$id] = $signal;
+        $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use (
+            $id,
+            $signal,
+        ): void {
             // The signal may have already been resumed by an inner accept, or by close().
-            if (!$this->signal->offsetExists($signal)) {
+            if (($this->signal[$id] ?? null) !== $signal) {
                 return;
             }
 
-            $this->signal->offsetUnset($signal);
+            unset($this->signal[$id]);
             $signal->throw($e);
 
             $this->cancelPendingAcceptsIfNobodyIsWaiting();
@@ -296,7 +306,7 @@ final class CompositeListener implements ListenerInterface
 
                 // Inner accepts are only started by accept() calls that start waiting: start this one
                 // again for the calls still waiting, as no new call may come while they wait.
-                if (0 !== $this->signal->count()) {
+                if ([] !== $this->signal) {
                     $this->startPendingAccepts();
                 }
             });
@@ -312,7 +322,7 @@ final class CompositeListener implements ListenerInterface
      */
     private function cancelPendingAcceptsIfNobodyIsWaiting(): void
     {
-        if (0 === $this->signal->count() && 0 === $this->woken) {
+        if ([] === $this->signal && 0 === $this->woken) {
             $this->cancelPendingAccepts();
         }
     }
@@ -334,18 +344,19 @@ final class CompositeListener implements ListenerInterface
     }
 
     /**
-     * Notify one waiting accept() call that something happened.
-     *
-     * @mago-expect lint:loop-does-not-iterate
+     * Notify the longest waiting accept() call that something happened.
      */
     private function notifySignal(): void
     {
-        foreach ($this->signal as $signal => $_) {
-            unset($this->signal[$signal]);
-            $this->woken++;
-            $signal->resume(null);
-            break;
+        $id = array_key_first($this->signal);
+        if (null === $id) {
+            return;
         }
+
+        $signal = $this->signal[$id];
+        unset($this->signal[$id]);
+        $this->woken++;
+        $signal->resume(null);
     }
 
     /**
@@ -354,8 +365,8 @@ final class CompositeListener implements ListenerInterface
     private function notifyAllSignals(): void
     {
         $signals = $this->signal;
-        $this->signal = new WeakMap();
-        foreach ($signals as $signal => $_) {
+        $this->signal = [];
+        foreach ($signals as $signal) {
             $this->woken++;
             $signal->resume(null);
         }
