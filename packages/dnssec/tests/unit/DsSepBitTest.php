@@ -20,7 +20,7 @@ use ReflectionMethod;
 
 final class DsSepBitTest extends TestCase
 {
-    public function testRejectsZoneKeyWithoutSepBit(): void
+    public function testAcceptsZoneKeyWithoutSepBit(): void
     {
         $dnskey = new DNSKEYRecord(
             'example.com',
@@ -32,7 +32,7 @@ final class DsSepBitTest extends TestCase
         );
         $ds = self::buildMatchingDs($dnskey, 'example.com');
 
-        static::assertFalse(self::matchDsToKey([$ds], [$dnskey], 'example.com'));
+        static::assertTrue(self::matchDsToKey([$ds], [$dnskey], 'example.com'));
     }
 
     public function testAcceptsZoneKeyWithSepBit(): void

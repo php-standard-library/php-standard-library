@@ -31,6 +31,7 @@ use function array_values;
 use function count;
 use function explode;
 use function implode;
+use function rtrim;
 use function str_ends_with;
 use function strtolower;
 
@@ -155,7 +156,13 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
 
         $fqdn = str_ends_with($zone, '.') ? $zone : $zone . '.';
         $dsResponse = $this->resolver->query($fqdn, RecordType::DS, $cancellation);
-        $dsRecords = DNSSECVerification::filterRecords($dsResponse->answers, RecordType::DS);
+        $dsRecords = array_values(array_filter(
+            $dsResponse->answers,
+            static fn(RecordInterface $record): bool => (
+                $record instanceof DSRecord
+                && rtrim(strtolower($record->name), '.') === rtrim(strtolower($zone), '.')
+            ),
+        ));
 
         if ($dsRecords === []) {
             $failure = $this->validateDsNonExistence($zone, $dsResponse, $validated);
@@ -179,7 +186,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
                 return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
             }
 
-            $failure = self::verifyRrsigs($dsResponse->answers, $dsRrsigs, $parentKeys);
+            $failure = self::verifyRrsigs($dsRecords, $dsRrsigs, $parentKeys);
             if ($failure !== null) {
                 return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
             }
@@ -201,7 +208,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
         }
 
-        $failure = self::verifyDnskeyRrsig($dnskeys, $rrsigs);
+        $failure = self::verifyDnskeyRrsig($dnskeys, $rrsigs, $dsRecords, $zone);
         if ($failure !== null) {
             return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
         }
@@ -249,7 +256,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::TrustAnchorMismatch);
         }
 
-        $failure = self::verifyDnskeyRrsig($dnskeys, $rrsigs);
+        $failure = self::verifyDnskeyRrsig($dnskeys, $rrsigs, $this->trustAnchor->anchors, '.');
         if ($failure !== null) {
             return new TrustChainResult(TrustChainStatus::Bogus, [], $failure);
         }
@@ -278,7 +285,13 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
      */
     private function validateDsNonExistence(string $zone, Response $dsResponse, array $validated): null|ChainFailure
     {
-        $authority = $dsResponse->authority;
+        $authority = array_values(array_filter(
+            $dsResponse->authority,
+            static fn(RecordInterface $record): bool => (
+                $record->kind === RecordType::NSEC
+                || $record->kind === RecordType::NSEC3
+            ),
+        ));
 
         $nsecPresent =
             DNSSECVerification::filterRecords($authority, RecordType::NSEC) !== []
@@ -288,7 +301,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return ChainFailure::MissingDs;
         }
 
-        $rrsigs = DNSSECVerification::filterRecords($authority, RecordType::RRSIG);
+        $rrsigs = DNSSECVerification::filterRecords($dsResponse->authority, RecordType::RRSIG);
         if ($rrsigs === []) {
             return ChainFailure::UnsignedDs;
         }
@@ -328,7 +341,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
     private static function matchDsToKey(array $dsRecords, array $dnskeys, string $zone): bool
     {
         foreach ($dsRecords as $ds) {
-            if (!$ds instanceof DSRecord) {
+            if (!$ds instanceof DSRecord || rtrim(strtolower($ds->name), '.') !== rtrim(strtolower($zone), '.')) {
                 continue;
             }
 
@@ -337,7 +350,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
                     continue;
                 }
 
-                if ($dnskey->protocol !== 3 || ($dnskey->flags & 257) !== 257) {
+                if ($dnskey->protocol !== 3 || ($dnskey->flags & 256) !== 256) {
                     continue;
                 }
 
@@ -359,15 +372,20 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
     }
 
     /**
-     * Verify DNSKEY RRset is self-signed by a KSK.
+     * Verify the DNSKEY RRset with a key authenticated by DS or a trust anchor.
      *
      * @param list<RecordInterface> $dnskeys
      * @param list<RecordInterface> $rrsigs
+     * @param list<RecordInterface> $dsRecords
      *
      * @throws DNSInvalidArgumentException If the zone name cannot be encoded.
      */
-    private static function verifyDnskeyRrsig(array $dnskeys, array $rrsigs): null|ChainFailure
-    {
+    private static function verifyDnskeyRrsig(
+        array $dnskeys,
+        array $rrsigs,
+        array $dsRecords,
+        string $zone,
+    ): null|ChainFailure {
         $failure = self::enforceRecordLimits($dnskeys, $rrsigs);
         if ($failure !== null) {
             return $failure;
@@ -391,6 +409,10 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
                     continue;
                 }
 
+                if (!self::matchDsToKey($dsRecords, [$dnskey], $zone)) {
+                    continue;
+                }
+
                 $rrset = array_values(array_filter(
                     $dnskeys,
                     static fn(RecordInterface $r): bool => $r instanceof DNSKEYRecord,
@@ -409,7 +431,7 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
     }
 
     /**
-     * Verify RRSIG records over an RRset.
+     * Require a valid RRSIG for every RRset.
      *
      * @param list<RecordInterface> $answers
      * @param list<RecordInterface> $rrsigs
@@ -424,37 +446,37 @@ final readonly class TrustChainResolver implements TrustChainResolverInterface
             return $failure;
         }
 
-        foreach ($rrsigs as $rrsig) {
-            if (!$rrsig instanceof RRSIGRecord) {
-                continue;
-            }
+        /** @var array<string, non-empty-list<RecordInterface>> $rrsets */
+        $rrsets = [];
+        foreach ($answers as $record) {
+            $rrsets[rtrim(strtolower($record->name), '.') . ':' . $record->kind->value][] = $record;
+        }
 
-            $rrset = array_values(array_filter(
-                $answers,
-                static fn(RecordInterface $r): bool => (
-                    $r->kind === $rrsig->typeCovered
-                    && !$r instanceof RRSIGRecord
-                    && strtolower($r->name) === strtolower($rrsig->name)
-                ),
-            ));
-
-            if ($rrset === []) {
-                continue;
-            }
-
+        foreach ($rrsets as $rrset) {
             $verified = false;
-            foreach ($dnskeys as $dnskey) {
-                if (KeyTag::compute($dnskey) !== $rrsig->keyTag || $dnskey->algorithm !== $rrsig->algorithm) {
+            foreach ($rrsigs as $rrsig) {
+                if (
+                    !$rrsig instanceof RRSIGRecord
+                    || $rrsig->typeCovered !== $rrset[0]->kind
+                    || rtrim(strtolower($rrsig->name), '.') !== rtrim(strtolower($rrset[0]->name), '.')
+                ) {
                     continue;
                 }
 
-                try {
-                    if (RRSIGVerifier::verify($rrsig, $dnskey, $rrset)) {
-                        $verified = true;
-                        break;
+                foreach ($dnskeys as $dnskey) {
+                    if (KeyTag::compute($dnskey) !== $rrsig->keyTag || $dnskey->algorithm !== $rrsig->algorithm) {
+                        continue;
                     }
-                } catch (SignatureFailedException|InvalidArgumentException|LogicException) {
-                    // @mago-expect lint:no-empty-catch-clause - continue to the next key
+
+                    try {
+                        $verified = RRSIGVerifier::verify($rrsig, $dnskey, $rrset);
+                    } catch (SignatureFailedException|InvalidArgumentException|LogicException) {
+                        continue;
+                    }
+
+                    if ($verified) {
+                        break 2;
+                    }
                 }
             }
 
