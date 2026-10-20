@@ -56,14 +56,14 @@ final readonly class MediaPreferences implements Countable, IteratorAggregate, S
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
         if ($input === '') {
             return new self([]);
         }
 
         $ranges = [];
         foreach (self::splitRanges($input) as $part) {
-            $part = trim($part);
+            $part = trim($part, " \t\r\n");
             if ($part === '') {
                 continue;
             }

@@ -86,7 +86,7 @@ final readonly class ContentId implements Stringable
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         if (str_starts_with($input, 'cid:')) {
             return new self(substr($input, 4));

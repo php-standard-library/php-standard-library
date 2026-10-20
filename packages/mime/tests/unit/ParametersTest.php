@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\MIME\Tests\Unit;
 
 use ArrayIterator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\Exception\InvalidMediaTypeComponentException;
 use Psl\MIME\Exception\ParameterParsingException;
@@ -189,6 +190,31 @@ final class ParametersTest extends TestCase
         $this->expectException(ParameterParsingException::class);
 
         Parameters::parse('; =noname');
+    }
+
+    public function testParseTrimsLinearWhitespace(): void
+    {
+        $params = Parameters::parse(" \t; charset=utf-8 \t\r\n");
+
+        static::assertSame('utf-8', $params->get('charset'));
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseRejectsTrailingControlCharacters(string $char): void
+    {
+        $this->expectException(ParameterParsingException::class);
+
+        Parameters::parse("; charset=utf-8{$char}");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testCountableInterface(): void

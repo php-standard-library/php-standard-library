@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\ContentId;
 use Psl\MIME\Exception\ContentIdParsingException;
@@ -89,6 +90,31 @@ final class ContentIdTest extends TestCase
         $id = ContentId::parse('  <part1@example.com>  ');
 
         static::assertSame('part1@example.com', $id->id);
+    }
+
+    public function testParseTrimsFoldingWhitespace(): void
+    {
+        $id = ContentId::parse("\r\n \t<part1@example.com>\r\n");
+
+        static::assertSame('part1@example.com', $id->id);
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseDoesNotTrimControlCharacters(string $char): void
+    {
+        $id = ContentId::parse("<part1@example.com>{$char}");
+
+        static::assertSame("<part1@example.com>{$char}", $id->id);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testToString(): void

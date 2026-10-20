@@ -107,14 +107,14 @@ final readonly class ContentDisposition implements Stringable
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         $semicolonPos = strpos($input, ';');
         if ($semicolonPos === false) {
             return new self($input);
         }
 
-        $type = trim(substr($input, 0, $semicolonPos));
+        $type = trim(substr($input, 0, $semicolonPos), " \t\r\n");
         $paramString = substr($input, $semicolonPos + 1);
         $params = MediaTypeParser::parseParameters($paramString);
 

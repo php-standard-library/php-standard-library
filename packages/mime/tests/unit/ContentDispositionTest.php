@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\ContentDisposition;
 use Psl\MIME\Exception\ContentDispositionParsingException;
@@ -298,6 +299,40 @@ final class ContentDispositionTest extends TestCase
         $cd = ContentDisposition::parse('  attachment  ');
 
         static::assertSame('attachment', $cd->type);
+    }
+
+    public function testParseTrimsLinearWhitespace(): void
+    {
+        $cd = ContentDisposition::parse(" \tattachment\r\n ; filename=test.txt\r\n");
+
+        static::assertSame('attachment', $cd->type);
+        static::assertSame('test.txt', $cd->filename());
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseRejectsControlCharactersAroundType(string $char): void
+    {
+        $this->expectException(ContentDispositionParsingException::class);
+
+        ContentDisposition::parse("{$char}attachment{$char}");
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseRejectsControlCharactersBeforeParameters(string $char): void
+    {
+        $this->expectException(ContentDispositionParsingException::class);
+
+        ContentDisposition::parse("attachment{$char}; filename=test.txt");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testParseTrimsTypeBeforeSemicolon(): void

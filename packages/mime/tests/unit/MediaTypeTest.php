@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\Exception\InvalidMediaTypeComponentException;
 use Psl\MIME\Exception\MediaTypeParsingException;
@@ -85,6 +86,32 @@ final class MediaTypeTest extends TestCase
         $this->expectException(MediaTypeParsingException::class);
 
         MediaType::parse('invalid');
+    }
+
+    public function testParseTrimsLinearWhitespace(): void
+    {
+        $type = MediaType::parse(" \t text/html; charset=utf-8 \t\r\n");
+
+        static::assertSame('text/html', $type->essence());
+        static::assertSame('utf-8', $type->parameters->get('charset'));
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseRejectsSurroundingControlCharacters(string $char): void
+    {
+        $this->expectException(MediaTypeParsingException::class);
+
+        MediaType::parse("{$char}text/html{$char}");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testEssence(): void

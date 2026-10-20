@@ -79,7 +79,7 @@ final class MediaTypeParser
      */
     public static function parse(string $input, bool $allowWildcards = false): array
     {
-        $parser = new self(trim($input));
+        $parser = new self(trim($input, " \t\r\n"));
         if ($parser->length === 0) {
             throw MediaTypeParsingException::forInvalidMediaType($input);
         }
@@ -137,7 +137,7 @@ final class MediaTypeParser
      */
     public static function parseParameters(string $input): array
     {
-        $trimmed = trim($input);
+        $trimmed = trim($input, " \t\r\n");
         if ($trimmed === '') {
             return [];
         }

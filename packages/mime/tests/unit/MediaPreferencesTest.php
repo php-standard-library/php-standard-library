@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\MIME\Exception\MediaTypeParsingException;
 use Psl\MIME\MediaPreferences;
 use Psl\MIME\MediaRange;
 use Psl\MIME\MediaType;
@@ -763,6 +765,33 @@ final class MediaPreferencesTest extends TestCase
 
         static::assertCount(1, $prefs->ranges);
         static::assertSame('text/html', $prefs->ranges[0]->essence());
+    }
+
+    public function testParseTrimsFoldedRangeParts(): void
+    {
+        $prefs = MediaPreferences::parse("text/html,\r\n application/json\r\n");
+
+        static::assertCount(2, $prefs->ranges);
+        static::assertSame('text/html', $prefs->ranges[0]->essence());
+        static::assertSame('application/json', $prefs->ranges[1]->essence());
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testParseRejectsControlCharacterRangePart(string $char): void
+    {
+        $this->expectException(MediaTypeParsingException::class);
+
+        MediaPreferences::parse("text/html,{$char}");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testBestForSearchesBeyondFirstMatch(): void
