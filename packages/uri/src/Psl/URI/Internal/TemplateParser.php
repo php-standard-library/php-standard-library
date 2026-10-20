@@ -101,7 +101,7 @@ final class TemplateParser
         $varSpecs = explode(',', $variableList);
 
         foreach ($varSpecs as $varSpec) {
-            $varSpec = trim($varSpec);
+            $varSpec = trim($varSpec, " \t\r\n");
             if ($varSpec === '') {
                 throw InvalidTemplateException::forEmptyVariableName();
             }

@@ -159,6 +159,39 @@ final class TemplateTest extends TestCase
         static::assertSame('', $uri->toString());
     }
 
+    public function testWhitespaceAroundVariableSpecsIsIgnored(): void
+    {
+        $template = URI\Template\parse("{x, \ty\r\n}");
+        $uri = $template->expand(['x' => '1', 'y' => '2']);
+
+        static::assertSame('1,2', $uri->toString());
+    }
+
+    /**
+     * Control characters are not stripped from a varspec, so "var\f" does not resolve to "var".
+     *
+     * RFC 6570 does not allow them in a varname at all; rejecting them belongs to variable name
+     * validation, which the parser does not perform yet.
+     */
+    #[DataProvider('nonWhitespaceControlCharacterProvider')]
+    public function testControlCharactersAroundVariableSpecsAreNotIgnored(string $char): void
+    {
+        $template = URI\Template\parse("{x,{$char}var{$char}}");
+        $uri = $template->expand(['var' => 'value']);
+
+        static::assertSame('', $uri->toString());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function nonWhitespaceControlCharacterProvider(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
+    }
+
     public function testPartiallyUndefinedVariables(): void
     {
         $template = URI\Template\parse('{a,b,c}');
