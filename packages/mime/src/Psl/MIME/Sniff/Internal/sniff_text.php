@@ -17,7 +17,8 @@ use function substr;
  * Detect text-based MIME types by inspecting the leading bytes of the content.
  *
  * Returns null if the content appears to be binary (as determined by {@see is_binary()}).
- * Otherwise, examines up to 256 leading bytes (after whitespace trimming) to identify:
+ * Otherwise, examines up to 256 leading bytes (after skipping the WHATWG whitespace bytes
+ * SP, HTAB, LF, FF and CR) to identify:
  * - `text/html` - content starting with `<!DOCTYPE html` or `<html`
  * - `image/svg+xml` - XML content containing `<svg`
  * - `application/xml` - content starting with `<?xml`
@@ -33,7 +34,7 @@ function sniff_text(string $content): null|string
         return null;
     }
 
-    $trimmed = ltrim($content);
+    $trimmed = ltrim($content, " \t\n\x0C\r");
     $prefix = substr($trimmed, 0, min(strlen($trimmed), 256));
     $lower = strtolower($prefix);
 

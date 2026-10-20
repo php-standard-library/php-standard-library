@@ -340,6 +340,20 @@ final class SniffTest extends TestCase
         static::assertSame('application/json', $type->essence());
     }
 
+    public function testFromStringFormFeedBeforeHtml(): void
+    {
+        $type = Sniff\from_string("\t\r\n\x0C <!DOCTYPE html><html></html>");
+
+        static::assertSame('text/html', $type->essence());
+    }
+
+    public function testFromStringVerticalTabIsNotSkippedAsWhitespace(): void
+    {
+        $type = Sniff\from_string("\x0B<!DOCTYPE html><html></html>");
+
+        static::assertSame('text/plain', $type->essence());
+    }
+
     public function testFromStringXmlSvg(): void
     {
         $type = Sniff\from_string('<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>');
