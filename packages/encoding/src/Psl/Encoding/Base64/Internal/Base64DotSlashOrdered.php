@@ -31,7 +31,7 @@ final class Base64DotSlashOrdered extends Base64
     #[Override]
     protected static function checkRange(string $base64): void
     {
-        if (preg_match('%^[a-zA-Z.-9]*={0,2}$%', $base64) !== 1) {
+        if (preg_match('%^[a-zA-Z.-9]*={0,2}$%D', $base64) !== 1) {
             throw new Exception\RangeException(
                 'The given string contains characters outside the base64 range for the current variant.',
             );

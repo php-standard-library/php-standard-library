@@ -165,7 +165,7 @@ abstract class Base64
      */
     protected static function checkRange(string $base64): void
     {
-        if (preg_match('%^[a-zA-Z0-9/+]*={0,2}$%', $base64) !== 1) {
+        if (preg_match('%^[a-zA-Z0-9/+]*={0,2}$%D', $base64) !== 1) {
             throw new Exception\RangeException('The given base64 string contains characters outside the base64 range.');
         }
     }
