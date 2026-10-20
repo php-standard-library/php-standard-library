@@ -6,14 +6,18 @@ namespace Psl\Filesystem\Internal;
 
 use Closure;
 
-use function mb_strtolower;
 use function restore_error_handler;
 use function set_error_handler;
-use function str_contains;
 use function strpos;
 use function substr;
 
 /**
+ * Run $fun, capturing the last PHP warning it emits instead of reporting it.
+ *
+ * The captured message is stripped of PHP's "function(arguments): " prefix, e.g.
+ * "unlink(/tmp/foo): Permission denied" becomes "Permission denied", as callers
+ * already name the operation and the path in their own exception messages.
+ *
  * @template T
  *
  * @param (Closure(): T) $fun
@@ -29,19 +33,18 @@ function box(Closure $fun): array
         $lastMessage = $message;
     });
 
-    if (null !== $lastMessage && str_contains($lastMessage, '): ')) {
-        // how i feel toward PHP error handling:
-        $lower = mb_strtolower($lastMessage);
-        /** @var non-negative-int $pos */
-        $pos = strpos($lower, '): ');
-        $lastMessage = substr($lower, $pos + 3);
-    }
-
     try {
         $value = $fun();
-
-        return [$value, $lastMessage];
     } finally {
         restore_error_handler();
     }
+
+    if (null !== $lastMessage) {
+        $position = strpos($lastMessage, '): ');
+        if (false !== $position) {
+            $lastMessage = substr($lastMessage, $position + 3);
+        }
+    }
+
+    return [$value, $lastMessage];
 }
