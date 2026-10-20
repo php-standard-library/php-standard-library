@@ -11,6 +11,7 @@ use Psl\Hash\Hmac;
 use Psl\SecureRandom;
 use Psl\Str\Byte;
 
+use function hash_hkdf;
 use function hex2bin;
 
 /**
@@ -78,6 +79,65 @@ final class FunctionsTest extends TestCase
 
         $okm = Hkdf\expand($prk, $info, $length, Hmac\Algorithm::Sha256);
         static::assertSame($expectedOkm, $okm);
+    }
+
+    public function testRfc5869TestCase4(): void
+    {
+        $ikm = hex2bin('0b0b0b0b0b0b0b0b0b0b0b');
+        $salt = hex2bin('000102030405060708090a0b0c');
+        $info = hex2bin('f0f1f2f3f4f5f6f7f8f9');
+        $expectedPrk = hex2bin('9b6c18c432a7bf8f0e71c8eb88f4b30baa2ba243');
+        $expectedOkm = hex2bin('085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896');
+
+        $prk = Hkdf\extract($ikm, $salt, Hmac\Algorithm::Sha1);
+
+        static::assertSame($expectedPrk, $prk);
+        static::assertSame($expectedOkm, Hkdf\expand($prk, $info, 42, Hmac\Algorithm::Sha1));
+        static::assertSame($expectedOkm, Hkdf\derive($ikm, $salt, $info, 42, Hmac\Algorithm::Sha1));
+    }
+
+    public function testRfc5869TestCase7(): void
+    {
+        $ikm = hex2bin('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c');
+        $expectedPrk = hex2bin('2adccada18779e7c2077ad2eb19d3f3e731385dd');
+        $expectedOkm = hex2bin('2c91117204d745f3500d636a62f64f0ab3bae548aa53d423b0d1f27ebba6f5e5673a081d70cce7acfc48');
+
+        $prk = Hkdf\extract($ikm, algorithm: Hmac\Algorithm::Sha1);
+
+        static::assertSame($expectedPrk, $prk);
+        static::assertSame($expectedOkm, Hkdf\expand($prk, length: 42, algorithm: Hmac\Algorithm::Sha1));
+    }
+
+    public function testSha1MaximumLength(): void
+    {
+        static::assertSame(
+            hash_hkdf('sha1', 'input key', 255 * 20, 'context'),
+            Hkdf\derive('input key', info: 'context', length: 255 * 20, algorithm: Hmac\Algorithm::Sha1),
+        );
+    }
+
+    public function testSha1RejectsMoreThan255Blocks(): void
+    {
+        $prk = Hkdf\extract('input key', algorithm: Hmac\Algorithm::Sha1);
+
+        $this->expectException(Exception\RuntimeException::class);
+        Hkdf\expand($prk, length: (255 * 20) + 1, algorithm: Hmac\Algorithm::Sha1);
+    }
+
+    public function testSha3512MaximumLength(): void
+    {
+        static::assertSame(
+            hash_hkdf('sha3-512', 'input key', 255 * 64, 'context'),
+            Hkdf\derive('input key', info: 'context', length: 255 * 64, algorithm: Hmac\Algorithm::Sha3512),
+        );
+    }
+
+    public function testSha3512RejectsMoreThan255Blocks(): void
+    {
+        $prk = Hkdf\extract('input key', algorithm: Hmac\Algorithm::Sha3512);
+
+        $this->expectException(Exception\RuntimeException::class);
+        Hkdf\expand($prk, length: (255 * 64) + 1, algorithm: Hmac\Algorithm::Sha3512);
     }
 
     public function testExpandExceedingMaxLengthThrows(): void

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Psl\Crypto\Hkdf;
 
 use Psl\Crypto\Exception;
-use Psl\Encoding\Hex;
 use Psl\Hash\Hmac;
 use SensitiveParameter;
 
 use function chr;
+use function hash_hmac;
 use function sodium_memzero;
 use function strlen;
 use function substr;
@@ -35,11 +35,7 @@ function expand(
     int $length = 32,
     Hmac\Algorithm $algorithm = Hmac\Algorithm::Sha256,
 ): string {
-    $hashLength = match ($algorithm) {
-        Hmac\Algorithm::Sha384 => 48,
-        Hmac\Algorithm::Sha512 => 64,
-        default => 32,
-    };
+    $hashLength = strlen(hash_hmac($algorithm->value, '', '', true));
 
     $maxLength = 255 * $hashLength;
     if ($length > $maxLength) {
@@ -52,7 +48,7 @@ function expand(
 
     while (strlen($okm) < $length) {
         $previous = $t;
-        $t = Hex\decode(Hmac\hash($t . $info . chr($counter), $algorithm, $pseudoRandomKey));
+        $t = hash_hmac($algorithm->value, $t . $info . chr($counter), $pseudoRandomKey, true);
         if ($previous !== '') {
             sodium_memzero($previous);
         }
