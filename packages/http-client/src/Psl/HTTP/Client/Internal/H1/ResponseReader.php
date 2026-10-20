@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Internal\H1;
 
+use Closure;
 use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
@@ -228,6 +229,7 @@ final class ResponseReader
      * @param CancellationTokenInterface $cancellation Token to cancel read operations.
      * @param bool $isHead Whether this is a HEAD request (no body expected).
      * @param null|string $preReadStatusLine A status line already read (e.g., from Expect handling).
+     * @param null|Closure(): void $onContinue Send the deferred body after 100 Continue.
      *
      * @return array{list<Response>, Response, bool} Informational responses, final response, and keep-alive.
      *
@@ -241,6 +243,7 @@ final class ResponseReader
         CancellationTokenInterface $cancellation,
         bool $isHead,
         null|string $preReadStatusLine = null,
+        null|Closure $onContinue = null,
     ): array {
         /** @var list<Response> $informational */
         $informational = [];
@@ -267,8 +270,10 @@ final class ResponseReader
                 throw ProtocolException::forMalformedResponse('Too many informational responses.');
             }
 
-            if ($configuration->onInformationalResponse !== null) {
-                ($configuration->onInformationalResponse)($response);
+            $configuration->onInformationalResponse?->__invoke($response);
+
+            if ($response->status === 100 && $onContinue !== null) {
+                $onContinue();
             }
 
             $informational[] = $response;

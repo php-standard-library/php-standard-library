@@ -29,7 +29,7 @@ $tx = $client->send($request, new Client\SendConfiguration(onInformationalRespon
     // This fires after the client-level callback for each 1xx response
     if ($response->status === 100) {
         // HTTP/1 limits each exchange to 16 informational responses.
-        // Server acknowledged Expect: 100-continue, body will be sent
+        // Send the body after 100 Continue, or after a one-second wait.
     }
 }));
 

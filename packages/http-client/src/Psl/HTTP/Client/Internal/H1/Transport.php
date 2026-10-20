@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Internal\H1;
 
+use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
+use Psl\DateTime\Duration;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Exception;
 use Psl\HTTP\Client\Exception\ProtocolException;
@@ -16,7 +18,6 @@ use Psl\HTTP\Message\Transaction;
 use Psl\IO;
 use Psl\URL\URL;
 
-use function str_starts_with;
 use function strtolower;
 
 /**
@@ -100,57 +101,73 @@ final class Transport
                 }
             }
 
-            /** @var null|string $preReadStatusLine */
-            $preReadStatusLine = null;
-
-            if ($hasExpect) {
-                // Ensure body framing headers are present even though we defer the body.
-                // RequestWriter auto-adds transfer-encoding: chunked only when body !== null,
-                // but in the Expect path we strip the body before writing headers.
-                $expectRequest = $request;
-                if ($request->body !== null) {
-                    $hasContentLength = $request->headers->has('content-length');
-                    $hasTransferEncoding = $request->headers->has('transfer-encoding');
-                    if (!$hasContentLength && !$hasTransferEncoding) {
-                        $expectRequest = $expectRequest->withHeader('transfer-encoding', 'chunked');
-                    }
-                }
-
+            $isHead = $request->method === Message\METHOD_HEAD;
+            if ($hasExpect && $request->body !== null) {
                 RequestWriter::write(
                     $connection->stream,
-                    $expectRequest,
+                    $request,
                     $url,
                     $resolvedTrailers,
                     $cancellation,
                     headersOnly: true,
                 );
 
-                $interimLine = $connection->reader->readUntilBounded(
-                    "\r\n",
-                    $configuration->maxResponseHeaderSize,
-                    $cancellation,
-                );
-                if ($interimLine !== null && str_starts_with($interimLine, 'HTTP/1.1 100')) {
-                    $connection->reader->readUntil("\r\n", $cancellation);
-
-                    if ($request->body !== null) {
-                        RequestWriter::writeBody($connection->stream, $expectRequest, $resolvedTrailers, $cancellation);
+                /** @var bool $bodySent */
+                $bodySent = false;
+                $stop = new Async\SignalCancellationToken();
+                $exchangeCancellation = new Async\LinkedCancellationToken($cancellation, $stop);
+                $sendBody = static function () use (
+                    $connection,
+                    $request,
+                    $resolvedTrailers,
+                    $exchangeCancellation,
+                    &$bodySent,
+                ): void {
+                    if ($bodySent) {
+                        return;
                     }
-                } elseif ($interimLine !== null) {
-                    $preReadStatusLine = $interimLine;
+
+                    $bodySent = true;
+                    RequestWriter::writeBody($connection->stream, $request, $resolvedTrailers, $exchangeCancellation);
+                };
+
+                // Keep one parser alive across the timeout, including partial status lines and fields.
+                $pending = Async\run(static fn() => ResponseReader::readWithInformational(
+                    $connection->reader,
+                    $configuration,
+                    $exchangeCancellation,
+                    $isHead,
+                    onContinue: $sendBody,
+                ));
+
+                try {
+                    try {
+                        [$informationalResponses, $response, $keepAlive] = $pending->await(
+                            new Async\LinkedCancellationToken(
+                                $cancellation,
+                                new Async\TimeoutCancellationToken(Duration::seconds(1)),
+                            ),
+                        );
+                    } catch (CancelledException) {
+                        $cancellation->throwIfCancelled();
+                        $sendBody();
+                        [$informationalResponses, $response, $keepAlive] = $pending->await($cancellation);
+                    }
+                } finally {
+                    $stop->cancel();
+                    $pending->ignore();
                 }
+
+                $keepAlive = $keepAlive && $bodySent;
             } else {
                 RequestWriter::write($connection->stream, $request, $url, $resolvedTrailers, $cancellation);
+                [$informationalResponses, $response, $keepAlive] = ResponseReader::readWithInformational(
+                    $connection->reader,
+                    $configuration,
+                    $cancellation,
+                    $isHead,
+                );
             }
-
-            $isHead = $request->method === Message\METHOD_HEAD;
-            [$informationalResponses, $response, $keepAlive] = ResponseReader::readWithInformational(
-                $connection->reader,
-                $configuration,
-                $cancellation,
-                $isHead,
-                $preReadStatusLine,
-            );
 
             $transaction = new Transaction($informationalResponses, null, $response);
 

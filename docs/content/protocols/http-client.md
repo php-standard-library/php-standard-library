@@ -176,6 +176,8 @@ Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. 
 
 Request trailers are sent via `Request::$trailers`, an `Awaitable<FieldMap>` that resolves after the body. Response trailers are available via `Response::$trailers`, which resolves after the response body is fully consumed.
 
+`Expect: 100-continue` waits up to one second before sending the body. The client accepts HTTP/1.0 and HTTP/1.1 interim responses, reads all their fields, and sends the body once. A final response received before the upload disables connection reuse.
+
 HTTP/1 responses reject malformed Content-Length, whitespace before a field colon, obsolete folded fields, and unsupported protocol upgrades. At most 16 informational responses are accepted per exchange. Chunk size lines, extensions, and total trailers use `maxResponseHeaderSize`; CONNECT status lines and total headers each have an 8192-byte limit. I/O errors while reading a close-delimited body propagate to the caller. Responses with both Transfer-Encoding and Content-Length cannot reuse the connection.
 
 HTTP/1 requests reject invalid method tokens, field names, and CR/LF in fields with `RequestException`. Explicit `Transfer-Encoding: chunked` uses chunk framing. A `Content-Length` must match the bytes read from the body. These checks also apply to `Expect: 100-continue`.
