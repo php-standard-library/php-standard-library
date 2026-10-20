@@ -196,6 +196,9 @@ final class StateMachine
      */
     public private(set) bool $shutdown = false;
 
+    /** Last peer stream accepted by our GOAWAY, if sent. */
+    private null|int $sentGoAwayLastStreamId = null;
+
     /**
      * Create a new HTTP/2 state machine.
      *
@@ -300,6 +303,13 @@ final class StateMachine
         $this->validateFrameSize($payloadLength);
 
         if ($streamId !== 0) {
+            if (
+                $this->ignorePeerStreamAfterGoAway($streamId)
+                && ($type === 2 || $type === 3 || $type === 8 || $type === 0xa)
+            ) {
+                return [[], []];
+            }
+
             if ($type === 2 && $payloadLength !== 5) {
                 if ($this->getStreamState($streamId) === StreamState::Idle) {
                     throw ProtocolException::forFrameSizeError(5, $payloadLength);
@@ -720,7 +730,8 @@ final class StateMachine
         $this->shutdown = true;
 
         /** @var non-negative-int $streamId */
-        $streamId = $lastStreamId ?? $this->lastPeerStreamId;
+        $streamId = min($lastStreamId ?? $this->lastPeerStreamId, $this->sentGoAwayLastStreamId ?? MAX_STREAM_ID);
+        $this->sentGoAwayLastStreamId = $streamId;
 
         return [new GoAwayFrame($streamId, $errorCode->value, $debugData)->toRaw()];
     }
@@ -1178,13 +1189,32 @@ final class StateMachine
         };
     }
 
+    /** @param positive-int $streamId */
+    private function ignoreHeaders(int $streamId): bool
+    {
+        return (
+            $this->getStreamState($streamId) === StreamState::Closed
+            || $this->ignorePeerStreamAfterGoAway($streamId)
+        );
+    }
+
+    /** @param positive-int $streamId */
+    private function ignorePeerStreamAfterGoAway(int $streamId): bool
+    {
+        return (
+            $this->sentGoAwayLastStreamId !== null
+            && $streamId > $this->sentGoAwayLastStreamId
+            && (($streamId % 2) === 0) === $this->isClient
+        );
+    }
+
     /**
      * @return array{list<RawFrame>, list<EventInterface>}
      */
     private function receiveHeaders(HeadersFrame $frame): array
     {
         // RFC 9113 §5.1 permits minimal processing for all closed streams.
-        if ($this->getStreamState($frame->streamId) === StreamState::Closed) {
+        if ($this->ignoreHeaders($frame->streamId)) {
             if ($frame->endHeaders) {
                 return $this->completeHeaders($frame->streamId, $frame->headerBlockFragment, $frame->endStream);
             }
@@ -1294,7 +1324,7 @@ final class StateMachine
             throw ProtocolException::forCompressionError($e);
         }
 
-        if ($this->getStreamState($streamId) === StreamState::Closed) {
+        if ($this->ignoreHeaders($streamId)) {
             $this->pendingHeaderError = null;
             $this->refusingStream = false;
 
@@ -1479,6 +1509,16 @@ final class StateMachine
             }
 
             $payload = substr($payload, 1, $payloadLength - 1 - $padLength);
+        }
+
+        if ($this->ignorePeerStreamAfterGoAway($streamId)) {
+            if ($payloadLength === 0) {
+                return [[], []];
+            }
+
+            $this->flowController->consumeConnectionReceiveWindow($payloadLength);
+
+            return [$this->windowUpdate(0, $payloadLength), []];
         }
 
         $stream = $this->streams->get($streamId);
@@ -1787,8 +1827,10 @@ final class StateMachine
             throw ProtocolException::forConnectionError('PUSH_PROMISE received on an invalid associated stream');
         }
 
-        $this->validatePeerStreamId($frame->promisedStreamId);
-        $this->lastPeerStreamId = $frame->promisedStreamId;
+        if (!$this->ignorePeerStreamAfterGoAway($frame->promisedStreamId)) {
+            $this->validatePeerStreamId($frame->promisedStreamId);
+            $this->lastPeerStreamId = $frame->promisedStreamId;
+        }
 
         if ($frame->endHeaders) {
             return $this->completePushPromise($frame->streamId, $frame->promisedStreamId, $frame->headerBlockFragment);
@@ -1812,6 +1854,10 @@ final class StateMachine
             $headers = $this->hpackDecoder->decode($headerBlock);
         } catch (HPACKException $e) {
             throw ProtocolException::forCompressionError($e);
+        }
+
+        if ($this->ignorePeerStreamAfterGoAway($promisedStreamId)) {
+            return [[], []];
         }
 
         // RFC 9113 §5.1: a promise can arrive after we reset its associated stream.

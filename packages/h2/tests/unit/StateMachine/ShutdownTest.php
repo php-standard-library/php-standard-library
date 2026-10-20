@@ -87,11 +87,8 @@ final class ShutdownTest extends TestCase
 
         $sm->goAway(ErrorCode::NoError);
 
-        $this->expectException(ProtocolException::class);
-        $this->expectExceptionMessage('after GOAWAY');
-
         $raw3 = new HeadersFrame(3, $block, true, true)->toRaw();
-        $sm->receive($raw3);
+        static::assertSame([[], []], $sm->receive($raw3));
     }
 
     public function testGoAwayIncludesLastPeerStreamId(): void
