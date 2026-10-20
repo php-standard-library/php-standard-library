@@ -9,7 +9,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\Encoding\Exception;
 use Psl\IO;
 
-use function preg_replace;
 use function sprintf;
 use function strlen;
 use function strpos;
@@ -18,8 +17,10 @@ use function substr;
 /**
  * A read handle that decodes base64-encoded data from an inner readable handle.
  *
- * Reads chunks from the inner handle, strips whitespace, and decodes complete 4-byte groups.
- * On EOF, decodes any remaining bytes (which must be valid base64 with proper padding).
+ * Reads chunks from the inner handle and decodes complete 4-byte groups; on EOF, decodes any
+ * remaining bytes. The decoded data, and the inputs that are rejected, are identical to
+ * {@see decode()} applied to all the data of the inner handle with the same variant and padding:
+ * in particular, only {@see Variant::Mime} ignores whitespace (CR, LF, space and tab).
  *
  * @api
  */
@@ -28,14 +29,16 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
     use IO\ReadHandleConvenienceMethodsTrait;
 
     private string $buffer = '';
-    private string $remainder = '';
     private bool $eof = false;
+    private readonly Internal\StreamDecoder $decoder;
 
     public function __construct(
         private readonly IO\ReadHandleInterface $handle,
-        private readonly Variant $variant = Variant::Standard,
-        private readonly bool $padding = true,
-    ) {}
+        Variant $variant = Variant::Standard,
+        bool $padding = true,
+    ) {
+        $this->decoder = new Internal\StreamDecoder($variant, $padding);
+    }
 
     /**
      * {@inheritDoc}
@@ -250,41 +253,25 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
 
     /**
      * @throws Exception\RangeException If the base64 data is invalid.
+     * @throws Exception\IncorrectPaddingException If the base64 data has an incorrect padding.
      */
     private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        if ($this->eof) {
-            // @codeCoverageIgnoreStart
-            return;
-            // @codeCoverageIgnoreEnd
-        }
+        while (!$this->eof) {
+            $chunk = $this->handle->read(4096, $cancellation);
+            if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
+                $this->eof = true;
+                $this->buffer .= $this->decoder->finalize();
 
-        $chunk = $this->handle->read(4096, $cancellation);
-        if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
-            $this->eof = true;
-            // Decode any remaining bytes.
-            if ($this->remainder !== '') {
-                $this->buffer .= namespace\decode($this->remainder, $this->variant, $this->padding);
-                $this->remainder = '';
+                return;
             }
 
-            return;
-        }
-
-        // Strip whitespace.
-        /** @var string $chunk */
-        $chunk = preg_replace('/\s+/', '', $chunk);
-        $data = $this->remainder . $chunk;
-
-        // Decode complete 4-byte groups only.
-        $length = strlen($data);
-        $usable = $length - ($length % 4);
-
-        if ($usable > 0) {
-            $this->buffer .= namespace\decode(substr($data, 0, $usable), $this->variant, $this->padding);
-            $this->remainder = substr($data, $usable);
-        } else {
-            $this->remainder = $data;
+            $this->buffer .= $this->decoder->update($chunk);
+            // Once padding has been received, only the end of the input may follow: keep reading
+            // until it is reached, so that the final group is returned along with the rest.
+            if ($chunk === '' || $this->buffer !== '' && !$this->decoder->isAwaitingEnd()) {
+                return;
+            }
         }
     }
 }

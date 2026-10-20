@@ -166,7 +166,7 @@ final class StreamHandleTest extends TestCase
     public function testDecodingReadHandleWithWhitespace(): void
     {
         $inner = new IO\MemoryHandle("SGVs\r\nbG8s\r\nIFdv\r\ncmxk\r\nIQ==");
-        $handle = new Base64\DecodingReadHandle($inner);
+        $handle = new Base64\DecodingReadHandle($inner, Base64\Variant::Mime);
 
         static::assertSame('Hello, World!', $handle->readAll());
     }

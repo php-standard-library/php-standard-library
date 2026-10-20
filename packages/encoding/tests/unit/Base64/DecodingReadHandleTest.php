@@ -299,10 +299,20 @@ final class DecodingReadHandleTest extends TestCase
         static::assertSame('Test', $handle->readAll());
     }
 
-    public function testFillBufferWhitespaceStripped(): void
+    public function testFillBufferWhitespaceStrippedForMime(): void
+    {
+        $handle = new Base64\DecodingReadHandle(
+            new IO\MemoryHandle("SGVs\r\nbG8s\r\nIFdv\r\ncmxk\r\nIQ=="),
+            Base64\Variant::Mime,
+        );
+        static::assertSame('Hello, World!', $handle->readAll());
+    }
+
+    public function testFillBufferWhitespaceRejectedForStandard(): void
     {
         $handle = new Base64\DecodingReadHandle(new IO\MemoryHandle("SGVs\r\nbG8s\r\nIFdv\r\ncmxk\r\nIQ=="));
-        static::assertSame('Hello, World!', $handle->readAll());
+        $this->expectException(Exception\RangeException::class);
+        $handle->readAll();
     }
 
     public function testFillBufferWithVariantUrlSafe(): void
