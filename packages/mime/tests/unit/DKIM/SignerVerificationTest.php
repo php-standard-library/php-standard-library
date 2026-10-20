@@ -11,6 +11,7 @@ use Psl\MIME\DKIM\Canonicalization;
 use Psl\MIME\DKIM\Signer;
 use Psl\MIME\DKIM\SigningConfiguration;
 
+use function array_map;
 use function array_pad;
 use function base64_decode;
 use function base64_encode;
@@ -18,14 +19,18 @@ use function chunk_split;
 use function count;
 use function explode;
 use function hash;
+use function implode;
+use function max;
 use function openssl_verify;
 use function preg_replace;
+use function range;
 use function rtrim;
 use function sodium_crypto_sign_secretkey;
 use function sodium_crypto_sign_seed_keypair;
 use function sodium_crypto_sign_verify_detached;
 use function str_ends_with;
 use function str_replace;
+use function strlen;
 use function strpos;
 use function strtolower;
 use function substr;
@@ -159,6 +164,38 @@ final class SignerVerificationTest extends TestCase
         $signed = self::createSigner($configuration)->sign(self::RFC8463_UNSIGNED_MESSAGE);
 
         static::assertTrue(self::verify($signed, 0, self::publicKey($algorithm)));
+    }
+
+    #[DataProvider('provideCanonicalizations')]
+    public function testSignatureHeaderWithManySignedFieldsIsFoldedAndVerifies(Canonicalization $headerCanonicalization): void
+    {
+        $fields = array_map(
+            static fn(int $i): string => 'X-Long-Header-Field-Name-' . $i . ": value\r\n",
+            range(0, 99),
+        );
+        $message = "From: joe@football.example.com\r\n" . implode('', $fields) . "\r\nHello\r\n";
+
+        $configuration = new SigningConfiguration('football.example.com', 'test', Algorithm::Ed25519Sha256)
+            ->withHeaderCanonicalization($headerCanonicalization)
+            ->withIncludeBodyLength()
+            ->withSignatureExpirationDelay(3600);
+
+        $signed = self::createSigner($configuration)->sign($message);
+        $dkimHeader = substr($signed, 0, (int) strpos($signed, "\r\nFrom:"));
+
+        static::assertLessThanOrEqual(78, max(array_map(strlen(...), explode("\r\n", $dkimHeader))), $dkimHeader);
+
+        static::assertStringContainsString('x-long-header-field-name-99;', $dkimHeader);
+        static::assertTrue(self::verify($signed, 0, self::ED25519_PUBLIC_KEY));
+    }
+
+    /**
+     * @return iterable<string, array{Canonicalization}>
+     */
+    public static function provideCanonicalizations(): iterable
+    {
+        yield 'simple' => [Canonicalization::Simple];
+        yield 'relaxed' => [Canonicalization::Relaxed];
     }
 
     #[DataProvider('provideAlgorithms')]

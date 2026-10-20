@@ -9,7 +9,6 @@ use Psl\MIME\Exception\DKIMException;
 use function array_pop;
 use function base64_decode;
 use function base64_encode;
-use function chunk_split;
 use function count;
 use function explode;
 use function hash;
@@ -23,6 +22,7 @@ use function rtrim;
 use function sodium_crypto_sign_detached;
 use function str_contains;
 use function str_replace;
+use function str_split;
 use function strlen;
 use function strpos;
 use function strtolower;
@@ -51,6 +51,16 @@ use const SODIUM_CRYPTO_SIGN_SECRETKEYBYTES;
  */
 final readonly class Signer implements SignerInterface
 {
+    /**
+     * The line length the DKIM-Signature header field is folded to (RFC 5322 §2.1.1).
+     */
+    private const int LINE_LENGTH = 78;
+
+    /**
+     * The number of base64 characters of the signature put on each of its lines.
+     */
+    private const int SIGNATURE_LINE_LENGTH = 73;
+
     /**
      * Create a new DKIM signer.
      *
@@ -116,35 +126,51 @@ final readonly class Signer implements SignerInterface
         );
 
         $timestamp = time();
-        $params = [
-            'v=1',
-            'q=dns/txt',
-            'a=' . $this->configuration->algorithm->value,
-            'bh=' . base64_encode($bodyHash),
-            'd=' . $this->configuration->domain,
-            'h=' . implode(': ', $signedHeaderNames),
-            'i=@' . $this->configuration->domain,
-            's=' . $this->configuration->selector,
-            't=' . $timestamp,
-            'c='
-                . $this->configuration->headerCanonicalization->value
-                . '/'
-                . $this->configuration->bodyCanonicalization->value,
+
+        // Each word is followed by a space unless it ends the field; the field is folded at
+        // those spaces only, so "h=" is split at its colons but no tag value is ever broken.
+        $words = [
+            'v=1;',
+            'q=dns/txt;',
+            'a=' . $this->configuration->algorithm->value . ';',
+            'bh=' . base64_encode($bodyHash) . ';',
+            'd=' . $this->configuration->domain . ';',
         ];
+
+        $headerNames = 'h=';
+        foreach ($signedHeaderNames as $index => $lowerName) {
+            if ($index > 0) {
+                $words[] = $headerNames . ':';
+                $headerNames = '';
+            }
+
+            $headerNames .= $lowerName;
+        }
+
+        $words[] = $headerNames . ';';
+        $words[] = 'i=@' . $this->configuration->domain . ';';
+        $words[] = 's=' . $this->configuration->selector . ';';
+        $words[] = 't=' . $timestamp . ';';
+        $words[] =
+            'c='
+            . $this->configuration->headerCanonicalization->value
+            . '/'
+            . $this->configuration->bodyCanonicalization->value
+            . ';';
 
         // RFC 6376 §3.4.5: a verifier hashes the whole body unless "l=" says otherwise, so a
         // signature over a truncated body must carry "l=" to be verifiable at all.
         if ($this->configuration->includeBodyLength || $truncated) {
-            $params[] = 'l=' . $bodyLength;
+            $words[] = 'l=' . $bodyLength . ';';
         }
 
         if ($this->configuration->signatureExpirationDelay > 0) {
-            $params[] = 'x=' . ($timestamp + $this->configuration->signatureExpirationDelay);
+            $words[] = 'x=' . ($timestamp + $this->configuration->signatureExpirationDelay) . ';';
         }
 
-        $params[] = 'b=';
+        $words[] = 'b=';
 
-        $dkimHeader = 'DKIM-Signature: ' . implode('; ', $params);
+        $dkimHeader = self::foldWords('DKIM-Signature:', $words);
 
         // RFC 6376 §3.7: the DKIM-Signature header field is hashed last, exactly as it will be
         // inserted (name included, "b=" empty), canonicalized like any other header field, and
@@ -155,12 +181,44 @@ final readonly class Signer implements SignerInterface
             -2,
         );
 
+        // The signature goes on lines of its own; RFC 6376 §3.5 has verifiers delete the "b=" value
+        // with all surrounding whitespace, folding included, so this does not change the hash.
         $signature = $this->computeSignature($headerCanonData);
-        $encodedSignature = rtrim(chunk_split(base64_encode($signature), 73, "\r\n "));
-
-        $dkimHeader .= $encodedSignature;
+        foreach (str_split(base64_encode($signature), self::SIGNATURE_LINE_LENGTH) as $chunk) {
+            $dkimHeader .= "\r\n " . $chunk;
+        }
 
         return $dkimHeader . "\r\n" . $rawHeaders . "\r\n\r\n" . $body;
+    }
+
+    /**
+     * Join the words into a header field, separated by single spaces, folding before a word
+     * whenever the current line would otherwise grow past {@see self::LINE_LENGTH} characters.
+     *
+     * A line is longer only when a single word is, so a field built from many words (a long
+     * "h=" list) stays within the RFC 5322 line length limits.
+     *
+     * @param non-empty-string $name The field name, including its colon.
+     * @param list<string> $words
+     *
+     * @link https://datatracker.ietf.org/doc/html/rfc5322#section-2.1.1
+     */
+    private static function foldWords(string $name, array $words): string
+    {
+        $field = $name;
+        $lineLength = strlen($name);
+        foreach ($words as $word) {
+            $wordLength = strlen($word);
+            if (($lineLength + 1 + $wordLength) > self::LINE_LENGTH) {
+                $field .= "\r\n";
+                $lineLength = 0;
+            }
+
+            $field .= ' ' . $word;
+            $lineLength += 1 + $wordLength;
+        }
+
+        return $field;
     }
 
     /**
