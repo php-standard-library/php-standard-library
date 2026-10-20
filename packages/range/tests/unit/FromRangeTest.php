@@ -100,4 +100,25 @@ final class FromRangeTest extends TestCase
             // @mago-expect lint:no-empty-loop
         }
     }
+
+    public function testOverflowHappensAfterYieldingIntMax(): void
+    {
+        $values = [];
+        try {
+            foreach (Range\from(Math\INT64_MAX - 1) as $value) {
+                $values[] = $value;
+            }
+
+            static::fail('Expected an overflow exception.');
+        } catch (Range\Exception\OverflowException $e) {
+            static::assertSame(
+                'An overflow occurred while iterating over an infinite range from the `$lowerBound` of '
+                . (Math\INT64_MAX - 1)
+                . '.',
+                $e->getMessage(),
+            );
+        }
+
+        static::assertSame([Math\INT64_MAX - 1, Math\INT64_MAX], $values);
+    }
 }

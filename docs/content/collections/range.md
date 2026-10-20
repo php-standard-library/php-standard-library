@@ -24,6 +24,8 @@ Ranges with a lower bound (`FromRange` and `BetweenRange`) are iterable:
 
 @example('collections/range-iterating.php')
 
+A `BetweenRange` iterator always stops at its upper bound, even when that bound is `PHP_INT_MAX`. A `FromRange` iterator has nowhere to go after yielding `PHP_INT_MAX`, so advancing it further throws `Range\Exception\OverflowException`.
+
 ### Manipulating Bounds
 
 Ranges can be combined with new bounds to create different range types:

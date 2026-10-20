@@ -67,9 +67,11 @@ interface LowerBoundRangeInterface extends IteratorAggregate, RangeInterface
     /**
      * Returns an iterator for the range.
      *
-     * If this range has no upper bound, the iterator will be infinite.
+     * If this range has no upper bound, the iterator will be infinite: once `PHP_INT_MAX` has been
+     * yielded, advancing the iterator throws {@see Exception\OverflowException}.
      *
-     * If `PHP_INT_MAX` is reached while iterating, {@see Exception\OverflowException} will be thrown.
+     * If this range has an upper bound, the iterator stops after the last value of the range,
+     * even if that value is `PHP_INT_MAX`.
      *
      * @return Iter\Iterator<int, int>
      *

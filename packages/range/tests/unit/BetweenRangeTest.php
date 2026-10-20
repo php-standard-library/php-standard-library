@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Psl\Range\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\Iter;
 use Psl\Math;
 use Psl\Range;
 
@@ -196,6 +198,53 @@ final class BetweenRangeTest extends TestCase
         }
 
         static::assertSame($expected, $actual);
+    }
+
+    /**
+     * @param list<int> $expected
+     */
+    #[DataProvider('provideIterateBoundaries')]
+    public function testIterateBoundaries(array $expected, int $lower, int $upper, bool $upperInclusive): void
+    {
+        $actual = [];
+        foreach (Range\between($lower, $upper, $upperInclusive) as $value) {
+            $actual[] = $value;
+
+            // guard against an infinite loop.
+            if (Iter\count($actual) > 10) {
+                break;
+            }
+        }
+
+        static::assertSame($expected, $actual);
+    }
+
+    public static function provideIterateBoundaries(): iterable
+    {
+        yield 'empty exclusive range' => [[], 5, 5, false];
+        yield 'single value inclusive range' => [[5], 5, 5, true];
+        yield 'exclusive up to INT64_MAX' => [
+            [Math\INT64_MAX - 2, Math\INT64_MAX - 1],
+            Math\INT64_MAX - 2,
+            Math\INT64_MAX,
+            false,
+        ];
+        yield 'inclusive up to INT64_MAX' => [
+            [Math\INT64_MAX - 2, Math\INT64_MAX - 1, Math\INT64_MAX],
+            Math\INT64_MAX - 2,
+            Math\INT64_MAX,
+            true,
+        ];
+        yield 'only INT64_MAX inclusive' => [[Math\INT64_MAX], Math\INT64_MAX, Math\INT64_MAX, true];
+        yield 'only INT64_MAX exclusive' => [[], Math\INT64_MAX, Math\INT64_MAX, false];
+        yield 'only INT64_MIN inclusive' => [[Math\INT64_MIN], Math\INT64_MIN, Math\INT64_MIN, true];
+        yield 'only INT64_MIN exclusive' => [[], Math\INT64_MIN, Math\INT64_MIN, false];
+        yield 'exclusive from INT64_MIN' => [
+            [Math\INT64_MIN, Math\INT64_MIN + 1],
+            Math\INT64_MIN,
+            Math\INT64_MIN + 2,
+            false,
+        ];
     }
 
     public function testInvalidRange(): void

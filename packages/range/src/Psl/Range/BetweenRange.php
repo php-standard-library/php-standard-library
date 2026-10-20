@@ -221,11 +221,20 @@ final readonly class BetweenRange implements LowerBoundRangeInterface, UpperBoun
              * @return Generator<int, int, mixed, void>
              */
             static function () use ($lower, $upper, $inclusive): Generator {
-                $to = $inclusive ? $upper : $upper - 1;
+                if (!$inclusive) {
+                    if ($lower === $upper) {
+                        return;
+                    }
 
-                for ($i = $lower; $i <= $to; $i++) {
+                    $upper -= 1;
+                }
+
+                // Stop before incrementing past the last value, as incrementing `PHP_INT_MAX` yields a float.
+                for ($i = $lower; $i < $upper; $i++) {
                     yield $i;
                 }
+
+                yield $upper;
             },
         );
     }
