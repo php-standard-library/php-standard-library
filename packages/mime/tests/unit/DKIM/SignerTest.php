@@ -1041,6 +1041,21 @@ final class SignerTest extends TestCase
         static::assertSame('Body content', $body);
     }
 
+    public function testSplitMessageStopsAtTheFirstBlankLineOfAnyStyle(): void
+    {
+        $method = new ReflectionMethod(Signer::class, 'splitMessage');
+
+        [$headers, $body] = $method->invoke(null, "From: a@b.com\nTo: c@d.com\n\nline 1\r\n\r\nline 2\n");
+
+        static::assertSame("From: a@b.com\nTo: c@d.com", $headers);
+        static::assertSame("line 1\r\n\r\nline 2\n", $body);
+
+        [$headers, $body] = $method->invoke(null, "From: a@b.com\r\n\nBody\r\n\r\n");
+
+        static::assertSame('From: a@b.com', $headers);
+        static::assertSame("Body\r\n\r\n", $body);
+    }
+
     public function testSplitMessageNoSeparatorReturnsEmptyBody(): void
     {
         $method = new ReflectionMethod(Signer::class, 'splitMessage');

@@ -17,10 +17,10 @@ use function in_array;
 use function openssl_pkey_get_details;
 use function openssl_pkey_get_private;
 use function openssl_sign;
+use function preg_match;
 use function preg_replace;
 use function rtrim;
 use function sodium_crypto_sign_detached;
-use function str_contains;
 use function str_replace;
 use function str_split;
 use function strlen;
@@ -31,6 +31,7 @@ use function time;
 use function trim;
 
 use const OPENSSL_ALGO_SHA256;
+use const PREG_OFFSET_CAPTURE;
 use const SODIUM_CRYPTO_SIGN_SECRETKEYBYTES;
 
 /**
@@ -224,20 +225,22 @@ final readonly class Signer implements SignerInterface
     /**
      * Split a raw MIME message into its header section and body.
      *
-     * Searches for a blank line (CRLF or LF) separating headers from body.
+     * The header section ends at the first blank line, whatever its line endings (CRLF CRLF,
+     * LF LF or a mix of both); the body may contain blank lines of any style.
      * Returns the body as empty if no separator is found.
      *
      * @return array{string, string} [headers, body]
      */
     private static function splitMessage(string $message): array
     {
-        $separator = str_contains($message, "\r\n\r\n") ? "\r\n\r\n" : "\n\n";
-        $pos = strpos($message, $separator);
-        if ($pos === false) {
+        $match = [];
+        if (preg_match('/\r?\n\r?\n/', $message, $match, PREG_OFFSET_CAPTURE) !== 1) {
             return [$message, ''];
         }
 
-        return [substr($message, 0, $pos), substr($message, $pos + strlen($separator))];
+        $position = (int) $match[0][1];
+
+        return [substr($message, 0, $position), substr($message, $position + strlen($match[0][0]))];
     }
 
     /**

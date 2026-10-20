@@ -249,6 +249,7 @@ final class SignerVerificationTest extends TestCase
                     . "\r\n"
                     . "\r\n",
             'lf line endings' => "From: joe@football.example.com\nTo: suzie@shopping.example.net\n\nHello\n",
+            'lf headers and a crlf blank line in the body' => "From: joe@football.example.com\nTo: suzie@shopping.example.net\n\nline 1\r\n\r\nline 2\n",
             'repeated header fields' =>
                 "Received: from relay2.football.example.com by mx.example.net\r\n"
                     . "From: joe@football.example.com\r\n"
