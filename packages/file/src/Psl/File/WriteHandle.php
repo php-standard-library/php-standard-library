@@ -16,6 +16,7 @@ use function is_file;
 use function is_writable;
 use function mkdir;
 use function sprintf;
+use function str_contains;
 
 /**
  * @api
@@ -34,9 +35,14 @@ final readonly class WriteHandle extends Internal\AbstractHandleWrapper implemen
      * @throws Exception\NotFoundException If $file does not exist, and $writeMode is {@see WriteMode::TRUNCATE} or {@see WriteMode::APPEND}.
      * @throws Exception\NotWritableException If $file is non-writable.
      * @throws Exception\RuntimeException If unable to create the $file if it does not exist.
+     * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
      */
     public function __construct(string $file, WriteMode $writeMode = WriteMode::OpenOrCreate)
     {
+        if (str_contains($file, "\0")) {
+            throw new Exception\InvalidArgumentException('$file should not contain a NUL byte.');
+        }
+
         $isFile = is_file($file);
         if (!$isFile && file_exists($file)) {
             throw Exception\NotFileException::for($file);

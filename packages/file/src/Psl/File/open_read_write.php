@@ -15,6 +15,7 @@ namespace Psl\File;
  * @throws Exception\NotWritableException If $file exists, and is non-writable.
  * @throws Exception\NotReadableException If $file exists, and is non-readable.
  * @throws Exception\RuntimeException If unable to create the $file if it does not exist.
+ * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
  *
  * @api
  */

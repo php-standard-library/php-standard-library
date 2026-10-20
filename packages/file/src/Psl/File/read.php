@@ -17,7 +17,7 @@ use function sprintf;
  * @param positive-int|null $length Maximum length of data read.
  *                                  The default is to read until end of file is reached.
  *
- * @throws Exception\NotFoundException If $file does not exist.
+ * @throws Exception\NotFoundException If $file does not exist, or contains a NUL byte.
  * @throws Exception\NotFileException If $file points to a non-file node on the filesystem.
  * @throws Exception\NotReadableException If $file exists, and is non-readable.
  * @throws Exception\RuntimeException In case of an error.

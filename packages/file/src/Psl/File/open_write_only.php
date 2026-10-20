@@ -14,6 +14,7 @@ namespace Psl\File;
  * @throws Exception\NotFoundException If $file does not exist, and $writeMode is {@see WriteMode::TRUNCATE} or {@see WriteMode::APPEND}.
  * @throws Exception\NotWritableException If $file exists, and is non-writable.
  * @throws Exception\RuntimeException If unable to create the $file if it does not exist.
+ * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
  *
  * @api
  */

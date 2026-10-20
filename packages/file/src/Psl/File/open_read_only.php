@@ -9,7 +9,7 @@ namespace Psl\File;
  *
  * @param non-empty-string $file
  *
- * @throws Exception\NotFoundException If $file does not exist.
+ * @throws Exception\NotFoundException If $file does not exist, or contains a NUL byte.
  * @throws Exception\NotFileException If $file points to a non-file node on the filesystem.
  * @throws Exception\NotReadableException If $file exists, and is non-readable.
  *

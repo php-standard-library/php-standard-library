@@ -20,6 +20,7 @@ use function sprintf;
  * @throws Exception\NotFoundException If $file does not exist, and $writeMode is {@see WriteMode::TRUNCATE} or {@see WriteMode::APPEND}.
  * @throws Exception\NotWritableException If $file exists, and is non-writable.
  * @throws Exception\RuntimeException In case of an error.
+ * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
  * @throws Async\Exception\CancelledException If the operation is cancelled.
  *
  * @api

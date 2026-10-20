@@ -12,6 +12,7 @@ use Psl\IO;
 use function file_exists;
 use function is_file;
 use function is_readable;
+use function str_contains;
 
 /**
  * @api
@@ -25,13 +26,13 @@ final readonly class ReadHandle extends Internal\AbstractHandleWrapper implement
     /**
      * @param non-empty-string $file
      *
-     * @throws Exception\NotFoundException If $file does not exist.
+     * @throws Exception\NotFoundException If $file does not exist, or contains a NUL byte.
      * @throws Exception\NotFileException If $file points to a non-file node on the filesystem.
      * @throws Exception\NotReadableException If $file exists, and is non-readable.
      */
     public function __construct(string $file)
     {
-        if (!file_exists($file)) {
+        if (str_contains($file, "\0") || !file_exists($file)) {
             throw Exception\NotFoundException::for($file);
         }
 
