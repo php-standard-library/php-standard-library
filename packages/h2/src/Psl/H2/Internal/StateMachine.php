@@ -79,6 +79,8 @@ use const Psl\H2\MAX_WINDOW_SIZE;
  */
 final class StateMachine
 {
+    private const int MAX_ENCODER_TABLE_SIZE = 1_048_576;
+
     /**
      * @var SettingsRegistry Local and remote HTTP/2 settings.
      */
@@ -988,31 +990,21 @@ final class StateMachine
             return [[], [new SettingsReceived([])]];
         }
 
-        $oldInitialWindowSize = $this->settings->remoteValue(Setting::InitialWindowSize);
-
-        foreach ($frame->settings as $id => $value) {
+        foreach ($frame->settingPairs as [$id, $value]) {
             $this->validateSetting($id, $value);
-        }
+            $oldInitialWindowSize = $this->settings->remoteValue(Setting::InitialWindowSize);
+            $this->settings->applyRemote([$id => $value]);
 
-        $this->settings->applyRemote($frame->settings);
-
-        $newInitialWindowSize = $this->settings->remoteValue(Setting::InitialWindowSize);
-        if ($newInitialWindowSize !== $oldInitialWindowSize) {
-            $delta = $newInitialWindowSize - $oldInitialWindowSize;
-            $this->streams->adjustSendWindows($delta);
-            $this->streams->setInitialSendWindow($newInitialWindowSize);
-        }
-
-        if (isset($frame->settings[Setting::MaxConcurrentStreams->value])) {
-            $this->streams->setMaxConcurrent($frame->settings[Setting::MaxConcurrentStreams->value]);
-        }
-
-        if (isset($frame->settings[Setting::HeaderTableSize->value])) {
-            $this->hpackEncoder->resize(min($frame->settings[Setting::HeaderTableSize->value], 1_048_576));
-        }
-
-        if (isset($frame->settings[Setting::MaxHeaderListSize->value])) {
-            $this->hpackEncoder->setMaxHeaderListSize($frame->settings[Setting::MaxHeaderListSize->value]);
+            if ($id === Setting::InitialWindowSize->value) {
+                $this->streams->adjustSendWindows($value - $oldInitialWindowSize);
+                $this->streams->setInitialSendWindow($value);
+            } elseif ($id === Setting::MaxConcurrentStreams->value) {
+                $this->streams->setMaxConcurrent($value);
+            } elseif ($id === Setting::HeaderTableSize->value) {
+                $this->hpackEncoder->resize(min($value, self::MAX_ENCODER_TABLE_SIZE));
+            } elseif ($id === Setting::MaxHeaderListSize->value) {
+                $this->hpackEncoder->setMaxHeaderListSize($value);
+            }
         }
 
         $this->localMaxFrameSize = $this->settings->localValue(Setting::MaxFrameSize);

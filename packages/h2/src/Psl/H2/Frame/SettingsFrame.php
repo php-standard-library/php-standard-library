@@ -33,15 +33,46 @@ final readonly class SettingsFrame implements FrameInterface
     public FrameType $type;
 
     /**
+     * The last value for each setting identifier.
+     *
+     * @var array<positive-int, non-negative-int>
+     */
+    public array $settings;
+
+    /**
+     * Setting pairs in wire order, including duplicate identifiers.
+     *
+     * @var list<array{positive-int, non-negative-int}>
+     */
+    public array $settingPairs;
+
+    /**
      * @param array<int<1, max>, int<0, max>> $settings Map of setting identifiers to values.
      * @param bool $ack Whether this is a SETTINGS ACK.
+     * @param null|list<array{positive-int, non-negative-int}> $settingPairs Ordered pairs; when set, these define the settings map.
      */
     public function __construct(
-        public array $settings,
+        array $settings,
         public bool $ack,
+        null|array $settingPairs = null,
     ) {
         $this->streamId = 0;
         $this->type = FrameType::Settings;
+
+        if ($settingPairs === null) {
+            $settingPairs = [];
+            foreach ($settings as $id => $value) {
+                $settingPairs[] = [$id, $value];
+            }
+        } else {
+            $settings = [];
+            foreach ($settingPairs as [$id, $value]) {
+                $settings[$id] = $value;
+            }
+        }
+
+        $this->settings = $settings;
+        $this->settingPairs = $settingPairs;
     }
 
     /**
@@ -63,8 +94,8 @@ final readonly class SettingsFrame implements FrameInterface
             throw FrameDecodingException::forInvalidPayload('SETTINGS', 'payload length must be a multiple of 6');
         }
 
-        /** @var array<positive-int, non-negative-int> $settings */
-        $settings = [];
+        /** @var list<array{positive-int, non-negative-int}> $settingPairs */
+        $settingPairs = [];
         for ($i = 0; $i < $payloadLength; $i += 6) {
             $id = unpack('n', $frame->payload, $i)[1];
             $value = unpack('N', $frame->payload, $i + 2)[1];
@@ -72,10 +103,10 @@ final readonly class SettingsFrame implements FrameInterface
                 continue;
             }
 
-            $settings[$id] = $value;
+            $settingPairs[] = [$id, $value];
         }
 
-        return new self($settings, $ack);
+        return new self([], $ack, $settingPairs);
     }
 
     /**
@@ -88,7 +119,7 @@ final readonly class SettingsFrame implements FrameInterface
     {
         $flags = $this->ack ? 0x01 : 0;
         $payload = '';
-        foreach ($this->settings as $id => $value) {
+        foreach ($this->settingPairs as [$id, $value]) {
             $payload .= pack('nN', $id, $value);
         }
 
