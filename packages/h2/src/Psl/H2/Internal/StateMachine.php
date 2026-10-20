@@ -1246,9 +1246,9 @@ final class StateMachine
 
         $payload = $rawFrame->payload;
         $endStream = ($rawFrame->flags & 0x01) !== 0;
+        $payloadLength = strlen($payload);
 
         if (($rawFrame->flags & 0x08) !== 0) {
-            $payloadLength = strlen($payload);
             if ($payloadLength < 1) {
                 throw FrameDecodingException::forInvalidPayload('DATA', 'missing pad length');
             }
@@ -1262,9 +1262,11 @@ final class StateMachine
         }
 
         $dataLength = strlen($payload);
-        if ($dataLength > 0) {
-            $this->flowController->consumeReceiveWindow($stream, $dataLength);
-        } elseif (!$endStream) {
+        if ($payloadLength > 0) {
+            $this->flowController->consumeReceiveWindow($stream, $payloadLength);
+        }
+
+        if ($dataLength === 0 && !$endStream) {
             $this->rateLimiter?->record(RateLimiter::EMPTY_DATA_FRAME);
         }
 
@@ -1291,9 +1293,9 @@ final class StateMachine
         $events = [new DataReceived($streamId, $payload, $endStream)];
         $responseFrames = [];
 
-        if ($dataLength > 0) {
+        if ($payloadLength > 0) {
             if ($this->bdpEstimator !== null) {
-                $updates = $this->bdpEstimator->recordDataReceived($streamId, $dataLength);
+                $updates = $this->bdpEstimator->recordDataReceived($streamId, $payloadLength);
                 foreach ($updates as [$updateStreamId, $increment]) {
                     $responseFrames[] = pack(
                         'NCNN',
@@ -1312,12 +1314,12 @@ final class StateMachine
                     }
                 }
             } else {
-                $increment = $dataLength & 0x7FFF_FFFF;
+                $increment = $payloadLength & 0x7FFF_FFFF;
                 $responseFrames[] =
                     pack('NCNN', (4 << 8) | FrameType::WindowUpdate->value, 0, 0, $increment)
                     . pack('NCNN', (4 << 8) | FrameType::WindowUpdate->value, 0, $streamId & 0x7FFF_FFFF, $increment);
-                $this->flowController->applyConnectionReceiveWindowUpdate($dataLength);
-                $stream->receiveWindow += $dataLength;
+                $this->flowController->applyConnectionReceiveWindowUpdate($payloadLength);
+                $stream->receiveWindow += $payloadLength;
             }
         }
 
