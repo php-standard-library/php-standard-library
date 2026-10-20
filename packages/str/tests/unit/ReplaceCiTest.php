@@ -8,6 +8,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Str;
 
+use function file_get_contents;
+
 final class ReplaceCiTest extends TestCase
 {
     #[DataProvider('provideData')]
@@ -33,6 +35,17 @@ final class ReplaceCiTest extends TestCase
         $this->expectExceptionMessage($expectedExceptionMessage);
 
         Str\replace_ci($string, $string, $string);
+    }
+
+    public function testBadUtf8HaystackDoesNotReportAPreviousError(): void
+    {
+        // Leave an unrelated error behind: it must not be reported as the reason of the failure.
+        @file_get_contents(__DIR__ . '/this-file-does-not-exist');
+
+        $this->expectException(Str\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Malformed UTF-8 characters, possibly incorrectly encoded');
+
+        Str\replace_ci("caf\xE9 latte", 'latte', 'x');
     }
 
     public static function provideBadUtf8Data(): iterable

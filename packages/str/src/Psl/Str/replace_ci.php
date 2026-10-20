@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Str;
 
+use function error_clear_last;
 use function error_get_last;
 use function preg_last_error_msg;
 use function preg_quote;
@@ -15,7 +16,7 @@ use function preg_split;
  *
  * @pure
  *
- * @throws Exception\InvalidArgumentException if $needle is not a valid UTF-8 string.
+ * @throws Exception\InvalidArgumentException if $haystack or $needle is not a valid UTF-8 string.
  *
  * @api
  */
@@ -25,6 +26,8 @@ function replace_ci(string $haystack, string $needle, string $replacement, Encod
         return $haystack;
     }
 
+    // `preg_split()` does not emit a warning for an invalid subject: make sure an earlier error is not reported.
+    error_clear_last();
     $pieces = @preg_split('{' . preg_quote($needle, '/') . '}iu', $haystack, -1);
     if (false === $pieces) {
         $error = error_get_last();
