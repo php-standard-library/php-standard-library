@@ -10,7 +10,10 @@ use Psl\Encoding\EncodedWord;
 use Psl\Encoding\Exception;
 use Psl\Str\Encoding;
 
+use function count;
 use function explode;
+use function mb_check_encoding;
+use function mb_convert_encoding;
 use function str_repeat;
 use function strlen;
 
@@ -188,6 +191,63 @@ final class EncodeDecodeTest extends TestCase
         foreach ($words as $word) {
             static::assertLessThanOrEqual(75, strlen($word));
         }
+    }
+
+    /**
+     * RFC 2047 §5: each encoded-word must represent an integral number of characters,
+     * so a multi-byte character must never be split across two encoded-words.
+     */
+    #[DataProvider('provideMultiByteSplitData')]
+    public function testEncodedWordsContainWholeCharacters(string $input, string $encoding): void
+    {
+        $encoded = EncodedWord\encode($input);
+
+        $words = explode(' ', $encoded);
+        static::assertGreaterThan(1, count($words));
+
+        $decoded = '';
+        foreach ($words as $word) {
+            static::assertLessThanOrEqual(75, strlen($word));
+            static::assertStringStartsWith('=?UTF-8?' . $encoding . '?', $word);
+
+            $text = EncodedWord\decode($word);
+            static::assertTrue(mb_check_encoding($text, 'UTF-8'), 'Encoded-word contains a partial character.');
+
+            $decoded .= $text;
+        }
+
+        static::assertSame($input, $decoded);
+        static::assertSame($input, EncodedWord\decode($encoded));
+    }
+
+    /**
+     * @return iterable<string, array{non-empty-string, string}>
+     */
+    public static function provideMultiByteSplitData(): iterable
+    {
+        yield 'B: 2-byte characters' => [str_repeat("\u{e9}", 40), 'B'];
+        yield 'B: 3-byte characters' => ['x' . str_repeat("\u{20ac}", 40), 'B'];
+        yield 'B: 4-byte characters' => [str_repeat("\u{1F600}", 20), 'B'];
+        yield 'Q: 2-byte characters' => [str_repeat("abcde\u{e9}", 20), 'Q'];
+        yield 'Q: 3-byte characters' => [str_repeat("abcdefgh\u{20ac}", 10), 'Q'];
+        yield 'Q: 4-byte characters' => [str_repeat("abcdefghijklmn\u{1F600}", 6), 'Q'];
+    }
+
+    public function testEncodedWordsContainWholeCharactersOfTheGivenCharset(): void
+    {
+        $input = 'x' . mb_convert_encoding(str_repeat("\u{65e5}\u{672c}\u{8a9e}", 20), 'SJIS', 'UTF-8');
+        $encoded = EncodedWord\encode($input, Encoding::Sjis);
+
+        $words = explode(' ', $encoded);
+        static::assertGreaterThan(1, count($words));
+
+        $decoded = '';
+        foreach ($words as $word) {
+            static::assertStringStartsWith('=?SJIS?B?', $word);
+            $decoded .= EncodedWord\decode($word);
+        }
+
+        static::assertSame('x' . str_repeat("\u{65e5}\u{672c}\u{8a9e}", 20), $decoded);
     }
 
     public function testDecodeNoEncodedWords(): void
