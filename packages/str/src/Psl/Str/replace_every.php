@@ -25,7 +25,8 @@ function replace_every(string $haystack, array $replacements, Encoding $encoding
     }
 
     foreach ($replacements as $needle => $replacement) {
-        $haystack = namespace\replace($haystack, $needle, $replacement, $encoding);
+        // @mago-expect analysis:redundant-cast - numeric-string keys are stored as integers by PHP.
+        $haystack = namespace\replace($haystack, (string) $needle, $replacement, $encoding);
     }
 
     return $haystack;

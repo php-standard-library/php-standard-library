@@ -44,6 +44,11 @@ final class ReplaceEveryTest extends TestCase
                 'Foo',
                 ['bar' => 'baz'],
             ],
+            [
+                'a-x-b',
+                'a-1-b',
+                ['1' => 'x'],
+            ],
         ];
     }
 
@@ -54,5 +59,11 @@ final class ReplaceEveryTest extends TestCase
             ['You' => 'World'],
             Str\Encoding::Iso88591,
         ));
+    }
+
+    public function testReplaceEveryWithNumericKeysInNonUtf8Encoding(): void
+    {
+        // PHP stores the numeric-string key '1' as the integer 1.
+        static::assertSame('a-x-b', Str\replace_every('a-1-b', ['1' => 'x'], Str\Encoding::Iso88591));
     }
 }
