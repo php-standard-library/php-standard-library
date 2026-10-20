@@ -188,6 +188,16 @@ final class SignerVerificationTest extends TestCase
                     . "\r\n"
                     . "\r\n",
             'lf line endings' => "From: joe@football.example.com\nTo: suzie@shopping.example.net\n\nHello\n",
+            'repeated header fields' =>
+                "Received: from relay2.football.example.com by mx.example.net\r\n"
+                    . "From: joe@football.example.com\r\n"
+                    . "Received: from relay1.football.example.com by relay2.football.example.com\r\n"
+                    . "X-Tag: first\r\n"
+                    . "To: suzie@shopping.example.net\r\n"
+                    . "X-Tag: second\r\n"
+                    . "X-Tag: third\r\n"
+                    . "\r\n"
+                    . "Hello\r\n",
         ];
 
         foreach (Algorithm::cases() as $algorithm) {

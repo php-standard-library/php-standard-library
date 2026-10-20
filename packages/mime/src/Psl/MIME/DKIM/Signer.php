@@ -6,6 +6,7 @@ namespace Psl\MIME\DKIM;
 
 use Psl\MIME\Exception\DKIMException;
 
+use function array_pop;
 use function base64_decode;
 use function base64_encode;
 use function chunk_split;
@@ -80,7 +81,7 @@ final readonly class Signer implements SignerInterface
         ];
 
         $signedHeaderNames = [];
-        $headerCanonData = '';
+        $canonicalizedInstances = [];
 
         foreach ($headers as [$name, $raw]) {
             $lowerName = strtolower($name);
@@ -93,7 +94,19 @@ final readonly class Signer implements SignerInterface
             }
 
             $signedHeaderNames[] = $lowerName;
-            $headerCanonData .= self::canonicalizeHeader($name, $raw, $this->configuration->headerCanonicalization);
+            $canonicalizedInstances[$lowerName][] = self::canonicalizeHeader(
+                $name,
+                $raw,
+                $this->configuration->headerCanonicalization,
+            );
+        }
+
+        // RFC 6376 §5.4.2: verifiers select the instances of a repeated header field from the
+        // bottom of the header block up, so the n-th occurrence of a name in "h=" stands for the
+        // n-th instance counted from the end, and must be hashed in that order.
+        $headerCanonData = '';
+        foreach ($signedHeaderNames as $lowerName) {
+            $headerCanonData .= (string) array_pop($canonicalizedInstances[$lowerName]);
         }
 
         [$bodyHash, $bodyLength] = self::hashBody(
