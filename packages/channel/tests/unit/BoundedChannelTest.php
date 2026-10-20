@@ -469,4 +469,102 @@ final class BoundedChannelTest extends TestCase
 
         $sender->send('blocked', $token);
     }
+
+    public function testReceiveResumedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $token = new Async\SignalCancellationToken();
+        $receiving = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        // The receiver is resumed with a message, then its token is cancelled before it gets to run.
+        $sender->send('hello');
+        $token->cancel();
+
+        static::assertSame('hello', $receiving->await());
+    }
+
+    public function testReceiveClosedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $token = new Async\SignalCancellationToken();
+        $receiving = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        $sender->close();
+        $token->cancel();
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $receiving->await();
+    }
+
+    public function testSendResumedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $token = new Async\SignalCancellationToken();
+        $sending = Async\run(static fn(): null => $sender->send('bar', $token));
+
+        Async\later();
+
+        // The sender is resumed as space frees up, then its token is cancelled before it gets to run.
+        static::assertSame('foo', $receiver->receive());
+        $token->cancel();
+
+        $sending->await();
+
+        static::assertSame('bar', $receiver->receive());
+    }
+
+    public function testQueuedSendResumedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $token = new Async\SignalCancellationToken();
+        $first = Async\run(static fn(): null => $sender->send('bar'));
+        $second = Async\run(static fn(): null => $sender->send('baz', $token));
+
+        Async\later();
+
+        static::assertSame('foo', $receiver->receive());
+        $first->await();
+        static::assertSame('bar', $receiver->receive());
+        $token->cancel();
+        $second->await();
+
+        static::assertSame('baz', $receiver->receive());
+    }
+
+    public function testSendClosedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\SenderInterface<string> $sender */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $token = new Async\SignalCancellationToken();
+        $sending = Async\run(static fn(): null => $sender->send('bar', $token));
+
+        Async\later();
+
+        $receiver->close();
+        $token->cancel();
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $sending->await();
+    }
 }

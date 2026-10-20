@@ -147,25 +147,43 @@ final class BoundedChannelState implements ChannelInterface
     }
 
     /**
+     * Remove the given suspension from the waiting list.
+     *
+     * Returns `false` if the suspension was no longer waiting, meaning it has already been
+     * resumed (or thrown into) and must not be resumed again.
+     *
      * @param Suspension<mixed> $suspension
      */
-    public function removeFromWaitingForSpace(Suspension $suspension): void
+    public function removeFromWaitingForSpace(Suspension $suspension): bool
     {
         $index = array_search($suspension, $this->waitingForSpace, true);
-        if (false !== $index) {
-            array_splice($this->waitingForSpace, $index, 1);
+        if (false === $index) {
+            return false;
         }
+
+        array_splice($this->waitingForSpace, $index, 1);
+
+        return true;
     }
 
     /**
+     * Remove the given suspension from the waiting list.
+     *
+     * Returns `false` if the suspension was no longer waiting, meaning it has already been
+     * resumed (or thrown into) and must not be resumed again.
+     *
      * @param Suspension<mixed> $suspension
      */
-    public function removeFromWaitingForMessage(Suspension $suspension): void
+    public function removeFromWaitingForMessage(Suspension $suspension): bool
     {
         $index = array_search($suspension, $this->waitingForMessage, true);
-        if (false !== $index) {
-            array_splice($this->waitingForMessage, $index, 1);
+        if (false === $index) {
+            return false;
         }
+
+        array_splice($this->waitingForMessage, $index, 1);
+
+        return true;
     }
 
     /**

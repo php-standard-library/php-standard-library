@@ -259,4 +259,58 @@ final class UnboundedChannelTest extends TestCase
         static::assertTrue($one->isComplete());
         static::assertSame('foo', $one->await());
     }
+
+    public function testReceiveResumedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $token = new Async\SignalCancellationToken();
+        $receiving = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        // The receiver is resumed with a message, then its token is cancelled before it gets to run.
+        $sender->send('hello');
+        $token->cancel();
+
+        static::assertSame('hello', $receiving->await());
+    }
+
+    public function testQueuedReceiveResumedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $token = new Async\SignalCancellationToken();
+        $first = Async\run($receiver->receive(...));
+        $second = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        $sender->send('foo');
+        $sender->send('bar');
+        $token->cancel();
+
+        static::assertSame('foo', $first->await());
+        static::assertSame('bar', $second->await());
+    }
+
+    public function testReceiveClosedAndCancelledInTheSameTick(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $token = new Async\SignalCancellationToken();
+        $receiving = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        $sender->close();
+        $token->cancel();
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $receiving->await();
+    }
 }

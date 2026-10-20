@@ -55,8 +55,10 @@ final class BoundedReceiver implements ReceiverInterface
             $id = null;
             if ($cancellation->cancellable) {
                 $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    $this->state->removeFromWaitingForMessage($suspension);
-                    $suspension->throw($e);
+                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
+                    if ($this->state->removeFromWaitingForMessage($suspension)) {
+                        $suspension->throw($e);
+                    }
                 });
             }
 
@@ -83,8 +85,10 @@ final class BoundedReceiver implements ReceiverInterface
             $id2 = null;
             if ($cancellation->cancellable) {
                 $id2 = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                    $this->state->removeFromWaitingForMessage($suspension);
-                    $suspension->throw($e);
+                    // The suspension may have already been resumed by a send/receive, or thrown into by close().
+                    if ($this->state->removeFromWaitingForMessage($suspension)) {
+                        $suspension->throw($e);
+                    }
                 });
             }
 
