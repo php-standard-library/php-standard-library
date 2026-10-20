@@ -162,15 +162,17 @@ final class Reader implements BufferedReadHandleInterface
         $suffixLen = strlen($suffix);
         $idx = strpos($this->buffer, $suffix);
         while (false === $idx) {
+            if ($this->eof) {
+                return null;
+            }
+
             // + 1 as it would have been matched in the previous iteration if it
             // fully fit in the chunk
             $offset = strlen($this->buffer) - $suffixLen + 1;
             $offset = $offset > 0 ? $offset : 0;
             $chunk = $this->handle->read(null, $cancellation);
             if ('' === $chunk) {
-                if ($this->handle->reachedEndOfDataSource()) {
-                    return null;
-                }
+                $this->eof = $this->handle->reachedEndOfDataSource();
 
                 continue;
             }
@@ -217,13 +219,15 @@ final class Reader implements BufferedReadHandleInterface
                 ));
             }
 
+            if ($this->eof) {
+                return null;
+            }
+
             $offset = strlen($this->buffer) - $suffixLen + 1;
             $offset = $offset > 0 ? $offset : 0;
             $chunk = $this->handle->read(null, $cancellation);
             if ('' === $chunk) {
-                if ($this->handle->reachedEndOfDataSource()) {
-                    return null;
-                }
+                $this->eof = $this->handle->reachedEndOfDataSource();
 
                 continue;
             }

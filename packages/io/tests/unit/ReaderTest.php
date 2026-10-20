@@ -497,6 +497,22 @@ final class ReaderTest extends TestCase
         $read->close();
     }
 
+    public function testReaderDoesNotReadPastTheEndOfDataSource(): void
+    {
+        $handle = new EofTrackingHandle("line\nrest");
+        $reader = new IO\Reader($handle);
+
+        static::assertSame('line', $reader->readLine());
+        static::assertSame('rest', $reader->readLine());
+        static::assertNull($reader->readLine());
+        static::assertNull($reader->readUntil("\n"));
+        static::assertNull($reader->readUntilBounded("\n", 10));
+        static::assertSame('', $reader->read());
+        static::assertTrue($reader->reachedEndOfDataSource());
+
+        static::assertSame(0, $handle->readsAfterEof);
+    }
+
     public function testReadByteWithDelayedHandle(): void
     {
         $handle = new DelayedHandle('ab', 2);
