@@ -114,6 +114,20 @@ final class ExecuteTest extends TestCase
         }
     }
 
+    public function testItThrowsWhenEnvironmentVariableContainsNULLByte(): void
+    {
+        try {
+            Shell\execute(PHP_BINARY, ['-dopcache.enable=0', '-r', 'echo getenv("FOO");'], null, [
+                'FOO' => "visible\0hidden",
+            ]);
+
+            static::fail('Expected a RuntimeException to be thrown.');
+        } catch (Shell\Exception\RuntimeException $exception) {
+            static::assertSame(Shell\Exception\RuntimeException::class, $exception::class);
+            static::assertSame('Environment variable contains NULL bytes.', $exception->getMessage());
+        }
+    }
+
     public function testErrorOutputIsDiscarded(): void
     {
         $result = Shell\execute(PHP_BINARY, [

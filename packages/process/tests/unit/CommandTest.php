@@ -347,6 +347,90 @@ final class CommandTest extends TestCase
         self::phpCommand()->withArgument('-r')->withArgument("echo\0injected;")->spawn();
     }
 
+    public function testNullByteInEnvironmentVariableValue(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable contains NULL bytes.');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo getenv("PSL_PROCESS_VAR");')
+            ->withEnvironmentVariable('PSL_PROCESS_VAR', "visible\0hidden")
+            ->spawn();
+    }
+
+    public function testNullByteInEnvironmentVariableName(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable contains NULL bytes.');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withEnvironmentVariable("PSL_PROCESS_VAR\0HIDDEN", 'value')
+            ->output();
+    }
+
+    public function testNullByteInEnvironmentVariablesValue(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable contains NULL bytes.');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withEnvironmentVariables(['PSL_PROCESS_OK' => 'ok', 'PSL_PROCESS_VAR' => "\0"])
+            ->status();
+    }
+
+    public function testEqualsSignInEnvironmentVariableName(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable name is empty or contains "=".');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo getenv("PSL_PROCESS_VAR");')
+            ->withEnvironmentVariable('PSL_PROCESS_VAR=injected', 'value')
+            ->spawn();
+    }
+
+    public function testEmptyEnvironmentVariableName(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable name is empty or contains "=".');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withEnvironmentVariable('', 'value')
+            ->spawn();
+    }
+
+    public function testInvalidNameInWithoutEnvironmentVariable(): void
+    {
+        $this->expectException(Exception\RuntimeException::class);
+        $this->expectExceptionMessage('Environment variable name is empty or contains "=".');
+
+        self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withoutEnvironmentVariable('PSL_PROCESS_VAR=injected')
+            ->spawn();
+    }
+
+    public function testIntegerLikeEnvironmentVariableNameIsAccepted(): void
+    {
+        $output = self::phpCommand()
+            ->withArgument('-r')
+            ->withArgument('echo "hello";')
+            ->withEnvironmentVariable('123', 'value')
+            ->output();
+
+        static::assertTrue($output->status->isSuccessful());
+        static::assertSame('hello', $output->stdout);
+    }
+
     public function testNullByteInWorkingDirectory(): void
     {
         $this->expectException(Exception\RuntimeException::class);

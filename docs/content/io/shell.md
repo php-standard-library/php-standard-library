@@ -27,7 +27,7 @@ Pass a `CancellationTokenInterface` to cancel a running command. Use `TimeoutCan
 - **`FailedExecutionException`** -- the command exited with a non-zero status. Provides `getCommand()`, `getOutput()`, and `getErrorOutput()` for inspection.
 - **`PossibleAttackException`** -- the command or an argument contains a NULL byte, indicating a potential injection attack.
 - **`CancelledException`** -- the command was cancelled via the cancellation token.
-- **`RuntimeException`** -- the working directory does not exist or contains a NULL byte, or the process could not be created.
+- **`RuntimeException`** -- the working directory does not exist or contains a NULL byte, an environment variable name or value is invalid (for example, it contains a NULL byte), or the process could not be created.
 
 @example('io/shell-error-handling.php')
 

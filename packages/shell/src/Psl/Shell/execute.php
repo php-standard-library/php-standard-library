@@ -29,7 +29,8 @@ use function strlen;
  *
  * @throws Exception\FailedExecutionException In case the command resulted in an exit code other than 0.
  * @throws Exception\PossibleAttackException In case the command being run is suspicious ( e.g: contains NULL byte ).
- * @throws Exception\RuntimeException In case $workingDirectory doesn't exist or contains a NULL byte, or unable to create a new process.
+ * @throws Exception\RuntimeException In case $workingDirectory doesn't exist or contains a NULL byte, an environment variable
+ *                                     is invalid ( e.g: contains a NULL byte ), or unable to create a new process.
  * @throws CancelledException If the operation is cancelled.
  *
  * @api
