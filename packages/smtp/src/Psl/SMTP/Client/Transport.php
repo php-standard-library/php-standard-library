@@ -28,8 +28,11 @@ use WeakMap;
 
 use function array_shift;
 use function explode;
-use function str_contains;
+use function implode;
+use function preg_match;
 use function strlen;
+use function strrpos;
+use function substr;
 
 /**
  * High-level SMTP transport with connection pooling, TLS, and authentication.
@@ -371,13 +374,17 @@ final class Transport implements TransportInterface
      */
     private function encodeAddress(string $address): string
     {
-        if (!str_contains($address, '@')) {
+        $at = strrpos($address, '@');
+        if ($at === false) {
             return $address;
         }
 
-        [$local, $domain] = explode('@', $address, 2);
+        $labels = [];
+        foreach (explode('.', substr($address, $at + 1)) as $label) {
+            $labels[] = preg_match('/[\x80-\xff]/', $label) === 1 ? 'xn--' . Punycode\encode($label) : $label;
+        }
 
-        return $local . '@' . Punycode\encode($domain);
+        return substr($address, 0, $at + 1) . implode('.', $labels);
     }
 
     /**

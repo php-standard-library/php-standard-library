@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\SMTP\Tests\Unit\Client;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
 use Psl\Message\Address\Mailbox;
@@ -45,6 +46,31 @@ final class TransportSafetyTest extends TestCase
 
         $output->seek(0);
         static::assertStringContainsString("MAIL FROM:<sender@example.com> REQUIRETLS\r\n", $output->readAll());
+    }
+
+    #[DataProvider('internationalizedAddresses')]
+    public function testEncodesDomainLabels(string $local, string $domain, string $encoded): void
+    {
+        [$transport, $output] = $this->transport('OK');
+        $mailbox = new Mailbox($local, $domain);
+
+        $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+
+        $output->seek(0);
+        $commands = $output->readAll();
+        static::assertStringContainsString("MAIL FROM:<{$encoded}>\r\n", $commands);
+        static::assertStringContainsString("RCPT TO:<{$encoded}>\r\n", $commands);
+    }
+
+    /** @return iterable<string, array{string, string, string}> */
+    public static function internationalizedAddresses(): iterable
+    {
+        yield 'one Unicode label' => ['user', 'bücher.example', 'user@xn--bcher-kva.example'];
+        yield 'two Unicode labels' => ['user', 'bücher.münchen', 'user@xn--bcher-kva.xn--mnchen-3ya'];
+        yield 'ASCII domain' => ['user', 'mail.example.com', 'user@mail.example.com'];
+        yield 'A-label' => ['user', 'xn--bcher-kva.example', 'user@xn--bcher-kva.example'];
+        yield 'quoted local at' => ['"user@home"', 'bücher.example', '"user@home"@xn--bcher-kva.example'];
+        yield 'domain literal' => ['user', '[IPv6:::1]', 'user@[IPv6:::1]'];
     }
 
     /**

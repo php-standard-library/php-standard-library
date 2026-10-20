@@ -2971,7 +2971,7 @@ final class TransportTest extends TestCase
             $client->writeAll("250 mail.example.com\r\n");
 
             $mailFrom = self::readCommand($client);
-            static::assertStringContainsString('mnchen.de-q9a', $mailFrom);
+            static::assertSame("MAIL FROM:<sender@xn--mnchen-3ya.de>\r\n", $mailFrom);
             $client->writeAll("250 OK\r\n");
 
             self::readCommand($client);

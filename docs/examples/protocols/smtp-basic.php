@@ -18,7 +18,8 @@ $transport = new Transport(
 );
 
 $sender = new Mailbox('alice', 'example.com', 'Alice');
-$recipient = new Mailbox('bob', 'example.com');
+// The envelope uses bob@xn--bcher-kva.example.
+$recipient = new Mailbox('bob', 'bücher.example');
 
 $message = new Message()
     ->withFrom($sender)

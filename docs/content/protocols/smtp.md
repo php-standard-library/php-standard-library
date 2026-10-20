@@ -6,6 +6,8 @@ The `SMTP` component implements an RFC 5321 SMTP client with connection pooling,
 
 The `Transport` handles the full SMTP lifecycle: connection, EHLO, TLS, authentication, message transmission, and connection reuse. Pass an `Envelope` (derived from message headers) and a `MessageInterface` to send.
 
+For envelope addresses, the transport encodes each Unicode domain label as Punycode with the `xn--` prefix. ASCII labels and domain literals stay unchanged.
+
 @example('protocols/smtp-basic.php')
 
 ## Authentication
