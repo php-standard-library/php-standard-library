@@ -35,6 +35,27 @@ final class SerializeTest extends TestCase
     }
 
     #[Test]
+    public function serializeOmitsBlindRecipientsWithoutChangingEnvelope(): void
+    {
+        $message = new Message\Message()
+            ->withFrom('alice@example.com')
+            ->withTo('bob@example.com')
+            ->withBcc('secret@example.com')
+            ->withHeader('bCC', 'other@example.com')
+            ->withHeader('rEsEnT-bCc', 'hidden@example.com');
+        $envelope = Message\Envelope::fromMessage($message);
+
+        $result = Message\serialize($message)->readAll();
+
+        self::assertStringNotContainsString('secret@example.com', $result);
+        self::assertStringNotContainsString('other@example.com', $result);
+        self::assertStringNotContainsString('hidden@example.com', $result);
+        self::assertStringContainsString("To: bob@example.com\r\n", $result);
+        self::assertSame('secret@example.com', $message->headers->get('Bcc'));
+        self::assertSame('secret@example.com', $envelope->recipients[1]->address);
+    }
+
+    #[Test]
     public function serializeEmptyBody(): void
     {
         $message = new Message\Message(Headers::fromPairs([

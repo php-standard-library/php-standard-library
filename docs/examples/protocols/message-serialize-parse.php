@@ -11,8 +11,12 @@ use Psl\MIME\Part;
 $message = new Message\Message()
     ->withFrom('alice@example.com')
     ->withTo('bob@example.com')
+    ->withBcc('secret@example.com')
     ->withSubject('Round trip')
     ->withContent(new Part\Text(new IO\MemoryHandle('Hello!')));
+
+// Keep blind recipients in the envelope; omit them from the wire headers.
+$envelope = Message\Envelope::fromMessage($message);
 
 // Serialize to a streaming handle (headers + body)
 $handle = Message\serialize($message);

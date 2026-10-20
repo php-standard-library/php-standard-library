@@ -16,7 +16,7 @@ The message body is a `PartInterface` from the MIME component. Compose any MIME 
 
 ## Serialization and Parsing
 
-`serialize()` produces a streaming RFC 5322 representation. `parse()` accepts a string or a `ReadHandleInterface` for streaming input from network sockets.
+`serialize()` produces a streaming RFC 5322 representation for transmission. It omits `Bcc` and `Resent-Bcc` headers so blind recipients stay private. The message keeps those headers, and `Envelope::fromMessage()` still includes its Bcc recipients. Derive the envelope before serializing; a parsed wire copy cannot recover blind recipients. `parse()` accepts a string or a `ReadHandleInterface` for streaming input from network sockets.
 
 @example('protocols/message-serialize-parse.php')
 

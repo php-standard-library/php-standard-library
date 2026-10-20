@@ -16,7 +16,8 @@ use function strtolower;
  * and the body stream into a single readable handle. Message-level headers
  * such as "Content-Type" and "Content-Transfer-Encoding" are moved from the
  * message headers to the body part headers, and a "MIME-Version: 1.0" header
- * is inserted automatically.
+ * is inserted automatically. Bcc and Resent-Bcc headers are omitted to keep
+ * blind recipients private. The message and its envelope are unchanged.
  *
  * The returned handle can be read incrementally or consumed in full via
  * {@see \Psl\IO\ReadHandleInterface::readAll()}.
@@ -43,7 +44,7 @@ function serialize(MessageInterface $message): IO\ReadHandleInterface
         $pairs[] = $pair;
     }
 
-    $headers = Headers::fromPairs($pairs);
+    $headers = Headers::fromPairs($pairs)->without('Bcc')->without('Resent-Bcc');
 
     return new IO\ConcatReadHandle(new IO\MemoryHandle($headers->toFoldedString() . "\r\n"), $message->content->body());
 }
