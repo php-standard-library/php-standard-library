@@ -14,6 +14,9 @@ use Psl\MIME\MultiPart\Parser;
 use Psl\Str;
 
 use function iterator_to_array;
+use function memory_get_peak_usage;
+use function memory_get_usage;
+use function memory_reset_peak_usage;
 use function str_pad;
 use function strpos;
 
@@ -1734,6 +1737,44 @@ final class ParserTest extends TestCase
         $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
 
         static::assertSame('ok', $parts[0]->body->readAll());
+    }
+
+    public function testLargePreambleIsNotBuffered(): void
+    {
+        $handle = new IO\MemoryHandle(
+            Str\repeat("preamble line\r\n", 600_000)
+                . "--boundary\r\nContent-Type: text/plain\r\n\r\nbody\r\n--boundary--\r\n",
+        );
+
+        memory_reset_peak_usage();
+        $before = memory_get_usage();
+        $parts = iterator_to_array(new Parser('boundary')->parse($handle));
+        $peak = memory_get_peak_usage() - $before;
+
+        static::assertCount(1, $parts);
+        static::assertSame('body', $parts[0]->body->readAll());
+        // The ~9 MB preamble must be discarded as it is read, not accumulated.
+        static::assertLessThan(4 * 1024 * 1024, $peak);
+    }
+
+    public function testDelimiterSplitAcrossReadsAfterLargePreamble(): void
+    {
+        // Place the delimiter across the 8192-byte read boundary.
+        $preamble = Str\repeat('x', 8192 - 5);
+        $body = $preamble . "--boundary\r\n\r\nvalue\r\n--boundary--\r\n";
+
+        $parts = iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame('value', $parts[0]->body->readAll());
+    }
+
+    public function testMissingBoundaryAfterLargePreambleThrows(): void
+    {
+        $this->expectException(MultiPartException::class);
+        $this->expectExceptionMessage('boundary not found');
+
+        iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle(Str\repeat('-', 100_000))));
     }
 
     public function testLfHeaderSectionEndsAtFirstBlankLine(): void

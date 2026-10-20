@@ -56,6 +56,8 @@ final class Parser implements ParserInterface
 
     /**
      * The full boundary delimiter including the leading "--" prefix.
+     *
+     * @var non-empty-string
      */
     private string $delimiter;
 
@@ -142,8 +144,7 @@ final class Parser implements ParserInterface
     ): Generator {
         $buffer = '';
 
-        $preamble = self::bufferReadUntil($handle, $buffer, $this->delimiter, $cancellation);
-        if ($preamble === null) {
+        if (!self::bufferSkipUntil($handle, $buffer, $this->delimiter, $cancellation)) {
             throw MultiPartException::forMalformedMultipartBody('boundary not found');
         }
 
@@ -330,28 +331,35 @@ final class Parser implements ParserInterface
     }
 
     /**
-     * Search buffer for needle, reading more chunks as needed.
+     * Discard input up to and including the needle, reading more chunks as needed.
      *
-     * Returns content before needle (needle consumed from buffer), or null on EOF.
+     * Only the last strlen($needle) - 1 bytes are kept between reads, enough to match a needle
+     * split across chunks, so skipping input of any size (such as a preamble) uses constant memory.
+     *
+     * @param non-empty-string $needle
+     *
+     * @return bool True if the needle was found (and consumed from the buffer), false on EOF.
      */
-    private static function bufferReadUntil(
+    private static function bufferSkipUntil(
         IO\ReadHandleInterface $handle,
         string &$buffer,
         string $needle,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
-    ): null|string {
+    ): bool {
+        $needleLength = strlen($needle);
         while (true) {
             $pos = strpos($buffer, $needle);
             if ($pos !== false) {
-                $result = substr($buffer, 0, $pos);
-                $buffer = substr($buffer, $pos + strlen($needle));
-                return $result;
+                $buffer = substr($buffer, $pos + $needleLength);
+                return true;
             }
+
+            $buffer = $needleLength > 1 ? substr($buffer, 1 - $needleLength) : '';
 
             $chunk = $handle->read(maxBytes: self::CHUNK_SIZE, cancellation: $cancellation);
             if ($chunk === '') {
                 if ($handle->reachedEndOfDataSource()) {
-                    return null;
+                    return false;
                 }
 
                 continue;
