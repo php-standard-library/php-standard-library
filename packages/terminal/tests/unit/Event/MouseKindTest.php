@@ -13,12 +13,14 @@ final class MouseKindTest extends TestCase
     {
         $cases = MouseKind::cases();
 
-        static::assertCount(6, $cases);
+        static::assertCount(8, $cases);
         static::assertContains(MouseKind::Press, $cases);
         static::assertContains(MouseKind::Release, $cases);
         static::assertContains(MouseKind::Drag, $cases);
         static::assertContains(MouseKind::ScrollUp, $cases);
         static::assertContains(MouseKind::ScrollDown, $cases);
         static::assertContains(MouseKind::Move, $cases);
+        static::assertContains(MouseKind::ScrollLeft, $cases);
+        static::assertContains(MouseKind::ScrollRight, $cases);
     }
 }

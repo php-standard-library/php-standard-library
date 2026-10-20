@@ -860,6 +860,32 @@ final class EventParserAdditionalTest extends TestCase
 
         static::assertCount(1, $events);
         static::assertInstanceOf(Event\Mouse::class, $events[0]);
+        static::assertSame(Event\MouseKind::ScrollLeft, $events[0]->kind);
+        static::assertSame(4, $events[0]->column);
+        static::assertSame(4, $events[0]->row);
+        static::assertSame(Event\MouseButton::None, $events[0]->button);
+    }
+
+    public function testSgrMouseScrollRight(): void
+    {
+        $events = $this->parser->feed("\e[<67;5;5M");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Mouse::class, $events[0]);
+        static::assertSame(Event\MouseKind::ScrollRight, $events[0]->kind);
+        static::assertSame(Event\MouseButton::None, $events[0]->button);
+    }
+
+    public function testSgrMouseHorizontalScrollWithModifier(): void
+    {
+        // Shift (4) + wheel left (66).
+        $events = $this->parser->feed("\e[<70;5;5M");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Mouse::class, $events[0]);
+        static::assertSame(Event\MouseKind::ScrollLeft, $events[0]->kind);
+        static::assertSame(Event\MouseButton::None, $events[0]->button);
+        static::assertTrue($events[0]->modifiers->shift());
     }
 
     public function testRapidSequentialEvents(): void

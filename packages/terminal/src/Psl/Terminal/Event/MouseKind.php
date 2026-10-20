@@ -15,4 +15,6 @@ enum MouseKind
     case ScrollUp;
     case ScrollDown;
     case Move;
+    case ScrollLeft;
+    case ScrollRight;
 }

@@ -57,6 +57,18 @@ final class ScrollSmoothingTest extends TestCase
         static::assertTrue($this->filter->filter(new Event\Mouse(Event\MouseKind::Drag, 10, 20)));
     }
 
+    public function testHorizontalScrollEventsAlwaysPassAndKeepVerticalDirection(): void
+    {
+        static::assertTrue($this->filter->filter(self::scrollDown()));
+
+        static::assertTrue($this->filter->filter(new Event\Mouse(Event\MouseKind::ScrollLeft, 0, 0)));
+        static::assertTrue($this->filter->filter(new Event\Mouse(Event\MouseKind::ScrollRight, 0, 0)));
+        static::assertTrue($this->filter->filter(new Event\Mouse(Event\MouseKind::ScrollLeft, 0, 0)));
+
+        static::assertTrue($this->filter->filter(self::scrollDown()));
+        static::assertFalse($this->filter->filter(self::scrollUp()));
+    }
+
     public function testDirectionResetsAfterAcceptedReversal(): void
     {
         static::assertTrue($this->filter->filter(self::scrollDown()));

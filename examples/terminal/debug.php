@@ -88,7 +88,11 @@ Async\main(static function (): int {
         );
 
         $color = match ($event->kind) {
-            Event\MouseKind::ScrollUp, Event\MouseKind::ScrollDown => Color\bright_yellow(),
+            Event\MouseKind::ScrollUp,
+            Event\MouseKind::ScrollDown,
+            Event\MouseKind::ScrollLeft,
+            Event\MouseKind::ScrollRight,
+                => Color\bright_yellow(),
             Event\MouseKind::Press => Color\bright_green(),
             Event\MouseKind::Release => Color\bright_red(),
             Event\MouseKind::Drag => Color\bright_magenta(),

@@ -45,8 +45,14 @@ final class SgrMouseParser
             return ($btn & 0b11) === 0b11 ? Event\MouseKind::Move : Event\MouseKind::Drag;
         }
 
+        // Wheel "buttons" 4-7 (64-67): up, down, left, right.
         if (($btn & 0b100_0000) !== 0) {
-            return ($btn & 0b1) === 0 ? Event\MouseKind::ScrollUp : Event\MouseKind::ScrollDown;
+            return match ($btn & 0b11) {
+                0b00 => Event\MouseKind::ScrollUp,
+                0b01 => Event\MouseKind::ScrollDown,
+                0b10 => Event\MouseKind::ScrollLeft,
+                default => Event\MouseKind::ScrollRight,
+            };
         }
 
         return Event\MouseKind::Press;
@@ -54,7 +60,12 @@ final class SgrMouseParser
 
     private static function buttonFromBits(int $btn, Event\MouseKind $kind): Event\MouseButton
     {
-        if ($kind === Event\MouseKind::ScrollUp || $kind === Event\MouseKind::ScrollDown) {
+        if (
+            $kind === Event\MouseKind::ScrollUp
+            || $kind === Event\MouseKind::ScrollDown
+            || $kind === Event\MouseKind::ScrollLeft
+            || $kind === Event\MouseKind::ScrollRight
+        ) {
             return Event\MouseButton::None;
         }
 
