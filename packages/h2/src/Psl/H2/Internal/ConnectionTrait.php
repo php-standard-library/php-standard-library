@@ -15,6 +15,7 @@ use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Exception\RuntimeException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\RawFrame;
 use Psl\H2\StreamState;
@@ -157,7 +158,7 @@ trait ConnectionTrait
         } catch (ConnectionException $e) {
             throw $e;
         } catch (RuntimeException $e) {
-            // Auto-send GOAWAY before re-throwing.
+            // Report the error to the peer before re-throwing.
             $errorCode = match (true) {
                 $e instanceof ProtocolException => $e->errorCode,
                 $e instanceof FlowControlException => ErrorCode::FlowControlError,
@@ -166,8 +167,18 @@ trait ConnectionTrait
 
             // @mago-expect lint:no-empty-catch-clause - Best effort, connection may already be broken.
             try {
-                $goaway = $this->stateMachine->goAway($errorCode, $e->getMessage());
-                $this->writeFrames($goaway);
+                $frames = $e instanceof StreamException
+                    ? $this->stateMachine->resetStreamForError($e->streamId, $e->errorCode)
+                    : $this->stateMachine->goAway($errorCode, $e->getMessage());
+                $this->writeFrames($frames);
+            } catch (ProtocolException $limitError) {
+                // @mago-expect lint:no-empty-catch-clause - Best effort after the reset limit is reached.
+                try {
+                    $this->goAway($limitError->errorCode, $limitError->getMessage());
+                } catch (Throwable) {
+                }
+
+                throw $limitError;
             } catch (Throwable) {
             }
 

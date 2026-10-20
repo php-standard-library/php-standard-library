@@ -28,6 +28,8 @@ final class RateLimiter implements DefaultInterface
 {
     public const int EMPTY_DATA_FRAME = -1;
 
+    public const int STREAM_ERROR_RESET = -2;
+
     /**
      * @var array<int, int>
      */
@@ -41,8 +43,8 @@ final class RateLimiter implements DefaultInterface
     /**
      * Create a new rate limiter with the given per-frame-type limits.
      *
-     * @param array<-1|int<0, 9>, array{int, DateTime\Duration}> $limits Map of frame type value to [max count, window duration].
-     *                                                          Use {@see FrameType} values as keys, or `-1` for empty DATA frames.
+     * @param array<-2|-1|int<0, 9>, array{int, DateTime\Duration}> $limits Map of frame type value to [max count, window duration].
+     *  Use {@see FrameType} values, {@see self::EMPTY_DATA_FRAME}, or {@see self::STREAM_ERROR_RESET} as keys.
      */
     public function __construct(
         private readonly array $limits,
@@ -57,6 +59,7 @@ final class RateLimiter implements DefaultInterface
      * - RST_STREAM: 100
      * - PRIORITY: 100
      * - Empty DATA: 100
+     * - Resets caused by peer errors: 100
      */
     public static function default(): static
     {
@@ -66,17 +69,18 @@ final class RateLimiter implements DefaultInterface
             FrameType::RstStream->value => [100, DateTime\Duration::seconds(10)],
             FrameType::Priority->value => [100, DateTime\Duration::seconds(10)],
             self::EMPTY_DATA_FRAME => [100, DateTime\Duration::seconds(10)],
+            self::STREAM_ERROR_RESET => [100, DateTime\Duration::seconds(10)],
         ]);
     }
 
     /**
-     * Record a received frame and enforce the rate limit for its type.
+     * Record a received frame or a reset caused by a peer error, and enforce its limit.
      *
      * If the frame type has no configured limit, this is a no-op.
      * When the count exceeds the limit within the current window, a
      * connection error is raised.
      *
-     * @param -1|int<0, 9> $frameType The frame type value (e.g. {@see FrameType::Ping->value}), or {@see self::EMPTY_DATA_FRAME} for empty DATA.
+     * @param -2|-1|int<0, 9> $frameType The frame type value (e.g. {@see FrameType::Ping->value}), or {@see self::EMPTY_DATA_FRAME} or {@see self::STREAM_ERROR_RESET}.
      *
      * @throws ProtocolException If the rate limit for this frame type is exceeded.
      */
@@ -103,6 +107,10 @@ final class RateLimiter implements DefaultInterface
         $this->counts[$frameType]++;
 
         if ($this->counts[$frameType] > $maxCount) {
+            if (self::STREAM_ERROR_RESET === $frameType) {
+                throw ProtocolException::forExcessiveResets();
+            }
+
             if (self::EMPTY_DATA_FRAME === $frameType) {
                 throw ProtocolException::forConnectionError('Rate limit exceeded for empty DATA frames');
             }

@@ -7,6 +7,7 @@ namespace Psl\H2\Tests\Unit\StateMachine;
 use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event\DataReceived;
+use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\DataFrame;
@@ -64,7 +65,7 @@ final class StreamStateTest extends TestCase
         $sm = new StateMachine(false);
         $sm->initialize();
 
-        $this->expectException(StreamException::class);
+        $this->expectException(ProtocolException::class);
 
         $dataRaw = new DataFrame(1, 'data', false)->toRaw();
         $sm->receive($dataRaw);

@@ -48,6 +48,14 @@ final class ProtocolException extends RuntimeException
     }
 
     /**
+     * Reject a peer that causes too many stream resets (RFC 9113 §10.5).
+     */
+    public static function forExcessiveResets(): self
+    {
+        return new self('HTTP/2 stream error reset rate limit exceeded.', ErrorCode::EnhanceYourCalm);
+    }
+
+    /**
      * Create a connection error when HPACK cannot decode a field block (RFC 9113 §4.3).
      */
     public static function forCompressionError(Throwable $previous): self

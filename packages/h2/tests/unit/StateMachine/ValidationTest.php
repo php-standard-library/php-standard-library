@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
 use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame\DataFrame;
 use Psl\H2\Frame\HeadersFrame;
 use Psl\H2\Frame\RawFrame;
@@ -354,7 +355,7 @@ final class ValidationTest extends TestCase
             new Header(':path', '/'),
         ]);
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('after regular');
 
         $raw = new HeadersFrame(1, $block, true, true)->toRaw();
@@ -374,7 +375,7 @@ final class ValidationTest extends TestCase
             new Header('connection', 'keep-alive'),
         ]);
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
         $raw = new HeadersFrame(1, $block, true, true)->toRaw();
@@ -394,7 +395,7 @@ final class ValidationTest extends TestCase
             new Header('Content-Type', 'text/html'),
         ]);
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('uppercase');
 
         $raw = new HeadersFrame(1, $block, true, true)->toRaw();

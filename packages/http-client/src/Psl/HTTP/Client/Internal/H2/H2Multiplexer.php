@@ -10,6 +10,7 @@ use Psl\Async\SignalCancellationToken;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event;
+use Psl\H2\Exception\StreamException;
 use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Client\Exception\RuntimeException;
 
@@ -130,7 +131,8 @@ final class H2Multiplexer
      * so it runs concurrently with exchange fibers. It reads events from the H2
      * connection and dispatches them to per-stream consumers. The fiber exits when:
      * - The cancellation token fires (all streams unregistered).
-     * - An exception occurs (session is marked closed and all streams are failed).
+     * - A connection error marks the session closed and fails all streams.
+     * Stream errors fail only their own stream; the read loop continues.
      */
     private function startReadFiber(): void
     {
@@ -139,8 +141,14 @@ final class H2Multiplexer
 
         Async\Scheduler::defer(function () use ($cancel): void {
             try {
-                while (true) {
-                    $events = $this->connection->readEvent($cancel);
+                while ($this->streams !== []) {
+                    try {
+                        $events = $this->connection->readEvent($cancel);
+                    } catch (StreamException $e) {
+                        ($this->streams[$e->streamId] ?? null)?->fail($e);
+                        unset($this->streams[$e->streamId]);
+                        continue;
+                    }
 
                     foreach ($events as $event) {
                         $this->dispatch($event);

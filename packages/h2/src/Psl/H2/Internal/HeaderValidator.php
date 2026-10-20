@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\H2\Internal;
 
-use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\HPACK\Header;
 
 use function strtolower;
@@ -54,9 +54,9 @@ final readonly class HeaderValidator
     /**
      * @param list<Header> $headers
      *
-     * @throws ProtocolException If headers violate RFC 9113 §8.2–§8.3.
+     * @throws StreamException If headers violate RFC 9113 §8.2–§8.3.
      */
-    public static function validate(array $headers, bool $isClient, bool $isTrailing = false): void
+    public static function validate(array $headers, bool $isClient, bool $isTrailing, int $streamId): void
     {
         $pseudoSeen = [];
         $pseudosDone = false;
@@ -66,24 +66,30 @@ final readonly class HeaderValidator
         foreach ($headers as $header) {
             if ($header->name[0] === ':') {
                 if ($isTrailing) {
-                    throw ProtocolException::forConnectionError(
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
                         'Pseudo-header "' . $header->name . '" in trailing headers',
                     );
                 }
 
                 if ($pseudosDone) {
-                    throw ProtocolException::forConnectionError(
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
                         'Pseudo-header "' . $header->name . '" appears after regular headers',
                     );
                 }
 
                 if (isset($pseudoSeen[$header->name])) {
-                    throw ProtocolException::forConnectionError('Duplicate pseudo-header "' . $header->name . '"');
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Duplicate pseudo-header "' . $header->name . '"',
+                    );
                 }
 
                 $allowed = $isClient ? self::RESPONSE_PSEUDO_HEADERS : self::REQUEST_PSEUDO_HEADERS;
                 if (!isset($allowed[$header->name])) {
-                    throw ProtocolException::forConnectionError(
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
                         'Invalid pseudo-header "'
                         . $header->name
                         . '" for '
@@ -103,33 +109,40 @@ final readonly class HeaderValidator
                 }
 
                 if ($header->name === ':path' && $header->value === '') {
-                    throw ProtocolException::forConnectionError('Pseudo-header ":path" must not be empty');
+                    throw StreamException::forMalformedMessage($streamId, 'Pseudo-header ":path" must not be empty');
                 }
             } else {
                 $pseudosDone = true;
 
                 $lower = strtolower($header->name);
                 if ($lower !== $header->name) {
-                    throw ProtocolException::forConnectionError(
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
                         'Header name "' . $header->name . '" contains uppercase characters',
                     );
                 }
 
                 if ($lower === 'te' && $header->value !== 'trailers') {
-                    throw ProtocolException::forConnectionError('Header "te" has value other than "trailers"');
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Header "te" has value other than "trailers"',
+                    );
                 }
 
                 if (isset(self::BANNED_HEADERS[$lower])) {
-                    throw ProtocolException::forConnectionError('Banned header "' . $header->name . '" in HTTP/2');
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Banned header "' . $header->name . '" in HTTP/2',
+                    );
                 }
             }
         }
 
         if (!$isTrailing) {
             if ($isClient) {
-                self::validateResponsePseudoHeaders($pseudoSeen);
+                self::validateResponsePseudoHeaders($pseudoSeen, $streamId);
             } else {
-                self::validateRequestPseudoHeaders($pseudoSeen, $method, $hasProtocol);
+                self::validateRequestPseudoHeaders($pseudoSeen, $method, $hasProtocol, $streamId);
             }
         }
     }
@@ -137,51 +150,59 @@ final readonly class HeaderValidator
     /**
      * @param array<string, true> $pseudoSeen
      *
-     * @throws ProtocolException
+     * @throws StreamException
      */
     private static function validateRequestPseudoHeaders(
         array $pseudoSeen,
         null|string $method,
         bool $hasProtocol,
+        int $streamId,
     ): void {
         if (!isset($pseudoSeen[':method'])) {
-            throw ProtocolException::forConnectionError('Missing required pseudo-header ":method"');
+            throw StreamException::forMalformedMessage($streamId, 'Missing required pseudo-header ":method"');
         }
 
         if ($method === 'CONNECT') {
             if ($hasProtocol) {
                 // Extended CONNECT (RFC 8441): :scheme and :path are REQUIRED.
                 if (!isset($pseudoSeen[':scheme'])) {
-                    throw ProtocolException::forConnectionError('Extended CONNECT request MUST include ":scheme"');
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Extended CONNECT request MUST include ":scheme"',
+                    );
                 }
 
                 if (!isset($pseudoSeen[':path'])) {
-                    throw ProtocolException::forConnectionError('Extended CONNECT request MUST include ":path"');
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Extended CONNECT request MUST include ":path"',
+                    );
                 }
             } else {
                 // Regular CONNECT (RFC 9113 §8.5): :scheme and :path MUST NOT be present.
                 if (isset($pseudoSeen[':scheme'])) {
-                    throw ProtocolException::forConnectionError('CONNECT request MUST NOT include ":scheme"');
+                    throw StreamException::forMalformedMessage($streamId, 'CONNECT request MUST NOT include ":scheme"');
                 }
 
                 if (isset($pseudoSeen[':path'])) {
-                    throw ProtocolException::forConnectionError('CONNECT request MUST NOT include ":path"');
+                    throw StreamException::forMalformedMessage($streamId, 'CONNECT request MUST NOT include ":path"');
                 }
             }
         } else {
             // :protocol is only valid with CONNECT
             if ($hasProtocol) {
-                throw ProtocolException::forConnectionError(
+                throw StreamException::forMalformedMessage(
+                    $streamId,
                     ':protocol pseudo-header is only valid with the CONNECT method',
                 );
             }
 
             if (!isset($pseudoSeen[':scheme'])) {
-                throw ProtocolException::forConnectionError('Missing required pseudo-header ":scheme"');
+                throw StreamException::forMalformedMessage($streamId, 'Missing required pseudo-header ":scheme"');
             }
 
             if (!isset($pseudoSeen[':path'])) {
-                throw ProtocolException::forConnectionError('Missing required pseudo-header ":path"');
+                throw StreamException::forMalformedMessage($streamId, 'Missing required pseudo-header ":path"');
             }
         }
     }
@@ -189,12 +210,12 @@ final readonly class HeaderValidator
     /**
      * @param array<string, true> $pseudoSeen
      *
-     * @throws ProtocolException
+     * @throws StreamException
      */
-    private static function validateResponsePseudoHeaders(array $pseudoSeen): void
+    private static function validateResponsePseudoHeaders(array $pseudoSeen, int $streamId): void
     {
         if (!isset($pseudoSeen[':status'])) {
-            throw ProtocolException::forConnectionError('Missing required pseudo-header ":status"');
+            throw StreamException::forMalformedMessage($streamId, 'Missing required pseudo-header ":status"');
         }
     }
 }

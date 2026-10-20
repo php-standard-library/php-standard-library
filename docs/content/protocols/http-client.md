@@ -16,6 +16,8 @@ Send a POST request with a JSON body and custom headers using `IO\MemoryHandle` 
 
 ## Concurrent Requests
 
+An HTTP/2 stream error fails only that request. Other requests on the same connection keep running, and the client can reuse the session.
+
 Use `Async\concurrently()` to send multiple requests in parallel over the same client. HTTP/2 connections are automatically multiplexed.
 
 @example('protocols/http-client-concurrent.php')

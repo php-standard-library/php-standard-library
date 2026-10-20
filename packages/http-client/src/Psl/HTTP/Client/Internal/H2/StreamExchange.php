@@ -8,6 +8,7 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\Exception\ExceptionInterface;
+use Psl\H2\Exception\StreamException;
 use Psl\HPACK\Header;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Exception\RequestException;
@@ -42,9 +43,8 @@ use function strtolower;
  * HEADERS arrive (not when the body is fully consumed), because HTTP/2 streams
  * can receive data independently of the concurrency limit once headers are received.
  *
- * Error handling: on cancellation, the stream is unregistered and the slot released.
- * On protocol or I/O errors, the session is additionally marked as closed since
- * the connection may be in an indeterminate state.
+ * Cancellation and stream errors unregister the stream and release its slot.
+ * Connection and I/O errors also mark the session as closed.
  *
  * H1/H2 header mapping: connection-specific headers (host, connection,
  * transfer-encoding) are stripped and replaced with HTTP/2 pseudo-headers
@@ -181,7 +181,7 @@ final class StreamExchange
                     body: $bodyHandle,
                 ),
             );
-        } catch (CancelledException $e) {
+        } catch (CancelledException|StreamException $e) {
             $multiplexer->unregister($streamId);
             $session->releaseStream();
             throw $e;

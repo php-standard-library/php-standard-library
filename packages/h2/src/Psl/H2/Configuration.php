@@ -30,7 +30,9 @@ final readonly class Configuration implements DefaultInterface
      *  the peer in the connection preface and govern stream-level parameters such as INITIAL_WINDOW_SIZE, MAX_CONCURRENT_STREAMS,
      *  and MAX_FRAME_SIZE.
      * @param null|RateLimiter $rateLimiter Optional rate limiter for incoming frames. Used to detect and reject abusive peers
-     *  that send excessive empty frames, SETTINGS floods, or PING floods.
+     *  that send excessive empty frames, SETTINGS floods, or PING floods. It also configures
+     *  {@see RateLimiter::STREAM_ERROR_RESET}. With null, peer errors may cause 100 resets per 10 seconds;
+     *  other frame types have no limit. Pass a limiter without that key to disable the reset limit.
      * @param int $maxHeaderBlockSize Maximum accumulated header block size in bytes before HPACK decoding. 0 means unlimited.
      *  Protects against decompression bombs from malicious peers.
      * @param null|int<1, max> $maxReceiveWindowSize Maximum receive window size in bytes for BDP auto-tuning. When set,

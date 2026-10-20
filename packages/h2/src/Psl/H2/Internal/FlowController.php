@@ -81,6 +81,20 @@ final class FlowController
     }
 
     /**
+     * Account for DATA on a closed stream before returning its connection credit.
+     *
+     * @throws FlowControlException If the connection receive window would go negative.
+     */
+    public function consumeConnectionReceiveWindow(int $size): void
+    {
+        if ($this->connectionReceiveWindow < $size) {
+            throw FlowControlException::forWindowExhausted(0, $this->connectionReceiveWindow, $size);
+        }
+
+        $this->connectionReceiveWindow -= $size;
+    }
+
+    /**
      * @throws FlowControlException If window would overflow.
      */
     public function applyConnectionWindowUpdate(int $increment): void

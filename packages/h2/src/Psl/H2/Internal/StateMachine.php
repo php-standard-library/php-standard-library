@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\H2\Internal;
 
+use Psl\DateTime\Duration;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event\AltSvcReceived;
 use Psl\H2\Event\DataReceived;
@@ -113,6 +114,12 @@ final class StateMachine
      */
     private bool $assemblingTrailing = false;
 
+    /** Stream error to report after decoding the current field block. */
+    private null|StreamException $pendingHeaderError = null;
+
+    /** @var array<int, positive-int> Connection window credit owed after DATA stream errors. */
+    private array $pendingReceiveWindowUpdates = [];
+
     /**
      * @var Encoder HPACK encoder for outgoing headers.
      */
@@ -127,6 +134,8 @@ final class StateMachine
      * @var null|RateLimiter Optional rate limiter for incoming frames.
      */
     private null|RateLimiter $rateLimiter;
+
+    private RateLimiter $errorResetLimiter;
 
     /**
      * @var int<0, max> Maximum frame payload size we accept from the remote peer.
@@ -211,6 +220,9 @@ final class StateMachine
         $this->flowController = new FlowController();
         $this->assembler = new HeaderBlockAssembler($maxHeaderBlockSize);
         $this->rateLimiter = $rateLimiter;
+        $this->errorResetLimiter = $rateLimiter ?? new RateLimiter([
+            RateLimiter::STREAM_ERROR_RESET => [100, Duration::seconds(10)],
+        ]);
         $this->localMaxFrameSize = $this->settings->localValue(Setting::MaxFrameSize);
         $this->remoteMaxFrameSize = $this->settings->remoteValue(Setting::MaxFrameSize);
         $maxHeaderListSize = $this->settings->localValue(Setting::MaxHeaderListSize);
@@ -602,7 +614,7 @@ final class StateMachine
      * Closes the stream immediately and produces a RST_STREAM frame
      * to notify the remote peer.
      *
-     * @param int<0, max> $streamId The stream to reset.
+     * @param int $streamId The stream to reset.
      * @param ErrorCode $errorCode The reason for resetting the stream.
      *
      * @throws ProtocolException If the stream ID is invalid.
@@ -613,9 +625,30 @@ final class StateMachine
     {
         $this->requirePositiveStreamId($streamId);
 
+        $pendingWindowUpdate = $this->pendingReceiveWindowUpdates[$streamId] ?? 0;
+        unset($this->pendingReceiveWindowUpdates[$streamId]);
         $this->streams->close($streamId);
 
-        return [new RstStreamFrame($streamId, $errorCode)->toRaw()];
+        $frames = [new RstStreamFrame($streamId, $errorCode)->toRaw()];
+        if ($pendingWindowUpdate > 0) {
+            $frames = [...$frames, ...$this->windowUpdate(0, $pendingWindowUpdate)];
+        }
+
+        return $frames;
+    }
+
+    /**
+     * Count resets caused by peer errors before releasing the stream.
+     *
+     * @return list<RawFrame>
+     *
+     * @throws ProtocolException If the peer exceeds the reset limit.
+     */
+    public function resetStreamForError(int $streamId, ErrorCode $errorCode): array
+    {
+        $this->errorResetLimiter->record(RateLimiter::STREAM_ERROR_RESET);
+
+        return $this->resetStream($streamId, $errorCode);
     }
 
     /**
@@ -1124,9 +1157,9 @@ final class StateMachine
      */
     private function receiveHeaders(HeadersFrame $frame): array
     {
-        if ($frame->streamDependency !== null && $frame->streamDependency === $frame->streamId) {
-            throw StreamException::forInvalidState($frame->streamId, 'not self-dependent', 'depends on itself');
-        }
+        $error = $frame->streamDependency === $frame->streamId
+            ? StreamException::forInvalidState($frame->streamId, 'not self-dependent', 'depends on itself')
+            : null;
 
         $stream = $this->streams->getOrCreate($frame->streamId);
 
@@ -1153,9 +1186,10 @@ final class StateMachine
         $isTrailing = $stream->receivedHeaders;
 
         if ($isTrailing && !$frame->endStream) {
-            throw StreamException::forInvalidState($frame->streamId, 'half-closed (remote)', $stream->state->name);
+            $error ??= StreamException::forInvalidState($frame->streamId, 'half-closed (remote)', $stream->state->name);
         }
 
+        $this->pendingHeaderError = $error;
         $stream->receivedHeaders = true;
 
         if ($frame->endHeaders) {
@@ -1222,7 +1256,13 @@ final class StateMachine
             throw ProtocolException::forCompressionError($e);
         }
 
-        HeaderValidator::validate($headers, $this->isClient, $isTrailing);
+        $error = $this->pendingHeaderError;
+        $this->pendingHeaderError = null;
+        if ($error !== null) {
+            throw $error;
+        }
+
+        HeaderValidator::validate($headers, $this->isClient, $isTrailing, $streamId);
 
         if ($this->isClient && !$isTrailing && self::isInformationalResponse($headers)) {
             $stream = $this->streams->get($streamId);
@@ -1368,18 +1408,6 @@ final class StateMachine
             throw FrameDecodingException::forStreamIdRequired($rawFrame->type);
         }
 
-        $stream = $this->streams->get($streamId);
-        if (
-            $stream === null
-            || $stream->state !== StreamState::Open && $stream->state !== StreamState::HalfClosedLocal
-        ) {
-            throw StreamException::forInvalidState(
-                $streamId,
-                'open or half-closed (local)',
-                $stream?->state->name ?? 'idle',
-            );
-        }
-
         $payload = $rawFrame->payload;
         $endStream = ($rawFrame->flags & 0x01) !== 0;
         $payloadLength = strlen($payload);
@@ -1397,9 +1425,33 @@ final class StateMachine
             $payload = substr($payload, 1, $payloadLength - 1 - $padLength);
         }
 
+        $stream = $this->streams->get($streamId);
+        if (($stream->state ?? $this->getStreamState($streamId)) === StreamState::Idle) {
+            throw ProtocolException::forConnectionError('DATA frame received on idle stream ' . $streamId);
+        }
+
+        if (
+            $stream === null
+            || $stream->state !== StreamState::Open && $stream->state !== StreamState::HalfClosedLocal
+        ) {
+            if ($payloadLength > 0) {
+                $this->flowController->consumeConnectionReceiveWindow($payloadLength);
+                $this->pendingReceiveWindowUpdates[$streamId] =
+                    ($this->pendingReceiveWindowUpdates[$streamId] ?? 0) + $payloadLength;
+            }
+
+            throw StreamException::forInvalidState(
+                $streamId,
+                'open or half-closed (local)',
+                $stream?->state->name ?? 'closed',
+                ErrorCode::StreamClosed,
+            );
+        }
+
         $dataLength = strlen($payload);
         if ($payloadLength > 0) {
             $this->flowController->consumeReceiveWindow($stream, $payloadLength);
+            $this->pendingReceiveWindowUpdates[$streamId] = $payloadLength;
         }
 
         if ($dataLength === 0 && !$endStream) {
@@ -1426,6 +1478,7 @@ final class StateMachine
             }
         }
 
+        unset($this->pendingReceiveWindowUpdates[$streamId]);
         $events = [new DataReceived($streamId, $payload, $endStream)];
         $responseFrames = [];
 
@@ -1479,7 +1532,12 @@ final class StateMachine
      */
     private function receivePriority(PriorityFrame $frame): array
     {
-        if ($frame->streamDependency === $frame->streamId) {
+        $state = $this->getStreamState($frame->streamId);
+        if (
+            $frame->streamDependency === $frame->streamId
+            && $state !== StreamState::Idle
+            && $state !== StreamState::Closed
+        ) {
             throw StreamException::forInvalidState($frame->streamId, 'not self-dependent', 'depends on itself');
         }
 
@@ -1537,9 +1595,7 @@ final class StateMachine
                 try {
                     $this->flowController->applyStreamWindowUpdate($stream, $streamId, $increment);
                 } catch (FlowControlException) {
-                    $this->streams->close($streamId);
-
-                    return [[new RstStreamFrame($streamId, ErrorCode::FlowControlError)->toRaw()], []];
+                    return [$this->resetStreamForError($streamId, ErrorCode::FlowControlError), []];
                 }
             }
         }

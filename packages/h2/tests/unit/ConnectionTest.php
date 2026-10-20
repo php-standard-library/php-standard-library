@@ -19,6 +19,7 @@ use Psl\H2\Event\StreamReset;
 use Psl\H2\Event\WindowUpdated;
 use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\DataFrame;
 use Psl\H2\Frame\FrameType;
@@ -555,7 +556,7 @@ final class ConnectionTest extends TestCase
         $handle = new IO\MemoryHandle($frameData);
         $conn = new ServerConnection($handle);
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $conn->readEvent();
     }
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Psl\H2\Tests\Unit\Internal;
 
 use PHPUnit\Framework\TestCase;
-use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Internal\HeaderValidator;
 use Psl\HPACK\Header;
 
@@ -21,7 +21,7 @@ final class HeaderValidatorTest extends TestCase
             new Header('host', 'example.com', false),
         ];
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
 
         static::assertTrue(true);
     }
@@ -33,7 +33,7 @@ final class HeaderValidatorTest extends TestCase
             new Header('content-type', 'text/html', false),
         ];
 
-        HeaderValidator::validate($headers, true);
+        HeaderValidator::validate($headers, true, false, 1);
 
         static::assertTrue(true);
     }
@@ -46,10 +46,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':path', '/', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':path');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testDuplicatePseudoHeader(): void
@@ -61,10 +61,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':path', '/', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Duplicate');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testMissingMethodPseudoHeader(): void
@@ -74,10 +74,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':path', '/', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':method');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testMissingSchemePseudoHeader(): void
@@ -87,10 +87,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':path', '/', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':scheme');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testMissingPathPseudoHeader(): void
@@ -100,10 +100,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':scheme', 'https', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':path');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testConnectMethodExemptFromSchemeAndPath(): void
@@ -113,7 +113,7 @@ final class HeaderValidatorTest extends TestCase
             new Header(':authority', 'proxy.example.com:8080', false),
         ];
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
 
         static::assertTrue(true);
     }
@@ -124,10 +124,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('content-type', 'text/html', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':status');
 
-        HeaderValidator::validate($headers, true);
+        HeaderValidator::validate($headers, true, false, 1);
     }
 
     public function testUppercaseHeaderName(): void
@@ -139,10 +139,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('Content-Type', 'text/html', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('uppercase');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testBannedConnectionHeader(): void
@@ -154,10 +154,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('connection', 'keep-alive', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testBannedTransferEncodingHeader(): void
@@ -169,10 +169,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('transfer-encoding', 'chunked', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testBannedKeepAliveHeader(): void
@@ -184,10 +184,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('keep-alive', 'timeout=5', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testBannedUpgradeHeader(): void
@@ -199,10 +199,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('upgrade', 'h2c', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testTeTrailersAllowed(): void
@@ -214,7 +214,7 @@ final class HeaderValidatorTest extends TestCase
             new Header('te', 'trailers', false),
         ];
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
 
         static::assertTrue(true);
     }
@@ -228,10 +228,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('te', 'chunked', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('te');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testBannedProxyConnectionHeader(): void
@@ -243,10 +243,10 @@ final class HeaderValidatorTest extends TestCase
             new Header('proxy-connection', 'keep-alive', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('Banned');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testPseudoHeaderInTrailingHeaders(): void
@@ -255,10 +255,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':status', '200', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage('trailing');
 
-        HeaderValidator::validate($headers, true, true);
+        HeaderValidator::validate($headers, true, true, 1);
     }
 
     public function testConnectWithSchemeRejected(): void
@@ -269,10 +269,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':authority', 'proxy.example.com:8080', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':scheme');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testConnectWithPathRejected(): void
@@ -283,10 +283,10 @@ final class HeaderValidatorTest extends TestCase
             new Header(':authority', 'proxy.example.com:8080', false),
         ];
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(StreamException::class);
         $this->expectExceptionMessage(':path');
 
-        HeaderValidator::validate($headers, false);
+        HeaderValidator::validate($headers, false, false, 1);
     }
 
     public function testValidTrailingHeaders(): void
@@ -295,7 +295,7 @@ final class HeaderValidatorTest extends TestCase
             new Header('grpc-status', '0', false),
         ];
 
-        HeaderValidator::validate($headers, false, true);
+        HeaderValidator::validate($headers, false, true, 1);
 
         static::assertTrue(true);
     }
@@ -306,7 +306,7 @@ final class HeaderValidatorTest extends TestCase
             new Header('grpc-status', '0', false),
         ];
 
-        HeaderValidator::validate($headers, true, true);
+        HeaderValidator::validate($headers, true, true, 1);
 
         static::assertTrue(true);
     }

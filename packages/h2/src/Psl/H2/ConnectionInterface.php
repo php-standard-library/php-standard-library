@@ -110,7 +110,8 @@ interface ConnectionInterface
      * (e.g. unknown frame types or internal protocol frames).
      *
      * @throws Exception\ConnectionException If the peer has closed the connection.
-     * @throws Exception\RuntimeException For protocol violations, stream errors, flow control errors, or I/O failures.
+     * @throws Exception\StreamException RST_STREAM was sent; the connection is still usable; keep reading.
+     * @throws Exception\RuntimeException For connection protocol violations, flow control errors, or I/O failures.
      * @throws IO\Exception\AlreadyClosedException If the handle has been closed.
      * @throws IO\Exception\RuntimeException If an I/O error occurs.
      * @throws CancelledException If the cancellation token is cancelled.
