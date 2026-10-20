@@ -62,6 +62,20 @@ final class WidthSliceTest extends TestCase
         ];
     }
 
+    public function testOutOfBoundsOffsetThrows(): void
+    {
+        $this->expectException(Str\Exception\OutOfBoundsException::class);
+        $this->expectExceptionMessage('Offset (14) was out-of-bounds.');
+
+        Str\width_slice('Hello, World!', 14, 5);
+    }
+
+    public function testOffsetAtEndReturnsEmptyString(): void
+    {
+        static::assertSame('', Str\width_slice('Hello, World!', 13, 5));
+        static::assertSame('', Str\width_slice('你好', 2, 5));
+    }
+
     public function testNegativeWidthThrows(): void
     {
         $this->expectException(Str\Exception\InvalidArgumentException::class);
