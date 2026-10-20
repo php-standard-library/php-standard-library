@@ -7,6 +7,8 @@ namespace Psl\H2\Internal;
 use Psl\H2\Exception\FlowControlException;
 use Psl\H2\StreamState;
 
+use function max;
+
 use const PHP_INT_MAX;
 use const Psl\H2\DEFAULT_INITIAL_WINDOW_SIZE;
 use const Psl\H2\MAX_WINDOW_SIZE;
@@ -24,9 +26,14 @@ final class StreamTable
     private array $streams = [];
 
     /**
-     * @var int<0, max> Number of currently active (open or half-closed) streams.
+     * @var int<0, max> Number of active streams initiated by this endpoint.
      */
-    private int $activeCount = 0;
+    private int $localActiveCount = 0;
+
+    /**
+     * @var int<0, max> Number of active streams initiated by the peer.
+     */
+    private int $peerActiveCount = 0;
 
     /**
      * Maximum concurrent streams WE can initiate (set by the peer's SETTINGS).
@@ -53,6 +60,7 @@ final class StreamTable
         int $initialSendWindow = DEFAULT_INITIAL_WINDOW_SIZE,
         int $initialReceiveWindow = DEFAULT_INITIAL_WINDOW_SIZE,
         int $peerMaxConcurrent = PHP_INT_MAX,
+        private readonly bool $isClient = true,
     ) {
         $this->maxConcurrent = $maxConcurrent;
         $this->initialSendWindow = $initialSendWindow;
@@ -73,16 +81,26 @@ final class StreamTable
      */
     public function open(int $streamId): StreamEntry
     {
-        if ($this->activeCount >= $this->maxConcurrent) {
-            throw FlowControlException::forMaxConcurrentStreamsExceeded($this->maxConcurrent);
-        }
+        $this->checkCanOpen($streamId);
 
-        $entry = new StreamEntry($this->initialSendWindow, $this->initialReceiveWindow);
+        $entry = $this->getOrCreate($streamId);
         $entry->state = StreamState::Open;
-        $this->streams[$streamId] = $entry;
-        $this->activeCount++;
+        $this->incrementActive($streamId);
 
         return $entry;
+    }
+
+    /**
+     * @throws FlowControlException If max concurrent streams exceeded.
+     */
+    public function checkCanOpen(int $streamId): void
+    {
+        $isLocal = (($streamId % 2) === 1) === $this->isClient;
+        $count = $isLocal ? $this->localActiveCount : $this->peerActiveCount;
+        $limit = $isLocal ? $this->maxConcurrent : $this->peerMaxConcurrent;
+        if ($count >= $limit) {
+            throw FlowControlException::forMaxConcurrentStreamsExceeded($limit);
+        }
     }
 
     /**
@@ -113,12 +131,14 @@ final class StreamTable
         $wasActive =
             $entry->state === StreamState::Open
             || $entry->state === StreamState::HalfClosedLocal
-            || $entry->state === StreamState::HalfClosedRemote
-            || $entry->state === StreamState::ReservedLocal
-            || $entry->state === StreamState::ReservedRemote;
+            || $entry->state === StreamState::HalfClosedRemote;
 
-        if ($wasActive && $this->activeCount > 0) {
-            $this->activeCount--;
+        if ($wasActive) {
+            if ((($streamId % 2) === 1) === $this->isClient) {
+                $this->localActiveCount = max(0, $this->localActiveCount - 1);
+            } else {
+                $this->peerActiveCount = max(0, $this->peerActiveCount - 1);
+            }
         }
 
         unset($this->streams[$streamId]);
@@ -217,7 +237,7 @@ final class StreamTable
      */
     public function activeCount(): int
     {
-        return $this->activeCount;
+        return $this->localActiveCount + $this->peerActiveCount;
     }
 
     /**
@@ -225,14 +245,18 @@ final class StreamTable
      */
     public function canAcceptPeerStream(): bool
     {
-        return $this->activeCount < $this->peerMaxConcurrent;
+        return $this->peerActiveCount < $this->peerMaxConcurrent;
     }
 
     /**
      * Increment active count for streams opened via receive path.
      */
-    public function incrementActive(): void
+    public function incrementActive(int $streamId): void
     {
-        $this->activeCount++;
+        if ((($streamId % 2) === 1) === $this->isClient) {
+            $this->localActiveCount++;
+        } else {
+            $this->peerActiveCount++;
+        }
     }
 }

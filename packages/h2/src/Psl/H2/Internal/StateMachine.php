@@ -216,6 +216,7 @@ final class StateMachine
             DEFAULT_INITIAL_WINDOW_SIZE,
             $localInitialWindow,
             $localMaxConcurrent,
+            $this->isClient,
         );
         $this->flowController = new FlowController();
         $this->assembler = new HeaderBlockAssembler($maxHeaderBlockSize);
@@ -368,6 +369,8 @@ final class StateMachine
      */
     public function sendHeadersEncoded(int $streamId, array $headers, bool $endStream = false): string
     {
+        $this->prepareHeaderStream($streamId);
+
         $normalized = self::lowercaseHeaders($headers);
 
         try {
@@ -415,6 +418,8 @@ final class StateMachine
         iterable $headers,
         bool $endStream = false,
     ): string {
+        $this->prepareHeaderStream($streamId);
+
         try {
             $encoded = $this->hpackEncoder->encodeWithStatus($status, self::lowercaseHeaders($headers));
         } catch (HPACKException $e) {
@@ -424,10 +429,16 @@ final class StateMachine
         return $this->buildHeaderFramesEncoded($streamId, $encoded, $endStream);
     }
 
-    private function buildHeaderFramesEncoded(int $streamId, string $encoded, bool $endStream): string
+    /**
+     * Check stream state before changing the HPACK encoder.
+     *
+     * @throws ProtocolException
+     * @throws StreamException
+     * @throws FlowControlException
+     */
+    private function prepareHeaderStream(int $streamId): void
     {
         $this->requirePositiveStreamId($streamId);
-
         $stream = $this->streams->get($streamId);
         if ($stream === null) {
             if ($this->shutdown) {
@@ -439,19 +450,29 @@ final class StateMachine
                 throw StreamException::forInvalidState($streamId, 'open or half-closed (remote)', 'closed');
             }
 
-            $stream = $this->streams->open($streamId);
-
-            if (!$isPeerInitiated && $streamId > $this->lastLocalStreamId) {
-                $this->lastLocalStreamId = $streamId;
-            }
+            $this->streams->checkCanOpen($streamId);
         } elseif ($stream->state === StreamState::ReservedLocal) {
-            $stream->state = StreamState::HalfClosedRemote;
+            $this->streams->checkCanOpen($streamId);
         } elseif ($stream->state !== StreamState::Open && $stream->state !== StreamState::HalfClosedRemote) {
             throw StreamException::forInvalidState(
                 $streamId,
                 'open, half-closed (remote), or reserved (local)',
                 $stream->state->name,
             );
+        }
+    }
+
+    private function buildHeaderFramesEncoded(int $streamId, string $encoded, bool $endStream): string
+    {
+        $stream = $this->streams->get($streamId);
+        if ($stream === null) {
+            $stream = $this->streams->open($streamId);
+            if (($streamId % 2) === ($this->nextStreamIdentifier % 2)) {
+                $this->lastLocalStreamId = max($this->lastLocalStreamId, $streamId);
+            }
+        } elseif ($stream->state === StreamState::ReservedLocal) {
+            $stream = $this->streams->open($streamId);
+            $stream->state = StreamState::HalfClosedRemote;
         }
 
         $maxSize = $this->remoteMaxFrameSize;
@@ -945,6 +966,12 @@ final class StateMachine
         $this->requirePositiveStreamId($associatedStreamId);
         $this->requirePositiveStreamId($promisedStreamId);
 
+        $maxSize = $this->remoteMaxFrameSize;
+        $firstMaxPayload = $maxSize - 4;
+        if ($firstMaxPayload < 1) {
+            throw ProtocolException::forConnectionError('MAX_FRAME_SIZE too small for PUSH_PROMISE');
+        }
+
         $associated = $this->streams->get($associatedStreamId);
         if (
             $associated === null
@@ -972,14 +999,7 @@ final class StateMachine
             throw ProtocolException::forConnectionError($e->getMessage(), $e);
         }
 
-        $maxSize = $this->remoteMaxFrameSize;
         $frames = [];
-
-        $promiseOverhead = 4;
-        $firstMaxPayload = $maxSize - $promiseOverhead;
-        if ($firstMaxPayload < 1) {
-            throw ProtocolException::forConnectionError('MAX_FRAME_SIZE too small for PUSH_PROMISE');
-        }
 
         $encodedLen = strlen($encoded);
         if ($encodedLen <= $firstMaxPayload) {
@@ -1179,7 +1199,7 @@ final class StateMachine
             }
 
             $stream->state = StreamState::Open;
-            $this->streams->incrementActive();
+            $this->streams->incrementActive($frame->streamId);
             $this->lastPeerStreamId = max($this->lastPeerStreamId, $frame->streamId);
         }
 
@@ -1276,6 +1296,11 @@ final class StateMachine
         $stream = $this->streams->get($streamId);
         if ($stream !== null) {
             if ($stream->state === StreamState::ReservedRemote) {
+                if (!$this->streams->canAcceptPeerStream()) {
+                    return [$this->resetStreamForError($streamId, ErrorCode::RefusedStream), []];
+                }
+
+                $this->streams->incrementActive($streamId);
                 $stream->state = StreamState::HalfClosedLocal;
             }
 

@@ -119,10 +119,10 @@ final class StreamTableTest extends TestCase
 
         static::assertTrue($table->canAcceptPeerStream());
 
-        $table->open(1);
+        $table->open(2);
         static::assertTrue($table->canAcceptPeerStream());
 
-        $table->open(3);
+        $table->open(4);
         static::assertFalse($table->canAcceptPeerStream());
     }
 
@@ -132,10 +132,10 @@ final class StreamTableTest extends TestCase
 
         static::assertSame(0, $table->activeCount());
 
-        $table->incrementActive();
+        $table->incrementActive(2);
         static::assertSame(1, $table->activeCount());
 
-        $table->incrementActive();
+        $table->incrementActive(2);
         static::assertSame(2, $table->activeCount());
     }
 
@@ -237,32 +237,32 @@ final class StreamTableTest extends TestCase
         static::assertSame(0, $table->activeCount());
     }
 
-    public function testCloseReservedLocalDecrementsActive(): void
+    public function testCloseReservedLocalDoesNotDecrementActive(): void
     {
         $table = new StreamTable();
         $entry = $table->getOrCreate(1);
         $entry->state = StreamState::ReservedLocal;
-        $table->incrementActive();
+        $table->open(3);
 
         static::assertSame(1, $table->activeCount());
 
         $table->close(1);
 
-        static::assertSame(0, $table->activeCount());
+        static::assertSame(1, $table->activeCount());
     }
 
-    public function testCloseReservedRemoteDecrementsActive(): void
+    public function testCloseReservedRemoteDoesNotDecrementActive(): void
     {
         $table = new StreamTable();
         $entry = $table->getOrCreate(1);
         $entry->state = StreamState::ReservedRemote;
-        $table->incrementActive();
+        $table->open(3);
 
         static::assertSame(1, $table->activeCount());
 
         $table->close(1);
 
-        static::assertSame(0, $table->activeCount());
+        static::assertSame(1, $table->activeCount());
     }
 
     public function testCloseIdleStreamDoesNotDecrementActive(): void

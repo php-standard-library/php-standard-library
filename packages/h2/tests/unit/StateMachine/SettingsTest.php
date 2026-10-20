@@ -212,7 +212,7 @@ final class SettingsTest extends TestCase
         static::assertTrue(SettingsFrame::fromRaw($frames[0])->ack);
     }
 
-    public function testMaxConcurrentStreamsEnforcedOnReceivedHeaders(): void
+    public function testPeerStreamsDoNotExhaustLocalConcurrentLimit(): void
     {
         $sm = new StateMachine(false, [Setting::MaxConcurrentStreams->value => 2]);
         $sm->initialize();
@@ -238,8 +238,8 @@ final class SettingsTest extends TestCase
 
         $s1 = $sm->nextStreamId();
 
-        $this->expectException(FlowControlException::class);
-
         $sm->sendHeadersEncoded($s1, [new Header(':status', '200')]);
+
+        static::assertSame(3, $sm->activeStreamCount());
     }
 }
