@@ -17,6 +17,7 @@ use Psl\MIME\TransferEncoding;
 
 use function explode;
 use function mb_strtolower;
+use function preg_match;
 use function rtrim;
 use function str_ends_with;
 use function str_replace;
@@ -25,6 +26,8 @@ use function strlen;
 use function strpos;
 use function substr;
 use function trim;
+
+use const PREG_OFFSET_CAPTURE;
 
 /**
  * Streaming multipart body parser.
@@ -40,6 +43,7 @@ use function trim;
  * @link https://datatracker.ietf.org/doc/html/rfc2046#section-5.1
  *
  * @mago-expect lint:kan-defect
+ * @mago-expect lint:cyclomatic-complexity
  *
  * @api
  */
@@ -80,12 +84,25 @@ final class Parser implements ParserInterface
     private int $maxPartSize;
 
     /**
+     * Maximum bytes per part header section (0 means unlimited).
+     *
+     * @var int<0, max>
+     */
+    private int $maxHeaderSize;
+
+    /**
      * @param string $boundary The multipart boundary string (1-70 characters per RFC 2046).
      * @param bool $decodeTransferEncoding When true, automatically decode base64 and quoted-printable
      *                                     Content-Transfer-Encoding on parsed parts, stripping the header.
      * @param int<0, max> $spoolThreshold Maximum bytes per part body kept in memory before spilling to disk.
      * @param int<0, max> $maxParts Maximum number of parts allowed (0 = unlimited).
      * @param int<0, max> $maxPartSize Maximum bytes per individual part body (0 = unlimited).
+     * @param int<0, max> $maxHeaderSize Maximum bytes per part header section (0 = unlimited): the header
+     *                                   fields from the start of the first one up to, but not including,
+     *                                   the line break that ends the last one. The rest of the boundary
+     *                                   line and the blank line are not counted. Header sections are
+     *                                   buffered in memory, so this bounds the memory a single part can
+     *                                   claim before its body starts streaming.
      *
      * @throws MultiPartException If the boundary is empty or exceeds 70 characters.
      */
@@ -95,6 +112,7 @@ final class Parser implements ParserInterface
         int $spoolThreshold = 2_097_152,
         int $maxParts = 0,
         int $maxPartSize = 0,
+        int $maxHeaderSize = 16_384,
     ) {
         if ($boundary === '' || strlen($boundary) > 70) {
             throw MultiPartException::forInvalidBoundary($boundary);
@@ -105,6 +123,7 @@ final class Parser implements ParserInterface
         $this->spoolThreshold = $spoolThreshold;
         $this->maxParts = $maxParts;
         $this->maxPartSize = $maxPartSize;
+        $this->maxHeaderSize = $maxHeaderSize;
     }
 
     /**
@@ -136,12 +155,9 @@ final class Parser implements ParserInterface
                 break;
             }
 
-            $headerSection = self::bufferReadUntil($handle, $buffer, "\r\n\r\n", $cancellation);
+            $headerSection = self::bufferReadHeaderSection($handle, $buffer, $this->maxHeaderSize, $cancellation);
             if ($headerSection === null) {
-                $headerSection = self::bufferReadUntil($handle, $buffer, "\n\n", $cancellation);
-                if ($headerSection === null) {
-                    throw MultiPartException::forMalformedMultipartBody('malformed part headers');
-                }
+                throw MultiPartException::forMalformedMultipartBody('malformed part headers');
             }
 
             $headers = Headers::fromPairs(self::parseHeaders($headerSection));
@@ -329,6 +345,61 @@ final class Parser implements ParserInterface
             if ($pos !== false) {
                 $result = substr($buffer, 0, $pos);
                 $buffer = substr($buffer, $pos + strlen($needle));
+                return $result;
+            }
+
+            $chunk = $handle->read(maxBytes: self::CHUNK_SIZE, cancellation: $cancellation);
+            if ($chunk === '') {
+                if ($handle->reachedEndOfDataSource()) {
+                    return null;
+                }
+
+                continue;
+            }
+
+            $buffer .= $chunk;
+        }
+    }
+
+    /**
+     * Read a part's header section: everything before the first blank line (CRLF CRLF, LF LF,
+     * or a mix of both).
+     *
+     * The buffer starts right after a boundary delimiter, so its first line is the rest of the
+     * boundary line; it is not counted as header data once its line break has been read.
+     *
+     * Returns the header section with the blank line consumed from the buffer, or null on EOF.
+     * At most $maxSize bytes of header data (plus the rest of the boundary line, the blank line
+     * and one read chunk) are ever buffered.
+     *
+     * @param int<0, max> $maxSize Maximum header section size in bytes (0 = unlimited).
+     *
+     * @throws MultiPartException If the header section exceeds $maxSize bytes.
+     */
+    private static function bufferReadHeaderSection(
+        IO\ReadHandleInterface $handle,
+        string &$buffer,
+        int $maxSize,
+        CancellationTokenInterface $cancellation = new NullCancellationToken(),
+    ): null|string {
+        while (true) {
+            $match = [];
+            $found = preg_match('/\r?\n\r?\n/', $buffer, $match, PREG_OFFSET_CAPTURE) === 1;
+
+            // Without a blank line yet, one could still start in the last 3 buffered bytes.
+            $end = $found ? (int) $match[0][1] : strlen($buffer) - 3;
+            $boundaryLineEnd = strpos($buffer, "\n");
+            $size = $boundaryLineEnd === false ? $end : $end - ($boundaryLineEnd + 1);
+            if ($maxSize > 0 && $size > $maxSize) {
+                throw MultiPartException::forMalformedMultipartBody(
+                    'part header section exceeds maximum size of ' . $maxSize . ' bytes',
+                );
+            }
+
+            if ($found) {
+                /** @var non-negative-int $end */
+                $result = substr($buffer, 0, $end);
+                $buffer = substr($buffer, $end + strlen($match[0][0]));
                 return $result;
             }
 

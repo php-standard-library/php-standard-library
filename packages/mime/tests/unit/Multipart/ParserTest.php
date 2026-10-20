@@ -1646,4 +1646,106 @@ final class ParserTest extends TestCase
         static::assertSame('Actual', $result);
         static::assertStringNotContainsString('preamble', $result);
     }
+
+    public function testHeaderSectionAtMaxHeaderSizeIsAccepted(): void
+    {
+        // A 100-byte header field; the line break of the boundary line is not counted.
+        $header = 'X-Pad: ' . Str\repeat('a', 93);
+        $body = "--boundary\r\n" . $header . "\r\n\r\nvalue\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', maxHeaderSize: 100);
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame(Str\repeat('a', 93), $parts[0]->headers->get('x-pad'));
+        static::assertSame('value', $parts[0]->body->readAll());
+    }
+
+    public function testMaxHeaderSizeCountsLineBreaksBetweenHeaderFieldsOnly(): void
+    {
+        // Two header fields of 49 bytes each, joined by a 2-byte CRLF: 100 bytes. Transport padding
+        // on the boundary line and the blank line are not counted.
+        $headers = 'X-One: ' . Str\repeat('a', 42) . "\r\n" . 'X-Two: ' . Str\repeat('b', 42);
+        $body = "--boundary  \t\r\n" . $headers . "\r\n\r\nvalue\r\n--boundary--\r\n";
+
+        $parts = iterator_to_array(new Parser('boundary', maxHeaderSize: 100)->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame(Str\repeat('b', 42), $parts[0]->headers->get('x-two'));
+
+        $this->expectException(MultiPartException::class);
+        $this->expectExceptionMessage('part header section exceeds maximum size of 99 bytes');
+
+        iterator_to_array(new Parser('boundary', maxHeaderSize: 99)->parse(new IO\MemoryHandle($body)));
+    }
+
+    public function testHeaderSectionOverMaxHeaderSizeThrows(): void
+    {
+        $header = 'X-Pad: ' . Str\repeat('a', 94);
+        $body = "--boundary\r\n" . $header . "\r\n\r\nvalue\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', maxHeaderSize: 100);
+
+        $this->expectException(MultiPartException::class);
+        $this->expectExceptionMessage('part header section exceeds maximum size of 100 bytes');
+
+        iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+    }
+
+    public function testUnterminatedHeaderSectionIsNotBufferedWhole(): void
+    {
+        // 4 MiB of header data that never ends: the parser must give up after the limit
+        // instead of reading the whole stream into memory.
+        $handle = new IO\MemoryHandle("--boundary\r\nX-Flood: " . Str\repeat('a', 4 * 1024 * 1024));
+        $parser = new Parser('boundary', maxHeaderSize: 1024);
+
+        try {
+            iterator_to_array($parser->parse($handle));
+            static::fail('Expected a MultiPartException.');
+        } catch (MultiPartException $e) {
+            static::assertSame(
+                'Malformed multipart body: part header section exceeds maximum size of 1024 bytes.',
+                $e->getMessage(),
+            );
+        }
+
+        static::assertLessThan(64 * 1024, $handle->tell());
+    }
+
+    public function testDefaultMaxHeaderSizeIs16KiB(): void
+    {
+        $accepted = "--boundary\r\nX-Pad: " . Str\repeat('a', 16_384 - 7) . "\r\n\r\nok\r\n--boundary--\r\n";
+        $parts = iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($accepted)));
+        static::assertSame('ok', $parts[0]->body->readAll());
+
+        $rejected = "--boundary\r\nX-Pad: " . Str\repeat('a', 16_384 - 6) . "\r\n\r\nok\r\n--boundary--\r\n";
+
+        $this->expectException(MultiPartException::class);
+        $this->expectExceptionMessage('part header section exceeds maximum size of 16384 bytes');
+
+        iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($rejected)));
+    }
+
+    public function testZeroMaxHeaderSizeMeansUnlimited(): void
+    {
+        $body = "--boundary\r\nX-Pad: " . Str\repeat('a', 100_000) . "\r\n\r\nok\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', maxHeaderSize: 0);
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertSame('ok', $parts[0]->body->readAll());
+    }
+
+    public function testLfHeaderSectionEndsAtFirstBlankLine(): void
+    {
+        // LF-only part headers whose body contains a CRLF blank line further down.
+        $body = "--boundary\nContent-Type: text/plain\n\nline1\r\n\r\nline2\n--boundary--\n";
+
+        $parser = new Parser('boundary');
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame('text/plain', $parts[0]->headers->get('content-type'));
+        static::assertSame("line1\r\n\r\nline2", $parts[0]->body->readAll());
+    }
 }
