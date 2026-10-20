@@ -9,6 +9,8 @@ use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
 
+// HTTP/2 queues requests at the peer limit until an active stream closes.
+
 $client = new Client\Client();
 
 $transactions = Async\concurrently([

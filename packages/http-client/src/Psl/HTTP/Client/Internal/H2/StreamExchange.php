@@ -46,9 +46,8 @@ use function trim;
  * {@see H2Multiplexer}'s read fiber: the multiplexer pushes data into the stream
  * buffer, and the consumer pulls from it.
  *
- * Stream slot lifecycle: the stream slot is released as soon as the response
- * HEADERS arrive (not when the body is fully consumed), because HTTP/2 streams
- * can receive data independently of the concurrency limit once headers are received.
+ * The stream holds its slot until it closes, resets, or fails. Response headers
+ * alone do not release it (RFC 9113 Section 5.1.2).
  *
  * Cancellation and stream errors unregister the stream and release its slot;
  * a stream error affects only the failed stream (RFC 9113 Section 5.4.2).
@@ -137,6 +136,12 @@ final class StreamExchange
 
         try {
             $multiplexer->register($stream);
+        } catch (RuntimeException $e) {
+            $session->releaseStream();
+            throw $e;
+        }
+
+        try {
             $connection->sendHeaders($streamId, $headers, $request->body === null);
             $headersSent = true;
 
@@ -154,9 +159,12 @@ final class StreamExchange
             [$status, $responseHeaders, $endStream] = $stream->awaitResponse($cancellation);
             $informational = $stream->getInformationalResponses();
 
+            if ($connection->getStreamState($streamId) === StreamState::Closed) {
+                $multiplexer->unregister($streamId);
+            }
+
             if ($endStream) {
                 $multiplexer->unregister($streamId);
-                $session->releaseStream();
 
                 return new Transaction(
                     $informational,
@@ -164,8 +172,6 @@ final class StreamExchange
                     new Response(status: $status, protocolVersion: ProtocolVersion::V20, headers: $responseHeaders),
                 );
             }
-
-            $session->releaseStream();
 
             $bodyHandle = new ResponseBodyHandle($stream, $multiplexer, $streamId, $configuration->maxResponseBodySize);
 
@@ -181,7 +187,6 @@ final class StreamExchange
             );
         } catch (CancelledException|StreamException $e) {
             $multiplexer->unregister($streamId);
-            $session->releaseStream();
             if (
                 $e instanceof StreamException
                 && $headersSent
@@ -201,7 +206,6 @@ final class StreamExchange
             throw $e;
         } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
             $multiplexer->unregister($streamId);
-            $session->releaseStream();
             if (
                 $e instanceof ConnectionException
                 || $e instanceof IO\Exception\RuntimeException

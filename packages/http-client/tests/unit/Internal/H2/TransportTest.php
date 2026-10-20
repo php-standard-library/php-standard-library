@@ -1024,7 +1024,8 @@ final class TransportTest extends TestCase
 
     public function testAcquireStreamWaitsAndFailsOnClose(): void
     {
-        [$session, $teardown] = self::createSession(new H2ClientConfiguration(maxConcurrentStreams: 1));
+        [$session, $teardown] = self::createSession();
+        $session->updateMaxConcurrentStreams(1);
 
         try {
             $session->acquireStream();

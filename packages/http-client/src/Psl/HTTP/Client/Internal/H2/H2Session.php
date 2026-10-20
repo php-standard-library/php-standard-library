@@ -16,6 +16,8 @@ use Revolt\EventLoop\Suspension;
 
 use function array_shift;
 
+use const PHP_INT_MAX;
+
 /**
  * Manages an HTTP/2 multiplexed session over a single TCP/TLS connection.
  *
@@ -44,7 +46,7 @@ final class H2Session
 
     private int $activeStreams = 0;
 
-    private readonly int $maxConcurrentStreams;
+    private int $maxConcurrentStreams = PHP_INT_MAX;
 
     /**
      * @var list<Suspension>
@@ -62,8 +64,6 @@ final class H2Session
         IO\ReadHandleInterface&IO\WriteHandleInterface $handle,
         H2ClientConfiguration $configuration,
     ) {
-        $this->maxConcurrentStreams = $configuration->maxConcurrentStreams;
-
         /** @var array<positive-int, non-negative-int> $settings */
         $settings = [
             Setting::MaxConcurrentStreams->value => $configuration->maxConcurrentStreams,
@@ -101,6 +101,8 @@ final class H2Session
             throw new RuntimeException('HTTP/2 connection is closed.');
         }
 
+        $this->multiplexer->start();
+
         while ($this->activeStreams >= $this->maxConcurrentStreams) {
             $suspension = EventLoop::getSuspension();
             $this->streamWaiters[] = $suspension;
@@ -112,6 +114,24 @@ final class H2Session
         }
 
         $this->activeStreams++;
+    }
+
+    /**
+     * Apply the peer's stream limit and wake waiters to check it again.
+     */
+    public function updateMaxConcurrentStreams(int $limit): void
+    {
+        $this->maxConcurrentStreams = $limit;
+        $waiters = $this->streamWaiters;
+        $this->streamWaiters = [];
+        foreach ($waiters as $waiter) {
+            $waiter->resume();
+        }
+    }
+
+    public function hasStreamWaiters(): bool
+    {
+        return $this->streamWaiters !== [];
     }
 
     /**

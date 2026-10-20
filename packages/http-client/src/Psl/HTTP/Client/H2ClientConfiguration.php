@@ -54,7 +54,7 @@ final readonly class H2ClientConfiguration
      *  limit (not an HTTP/2 setting) that protects against HPACK compression bombs where a small compressed payload decompresses into an enormous header list.
      *  A value of 0 disables the limit. Defaults to 65,536 bytes (64 KiB).
      * @param positive-int $maxConcurrentStreams Maximum number of concurrent streams the client will accept per HTTP/2 connection.
-     *  This value is sent as the SETTINGS_MAX_CONCURRENT_STREAMS parameter. Each in-flight request consumes one stream.
+     *  This value is sent as the SETTINGS_MAX_CONCURRENT_STREAMS parameter. The peer's setting limits outgoing requests.
      *  Defaults to 100.
      * @param positive-int $maxConcurrentPushes Maximum number of server push (PUSH_PROMISE) streams the client will accept per request.
      *  Push promises exceeding this limit are rejected with RST_STREAM. Defaults to 10.

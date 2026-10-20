@@ -209,6 +209,8 @@ Pool entries also require matching SNI hosts, TLS settings, HTTP and SOCKS proxy
 
 An exchange that fails after it starts is not replayed automatically, since the server may have processed it and consumed its request body.
 
+HTTP/2 obeys the peer's SETTINGS_MAX_CONCURRENT_STREAMS limit. A stream holds its slot until it closes, including while its response body is still arriving.
+
 ## Pool Release and Finalize
 
 For HTTP/1.x keep-alive connections, the pooled connection is not released until the response body is fully consumed. The response body handle defers the pool release until EOF or close. This prevents a second request from reusing a connection while the first response body is still being read.

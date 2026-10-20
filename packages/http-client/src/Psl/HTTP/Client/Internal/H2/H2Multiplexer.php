@@ -11,6 +11,7 @@ use Psl\H2\ClientConnectionInterface;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event;
 use Psl\H2\Exception\StreamException;
+use Psl\H2\Setting;
 use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Client\Exception\RuntimeException;
 
@@ -85,7 +86,7 @@ final class H2Multiplexer
      *
      * The stream is added to the active stream registry so that incoming events
      * for this stream ID are routed to it. If no read fiber is currently running,
-     * one is started via {@see startReadFiber()}.
+     * one is started via {@see start()}.
      *
      * @param H2Stream $stream The stream to register. Its stream ID must not exceed the GOAWAY last-stream-id.
      *
@@ -99,9 +100,7 @@ final class H2Multiplexer
 
         $this->streams[$stream->streamId] = $stream;
 
-        if (!$this->fiberRunning) {
-            $this->startReadFiber();
-        }
+        $this->start();
     }
 
     /**
@@ -115,9 +114,14 @@ final class H2Multiplexer
      */
     public function unregister(int $streamId): void
     {
-        unset($this->streams[$streamId]);
+        if (!isset($this->streams[$streamId])) {
+            return;
+        }
 
-        if ($this->streams === [] && $this->fiberRunning) {
+        unset($this->streams[$streamId]);
+        $this->session->releaseStream();
+
+        if ($this->streams === [] && !$this->session->hasStreamWaiters() && $this->fiberRunning) {
             $this->fiberRunning = false;
             $this->fiberCancellation->cancel();
             $this->fiberCancellation = new SignalCancellationToken();
@@ -134,19 +138,23 @@ final class H2Multiplexer
      * - A connection error marks the session closed and fails all streams.
      * Stream errors fail only their own stream; the read loop continues.
      */
-    private function startReadFiber(): void
+    public function start(): void
     {
+        if ($this->fiberRunning) {
+            return;
+        }
+
         $this->fiberRunning = true;
         $cancel = $this->fiberCancellation;
 
         Async\Scheduler::defer(function () use ($cancel): void {
             try {
-                while ($this->streams !== []) {
+                while ($this->streams !== [] || $this->session->hasStreamWaiters()) {
                     try {
                         $events = $this->connection->readEvent($cancel);
                     } catch (StreamException $e) {
                         ($this->streams[$e->streamId] ?? null)?->fail($e);
-                        unset($this->streams[$e->streamId]);
+                        $this->unregister($e->streamId);
                         continue;
                     }
 
@@ -162,13 +170,14 @@ final class H2Multiplexer
                     $e instanceof RuntimeException || $e instanceof ProtocolException
                         ? $e
                         : new RuntimeException($e->getMessage(), previous: $e);
-                foreach ($this->streams as $stream) {
+                foreach ($this->streams as $sid => $stream) {
                     $stream->fail($wrapped);
+                    $this->unregister($sid);
                 }
-
-                $this->streams = [];
             } finally {
-                $this->fiberRunning = false;
+                if ($cancel === $this->fiberCancellation) {
+                    $this->fiberRunning = false;
+                }
             }
         });
     }
@@ -184,6 +193,15 @@ final class H2Multiplexer
      */
     private function dispatch(Event\EventInterface $event): void
     {
+        if ($event instanceof Event\SettingsReceived) {
+            $limit = $event->settings[Setting::MaxConcurrentStreams->value] ?? null;
+            if ($limit !== null) {
+                $this->session->updateMaxConcurrentStreams($limit);
+            }
+
+            return;
+        }
+
         if ($event instanceof Event\GoAwayReceived) {
             $this->handleGoAway($event);
             return;
@@ -210,16 +228,11 @@ final class H2Multiplexer
             $stream->handleData($event->data, $event->endStream);
         } elseif ($event instanceof Event\StreamReset) {
             $stream->fail(ProtocolException::forMalformedResponse('Stream reset: ' . $event->errorCode->name));
-            unset($this->streams[$sid]);
+            $this->unregister($sid);
         }
 
         if ($event instanceof Event\StreamClosed) {
-            unset($this->streams[$sid]);
-        }
-
-        if ($this->streams === [] && $this->fiberRunning) {
-            $this->fiberCancellation->cancel();
-            $this->fiberCancellation = new SignalCancellationToken();
+            $this->unregister($sid);
         }
     }
 
@@ -239,11 +252,11 @@ final class H2Multiplexer
 
         if ($event->errorCode !== ErrorCode::NoError) {
             $error = new ProtocolException('Connection closed by server: ' . $event->errorCode->name);
-            foreach ($this->streams as $stream) {
+            foreach ($this->streams as $sid => $stream) {
                 $stream->fail($error);
+                $this->unregister($sid);
             }
 
-            $this->streams = [];
             $this->fiberCancellation->cancel();
             $this->fiberCancellation = new SignalCancellationToken();
             return;
@@ -258,7 +271,7 @@ final class H2Multiplexer
             }
 
             $stream->fail($error);
-            unset($this->streams[$sid]);
+            $this->unregister($sid);
         }
 
         if ($this->streams === []) {
