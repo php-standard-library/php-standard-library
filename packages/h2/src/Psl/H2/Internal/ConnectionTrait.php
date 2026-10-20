@@ -12,6 +12,7 @@ use Psl\Async\NullCancellationToken;
 use Psl\H2\ConnectionInterface;
 use Psl\H2\ErrorCode;
 use Psl\H2\Exception\ConnectionException;
+use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Exception\RuntimeException;
 use Psl\H2\Frame;
@@ -157,7 +158,11 @@ trait ConnectionTrait
             throw $e;
         } catch (RuntimeException $e) {
             // Auto-send GOAWAY before re-throwing.
-            $errorCode = $e instanceof ProtocolException ? $e->errorCode : ErrorCode::ProtocolError;
+            $errorCode = match (true) {
+                $e instanceof ProtocolException => $e->errorCode,
+                $e instanceof FlowControlException => ErrorCode::FlowControlError,
+                default => ErrorCode::ProtocolError,
+            };
 
             // @mago-expect lint:no-empty-catch-clause - Best effort, connection may already be broken.
             try {

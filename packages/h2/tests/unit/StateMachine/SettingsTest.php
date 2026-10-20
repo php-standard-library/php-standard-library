@@ -76,7 +76,7 @@ final class SettingsTest extends TestCase
         $sm = new StateMachine(true);
         $sm->initialize();
 
-        $this->expectException(ProtocolException::class);
+        $this->expectException(FlowControlException::class);
 
         $frame = new SettingsFrame([Setting::InitialWindowSize->value => 2_147_483_648], false)->toRaw();
         $sm->receive($frame);

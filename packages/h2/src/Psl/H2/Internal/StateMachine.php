@@ -1033,7 +1033,7 @@ final class StateMachine
                 ? throw ProtocolException::forSettingsValueOutOfRange('ENABLE_PUSH', $value)
                 : null,
             Setting::InitialWindowSize => $value > MAX_WINDOW_SIZE
-                ? throw ProtocolException::forSettingsValueOutOfRange('INITIAL_WINDOW_SIZE', $value)
+                ? throw FlowControlException::forWindowOverflow(0, 0, $value)
                 : null,
             Setting::MaxFrameSize => $value < DEFAULT_MAX_FRAME_SIZE || $value > MAX_FRAME_SIZE_UPPER_BOUND
                 ? throw ProtocolException::forSettingsValueOutOfRange('MAX_FRAME_SIZE', $value)
