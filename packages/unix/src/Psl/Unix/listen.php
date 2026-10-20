@@ -11,6 +11,7 @@ use Psl\Network;
  *
  * @param non-empty-string $path
  *
+ * @throws Network\Exception\InvalidArgumentException If the path contains a NUL byte other than a leading one.
  * @throws Network\Exception\RuntimeException If failed to listen on given path, or if on Windows.
  *
  * @api
@@ -18,6 +19,8 @@ use Psl\Network;
 function listen(string $path, ListenConfiguration $configuration = new ListenConfiguration()): ListenerInterface
 {
     Internal\assert_not_windows();
+
+    Internal\assert_valid_path($path);
 
     $context = ['socket' => [
         'backlog' => $configuration->backlog,

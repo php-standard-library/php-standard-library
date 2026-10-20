@@ -10,6 +10,7 @@ use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\Unix;
 
+use function file_exists;
 use function getmypid;
 use function sys_get_temp_dir;
 use function unlink;
@@ -204,6 +205,52 @@ final class SocketTest extends TestCase
 
             $listener->close();
         } finally {
+            @unlink($path);
+        }
+    }
+
+    public function testBindRejectsPathContainingNullByte(): void
+    {
+        $path = sys_get_temp_dir() . '/psl_unix_nul_bind_' . getmypid() . '.sock';
+        @unlink($path);
+
+        $socket = Unix\Socket::create();
+
+        try {
+            $socket->bind($path . "\0suffix");
+            // Without the check, the path is cut at the NUL byte and this binds a socket at $path.
+            $socket->listen()->close();
+
+            static::fail('Expected an InvalidArgumentException to be thrown.');
+        } catch (Network\Exception\InvalidArgumentException $exception) {
+            static::assertSame('Unix socket path must not contain NULL bytes.', $exception->getMessage());
+        } finally {
+            $bound = file_exists($path);
+            @unlink($path);
+        }
+
+        static::assertFalse($bound);
+
+        // The rejected path does not consume the socket.
+        $socket->bind($path);
+        static::assertSame($path, $socket->getLocalAddress()->host);
+    }
+
+    public function testConnectRejectsPathContainingNullByte(): void
+    {
+        $path = sys_get_temp_dir() . '/psl_unix_nul_connect_' . getmypid() . '.sock';
+        @unlink($path);
+
+        $listener = Unix\listen($path);
+
+        try {
+            $this->expectException(Network\Exception\InvalidArgumentException::class);
+            $this->expectExceptionMessage('Unix socket path must not contain NULL bytes.');
+
+            // Without the check, the path is cut at the NUL byte and this connects to $path.
+            Unix\Socket::create()->connect($path . "\0suffix");
+        } finally {
+            $listener->close();
             @unlink($path);
         }
     }

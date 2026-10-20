@@ -41,10 +41,14 @@ final class Socket
      * Bind the socket to a filesystem path.
      *
      * @param non-empty-string $path
+     *
+     * @throws Network\Exception\InvalidArgumentException If the path contains a NUL byte other than a leading one.
      */
     public function bind(string $path): void
     {
         $this->ensureNotConsumed();
+
+        Internal\assert_valid_path($path);
 
         $this->bindPath = $path;
     }
@@ -56,6 +60,7 @@ final class Socket
      *
      * @param non-empty-string $path
      *
+     * @throws Network\Exception\InvalidArgumentException If the path contains a NUL byte other than a leading one.
      * @throws Network\Exception\RuntimeException If connect fails.
      * @throws CancelledException If the operation is cancelled.
      */
@@ -64,6 +69,9 @@ final class Socket
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): StreamInterface {
         $this->ensureNotConsumed();
+
+        Internal\assert_valid_path($path);
+
         $this->consumed = true;
 
         $stream = Network\Internal\socket_connect("unix://{$path}", cancellation: $cancellation);

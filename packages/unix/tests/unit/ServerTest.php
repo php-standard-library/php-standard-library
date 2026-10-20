@@ -12,6 +12,8 @@ use Psl\Network\Exception;
 use Psl\OS;
 use Psl\Unix;
 
+use function unlink;
+
 final class ServerTest extends TestCase
 {
     public function testAcceptOnStoppedListener(): void
@@ -28,6 +30,33 @@ final class ServerTest extends TestCase
         $this->expectExceptionMessage('Server socket has already been stopped.');
 
         $listener->accept();
+    }
+
+    public function testListenRejectsPathContainingNullByte(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Unix Server is not supported on Windows platform.');
+        }
+
+        $file = Filesystem\create_temporary_file(prefix: 'psl-examples');
+        $sock = $file . '.sock';
+
+        try {
+            Unix\listen($sock . "\0suffix");
+
+            static::fail('Expected an InvalidArgumentException to be thrown.');
+        } catch (Exception\InvalidArgumentException $exception) {
+            static::assertSame('Unix socket path must not contain NULL bytes.', $exception->getMessage());
+        } finally {
+            Filesystem\delete_file($file);
+            // Without the check, the path is cut at the NUL byte and a socket is bound at $sock.
+            $bound = Filesystem\exists($sock);
+            if ($bound) {
+                unlink($sock);
+            }
+        }
+
+        static::assertFalse($bound);
     }
 
     public function testGetLocalAddressOnStoppedListener(): void
