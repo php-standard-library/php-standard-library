@@ -25,6 +25,8 @@ use function str_split;
 function from_base(string $number, int $fromBase): int
 {
     $limit = namespace\div(namespace\INT64_MAX, $fromBase);
+    // The largest digit that can still be appended to `$limit` without overflowing.
+    $lastDigitLimit = namespace\INT64_MAX - ($limit * $fromBase);
     $result = 0;
     foreach (str_split($number) as $digit) {
         $oval = ord($digit);
@@ -43,15 +45,16 @@ function from_base(string $number, int $fromBase): int
             throw new Exception\InvalidArgumentException(sprintf('Invalid digit %s in base %d', $digit, $fromBase));
         }
 
-        $oldval = $result;
-        $result = ($fromBase * $result) + $dval;
-        if ($oldval > $limit || $oldval > $result) {
+        // Check before computing: PHP integers do not wrap around, they silently turn into floats.
+        if ($result > $limit || $result === $limit && $dval > $lastDigitLimit) {
             throw new Exception\OverflowException(sprintf(
                 'Unexpected integer overflow parsing %s from base %d',
                 $number,
                 $fromBase,
             ));
         }
+
+        $result = ($fromBase * $result) + $dval;
     }
 
     return $result;

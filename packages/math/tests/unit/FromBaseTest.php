@@ -85,6 +85,48 @@ final class FromBaseTest extends TestCase
         static::assertSame(35, Math\from_base('Z', 36));
     }
 
+    #[DataProvider('provideInt64Boundaries')]
+    public function testParsesInt64Max(string $max, string $maxPlusOne, int $fromBase): void
+    {
+        static::assertSame(Math\INT64_MAX, Math\from_base($max, $fromBase));
+        static::assertSame(Math\INT64_MAX, Math\from_base(Str\uppercase($max), $fromBase));
+    }
+
+    #[DataProvider('provideInt64Boundaries')]
+    public function testThrowsForInt64MaxPlusOne(string $max, string $maxPlusOne, int $fromBase): void
+    {
+        $this->expectException(Math\Exception\OverflowException::class);
+        $this->expectExceptionMessage('Unexpected integer overflow parsing ' . $maxPlusOne . ' from base ' . $fromBase);
+
+        Math\from_base($maxPlusOne, $fromBase);
+    }
+
+    public static function provideInt64Boundaries(): iterable
+    {
+        yield 'base 2' => [
+            '111111111111111111111111111111111111111111111111111111111111111',
+            '1000000000000000000000000000000000000000000000000000000000000000',
+            2,
+        ];
+        yield 'base 3' => [
+            '2021110011022210012102010021220101220221',
+            '2021110011022210012102010021220101220222',
+            3,
+        ];
+        yield 'base 7' => ['22341010611245052052300', '22341010611245052052301', 7];
+        yield 'base 10' => ['9223372036854775807', '9223372036854775808', 10];
+        yield 'base 16' => ['7fffffffffffffff', '8000000000000000', 16];
+        yield 'base 36' => ['1y2p0ij32e8e7', '1y2p0ij32e8e8', 36];
+    }
+
+    public function testThrowsForOverflowOnLastDigit(): void
+    {
+        $this->expectException(Math\Exception\OverflowException::class);
+        $this->expectExceptionMessage('Unexpected integer overflow parsing 9223372036854775809 from base 10');
+
+        Math\from_base('9223372036854775809', 10);
+    }
+
     public function testThrowsForOverflow(): void
     {
         $number = Str\repeat('A', 100);
