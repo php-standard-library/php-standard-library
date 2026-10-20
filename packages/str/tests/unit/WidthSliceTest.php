@@ -61,4 +61,12 @@ final class WidthSliceTest extends TestCase
             ['🥇',            '🥇🥈🥉',         0, 2],
         ];
     }
+
+    public function testNegativeWidthThrows(): void
+    {
+        $this->expectException(Str\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$width must be a non-negative integer.');
+
+        Str\width_slice('Hello, World!', 0, -2);
+    }
 }

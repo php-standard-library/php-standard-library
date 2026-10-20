@@ -31,6 +31,15 @@ final class TruncateTest extends TestCase
             ['wôrld!',   'héllö, wôrld!', 7, 8, '...'],
             ['مرحبا...', 'مرحبا بكم',     0, 8, '...'],
             ['سيف',      'مرحبا سيف',     6, 8, '...'],
+            ['',         'Hello, World!', 0, 0],
         ];
+    }
+
+    public function testNegativeWidthThrows(): void
+    {
+        $this->expectException(Str\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage('$width must be a non-negative integer.');
+
+        Str\truncate('Hello, World!', 0, -2);
     }
 }
