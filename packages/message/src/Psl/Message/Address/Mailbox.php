@@ -7,6 +7,7 @@ namespace Psl\Message\Address;
 use Psl\Encoding\EncodedWord;
 use Psl\Message\Exception\InvalidMailboxException;
 use Psl\Message\Exception\ParsingException;
+use Psl\Message\Internal;
 use Stringable;
 
 use function preg_match;
@@ -175,13 +176,21 @@ final readonly class Mailbox implements Stringable
      *
      * Display names containing non-ASCII characters are encoded per RFC 2047.
      * Comments are serialized after the address per RFC 5322 §3.2.2.
+     * With an ASCII local part, domains use lowercase NFC A-labels.
+     *
+     * @throws InvalidMailboxException If an encoded domain label exceeds 63 bytes.
      */
     public function toString(): string
     {
+        $address = $this->address;
+        if (preg_match('/[\x80-\xff]/', $this->localPart) !== 1 && $this->domain[0] !== '[') {
+            $address = $this->localPart . '@' . Internal\encode_domain($this->domain);
+        }
+
         $result = '';
 
         if ($this->displayName === null || $this->displayName === '') {
-            $result = $this->address;
+            $result = $address;
         } else {
             $encoded = EncodedWord\encode($this->displayName);
 
@@ -189,9 +198,9 @@ final readonly class Mailbox implements Stringable
                 $result = '"' . strtr($this->displayName, [
                     '\\' => '\\\\',
                     '"' => '\\"',
-                ]) . '" <' . $this->address . '>';
+                ]) . '" <' . $address . '>';
             } else {
-                $result = $encoded . ' <' . $this->address . '>';
+                $result = $encoded . ' <' . $address . '>';
             }
         }
 

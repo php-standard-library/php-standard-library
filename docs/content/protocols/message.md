@@ -44,6 +44,8 @@ The `Address` namespace provides RFC 5322 compliant address parsing:
 
 All address types support RFC 2047 encoded-word display names for non-ASCII characters. `Mailbox` accepts dot-atom or quoted local parts and dot-atom or domain-literal domains, including UTF-8 addresses. It escapes quotes and backslashes in display names, and parentheses and backslashes in comments. `Group` also quotes ASCII display names with punctuation and preserves quoted colons and commas when parsing.
 
+When the local part is ASCII, address headers use lowercase, NFC-normalized A-label domains (`sender@münchen.de` becomes `sender@xn--mnchen-3ya.de`). Each encoded label must fit in 63 bytes. This uses the same normalization as SMTP, without full UTS #46 mapping. Domain literals and addresses with UTF-8 local parts stay unchanged; UTF-8 local parts still need SMTPUTF8. Raw values passed to `withHeader()` also stay unchanged.
+
 Direct `Mailbox` construction rejects leading, trailing, or repeated dots in unquoted local parts, obsolete mixed quoted words, and a final domain dot. `Mailbox::parse()` accepts these forms: it quotes legacy local parts, joins obsolete quoted words, and removes the final domain dot. For example, `user.@ezweb.ne.jp` becomes `"user."@ezweb.ne.jp`, and `"john".doe@example.com` becomes `"john.doe"@example.com`.
 
 Header construction rejects CR, LF, and NUL in names and values, mailbox fields, subjects, comments, message IDs, content IDs, and MIME parameters. `MIME\Headers` also rejects empty names, spaces, colons, and non-ASCII bytes in names. Pass unfolded values; the serializer handles line folding.

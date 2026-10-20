@@ -56,12 +56,18 @@ final class TransportSafetyTest extends TestCase
         [$transport, $output] = $this->transport('OK');
         $mailbox = new Mailbox($local, $domain);
 
-        $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+        $message = new Message()
+            ->withFrom($mailbox)
+            ->withTo($mailbox);
+        $transport->send(new Envelope($mailbox, [$mailbox]), $message);
 
         $output->seek(0);
         $commands = $output->readAll();
         static::assertStringContainsString("MAIL FROM:<{$encoded}>\r\n", $commands);
         static::assertStringContainsString("RCPT TO:<{$encoded}>\r\n", $commands);
+        static::assertStringContainsString("From: {$encoded}\r\n", $commands);
+        static::assertStringContainsString("To: {$encoded}\r\n", $commands);
+        static::assertStringNotContainsString('SMTPUTF8', $commands);
     }
 
     /** @return iterable<string, array{string, string, string}> */
@@ -111,7 +117,10 @@ final class TransportSafetyTest extends TestCase
         [$transport, $output] = $this->transport('OK');
 
         try {
-            $transport->send(new Envelope($sender, [$recipient]), new Message());
+            $message = new Message()
+                ->withFrom($sender)
+                ->withTo($recipient);
+            $transport->send(new Envelope($sender, [$recipient]), $message);
             static::fail('Sending an international local part must require SMTPUTF8.');
         } catch (TransmissionException $e) {
             static::assertStringContainsString('SMTPUTF8', $e->getMessage());

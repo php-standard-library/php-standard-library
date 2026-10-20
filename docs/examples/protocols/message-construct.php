@@ -30,3 +30,6 @@ $team = new Message\Address\Group('Team: Europe', [
     new Message\Address\Mailbox('alice', 'example.com', 'Doe, Alice'),
 ]);
 $team->toString(); // '"Team: Europe": "Doe, Alice" <alice@example.com>;'
+
+// An ASCII local part lets the header use an A-label domain without SMTPUTF8.
+new Message\Address\Mailbox('sender', 'münchen.de')->toString(); // sender@xn--mnchen-3ya.de
