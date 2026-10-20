@@ -9,6 +9,9 @@ use PHPUnit\Framework\TestCase;
 use Psl\Math;
 use Psl\Vec;
 
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
+
 final class SumTest extends TestCase
 {
     #[DataProvider('provideData')]
@@ -47,6 +50,42 @@ final class SumTest extends TestCase
                     64,
                 ],
             ],
+            [0, []],
+            [PHP_INT_MAX, [PHP_INT_MAX]],
+            [PHP_INT_MIN, [PHP_INT_MIN]],
+            [-1, [PHP_INT_MAX, PHP_INT_MIN]],
+            [PHP_INT_MAX, [PHP_INT_MAX - 1, 1]],
+            [PHP_INT_MIN, [PHP_INT_MIN + 1, -1]],
+            // Intermediate results overflow, but the final sum fits in an integer.
+            [PHP_INT_MAX, [PHP_INT_MAX, 1, -1]],
+            [PHP_INT_MAX - 1, [PHP_INT_MAX, 1, -2]],
+            [PHP_INT_MIN, [PHP_INT_MIN, -1, 1]],
+            [PHP_INT_MIN + 1, [PHP_INT_MIN, -1, 2]],
+            [-2, [PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MIN, PHP_INT_MIN]],
+            [PHP_INT_MAX, [PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MIN, PHP_INT_MIN, 2]],
+            [2, [PHP_INT_MIN, PHP_INT_MIN, -1, PHP_INT_MAX, PHP_INT_MAX, 3, 2]],
         ];
+    }
+
+    #[DataProvider('provideOverflowData')]
+    public function testSumThrowsOnOverflow(array $numbers): void
+    {
+        $this->expectException(Math\Exception\OverflowException::class);
+        $this->expectExceptionMessage('Unexpected integer overflow while computing the sum of the given numbers.');
+
+        Math\sum($numbers);
+    }
+
+    public static function provideOverflowData(): iterable
+    {
+        yield [[PHP_INT_MAX, 1]];
+        yield [[PHP_INT_MIN, -1]];
+        yield [[1, PHP_INT_MAX]];
+        yield [[PHP_INT_MAX, PHP_INT_MAX]];
+        yield [[PHP_INT_MIN, PHP_INT_MIN]];
+        yield [[PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MAX]];
+        yield [[PHP_INT_MAX, PHP_INT_MAX, PHP_INT_MIN, 2]];
+        yield [[PHP_INT_MIN, PHP_INT_MIN, PHP_INT_MAX, -2]];
+        yield [[PHP_INT_MAX, 1, -1, 1]];
     }
 }
