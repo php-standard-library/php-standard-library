@@ -398,6 +398,21 @@ final class DateTimeTest extends TestCase
         static::assertSame(2024, $calendar->get(IntlCalendar::FIELD_EXTENDED_YEAR));
     }
 
+    public function testJulianLeapDaysBeforeTheGregorianReform(): void
+    {
+        // Before 1582-10-15 ICU uses the Julian calendar, in which every fourth year is a leap year.
+        foreach ([1500, 1300, -100] as $year) {
+            $datetime = DateTime::fromParts(Timezone::UTC, $year, 2, 29, 12);
+
+            static::assertSame([$year, 2, 29, 12, 0, 0, 0], $datetime->getParts());
+            static::assertSame(
+                [$year, 2, 29, 12, 0, 0, 0],
+                DateTime::fromTimestamp($datetime->getTimestamp(), Timezone::UTC)->getParts(),
+            );
+            static::assertSame([$year, 3, 1, 12, 0, 0, 0], $datetime->plusDays(1)->getParts());
+        }
+    }
+
     public function testYearArithmeticCrossesIntoBeforeChrist(): void
     {
         $datetime = DateTime::fromParts(Timezone::UTC, 2024, 3, 1, 12);

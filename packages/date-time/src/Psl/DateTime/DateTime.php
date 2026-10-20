@@ -117,7 +117,9 @@ final readonly class DateTime implements
             throw Exception\InvalidArgumentException::forMonth($month);
         }
 
-        if ($day < 1 || $day > 31 || $day > Month::from($month)->getDaysForYear($year)) {
+        // The exact length of the month is not checked here: callers pass fields computed by ICU, whose calendar
+        // is Julian before 1582-10-15 and so has leap days (e.g. 1500-02-29) that the Gregorian rules lack.
+        if ($day < 1 || $day > 31) {
             throw Exception\InvalidArgumentException::forDay($day, $month, $year);
         }
 
