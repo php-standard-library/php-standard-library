@@ -106,7 +106,7 @@ final class CachedResolverTest extends TestCase
         static::assertCount(1, $response->answers);
     }
 
-    public function testServerFailureResponseIsNotCachedWithTtl(): void
+    public function testServerFailureResponseIsCachedBriefly(): void
     {
         $callCount = 0;
         $inner = self::countingResolver(static function () use (&$callCount): Response {
@@ -120,7 +120,7 @@ final class CachedResolverTest extends TestCase
         $resolver->query('fail.example.com', RecordType::A);
         $resolver->query('fail.example.com', RecordType::A);
 
-        static::assertSame(2, $callCount);
+        static::assertSame(1, $callCount);
     }
 
     public function testNoErrorResponseIsCachedWithTtl(): void
@@ -519,7 +519,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(ResponseCode::NonExistentDomain, $r2->code);
     }
 
-    public function testNoErrorCachedButNotServerFailure(): void
+    public function testNoErrorAndServerFailureUseSeparateEntries(): void
     {
         $callCountNoError = 0;
         $innerNoError = self::countingResolver(static function () use (&$callCountNoError): Response {
@@ -616,7 +616,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(ResponseCode::NonExistentDomain, $r2->code);
     }
 
-    public function testOnlyNoErrorAndNxdomainTriggerTtlUpdate(): void
+    public function testSuccessAndFailureQueriesRemainSeparate(): void
     {
         $serverFailCallCount = 0;
         $innerFail = self::countingResolver(static function () use (&$serverFailCallCount): Response {
@@ -864,7 +864,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(1, $callCount);
     }
 
-    public function testServerFailureDoesNotTriggerTtlUpdate(): void
+    public function testServerFailureUsesDefaultFailureTtl(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -876,7 +876,8 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $store);
         $resolver->query('sf.example.com', RecordType::A);
 
-        static::assertCount(0, $updateCalls);
+        static::assertCount(1, $updateCalls);
+        static::assertSame(5.0, $updateCalls[0]['ttl']?->getTotalSeconds());
     }
 
     public function testFormatErrorDoesNotTriggerTtlUpdate(): void
@@ -894,7 +895,7 @@ final class CachedResolverTest extends TestCase
         static::assertCount(0, $updateCalls);
     }
 
-    public function testRefusedDoesNotTriggerTtlUpdate(): void
+    public function testRefusedUsesDefaultFailureTtl(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -906,10 +907,11 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $store);
         $resolver->query('refused.example.com', RecordType::A);
 
-        static::assertCount(0, $updateCalls);
+        static::assertCount(1, $updateCalls);
+        static::assertSame(5.0, $updateCalls[0]['ttl']?->getTotalSeconds());
     }
 
-    public function testNoErrorTriggersUpdateButServerFailureDoesNot(): void
+    public function testNoErrorTriggersTtlUpdate(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -1240,7 +1242,7 @@ final class CachedResolverTest extends TestCase
         $store = self::createTrackingUpdateCacheStore($updateCalls);
 
         $inner = self::countingResolver(
-            static fn(): Response => new Response(0, ResponseCode::ServerFailure, [], [], []),
+            static fn(): Response => new Response(0, ResponseCode::FormatError, [], [], []),
         );
 
         $resolver = new CachedResolver($inner, $store);
@@ -1273,7 +1275,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(1, $callCount);
     }
 
-    public function testBothNoErrorAndNxdomainTriggerUpdateButOtherCodesDont(): void
+    public function testSuccessNegativeAndServerFailureTriggerUpdates(): void
     {
         $noErrUpdates = [];
         $storeNoErr = self::createTrackingUpdateCacheStore($noErrUpdates);
@@ -1312,7 +1314,8 @@ final class CachedResolverTest extends TestCase
         );
         $resolverSf = new CachedResolver($innerSf, $storeSf);
         $resolverSf->query('sf.test', RecordType::A);
-        static::assertCount(0, $sfUpdates);
+        static::assertCount(1, $sfUpdates);
+        static::assertSame(5.0, $sfUpdates[0]['ttl']?->getTotalSeconds());
     }
 
     public function testUpdateKeyMatchesComputeKey(): void
@@ -1405,14 +1408,12 @@ final class CachedResolverTest extends TestCase
     /** @return iterable<string, array{ResponseCode}> */
     public static function failureCodes(): iterable
     {
-        yield 'SERVFAIL' => [ResponseCode::ServerFailure];
-        yield 'REFUSED' => [ResponseCode::ServerRefused];
         yield 'FORMERR' => [ResponseCode::FormatError];
         yield 'NOTIMP' => [ResponseCode::NotImplemented];
     }
 
     #[DataProvider('failureCodes')]
-    public function testFailuresAreNotReused(ResponseCode $code): void
+    public function testOtherFailureCodesAreNotReused(ResponseCode $code): void
     {
         $calls = 0;
         $inner = self::countingResolver(static function () use (&$calls, $code): Response {

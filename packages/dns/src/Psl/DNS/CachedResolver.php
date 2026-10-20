@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Psl\DNS;
 
 use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Exception\CancelledException;
+use Psl\Async\Exception\TimeoutException;
 use Psl\Async\NullCancellationToken;
 use Psl\Cache\StoreInterface;
 use Psl\DateTime\Duration;
@@ -13,6 +15,7 @@ use Psl\DNS\Internal\CachedResponse;
 use Psl\DNS\Record\RecordType;
 use Psl\DNS\Record\SOARecord;
 use Psl\Ref;
+use Throwable;
 
 use function md5;
 use function min;
@@ -27,7 +30,8 @@ use const PHP_INT_MAX;
  * Wraps an existing {@see ResolverInterface} and caches responses using a
  * {@see StoreInterface}. Positive responses use the minimum answer TTL.
  * Negative responses use the lesser of the SOA TTL and SOA MINIMUM.
- * Failures and responses with a zero TTL are not cached.
+ * SERVFAIL, REFUSED and network failures use a short, separate TTL.
+ * Responses with a zero TTL are not cached.
  *
  * @api
  */
@@ -38,11 +42,19 @@ final readonly class CachedResolver implements ResolverInterface
     /**
      * @param ResolverInterface $inner The underlying resolver to cache results from.
      * @param StoreInterface $cache The cache store for DNS responses.
+     * @param int $failureTtl Seconds to cache resolution failures (RFC 9520, section 3.2).
+     *
+     * @throws Exception\InvalidArgumentException If the failure TTL is outside 1..300 seconds.
      */
     public function __construct(
         private ResolverInterface $inner,
         private StoreInterface $cache,
-    ) {}
+        private int $failureTtl = 5,
+    ) {
+        if ($failureTtl < 1 || $failureTtl > 300) {
+            throw Exception\InvalidArgumentException::forFailureTtl($failureTtl);
+        }
+    }
 
     /**
      * {@inheritDoc}
@@ -53,6 +65,7 @@ final readonly class CachedResolver implements ResolverInterface
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
         array $ednsOptions = [],
     ): Response {
+        $cancellation->throwIfCancelled();
         $cacheKey = self::buildKey($name, $type, $ednsOptions);
 
         /** @var Ref<Duration|null> $ttl */
@@ -60,8 +73,29 @@ final readonly class CachedResolver implements ResolverInterface
 
         $entry = $this->cache->compute(
             $cacheKey,
-            function () use ($name, $type, $cancellation, $ednsOptions, $ttl): Response|CachedResponse {
-                $response = $this->inner->query($name, $type, $cancellation, $ednsOptions);
+            function () use ($name, $type, $cancellation, $ednsOptions, $ttl): Response|CachedResponse|Throwable {
+                try {
+                    $response = $this->inner->query($name, $type, $cancellation, $ednsOptions);
+                } catch (Exception\RuntimeException|TimeoutException|CancelledException $exception) {
+                    $cancellation->throwIfCancelled();
+                    if (
+                        $exception instanceof CancelledException
+                        && !$exception->getPrevious() instanceof TimeoutException
+                    ) {
+                        throw $exception;
+                    }
+
+                    $ttl->value = Duration::seconds($this->failureTtl);
+                    return $exception;
+                }
+
+                if (
+                    $response->code === ResponseCode::ServerFailure
+                    || $response->code === ResponseCode::ServerRefused
+                ) {
+                    $ttl->value = Duration::seconds($this->failureTtl);
+                    return new CachedResponse($response, Timestamp::monotonic(), $this->failureTtl);
+                }
 
                 if ($response->code === ResponseCode::NoError || $response->code === ResponseCode::NonExistentDomain) {
                     $minTtl = self::extractMinTtl($response, $type);
@@ -77,7 +111,11 @@ final readonly class CachedResolver implements ResolverInterface
         );
 
         if ($ttl->value !== null) {
-            $this->cache->update($cacheKey, static fn(): Response|CachedResponse => $entry, $ttl->value);
+            $this->cache->update($cacheKey, static fn(): Response|CachedResponse|Throwable => $entry, $ttl->value);
+        }
+
+        if ($entry instanceof Throwable) {
+            throw $entry;
         }
 
         return $entry instanceof CachedResponse ? $entry->response() : $entry;

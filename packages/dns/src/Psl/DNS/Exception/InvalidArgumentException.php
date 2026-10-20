@@ -86,4 +86,12 @@ final class InvalidArgumentException extends Exception\InvalidArgumentException 
     ): self {
         return new self('Failed to encode ' . $option . ' option: ' . $detail . '.', $previous);
     }
+
+    /**
+     * Create an exception for a resolution failure TTL outside the RFC 9520 bounds.
+     */
+    public static function forFailureTtl(int $seconds): self
+    {
+        return new self('Resolution failure TTL must be between 1 and 300 seconds; got ' . $seconds . '.');
+    }
 }
