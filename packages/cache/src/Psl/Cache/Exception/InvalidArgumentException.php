@@ -7,7 +7,8 @@ namespace Psl\Cache\Exception;
 use Psl\Exception;
 
 /**
- * Thrown when a cache key is invalid (empty or contains illegal characters).
+ * Thrown when an argument is invalid, such as a cache key that is empty or contains illegal characters,
+ * or a non-positive maximum cache size.
  *
  * @api
  */

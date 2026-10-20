@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Psl\Cache\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\Cache\Exception\InvalidArgumentException;
 use Psl\Cache\Exception\UnavailableItemException;
 use Psl\Cache\LocalStore;
 use Psl\DateTime\Duration;
+
+use const PHP_INT_MIN;
 
 final class LocalStoreTest extends TestCase
 {
@@ -196,6 +200,25 @@ final class LocalStoreTest extends TestCase
 
         $this->expectException(UnavailableItemException::class);
         $store->get('a');
+    }
+
+    /**
+     * A non-positive max size used to make the eviction loop spin forever on the first store.
+     */
+    #[DataProvider('provideNonPositiveMaxSizes')]
+    public function testNonPositiveMaxSizeThrows(int $maxSize): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected $maxSize to be a positive integer, ' . $maxSize . ' given.');
+
+        new LocalStore(maxSize: $maxSize);
+    }
+
+    public static function provideNonPositiveMaxSizes(): iterable
+    {
+        yield 'zero' => [0];
+        yield 'negative' => [-1];
+        yield 'min' => [PHP_INT_MIN];
     }
 
     public function testComputeWithDifferentKeys(): void

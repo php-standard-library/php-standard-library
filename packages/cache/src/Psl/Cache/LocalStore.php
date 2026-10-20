@@ -12,6 +12,7 @@ use Psl\DateTime\Timestamp;
 use Revolt\EventLoop;
 
 use function array_key_first;
+use function sprintf;
 
 /**
  * In-memory LRU cache store with async-safe per-key atomicity.
@@ -63,11 +64,21 @@ final class LocalStore implements StoreInterface
     /**
      * @param positive-int $maxSize Maximum number of entries. Oldest entries are evicted when full.
      * @param null|Duration $cleanupInterval How often to sweep expired entries, 1 second if null.
+     *
+     * @throws Exception\InvalidArgumentException If $maxSize is not a positive integer.
      */
     public function __construct(
         private readonly int $maxSize = 1_000,
         null|Duration $cleanupInterval = null,
     ) {
+        // @mago-expect analysis:redundant-comparison,impossible-condition,no-value - runtime guard for untyped callers
+        if ($maxSize < 1) {
+            throw new Exception\InvalidArgumentException(sprintf(
+                'Expected $maxSize to be a positive integer, %d given.',
+                $maxSize,
+            ));
+        }
+
         $this->sequence = new Async\KeyedSequence(
             /**
              * @param non-empty-string $key
