@@ -54,7 +54,12 @@ function get_node_key(mixed $node): string
         // Keyed by the exact bytes of the float: `(string) $node` rounds to the `precision` ini setting and
         // `var_export()` to `serialize_precision`, so distinct floats such as `0.1 + 0.2` and `0.3` could
         // share a key, and the cast emits a warning for `NAN` since PHP 8.5. Every `NAN` shares one key.
-        return is_nan($node) ? 'f:nan' : 'f:' . bin2hex(pack('E', $node));
+        if (is_nan($node)) {
+            return 'f:nan';
+        }
+
+        // `-0.0 === 0.0`, and nodes are compared with `===`, so both zeros are keyed by the bytes of `0.0`.
+        return 'f:' . bin2hex(pack('E', $node === 0.0 ? 0.0 : $node));
     }
 
     if (is_string($node)) {

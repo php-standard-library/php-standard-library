@@ -114,6 +114,20 @@ final class GetNodeKeyTest extends TestCase
         static::assertSame([0.1 + 0.2, 0.3], $graph->getNodes());
     }
 
+    public function testSignedZeroFloatsShareAKey(): void
+    {
+        // `-0.0 === 0.0`, and the graph functions compare nodes with `===`.
+        static::assertSame(Internal\get_node_key(0.0), Internal\get_node_key(-0.0));
+
+        $graph = Graph\add_edge(Graph\add_edge(Graph\directed(), 'a', 0.0), -0.0, 'b');
+
+        static::assertSame(['a', 0.0, 'b'], $graph->getNodes());
+        static::assertTrue($graph->hasNode(-0.0));
+        static::assertTrue(Graph\has_path($graph, 'a', 'b'));
+        static::assertSame(['a', 0.0, 'b'], Graph\shortest_path($graph, 'a', 'b'));
+        static::assertSame(['a', 0.0], Graph\shortest_path($graph, 'a', -0.0));
+    }
+
     public function testString(): void
     {
         static::assertSame('s:hello', Internal\get_node_key('hello'));
