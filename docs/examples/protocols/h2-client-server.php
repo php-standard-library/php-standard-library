@@ -56,3 +56,6 @@ foreach ($events as $event) {
 
 // A lower receive frame-size limit takes effect when the peer acknowledges it.
 $client->sendSettings([H2\Setting::MaxFrameSize->value => 16_384]);
+
+// The decoder also waits for ACK before enforcing a lower table-size limit.
+$client->sendSettings([H2\Setting::HeaderTableSize->value => 1024]);

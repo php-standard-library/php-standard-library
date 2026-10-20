@@ -58,6 +58,7 @@ use function substr;
 use function unpack;
 
 use const PHP_INT_MAX;
+use const Psl\H2\DEFAULT_HEADER_TABLE_SIZE;
 use const Psl\H2\DEFAULT_INITIAL_WINDOW_SIZE;
 use const Psl\H2\DEFAULT_MAX_FRAME_SIZE;
 use const Psl\H2\MAX_FRAME_SIZE_UPPER_BOUND;
@@ -138,6 +139,12 @@ final class StateMachine
     /** @var list<non-negative-int> Effective frame-size limits for SETTINGS awaiting ACK, in send order. */
     private array $pendingLocalMaxFrameSizes = [];
 
+    /** @var non-negative-int Last acknowledged local header-table limit. */
+    private int $acknowledgedLocalHeaderTableSize = DEFAULT_HEADER_TABLE_SIZE;
+
+    /** @var list<non-negative-int> Effective header-table limits awaiting SETTINGS ACKs. */
+    private array $pendingLocalHeaderTableSizes = [];
+
     /**
      * @var int<0, max> Maximum frame payload size the remote peer accepts from us.
      */
@@ -194,8 +201,13 @@ final class StateMachine
         $this->remoteMaxFrameSize = $this->settings->remoteValue(Setting::MaxFrameSize);
         $maxHeaderListSize = $this->settings->localValue(Setting::MaxHeaderListSize);
         $headerTableSize = $this->settings->localValue(Setting::HeaderTableSize);
-        $this->hpackEncoder = new Encoder($headerTableSize, $maxHeaderListSize);
-        $this->hpackDecoder = new Decoder($headerTableSize, $maxHeaderListSize);
+        $this->hpackEncoder = new Encoder(DEFAULT_HEADER_TABLE_SIZE, $maxHeaderListSize);
+        if ($headerTableSize < DEFAULT_HEADER_TABLE_SIZE) {
+            $this->hpackEncoder->resize($headerTableSize);
+        }
+
+        $this->hpackDecoder = new Decoder(DEFAULT_HEADER_TABLE_SIZE, $maxHeaderListSize);
+        $this->hpackDecoder->resize(max(DEFAULT_HEADER_TABLE_SIZE, $headerTableSize));
         $this->nextStreamIdentifier = $this->isClient ? 1 : 2;
     }
 
@@ -207,6 +219,7 @@ final class StateMachine
     public function initialize(): array
     {
         $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
+        $this->pendingLocalHeaderTableSizes[] = $this->settings->localValue(Setting::HeaderTableSize);
         $overrides = $this->settings->localOverrides();
         $frames = [new SettingsFrame($overrides, false)->toRaw()];
 
@@ -700,6 +713,11 @@ final class StateMachine
         $this->settings->updateLocal($settings);
         $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
         $this->localMaxFrameSize = max([$this->acknowledgedLocalMaxFrameSize, ...$this->pendingLocalMaxFrameSizes]);
+        $this->pendingLocalHeaderTableSizes[] = $this->settings->localValue(Setting::HeaderTableSize);
+        $this->hpackDecoder->resize(max([
+            $this->acknowledgedLocalHeaderTableSize,
+            ...$this->pendingLocalHeaderTableSizes,
+        ]));
 
         return [new SettingsFrame($settings, false)->toRaw()];
     }
@@ -1001,6 +1019,14 @@ final class StateMachine
                     $this->acknowledgedLocalMaxFrameSize,
                     ...$this->pendingLocalMaxFrameSizes,
                 ]);
+            }
+
+            if ($this->pendingLocalHeaderTableSizes !== []) {
+                $this->acknowledgedLocalHeaderTableSize = array_shift($this->pendingLocalHeaderTableSizes);
+                $this->hpackDecoder->resize(max([
+                    $this->acknowledgedLocalHeaderTableSize,
+                    ...$this->pendingLocalHeaderTableSizes,
+                ]));
             }
 
             if ($this->pendingLocalMaxFrameSizes === []) {
