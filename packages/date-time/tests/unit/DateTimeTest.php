@@ -13,6 +13,8 @@ use Psl\DateTime\DateStyle;
 use Psl\DateTime\DateTime;
 use Psl\DateTime\Era;
 use Psl\DateTime\Exception\InvalidArgumentException;
+use Psl\DateTime\Exception\OverflowException;
+use Psl\DateTime\Exception\UnderflowException;
 use Psl\DateTime\Exception\UnexpectedValueException;
 use Psl\DateTime\FormatPattern;
 use Psl\DateTime\Internal;
@@ -28,6 +30,9 @@ use Psl\Locale\Locale;
 
 use function locale_set_default;
 use function time;
+
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 
 final class DateTimeTest extends TestCase
 {
@@ -170,6 +175,36 @@ final class DateTimeTest extends TestCase
                 0,
             ],
         ];
+    }
+
+    public function testYearsOutsideTheSupportedRangeThrow(): void
+    {
+        static::assertSame(
+            '5368709-12-31T23:59:59+00:00',
+            DateTime::fromParts(Timezone::UTC, 5_368_709, 12, 31, 23, 59, 59)->toRfc3339(),
+        );
+        static::assertSame(
+            '-5838268-01-01T00:00:00+00:00',
+            DateTime::fromParts(Timezone::UTC, -5_838_268, 1, 1)->toRfc3339(),
+        );
+
+        $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);
+
+        foreach ([
+            [static fn(): DateTime => DateTime::fromParts(Timezone::UTC, 5_368_710, 1, 1), OverflowException::class],
+            [static fn(): DateTime => DateTime::fromParts(Timezone::UTC, PHP_INT_MAX, 1, 1), OverflowException::class],
+            [static fn(): DateTime => DateTime::fromParts(Timezone::UTC, -5_838_269, 1, 1), UnderflowException::class],
+            [static fn(): DateTime => DateTime::fromParts(Timezone::UTC, PHP_INT_MIN, 1, 1), UnderflowException::class],
+            [static fn(): DateTime => $dt->withYear(6_000_000), OverflowException::class],
+            [static fn(): DateTime => $dt->withDate(-6_000_000, 1, 1), UnderflowException::class],
+        ] as [$operation, $exception]) {
+            try {
+                $operation();
+                static::fail('Expected ' . $exception);
+            } catch (OverflowException|UnderflowException $e) {
+                static::assertInstanceOf($exception, $e);
+            }
+        }
     }
 
     public function testFromString(): void

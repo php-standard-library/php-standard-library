@@ -88,6 +88,8 @@ trait DateTimeConvenienceMethodsTrait
      * Returns a new instance with the specified year.
      *
      * @throws Exception\UnexpectedValueException If the provided year do not align with calendar expectations.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
      *
      * @psalm-mutation-free
      */

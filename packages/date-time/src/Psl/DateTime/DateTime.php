@@ -198,6 +198,8 @@ final readonly class DateTime implements
      * @param int<0, 999999999> $nanoseconds
      *
      * @throws Exception\UnexpectedValueException If any of the provided date or time components do not align with calendar expectations.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
      *
      * @pure
      */
@@ -501,6 +503,8 @@ final readonly class DateTime implements
      * @param int<1, 31> $day
      *
      * @throws Exception\UnexpectedValueException If any of the provided date components do not align with calendar expectations.
+     * @throws Exception\OverflowException If the year is greater than 5368709, the latest supported year.
+     * @throws Exception\UnderflowException If the year is less than -5838268, the earliest supported year.
      *
      * @psalm-mutation-free
      */
