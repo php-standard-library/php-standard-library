@@ -114,6 +114,14 @@ final class Transport implements TransportInterface
                 $this->markInitialized($stream);
             }
 
+            if (!$connection->supportsCapability(Capability::SMTPUTF8)) {
+                foreach ([$envelope->sender, ...$envelope->recipients] as $mailbox) {
+                    if ($mailbox !== null && preg_match('/[\x80-\xff]/', $mailbox->localPart) === 1) {
+                        throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
+                    }
+                }
+            }
+
             $chunking = $this->configuration->chunking && $connection->supportsCapability(Capability::Chunking);
             $pipelining = $this->configuration->pipelining && $connection->supportsCapability(Capability::Pipelining);
             $partial = $this->configuration->allowPartialSuccess;

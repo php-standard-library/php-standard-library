@@ -19,6 +19,7 @@ $transport = new Transport(
 
 $sender = new Mailbox('alice', 'example.com', 'Alice');
 // The envelope uses bob@xn--bcher-kva.example.
+// Non-ASCII local parts, such as δοκιμή@example.com, require SMTPUTF8.
 $recipient = new Mailbox('bob', 'bücher.example');
 
 $message = new Message()

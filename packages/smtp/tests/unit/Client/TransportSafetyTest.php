@@ -73,6 +73,46 @@ final class TransportSafetyTest extends TestCase
         yield 'domain literal' => ['user', '[IPv6:::1]', 'user@[IPv6:::1]'];
     }
 
+    #[DataProvider('utf8LocalParts')]
+    public function testRejectsUtf8LocalPartsBeforeMail(Mailbox $sender, Mailbox $recipient): void
+    {
+        [$transport, $output] = $this->transport('OK');
+
+        try {
+            $transport->send(new Envelope($sender, [$recipient]), new Message());
+            static::fail('Sending an international local part must require SMTPUTF8.');
+        } catch (TransmissionException $e) {
+            static::assertStringContainsString('SMTPUTF8', $e->getMessage());
+            $output->seek(0);
+            static::assertSame("EHLO localhost\r\n", $output->readAll());
+        }
+    }
+
+    /** @return iterable<string, array{Mailbox, Mailbox}> */
+    public static function utf8LocalParts(): iterable
+    {
+        yield 'sender' => [new Mailbox('δοκιμή', 'example.com'), new Mailbox('recipient', 'example.com')];
+        yield 'recipient' => [new Mailbox('sender', 'example.com'), new Mailbox('δοκιμή', 'example.com')];
+        yield 'quoted recipient' => [new Mailbox('sender', 'example.com'), new Mailbox('"δοκιμή"', 'example.com')];
+    }
+
+    public function testSendsUtf8LocalPartsWhenSupported(): void
+    {
+        [$transport, $output] = $this->transport('SMTPUTF8');
+        $sender = new Mailbox('δοκιμή', 'example.com');
+        $recipient = new Mailbox('受信者', 'example.com');
+        $message = new Message()
+            ->withFrom($sender)
+            ->withTo($recipient);
+
+        $transport->send(new Envelope($sender, [$recipient]), $message);
+
+        $output->seek(0);
+        $commands = $output->readAll();
+        static::assertStringContainsString("MAIL FROM:<δοκιμή@example.com> SMTPUTF8\r\n", $commands);
+        static::assertStringContainsString("RCPT TO:<受信者@example.com>\r\n", $commands);
+    }
+
     /**
      * Use a scripted stream to test the full send path without loopback sockets.
      *
