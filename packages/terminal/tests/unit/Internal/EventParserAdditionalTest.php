@@ -99,6 +99,41 @@ final class EventParserAdditionalTest extends TestCase
         static::assertSame('a', $events[1]->char);
     }
 
+    public function testUtf8TwoByteCharacterSplitAcrossFeeds(): void
+    {
+        static::assertSame([], $this->parser->feed("\xC3"));
+
+        $events = $this->parser->feed("\xA9a");
+
+        static::assertCount(2, $events);
+        static::assertSame("\xC3\xA9", $events[0]->char);
+        static::assertSame('a', $events[1]->char);
+    }
+
+    public function testUtf8FourByteCharacterSplitAcrossFeeds(): void
+    {
+        static::assertSame([], $this->parser->feed("\xF0"));
+        static::assertSame([], $this->parser->feed("\x9F\x98"));
+
+        $events = $this->parser->feed("\x80");
+
+        static::assertCount(1, $events);
+        static::assertSame("\xF0\x9F\x98\x80", $events[0]->char);
+    }
+
+    public function testUtf8IncompleteCharacterAfterOtherInput(): void
+    {
+        $events = $this->parser->feed("a\xE2\x9C");
+
+        static::assertCount(1, $events);
+        static::assertSame('a', $events[0]->char);
+
+        $events = $this->parser->feed("\x93");
+
+        static::assertCount(1, $events);
+        static::assertSame("\xE2\x9C\x93", $events[0]->char);
+    }
+
     public function testAltPlusLetter(): void
     {
         $events = $this->parser->feed("\ea");

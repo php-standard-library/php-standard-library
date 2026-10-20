@@ -121,7 +121,7 @@ final class EventParser
         return $result;
     }
 
-    private function parseSingleByte(): null|Event\Key
+    private function parseSingleByte(): Event\Key|null|false
     {
         $byte = $this->buffer[0];
         $this->buffer = substr($this->buffer, 1);
@@ -145,7 +145,10 @@ final class EventParser
         return Event\Key::named('ctrl+' . $letter);
     }
 
-    private function parseUtf8(string $firstByte): null|Event\Key
+    /**
+     * @return Event\Key|false false if the rest of the character has not been received yet
+     */
+    private function parseUtf8(string $firstByte): Event\Key|false
     {
         $ord = ord($firstByte);
         $needed = match (true) {
@@ -157,7 +160,7 @@ final class EventParser
 
         if (strlen($this->buffer) < $needed) {
             $this->buffer = $firstByte . $this->buffer;
-            return null;
+            return false;
         }
 
         $char = $firstByte . substr($this->buffer, 0, $needed);
