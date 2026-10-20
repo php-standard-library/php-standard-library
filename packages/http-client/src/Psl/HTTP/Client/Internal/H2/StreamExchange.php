@@ -7,12 +7,15 @@ namespace Psl\HTTP\Client\Internal\H2;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\H2\ClientConnectionInterface;
+use Psl\H2\ErrorCode;
 use Psl\H2\Exception\ExceptionInterface;
 use Psl\H2\Exception\StreamException;
+use Psl\H2\StreamState;
 use Psl\HPACK\Header;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Exception\RuntimeException;
+use Psl\HTTP\Message\FieldMap;
 use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Request;
 use Psl\HTTP\Message\Response;
@@ -20,7 +23,10 @@ use Psl\HTTP\Message\Transaction;
 use Psl\IO;
 use Psl\URL;
 
+use function explode;
+use function in_array;
 use function strtolower;
+use function trim;
 
 /**
  * Manages one HTTP/2 request/response exchange on a single stream.
@@ -46,9 +52,9 @@ use function strtolower;
  * Cancellation and stream errors unregister the stream and release its slot.
  * Connection and I/O errors also mark the session as closed.
  *
- * H1/H2 header mapping: connection-specific headers (host, connection,
- * transfer-encoding) are stripped and replaced with HTTP/2 pseudo-headers
- * (:method, :path, :scheme, :authority) per RFC 9113 Section 8.3.
+ * H1/H2 header mapping: connection-specific fields and fields named in
+ * Connection are dropped from headers and trailers. Only te: trailers is
+ * retained. Host maps to :authority per RFC 9113 Sections 8.2.2 and 8.3.
  *
  * @internal
  *
@@ -91,6 +97,12 @@ final class StreamExchange
         ClientConfiguration $configuration,
         CancellationTokenInterface $cancellation,
     ): Transaction {
+        if ($request->body === null && $request->trailers !== null) {
+            throw RequestException::forInvalidRequest(
+                'Trailers cannot be sent without a message body (RFC 9110 Section 6.5).',
+            );
+        }
+
         $session->acquireStream();
 
         if ($session->isClosed()) {
@@ -114,43 +126,26 @@ final class StreamExchange
             new Header(':path', $path),
             new Header(':scheme', $url->scheme),
             new Header(':authority', $authority),
+            ...self::filterHeaders($request->headers),
         ];
 
-        foreach ($request->headers->getIterator() as [$name, $value]) {
-            $lower = strtolower($name);
-            if ($lower === 'host' || $lower === 'connection' || $lower === 'transfer-encoding') {
-                continue;
-            }
-
-            $headers[] = new Header($lower, $value);
-        }
-
-        if ($request->body === null && $request->trailers !== null) {
-            throw RequestException::forInvalidRequest(
-                'Trailers cannot be sent without a message body (RFC 9110 Section 6.5).',
-            );
-        }
-
         $stream = new H2Stream($streamId, $configuration->onInformationalResponse);
-        $multiplexer->register($stream);
+        $headersSent = false;
 
         try {
+            $multiplexer->register($stream);
+            $connection->sendHeaders($streamId, $headers, $request->body === null);
+            $headersSent = true;
+
             if ($request->body !== null) {
-                $connection->sendHeaders($streamId, $headers, false);
                 self::sendBody($connection, $streamId, $request->body, $request->trailers === null);
 
                 if ($request->trailers !== null) {
                     $trailerFields = $request->trailers->await();
-                    /** @var list<Header> $trailerHeaders */
-                    $trailerHeaders = [];
-                    foreach ($trailerFields as [$name, $value]) {
-                        $trailerHeaders[] = new Header(strtolower($name), $value);
-                    }
+                    $trailerHeaders = self::filterHeaders($trailerFields, $request->headers);
 
                     $connection->sendHeaders($streamId, $trailerHeaders, true);
                 }
-            } else {
-                $connection->sendHeaders($streamId, $headers, true);
             }
 
             [$status, $responseHeaders, $endStream] = $stream->awaitResponse($cancellation);
@@ -184,13 +179,65 @@ final class StreamExchange
         } catch (CancelledException|StreamException $e) {
             $multiplexer->unregister($streamId);
             $session->releaseStream();
+            if (
+                $e instanceof StreamException
+                && $headersSent
+                && in_array(
+                    $connection->getStreamState($streamId),
+                    [StreamState::Open, StreamState::HalfClosedRemote],
+                    true,
+                )
+            ) {
+                try {
+                    $connection->resetStream($streamId, ErrorCode::Cancel);
+                } catch (ExceptionInterface|IO\Exception\RuntimeException) {
+                    $session->markClosed();
+                }
+            }
+
             throw $e;
         } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
             $multiplexer->unregister($streamId);
             $session->releaseStream();
-            $session->markClosed();
+            if ($headersSent || !$e instanceof ExceptionInterface) {
+                $session->markClosed();
+            }
+
             throw $e;
         }
+    }
+
+    /**
+     * @return list<Header>
+     */
+    private static function filterHeaders(FieldMap $fields, null|FieldMap $requestHeaders = null): array
+    {
+        $connectionFields = [
+            'host' => true,
+            'connection' => true,
+            'keep-alive' => true,
+            'proxy-connection' => true,
+            'transfer-encoding' => true,
+            'upgrade' => true,
+        ];
+        $connectionValues = [...$fields->getAll('connection'), ...($requestHeaders?->getAll('connection') ?? [])];
+        foreach ($connectionValues as $value) {
+            foreach (explode(',', $value) as $name) {
+                $connectionFields[strtolower(trim($name))] = true;
+            }
+        }
+
+        $headers = [];
+        foreach ($fields as [$name, $value]) {
+            $lower = strtolower($name);
+            if (isset($connectionFields[$lower]) || $lower === 'te' && strtolower($value) !== 'trailers') {
+                continue;
+            }
+
+            $headers[] = new Header($lower, $value);
+        }
+
+        return $headers;
     }
 
     /**

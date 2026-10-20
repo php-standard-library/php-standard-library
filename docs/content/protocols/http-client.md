@@ -82,6 +82,8 @@ CONNECT reads stop at the end of the proxy headers, leaving any following tunnel
 
 ## HTTP/2 over Plaintext (h2c)
 
+For HTTP/2 requests, the client drops `connection`, `keep-alive`, `proxy-connection`, `transfer-encoding`, `upgrade`, and each field named in `Connection`. It maps the host to `:authority` and keeps `te` only when its value is `trailers` (case-insensitive). The same filter applies to request trailers. Invalid initial field values fail the request before its HEADERS are sent and leave the session usable. Invalid trailers reset only their stream, so other requests can still use the session.
+
 For servers that support HTTP/2 without TLS, set `protocolVersions` to only `ProtocolVersion::V20`. The client uses prior-knowledge mode per RFC 9113 Section 3.4 - it sends the HTTP/2 connection preface directly on the TCP connection, skipping TLS and ALPN negotiation entirely.
 
 @example('protocols/http-client-h2c.php')

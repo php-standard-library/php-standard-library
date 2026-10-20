@@ -35,6 +35,9 @@ $client->sendHeaders(
         new Header(':path', '/hello'),
         new Header(':scheme', 'https'),
         new Header(':authority', 'example.com'),
+        // The te value is case-insensitive; other connection-specific fields cause StreamException.
+        // Values with CR, LF, NUL, or leading or trailing spaces or tabs also fail before sending.
+        new Header('te', 'Trailers'),
     ],
     endStream: true,
 );

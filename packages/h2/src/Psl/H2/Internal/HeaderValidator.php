@@ -72,12 +72,7 @@ final readonly class HeaderValidator
                 throw StreamException::forMalformedMessage($streamId, 'Header name must not be empty');
             }
 
-            if (strpbrk($header->value, "\0\r\n") !== false || trim($header->value, " \t") !== $header->value) {
-                throw StreamException::forMalformedMessage(
-                    $streamId,
-                    'Invalid value for header "' . $header->name . '"',
-                );
-            }
+            self::validateFieldValue($header, $streamId);
 
             if ($header->name[0] === ':') {
                 if ($isTrailing) {
@@ -137,19 +132,7 @@ final readonly class HeaderValidator
                     );
                 }
 
-                if ($lower === 'te' && $header->value !== 'trailers') {
-                    throw StreamException::forMalformedMessage(
-                        $streamId,
-                        'Header "te" has value other than "trailers"',
-                    );
-                }
-
-                if (isset(self::BANNED_HEADERS[$lower])) {
-                    throw StreamException::forMalformedMessage(
-                        $streamId,
-                        'Banned header "' . $header->name . '" in HTTP/2',
-                    );
-                }
+                self::validateConnectionSpecificField($header, $streamId);
             }
         }
 
@@ -159,6 +142,31 @@ final readonly class HeaderValidator
             } else {
                 self::validateRequestPseudoHeaders($pseudoSeen, $method, $hasProtocol, $streamId);
             }
+        }
+    }
+
+    /**
+     * @throws StreamException If the header has connection-specific semantics.
+     */
+    public static function validateConnectionSpecificField(Header $header, int $streamId): void
+    {
+        $lower = strtolower($header->name);
+        if ($lower === 'te' && strtolower($header->value) !== 'trailers') {
+            throw StreamException::forMalformedMessage($streamId, 'Header "te" has value other than "trailers"');
+        }
+
+        if (isset(self::BANNED_HEADERS[$lower])) {
+            throw StreamException::forMalformedMessage($streamId, 'Banned header "' . $header->name . '" in HTTP/2');
+        }
+    }
+
+    /**
+     * @throws StreamException If the field value violates RFC 9113 Section 8.2.1.
+     */
+    public static function validateFieldValue(Header $header, int $streamId): void
+    {
+        if (strpbrk($header->value, "\0\r\n") !== false || trim($header->value, " \t") !== $header->value) {
+            throw StreamException::forMalformedMessage($streamId, 'Invalid value for header "' . $header->name . '"');
         }
     }
 

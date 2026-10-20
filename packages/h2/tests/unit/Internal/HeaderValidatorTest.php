@@ -234,6 +234,21 @@ final class HeaderValidatorTest extends TestCase
         HeaderValidator::validate($headers, false, false, 1);
     }
 
+    public function testTeTrailersValueIsCaseInsensitive(): void
+    {
+        HeaderValidator::validate(
+            [
+                new Header(':status', '200'),
+                new Header('te', 'TrAiLeRs'),
+            ],
+            true,
+            false,
+            1,
+        );
+
+        static::assertTrue(true);
+    }
+
     public function testBannedProxyConnectionHeader(): void
     {
         $headers = [

@@ -371,7 +371,7 @@ final class StateMachine
     {
         $this->prepareHeaderStream($streamId);
 
-        $normalized = self::lowercaseHeaders($headers);
+        $normalized = self::lowercaseHeaders($headers, $streamId);
 
         try {
             $encoded = $this->hpackEncoder->encode($normalized);
@@ -421,7 +421,7 @@ final class StateMachine
         $this->prepareHeaderStream($streamId);
 
         try {
-            $encoded = $this->hpackEncoder->encodeWithStatus($status, self::lowercaseHeaders($headers));
+            $encoded = $this->hpackEncoder->encodeWithStatus($status, self::lowercaseHeaders($headers, $streamId));
         } catch (HPACKException $e) {
             throw ProtocolException::forConnectionError($e->getMessage(), $e);
         }
@@ -988,10 +988,7 @@ final class StateMachine
             throw ProtocolException::forConnectionError('Remote peer has disabled PUSH');
         }
 
-        $normalized = [];
-        foreach ($headers as $header) {
-            $normalized[] = new Header(strtolower($header->name), $header->value, $header->sensitive);
-        }
+        $normalized = self::lowercaseHeaders($headers, $promisedStreamId);
 
         try {
             $encoded = $this->hpackEncoder->encode($normalized);
@@ -1790,10 +1787,12 @@ final class StateMachine
      *
      * @return list<Header>
      */
-    private static function lowercaseHeaders(iterable $headers): array
+    private static function lowercaseHeaders(iterable $headers, int $streamId): array
     {
         $result = [];
         foreach ($headers as $header) {
+            HeaderValidator::validateConnectionSpecificField($header, $streamId);
+            HeaderValidator::validateFieldValue($header, $streamId);
             $lower = strtolower($header->name);
             $result[] = $lower === $header->name ? $header : new Header($lower, $header->value, $header->sensitive);
         }
