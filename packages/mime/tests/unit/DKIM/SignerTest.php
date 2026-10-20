@@ -534,6 +534,35 @@ final class SignerTest extends TestCase
         static::assertStringContainsString('Body', $signed);
     }
 
+    public function testSignKeepsLfLineEndings(): void
+    {
+        $message = "From: sender@example.com\nSubject: folded\n subject\n\nline 1\n\nline 2\n";
+
+        $signed = $this->createSigner()->sign($message);
+
+        static::assertStringStartsWith('DKIM-Signature:', $signed);
+        static::assertStringNotContainsString("\r", $signed);
+        static::assertStringEndsWith("\n" . $message, $signed);
+    }
+
+    public function testSignKeepsCrlfLineEndings(): void
+    {
+        $message = "From: sender@example.com\r\nSubject: folded\r\n subject\r\n\r\nline 1\r\n\r\nline 2\r\n";
+
+        $signed = $this->createSigner()->sign($message);
+
+        static::assertSame(0, preg_match('/(?<!\r)\n|\r(?!\n)/', $signed));
+        static::assertStringEndsWith("\r\n" . $message, $signed);
+    }
+
+    public function testSignAddsTheBlankLineInTheMessageLineEndingStyle(): void
+    {
+        $signer = $this->createSigner();
+
+        static::assertStringEndsWith("\nFrom: a@b.com\nTo: c@d.com\n\n", $signer->sign("From: a@b.com\nTo: c@d.com"));
+        static::assertStringEndsWith("\r\nFrom: a@b.com\r\n\r\n", $signer->sign('From: a@b.com'));
+    }
+
     public function testSignMessageWithNoBody(): void
     {
         $message = 'From: sender@example.com';

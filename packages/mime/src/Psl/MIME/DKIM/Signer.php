@@ -82,7 +82,7 @@ final readonly class Signer implements SignerInterface
      */
     public function sign(string $message): string
     {
-        [$rawHeaders, $body] = self::splitMessage($message);
+        [$rawHeaders, $body, $separator] = self::splitMessage($message);
         $headers = self::parseHeaders($rawHeaders);
 
         $headersToIgnore = [
@@ -189,7 +189,31 @@ final readonly class Signer implements SignerInterface
             $dkimHeader .= "\r\n " . $chunk;
         }
 
-        return $dkimHeader . "\r\n" . $rawHeaders . "\r\n\r\n" . $body;
+        // The field is hashed in its CRLF form, but written in the line-ending style of the
+        // message, which is otherwise returned unchanged: a message with LF line endings stays a
+        // message with LF line endings (and is converted to CRLF as a whole in transit).
+        $lineEnding = self::lineEnding($message);
+        if ($separator === '') {
+            $separator = $lineEnding . $lineEnding;
+        }
+
+        return str_replace("\r\n", $lineEnding, $dkimHeader) . $lineEnding . $rawHeaders . $separator . $body;
+    }
+
+    /**
+     * Return the line ending used by the message: LF when its first line ends with a bare LF,
+     * CRLF otherwise.
+     *
+     * @return non-empty-string
+     */
+    private static function lineEnding(string $message): string
+    {
+        $position = strpos($message, "\n");
+        if ($position !== false && ($position === 0 || $message[$position - 1] !== "\r")) {
+            return "\n";
+        }
+
+        return "\r\n";
     }
 
     /**
@@ -227,20 +251,21 @@ final readonly class Signer implements SignerInterface
      *
      * The header section ends at the first blank line, whatever its line endings (CRLF CRLF,
      * LF LF or a mix of both); the body may contain blank lines of any style.
-     * Returns the body as empty if no separator is found.
+     * Returns the body and the separator as empty if no separator is found.
      *
-     * @return array{string, string} [headers, body]
+     * @return array{string, string, string} [headers, body, separator]
      */
     private static function splitMessage(string $message): array
     {
         $match = [];
         if (preg_match('/\r?\n\r?\n/', $message, $match, PREG_OFFSET_CAPTURE) !== 1) {
-            return [$message, ''];
+            return [$message, '', ''];
         }
 
         $position = (int) $match[0][1];
+        $separator = $match[0][0];
 
-        return [substr($message, 0, $position), substr($message, $position + strlen($match[0][0]))];
+        return [substr($message, 0, $position), substr($message, $position + strlen($separator)), $separator];
     }
 
     /**

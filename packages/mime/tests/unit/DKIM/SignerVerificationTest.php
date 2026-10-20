@@ -199,6 +199,19 @@ final class SignerVerificationTest extends TestCase
     }
 
     #[DataProvider('provideAlgorithms')]
+    public function testLfMessageIsSignedWithLfLineEndingsAndVerifies(Algorithm $algorithm): void
+    {
+        $message = str_replace("\r\n", "\n", self::RFC8463_UNSIGNED_MESSAGE);
+
+        $signed = self::createSigner(new SigningConfiguration('football.example.com', 'test', $algorithm))
+            ->sign($message);
+
+        static::assertStringNotContainsString("\r", $signed);
+        static::assertStringEndsWith("\n" . $message, $signed);
+        static::assertTrue(self::verify(self::toWireFormat($signed), 0, self::publicKey($algorithm)));
+    }
+
+    #[DataProvider('provideAlgorithms')]
     public function testSignatureWithBodyMaxLengthAloneVerifies(Algorithm $algorithm): void
     {
         $configuration = new SigningConfiguration('football.example.com', 'test', $algorithm)->withBodyMaxLength(10);
