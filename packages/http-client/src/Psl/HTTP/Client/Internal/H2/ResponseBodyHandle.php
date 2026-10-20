@@ -6,13 +6,10 @@ namespace Psl\HTTP\Client\Internal\H2;
 
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
-use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Message\FieldMap;
 use Psl\IO;
 use Psl\IO\Exception;
 use Throwable;
-
-use function strlen;
 
 /**
  * Lazy, pull-based read handle for HTTP/2 response bodies.
@@ -22,12 +19,8 @@ use function strlen;
  * direct interaction with the read fiber; it only pulls from the stream's
  * local buffer via {@see H2Stream::readBody()} and {@see H2Stream::tryReadBody()}.
  *
- * Body size enforcement is performed inline: each successful read increments
- * a byte counter, and if the configured maximum response body size is exceeded,
- * the handle enters an error state and closes the stream. Unlike H1, where size
- * enforcement is done by wrapping with {@see IO\BoundedReadHandle}, H2 handles
- * enforce the limit directly because the body data arrives via the multiplexer's
- * push mechanism rather than a sequential read.
+ * The stream enforces the response size limit when DATA arrives, before it
+ * enters the buffer. This bounds memory use even when the caller does not read.
  *
  * Lifecycle: the handle unregisters the stream from the multiplexer when the
  * body is fully consumed, when an error occurs, or when the handle is explicitly
@@ -61,13 +54,6 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
     private null|IO\Exception\RuntimeException $errorCause = null;
 
     /**
-     * Total bytes received through this handle, for size limit enforcement.
-     *
-     * @var non-negative-int
-     */
-    private int $bytesReceived = 0;
-
-    /**
      * Whether this handle has been closed (stream unregistered from multiplexer).
      */
     private bool $closed = false;
@@ -76,13 +62,11 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
      * @param H2Stream $stream The per-stream state container holding the body buffer.
      * @param H2Multiplexer $multiplexer The multiplexer to unregister from on close.
      * @param positive-int $streamId The HTTP/2 stream ID.
-     * @param int $maxResponseBodySize Maximum allowed body size in bytes (0 = unlimited).
      */
     public function __construct(
         private readonly H2Stream $stream,
         private readonly H2Multiplexer $multiplexer,
         private readonly int $streamId,
-        private readonly int $maxResponseBodySize,
     ) {}
 
     /**
@@ -124,8 +108,7 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
     /**
      * Read body data, blocking if the buffer is empty and the stream is not complete.
      *
-     * Enforces the maximum response body size after each read. If the limit is
-     * exceeded, the handle enters an error state and subsequent reads throw.
+     * Throws if the stream exceeded its size limit while receiving data.
      * Automatically closes the handle when the body is fully consumed.
      *
      * @throws Exception\RuntimeException If the stream encountered an error or the body exceeds the size limit.
@@ -136,25 +119,12 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
     ): string {
         $this->throwIfErrored();
 
-        if ($this->stream->isBodyComplete()) {
-            return '';
-        }
-
         try {
             $data = $this->stream->readBody($maxBytes, $cancellation);
         } catch (Throwable $e) {
             $this->setError($e);
+            $this->throwIfErrored();
             return '';
-        }
-
-        if ($data !== '') {
-            $received = $this->bytesReceived + strlen($data);
-            $this->bytesReceived = $received;
-
-            if ($this->maxResponseBodySize > 0 && $this->bytesReceived > $this->maxResponseBodySize) {
-                $this->setError(ProtocolException::forResponseBodyTooLarge($this->maxResponseBodySize));
-                return '';
-            }
         }
 
         if ($this->stream->isBodyComplete()) {
@@ -223,6 +193,10 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
      */
     private function throwIfErrored(): void
     {
+        if (!$this->errored && $this->stream->hasError()) {
+            $this->setError($this->stream->getError() ?? new Exception\RuntimeException('H2 stream error'));
+        }
+
         if ($this->errored) {
             throw $this->errorCause ?? new Exception\RuntimeException('H2 stream error: unknown error');
         }

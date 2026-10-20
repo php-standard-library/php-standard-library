@@ -129,6 +129,24 @@ final class H2Multiplexer
     }
 
     /**
+     * Cancel a stream and release its slot.
+     *
+     * @param positive-int $streamId
+     */
+    public function cancel(int $streamId): void
+    {
+        if (!isset($this->streams[$streamId])) {
+            return;
+        }
+
+        try {
+            $this->connection->resetStream($streamId, ErrorCode::Cancel);
+        } finally {
+            $this->unregister($streamId);
+        }
+    }
+
+    /**
      * Start the background read fiber that reads H2 events in a loop.
      *
      * The fiber is deferred onto the event loop via {@see Async\Scheduler::defer()}
@@ -226,6 +244,9 @@ final class H2Multiplexer
             $stream->handleHeaders($event->headers, $event->endStream);
         } elseif ($event instanceof Event\DataReceived) {
             $stream->handleData($event->data, $event->endStream);
+            if ($stream->hasError()) {
+                $this->cancel($sid);
+            }
         } elseif ($event instanceof Event\StreamReset) {
             $stream->fail(ProtocolException::forMalformedResponse('Stream reset: ' . $event->errorCode->name));
             $this->unregister($sid);

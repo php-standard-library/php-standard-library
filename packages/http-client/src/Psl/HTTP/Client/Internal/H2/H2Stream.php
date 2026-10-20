@@ -76,6 +76,8 @@ final class H2Stream
      */
     private string $bodyBuffer = '';
 
+    private int $bytesReceived = 0;
+
     /**
      * Whether the stream has received END_STREAM (no more data or trailers expected).
      */
@@ -99,10 +101,12 @@ final class H2Stream
     /**
      * @param int $streamId The HTTP/2 stream identifier assigned by the connection.
      * @param null|(Closure(Response): void) $onInformationalResponse Callback invoked for each 1xx response as it arrives.
+     * @param positive-int $maxResponseBodySize Maximum received and buffered body bytes.
      */
     public function __construct(
         public readonly int $streamId,
         private readonly null|Closure $onInformationalResponse = null,
+        private readonly int $maxResponseBodySize = 10_485_760,
     ) {
         /** @var Async\Deferred<array{int<100, 999>, FieldMap, bool}> */
         $this->responseDeferred = new Async\Deferred();
@@ -193,6 +197,17 @@ final class H2Stream
      */
     public function handleData(string $data, bool $endStream): void
     {
+        if ($this->error !== null) {
+            return;
+        }
+
+        $length = strlen($data);
+        if ($length > ($this->maxResponseBodySize - $this->bytesReceived)) {
+            $this->fail(ProtocolException::forResponseBodyTooLarge($this->maxResponseBodySize));
+            return;
+        }
+
+        $this->bytesReceived += $length;
         $this->bodyBuffer .= $data;
 
         if ($endStream) {
@@ -223,6 +238,7 @@ final class H2Stream
         }
 
         $this->error = $error;
+        $this->bodyBuffer = '';
         $this->bodyComplete = true;
 
         if (!$this->responseResolved) {

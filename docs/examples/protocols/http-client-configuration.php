@@ -12,6 +12,7 @@ use Psl\URL;
 
 $configuration = new Client\ClientConfiguration(
     maxResponseHeaderSize: 16_384,
+    // HTTP/2 enforces this limit as DATA arrives, even before the body is read.
     maxResponseBodySize: 50_000_000,
     baseUrl: URL\parse('https://api.example.com/v2'),
     tlsConfiguration: new TLS\ClientConfiguration(minimumVersion: TLS\Version::Tls12),

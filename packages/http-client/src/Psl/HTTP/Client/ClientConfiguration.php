@@ -49,8 +49,8 @@ final readonly class ClientConfiguration
     /**
      * @param positive-int $maxResponseHeaderSize Maximum total size of response headers in bytes, including all header field names, values, and delimiters.
      *  Responses exceeding this limit trigger a {@see Exception\ProtocolException}. Defaults to 8,192 bytes (8 KiB).
-     * @param positive-int $maxResponseBodySize Maximum response body size in bytes. The response body stream will throw a {@see Exception\ProtocolException}
-     *  if this limit is exceeded during reading. Defaults to 10,485,760 bytes (10 MiB).
+     * @param positive-int $maxResponseBodySize Maximum response body size in bytes. HTTP/2 checks this limit as DATA arrives and cancels an oversized stream,
+     *  even if its body is unread. HTTP/1 checks the limit during reads. Defaults to 10,485,760 bytes (10 MiB).
      * @param null|URL $baseUrl Default base URL for resolving relative request targets. When a {@see Message\Request} has no URL set but has a request target,
      *  it is resolved against this base URL per RFC 3986 Section 5. Defaults to {@see null} (no base URL).
      * @param TLS\ClientConfiguration $tlsConfiguration TLS settings for HTTPS connections, including certificate verification, client certificates,

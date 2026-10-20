@@ -131,7 +131,7 @@ final class StreamExchange
             ...self::filterHeaders($request->headers),
         ];
 
-        $stream = new H2Stream($streamId, $configuration->onInformationalResponse);
+        $stream = new H2Stream($streamId, $configuration->onInformationalResponse, $configuration->maxResponseBodySize);
         $headersSent = false;
 
         try {
@@ -173,7 +173,7 @@ final class StreamExchange
                 );
             }
 
-            $bodyHandle = new ResponseBodyHandle($stream, $multiplexer, $streamId, $configuration->maxResponseBodySize);
+            $bodyHandle = new ResponseBodyHandle($stream, $multiplexer, $streamId);
 
             return new Transaction(
                 $informational,
