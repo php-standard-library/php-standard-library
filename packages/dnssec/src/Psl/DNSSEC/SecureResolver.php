@@ -35,9 +35,12 @@ use function array_filter;
 use function array_values;
 use function count;
 use function rtrim;
+use function str_starts_with;
 use function strpos;
 use function strtolower;
 use function substr;
+use function substr_count;
+use function usort;
 
 /**
  * A DNSSEC-validating resolver that wraps an inner resolver and verifies
@@ -51,6 +54,7 @@ use function substr;
  *
  * @api
  *
+ * @mago-expect lint:kan-defect - Check each signed RRset and each proof before returning data.
  * @mago-expect lint:cyclomatic-complexity - Answer and denial checks have separate failure paths.
  */
 final readonly class SecureResolver implements ResolverInterface
@@ -119,6 +123,7 @@ final readonly class SecureResolver implements ResolverInterface
             $queryType,
         );
         $secure = true;
+        $verifiedAuthority = [];
         /** @var array<string, TrustChainResult> $results */
         $results = [];
         foreach ($rrsets as $id => $rrset) {
@@ -172,17 +177,48 @@ final readonly class SecureResolver implements ResolverInterface
                 throw InvalidProofException::forExcessiveDNSKEYCount(count($result->keys));
             }
 
-            self::verifyRrsigs($rrset, $signatures, $result->keys);
+            $verified = self::verifyRrsigs($rrset, $signatures, $result->keys);
+            foreach ($verified as $signature) {
+                if (
+                    $signature->labels >= self::labelCount($record->name)
+                    || $signature->labels === (self::labelCount($record->name) - 1)
+                    && str_starts_with($record->name, '*.')
+                ) {
+                    continue;
+                }
+
+                $proofs = self::verifyZoneProofs($response, $result->keys);
+                foreach ($proofs as $proof) {
+                    $verifiedAuthority[AnswerRrsets::id($proof->name, $proof->kind)] = true;
+                }
+
+                $secure =
+                    NSECProofValidator::validateWildcard($record->name, $signature->labels, $proofs, $signature->signer)
+                    && $secure;
+            }
         }
 
         $proofs = self::proofRecords($response->authority);
-        $negative = $response->code === ResponseCode::NonExistentDomain || !$answered && $proofs !== [];
+        $negative =
+            $response->code === ResponseCode::NonExistentDomain
+            || !$answered && DNSSECVerification::filterRecords($response->authority, RecordType::SOA) !== [];
         if ($response->code === ResponseCode::NonExistentDomain && $answered) {
             throw InvalidProofException::forSignedResponse($terminalName);
         }
 
-        if (!$negative && $proofs !== []) {
-            $secure = $this->verifyAuthority($response, $terminalName, $queryType, $cancellation) && $secure;
+        $uncheckedProofs = array_filter(
+            $proofs,
+            static fn(RecordInterface $r): bool => !isset($verifiedAuthority[AnswerRrsets::id($r->name, $r->kind)]),
+        );
+        if (!$negative && $uncheckedProofs !== []) {
+            [$authoritySecure] = $this->verifyAuthority(
+                $response,
+                $terminalName,
+                $queryType,
+                $cancellation,
+                $verifiedAuthority,
+            );
+            $secure = $authoritySecure && $secure;
         }
 
         $answers = array_values(array_filter(
@@ -206,8 +242,15 @@ final readonly class SecureResolver implements ResolverInterface
         );
 
         return $negative
-            ? $this->validateNegativeResponse($validated, $terminalName, $queryType, $cancellation)
+            ? $this->validateNegativeResponse($validated, $terminalName, $queryType, $cancellation, $verifiedAuthority)
             : $validated;
+    }
+
+    private static function labelCount(string $name): int
+    {
+        $name = self::normalizeName($name);
+
+        return $name === '' ? 0 : substr_count($name, '.') + 1;
     }
 
     private static function normalizeName(string $name): string
@@ -217,6 +260,8 @@ final readonly class SecureResolver implements ResolverInterface
 
     /**
      * Validate a negative response (NXDOMAIN or NODATA) using NSEC/NSEC3 proofs.
+     *
+     * @param array<string, true> $verifiedAuthority Proof RRsets checked for earlier wildcard aliases.
      *
      * @throws RuntimeException If a DNS query fails due to a transport or encoding error.
      * @throws InvalidArgumentException If the query name or options are invalid.
@@ -231,6 +276,7 @@ final readonly class SecureResolver implements ResolverInterface
         string $queryName,
         RecordType $queryKind,
         CancellationTokenInterface $cancellation,
+        array $verifiedAuthority = [],
     ): Response {
         $nsecPresent =
             DNSSECVerification::filterRecords($response->authority, RecordType::NSEC) !== []
@@ -259,11 +305,17 @@ final readonly class SecureResolver implements ResolverInterface
             throw UnsignedResponseException::forProof($queryName);
         }
 
-        if (!$this->verifyAuthority($response, $queryName, $queryKind, $cancellation)) {
+        [$secure, $proofs] = $this->verifyAuthority(
+            $response,
+            $queryName,
+            $queryKind,
+            $cancellation,
+            $verifiedAuthority,
+        );
+        if (!$secure) {
             return self::withoutAuthenticatedData($response);
         }
 
-        $proofs = self::proofRecords($response->authority);
         if ($response->code === ResponseCode::NonExistentDomain) {
             NSECProofValidator::validateNxdomain($queryName, $proofs);
         } else {
@@ -274,14 +326,19 @@ final readonly class SecureResolver implements ResolverInterface
     }
 
     /**
-     * Authenticate every denial and SOA RRset with the queried zone's keys.
+     * Authenticate terminal proofs and require coverage for all authority proof RRsets.
+     *
+     * @param array<string, true> $verifiedAuthority Proof RRsets checked for earlier wildcard aliases.
+     *
+     * @return array{bool, list<RecordInterface>} Whether the zone is secure, and its verified proofs.
      */
     private function verifyAuthority(
         Response $response,
         string $queryName,
         RecordType $queryKind,
         CancellationTokenInterface $cancellation,
-    ): bool {
+        array $verifiedAuthority = [],
+    ): array {
         $zone = self::normalizeName($queryName);
         if ($queryKind === RecordType::DS) {
             $zone = DNSName::getParentName($zone);
@@ -289,21 +346,77 @@ final readonly class SecureResolver implements ResolverInterface
 
         $result = $this->trustChainResolver->resolve($zone === '' ? '.' : $zone, $cancellation);
         if ($result->status === TrustChainStatus::Insecure) {
-            return false;
+            return [false, []];
         }
 
         if ($result->status === TrustChainStatus::Bogus) {
             throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
         }
 
-        $proofs = self::proofRecords($response->authority);
-        self::verifyRrsigs(
-            $proofs,
-            DNSSECVerification::filterRecords($response->authority, RecordType::RRSIG),
-            $result->keys,
-        );
+        $proofs = self::verifyZoneProofs($response, $result->keys);
+        foreach ($proofs as $proof) {
+            $verifiedAuthority[AnswerRrsets::id($proof->name, $proof->kind)] = true;
+        }
 
-        return true;
+        foreach (self::proofRecords($response->authority) as $proof) {
+            if (!isset($verifiedAuthority[AnswerRrsets::id($proof->name, $proof->kind)])) {
+                throw SignatureFailedException::forRRSIG($proof->kind->name);
+            }
+        }
+
+        return [true, $proofs];
+    }
+
+    /**
+     * @param list<DNSKEYRecord> $dnskeys
+     *
+     * @return list<RecordInterface> Verified proofs from this zone only.
+     */
+    private static function verifyZoneProofs(Response $response, array $dnskeys): array
+    {
+        if (count($dnskeys) > 8) {
+            throw InvalidProofException::forExcessiveDNSKEYCount(count($dnskeys));
+        }
+
+        $rrsigs = DNSSECVerification::filterRecords($response->authority, RecordType::RRSIG);
+        if (count($rrsigs) > 8) {
+            throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
+        }
+
+        $ids = [];
+        foreach ($rrsigs as $rrsig) {
+            if (!$rrsig instanceof RRSIGRecord) {
+                continue;
+            }
+
+            foreach ($dnskeys as $key) {
+                if (self::normalizeName($key->name) === self::normalizeName($rrsig->signer)) {
+                    $ids[AnswerRrsets::id($rrsig->name, $rrsig->typeCovered)] = true;
+                }
+            }
+        }
+
+        $rrsets = [];
+        foreach (self::proofRecords($response->authority) as $proof) {
+            $id = AnswerRrsets::id($proof->name, $proof->kind);
+            if (isset($ids[$id])) {
+                $rrsets[$id][] = $proof;
+            }
+        }
+
+        $proofs = [];
+        foreach ($rrsets as $rrset) {
+            try {
+                self::verifyRrsigs($rrset, $rrsigs, $dnskeys);
+            } catch (SignatureFailedException) {
+                // Another zone in the alias chain may have the valid signature.
+                continue;
+            }
+
+            $proofs = [...$proofs, ...$rrset];
+        }
+
+        return $proofs;
     }
 
     /**
@@ -349,10 +462,12 @@ final readonly class SecureResolver implements ResolverInterface
      * @param list<RecordInterface> $rrsigs
      * @param list<DNSKEYRecord>    $dnskeys
      *
+     * @return list<RRSIGRecord> One valid signature for each RRset.
+     *
      * @throws SignatureFailedException If RRSIG verification fails for an RRset.
      * @throws InvalidProofException If the RRSIG count exceeds safety limits.
      */
-    private static function verifyRrsigs(array $answers, array $rrsigs, array $dnskeys): void
+    private static function verifyRrsigs(array $answers, array $rrsigs, array $dnskeys): array
     {
         if (count($rrsigs) > 8) {
             throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
@@ -362,6 +477,14 @@ final readonly class SecureResolver implements ResolverInterface
             throw InvalidProofException::forExcessiveDNSKEYCount(count($dnskeys));
         }
 
+        // Prefer an exact signature when a response also contains wildcard signatures.
+        usort(
+            $rrsigs,
+            static fn(RecordInterface $a, RecordInterface $b): int => (
+                ($b instanceof RRSIGRecord ? $b->labels : 0) <=> ($a instanceof RRSIGRecord ? $a->labels : 0)
+            ),
+        );
+        $verifiedSignatures = [];
         $rrsets = [];
         foreach ($answers as $record) {
             if (!$record instanceof RRSIGRecord) {
@@ -372,6 +495,10 @@ final readonly class SecureResolver implements ResolverInterface
         foreach ($rrsets as $id => $rrset) {
             foreach ($rrsigs as $rrsig) {
                 if (!$rrsig instanceof RRSIGRecord || AnswerRrsets::id($rrsig->name, $rrsig->typeCovered) !== $id) {
+                    continue;
+                }
+
+                if ($rrsig->labels > self::labelCount($rrsig->name)) {
                     continue;
                 }
 
@@ -397,6 +524,7 @@ final readonly class SecureResolver implements ResolverInterface
                     }
 
                     if ($verified) {
+                        $verifiedSignatures[] = $rrsig;
                         continue 3;
                     }
                 }
@@ -404,5 +532,7 @@ final readonly class SecureResolver implements ResolverInterface
 
             throw SignatureFailedException::forRRSIG($rrset[0]->kind->name);
         }
+
+        return $verifiedSignatures;
     }
 }

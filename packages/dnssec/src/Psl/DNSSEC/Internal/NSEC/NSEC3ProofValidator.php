@@ -23,6 +23,7 @@ use function substr;
  *
  * @internal
  *
+ * @mago-expect lint:cyclomatic-complexity - Each denial proof has distinct checks.
  * @mago-expect lint:kan-defect
  */
 final class NSEC3ProofValidator
@@ -145,6 +146,56 @@ final class NSEC3ProofValidator
         }
 
         throw InvalidProofException::forNSEC3NameNotMatched($queryName);
+    }
+
+    /**
+     * Validate a wildcard answer's next closer proof per RFC 5155 Section 8.8.
+     *
+     * @param non-empty-list<NSEC3Record> $nsec3Records Verified records from the answer's zone.
+     *
+     * @return bool Whether the covering record has Opt-Out clear.
+     *
+     * @throws InvalidProofException If the next closer name is not covered.
+     * @throws InvalidArgumentException If the name cannot be encoded.
+     */
+    public static function validateWildcard(string $nextCloser, array $nsec3Records): bool
+    {
+        $first = $nsec3Records[0];
+        foreach ($nsec3Records as $nsec3) {
+            if (
+                $nsec3->hashAlgorithm !== $first->hashAlgorithm
+                || $nsec3->iterations !== $first->iterations
+                || $nsec3->salt !== $first->salt
+            ) {
+                throw InvalidProofException::forInconsistentParameters();
+            }
+        }
+
+        $hash = NSEC3Hash::compute($nextCloser, $first->hashAlgorithm, $first->iterations, $first->salt);
+        if ($hash === '') {
+            throw InvalidProofException::forUnsupportedHashAlgorithm($first->hashAlgorithm);
+        }
+
+        $hashEncoded = Base32Hex::encode($hash);
+        foreach ($nsec3Records as $nsec3) {
+            if (DNSName::caselessEquals(self::extractOwnerHash($nsec3), $hashEncoded)) {
+                throw InvalidProofException::forNextCloserNotCovered($nextCloser);
+            }
+        }
+
+        $usable = [];
+        foreach ($nsec3Records as $nsec3) {
+            if ($nsec3->flags === 0 || $nsec3->flags === 1) {
+                $usable[] = $nsec3;
+            }
+        }
+
+        $covering = self::findCovering($usable, $hashEncoded);
+        if ($covering === null) {
+            throw InvalidProofException::forNextCloserNotCovered($nextCloser);
+        }
+
+        return ($covering->flags & 1) === 0;
     }
 
     /**

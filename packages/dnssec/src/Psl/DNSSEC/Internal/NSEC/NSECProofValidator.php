@@ -12,6 +12,10 @@ use Psl\DNS\Record\RecordInterface;
 use Psl\DNS\Record\RecordType;
 use Psl\DNSSEC\Exception\InvalidProofException;
 
+use function array_slice;
+use function count;
+use function explode;
+use function implode;
 use function in_array;
 use function rtrim;
 use function str_ends_with;
@@ -28,6 +32,7 @@ use function strtolower;
  *
  * @internal
  *
+ * @mago-expect lint:cyclomatic-complexity - Each denial proof has distinct checks.
  * @mago-expect lint:kan-defect - NSEC proof types need separate validation paths.
  */
 final class NSECProofValidator
@@ -92,6 +97,69 @@ final class NSECProofValidator
         }
 
         throw InvalidProofException::forNODATAProof($queryName);
+    }
+
+    /**
+     * Prove that no closer name prevents a signed wildcard expansion.
+     *
+     * @param int $labels The verified RRSIG's label count.
+     * @param list<RecordInterface> $authorityRecords Verified proof records from the answer's zone.
+     *
+     * @return bool Whether the proof is secure rather than NSEC3 Opt-Out.
+     *
+     * @throws InvalidProofException If the next closer name is not covered.
+     * @throws InvalidArgumentException If the name cannot be encoded.
+     */
+    public static function validateWildcard(string $queryName, int $labels, array $authorityRecords, string $zone): bool
+    {
+        $name = rtrim(strtolower($queryName), '.');
+        $parts = explode('.', $name);
+        if ($labels < 0 || $labels >= count($parts)) {
+            throw InvalidProofException::forNSECProof($queryName);
+        }
+
+        $closest = implode('.', array_slice($parts, count($parts) - $labels));
+        $zone = rtrim(strtolower($zone), '.');
+        if ($zone !== '' && $closest !== $zone && !str_ends_with($closest, '.' . $zone)) {
+            throw InvalidProofException::forNSECProof($queryName);
+        }
+
+        $nextCloser = implode('.', array_slice($parts, count($parts) - $labels - 1));
+        $nsec3Records = self::filterNsec3($authorityRecords);
+        if ($nsec3Records !== []) {
+            return NSEC3ProofValidator::validateWildcard($nextCloser, $nsec3Records);
+        }
+
+        foreach (self::filterNsec($authorityRecords) as $nsec) {
+            $owner = rtrim(strtolower($nsec->name), '.');
+            $next = rtrim(strtolower($nsec->nextDomainName), '.');
+            if (
+                in_array(RecordType::DNAME, $nsec->types, true)
+                || in_array(RecordType::NS, $nsec->types, true) && !in_array(RecordType::SOA, $nsec->types, true)
+            ) {
+                if ($name === $owner || str_ends_with($name, '.' . $owner)) {
+                    throw InvalidProofException::forNSECProof($queryName);
+                }
+            }
+
+            // Descendants of an empty nonterminal prove that the closer name exists.
+            if (
+                $owner === $nextCloser
+                || str_ends_with($owner, '.' . $nextCloser)
+                || $next === $nextCloser
+                || str_ends_with($next, '.' . $nextCloser)
+            ) {
+                throw InvalidProofException::forNSECProof($queryName);
+            }
+        }
+
+        foreach (self::filterNsec($authorityRecords) as $nsec) {
+            if (self::nsecCoversName($nsec, $nextCloser)) {
+                return true;
+            }
+        }
+
+        throw InvalidProofException::forNextCloserNotCovered($queryName);
     }
 
     /**

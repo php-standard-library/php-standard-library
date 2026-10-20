@@ -20,6 +20,8 @@ A signed DNAME also proves an unsigned CNAME when the CNAME matches the DNAME su
 
 `StaticTrustChainResolver` uses the nearest configured ancestor zone for names below a zone apex. A more specific entry takes precedence, including an unsigned delegation.
 
+Wildcard-expanded answers also need a signed NSEC or NSEC3 proof that no closer name prevents the expansion. NSEC3 Opt-Out clears AD because the proof can span unsigned delegations.
+
 ## DS/DNSKEY: Trust Chain
 
 DNSSEC trust is established through a chain from the DNS root to the target zone. Each parent zone contains a DS (Delegation Signer) record that is a cryptographic hash of the child zone's DNSKEY. By verifying each link in the chain, `TrustChainResolver` proves that the zone's keys are authorized by the parent, all the way up to the root trust anchor.
