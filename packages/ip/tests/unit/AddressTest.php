@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\IP\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Comparison\Exception\IncomparableException;
 use Psl\Comparison\Order;
@@ -551,6 +552,28 @@ final class AddressTest extends TestCase
         $b = Address::v6('2001:db8::1');
 
         static::assertSame(Order::Greater, $a->compare($b));
+    }
+
+    /**
+     * Some IPv4 addresses pack to numeric strings ("0012", "  12", "9   ", "10  "), which `<=>`
+     * would compare as numbers instead of bytes.
+     */
+    #[DataProvider('provideNumericStringBytes')]
+    public function testCompareAddressesWhoseBytesAreNumericStrings(string $lower, string $higher): void
+    {
+        $a = Address::v4($lower);
+        $b = Address::v4($higher);
+
+        static::assertSame(Order::Less, $a->compare($b));
+        static::assertSame(Order::Greater, $b->compare($a));
+        static::assertSame(Order::Equal, $a->compare(Address::v4($lower)));
+    }
+
+    public static function provideNumericStringBytes(): iterable
+    {
+        yield 'leading spaces vs leading zeros' => ['32.32.49.50', '48.48.49.50'];
+        yield 'trailing spaces' => ['49.48.32.32', '57.32.32.32'];
+        yield 'exponent' => ['49.101.49.48', '49.101.50.32'];
     }
 
     public function testCompareAcrossFamilies(): void

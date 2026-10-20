@@ -22,6 +22,7 @@ use function ord;
 use function str_pad;
 use function str_replace;
 use function str_split;
+use function strcmp;
 use function strlen;
 
 use const FILTER_FLAG_IPV4;
@@ -132,7 +133,8 @@ final readonly class Address implements Stringable, Comparable, Equable
     }
 
     /**
-     * Compare two addresses by their raw bytes.
+     * Compare two addresses by their raw bytes (in network byte order), so addresses of the same
+     * family are ordered numerically.
      *
      * @throws IncomparableException If the other value is not an Address instance.
      */
@@ -144,7 +146,9 @@ final readonly class Address implements Stringable, Comparable, Equable
             throw IncomparableException::fromValues($this, $other);
         }
 
-        return Order::from($this->bytes <=> $other->bytes);
+        // `<=>` would compare the byte strings numerically when both happen to be numeric strings
+        // (e.g. "0012" and "  12", the bytes of 48.48.49.50 and 32.32.49.50), so compare the bytes.
+        return Order::from(strcmp($this->bytes, $other->bytes) <=> 0);
     }
 
     /**
