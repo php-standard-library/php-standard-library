@@ -56,7 +56,7 @@ Load your OS DNS settings and hosts file directly. Both use async process execut
 
 ## EDNS0 Options
 
-Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID.
+Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID. `ECSOption` rejects source and scope prefixes outside 0..32 for IPv4 or 0..128 for IPv6 when encoding.
 
 `UDPResolver` and `FallbackResolver` return `BadCookie` to the caller. They do not retry with the server cookie. Per [RFC 7873 section 5.3](https://www.rfc-editor.org/rfc/rfc7873.html#section-5.3), callers can retry once with the returned server cookie after checking that the client cookie matches, or retry over TCP to the same nameserver. Bound retries to avoid a loop if the server keeps returning BADCOOKIE.
 

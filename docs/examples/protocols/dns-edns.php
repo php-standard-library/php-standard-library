@@ -12,6 +12,8 @@ use Psl\SecureRandom;
 
 $resolver = new DNS\SystemResolver();
 
+// ECS source and scope prefixes must fit the address: 0..32 for IPv4, 0..128 for IPv6.
+// Scope must be 0 in queries.
 // Query with EDNS0 options
 $response = $resolver->query('example.com', RecordType::A, ednsOptions: [
     new EDNS\CookieOption(clientCookie: SecureRandom\bytes(8)),

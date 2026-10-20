@@ -79,8 +79,11 @@ final class InvalidArgumentException extends Exception\InvalidArgumentException 
     /**
      * Create an exception when encoding an EDNS option fails.
      */
-    public static function forOptionEncodingFailure(string $option, string $detail, Throwable $previous): self
-    {
+    public static function forOptionEncodingFailure(
+        string $option,
+        string $detail,
+        null|Throwable $previous = null,
+    ): self {
         return new self('Failed to encode ' . $option . ' option: ' . $detail . '.', $previous);
     }
 }

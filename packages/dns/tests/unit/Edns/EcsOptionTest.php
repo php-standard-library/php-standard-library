@@ -236,9 +236,9 @@ final class EcsOptionTest extends TestCase
         $this->expectExceptionMessage(
             'Failed to encode ECS option: source prefix length '
             . $sourcePrefixLength
-            . ' exceeds the '
+            . ' must be between 0 and '
             . $addressBits
-            . '-bit address.',
+            . '.',
         );
 
         $option->toWireFormat();
@@ -250,5 +250,49 @@ final class EcsOptionTest extends TestCase
         yield 'ipv4, partial extra byte' => [Address::v4('198.51.100.0'), 33, 32];
         yield 'ipv6, partial extra byte' => [Address::v6('2001:db8::'), 129, 128];
         yield 'ipv6, max u8' => [Address::v6('2001:db8::'), 255, 128];
+    }
+
+    #[DataProvider('provideInvalidPrefixes')]
+    public function testRejectsInvalidPrefix(Address $address, int $source, int $scope, string $field): void
+    {
+        $option = new ECSOption($address, $source, $scope);
+
+        try {
+            $option->toWireFormat();
+            static::fail('Expected invalid ' . $field . ' prefix length to throw.');
+        } catch (InvalidArgumentException $exception) {
+            static::assertStringContainsString($field . ' prefix length', $exception->getMessage());
+            static::assertNull($exception->getPrevious());
+        }
+    }
+
+    public static function provideInvalidPrefixes(): iterable
+    {
+        yield 'negative IPv4 source' => [Address::v4('192.0.2.1'), -1, 0, 'source'];
+        yield 'negative IPv6 source' => [Address::v6('2001:db8::1'), -1, 0, 'source'];
+        yield 'long IPv4 source' => [Address::v4('192.0.2.1'), 33, 0, 'source'];
+        yield 'negative IPv4 scope' => [Address::v4('192.0.2.1'), 24, -1, 'scope'];
+        yield 'long IPv4 scope' => [Address::v4('192.0.2.1'), 24, 33, 'scope'];
+        yield 'negative IPv6 scope' => [Address::v6('2001:db8::1'), 64, -1, 'scope'];
+        yield 'long IPv6 scope' => [Address::v6('2001:db8::1'), 64, 129, 'scope'];
+        yield 'scope exceeds wire field' => [Address::v4('192.0.2.1'), 24, 256, 'scope'];
+    }
+
+    #[DataProvider('provideBoundaryPrefixes')]
+    public function testAcceptsBoundaryPrefixes(Address $address, int $prefix): void
+    {
+        $option = new ECSOption($address, $prefix, $prefix);
+        $decoded = EDNSCodec::decodeOptions(EDNSCodec::encodeOptions([$option]));
+        static::assertInstanceOf(ECSOption::class, $decoded[0]);
+        static::assertSame($prefix, $decoded[0]->sourcePrefixLength);
+        static::assertSame($prefix, $decoded[0]->scopePrefixLength);
+    }
+
+    public static function provideBoundaryPrefixes(): iterable
+    {
+        yield 'IPv4 zero' => [Address::v4('0.0.0.0'), 0];
+        yield 'IPv4 full' => [Address::v4('192.0.2.1'), 32];
+        yield 'IPv6 zero' => [Address::v6('::'), 0];
+        yield 'IPv6 full' => [Address::v6('2001:db8::1'), 128];
     }
 }
