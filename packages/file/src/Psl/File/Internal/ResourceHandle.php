@@ -81,9 +81,17 @@ final class ResourceHandle extends IO\Internal\ResourceHandle implements
 
         try {
             $size = $this->tell();
-            $this->seek($position);
         } catch (IO\Exception\RuntimeException $previous) {
             throw new File\Exception\RuntimeException($previous->getMessage(), previous: $previous);
+        }
+
+        // Restore the position without going through `seek()`: a size query is not a seek, and must not
+        // reset the cached end-of-data flag.
+        $result = @fseek($this->stream, $position);
+        if ($result === -1) {
+            $error = error_get_last();
+
+            throw new File\Exception\RuntimeException($error['message'] ?? 'unknown error.');
         }
 
         // @codeCoverageIgnoreEnd

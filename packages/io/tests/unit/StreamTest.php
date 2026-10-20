@@ -13,6 +13,7 @@ use function file_get_contents;
 use function file_put_contents;
 use function fopen;
 use function fseek;
+use function str_repeat;
 use function sys_get_temp_dir;
 use function tempnam;
 use function unlink;
@@ -199,6 +200,38 @@ final class StreamTest extends TestCase
             $this->expectException(IO\Exception\AlreadyClosedException::class);
 
             $stream->tryRead();
+        } finally {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
+    }
+
+    public function testSeekResetsEndOfDataSource(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'psl');
+        static::assertNotFalse($file);
+
+        try {
+            // larger than a single default read chunk, so `readAll()` needs several reads.
+            $content = str_repeat('abcdefgh', 2048);
+            file_put_contents($file, $content);
+
+            $resource = fopen($file, 'r');
+            static::assertIsResource($resource);
+            $stream = new IO\CloseSeekReadStreamHandle($resource);
+
+            static::assertSame($content, $stream->readAll());
+            static::assertSame('', $stream->read());
+            static::assertTrue($stream->reachedEndOfDataSource());
+
+            $stream->seek(0);
+
+            static::assertFalse($stream->reachedEndOfDataSource());
+            static::assertSame($content, $stream->readAll());
+            static::assertTrue($stream->reachedEndOfDataSource());
+
+            $stream->close();
         } finally {
             if (file_exists($file)) {
                 unlink($file);

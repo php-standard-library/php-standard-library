@@ -366,6 +366,9 @@ class ResourceHandle implements
         if (0 !== $result) {
             throw new Exception\RuntimeException('Failed to seek the specified position.');
         }
+
+        // `fseek()` clears the stream's EOF indicator; our cached flag must follow.
+        $this->reachedEof = false;
     }
 
     /**

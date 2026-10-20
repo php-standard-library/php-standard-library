@@ -110,6 +110,7 @@ final class MemoryHandle implements WriteHandleInterface, ReadHandleInterface, S
         $this->assertHandleIsOpen();
 
         $this->offset = $offset;
+        $this->reachedEof = false;
     }
 
     /**

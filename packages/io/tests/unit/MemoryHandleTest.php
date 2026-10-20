@@ -117,6 +117,38 @@ final class MemoryHandleTest extends TestCase
         static::assertSame('', $h->read());
     }
 
+    public function testSeekResetsEndOfDataSource(): void
+    {
+        $h = new IO\MemoryHandle('herpderp');
+        static::assertSame('herpderp', $h->readAll());
+        static::assertSame('', $h->read());
+        static::assertTrue($h->reachedEndOfDataSource());
+
+        $h->seek(0);
+
+        static::assertFalse($h->reachedEndOfDataSource());
+        static::assertSame('herp', $h->read(4));
+        static::assertFalse($h->reachedEndOfDataSource());
+        static::assertSame('derp', $h->readAll());
+    }
+
+    public function testSeekAfterEofDoesNotHideRemainingDataFromWrappers(): void
+    {
+        $h = new IO\MemoryHandle('hello, world');
+        static::assertSame('hello, world', $h->readAll());
+        static::assertSame('', $h->read());
+
+        $h->seek(0);
+
+        // A stale EOF flag would make the bounded handle treat the limit as a clean end of data.
+        $bounded = new IO\BoundedReadHandle($h, 5);
+
+        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('exceeded the configured limit of 5 bytes');
+
+        $bounded->readAll();
+    }
+
     public function testReadTooMuch(): void
     {
         $h = new IO\MemoryHandle('herpderp');

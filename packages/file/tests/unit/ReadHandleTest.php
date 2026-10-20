@@ -30,6 +30,33 @@ final class ReadHandleTest extends TestCase
         static::assertSame('hello, world!', $content);
     }
 
+    public function testGetSizeDoesNotResetEndOfDataSource(): void
+    {
+        $temporaryFile = Filesystem\create_temporary_file();
+        File\write($temporaryFile, 'hello');
+
+        $handle = File\open_read_only($temporaryFile);
+        try {
+            static::assertSame('hello', $handle->readAll());
+            static::assertTrue($handle->reachedEndOfDataSource());
+
+            static::assertSame(5, $handle->getSize());
+            static::assertSame(5, $handle->tell());
+            static::assertTrue($handle->reachedEndOfDataSource());
+
+            $iterations = 0;
+            $handle->seek(0);
+            while (!$handle->reachedEndOfDataSource()) {
+                $handle->read();
+                $handle->getSize();
+                static::assertLessThan(10, ++$iterations, 'Read loop did not terminate.');
+            }
+        } finally {
+            $handle->close();
+            Filesystem\delete_file($temporaryFile);
+        }
+    }
+
     public function testIsClosed(): void
     {
         $handle = File\open_read_only(__FILE__);
