@@ -335,6 +335,22 @@ final class EncodeDecodeTest extends TestCase
         static::assertSame('aa', $decoded);
     }
 
+    /**
+     * RFC 2047 §5 (3): a Q-encoded word in a phrase (e.g. a display name) may only contain letters,
+     * digits, "!", "*", "+", "-", "/", "=" and "_"; specials such as "," "<" or "(" must be encoded.
+     */
+    public function testQEncodedWordsOnlyContainPhraseSafeCharacters(): void
+    {
+        $input = "M\u{fc}ller, Hans (Dev) <x@y> \"q\" [a]; b: c@d.e\\f'g?h=i_j";
+        $encoded = EncodedWord\encode($input);
+
+        foreach (explode(' ', $encoded) as $word) {
+            static::assertMatchesRegularExpression('/^=\?UTF-8\?Q\?[A-Za-z0-9!*+\-\/=_]+\?=$/', $word);
+        }
+
+        static::assertSame($input, EncodedWord\decode($encoded));
+    }
+
     public function testEncodeSpaceBecomesUnderscore(): void
     {
         $encoded = EncodedWord\encode("hello world\x80");
