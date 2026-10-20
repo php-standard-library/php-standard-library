@@ -8,6 +8,7 @@ use Override;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\HTTP\Client\Exception\ProtocolException;
+use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Exception\TooManyRedirectsException;
 use Psl\HTTP\Message;
 use Psl\HTTP\Message\Request;
@@ -36,8 +37,8 @@ use function strtolower;
  * - **303 See Other**: The method is always rewritten to GET and the body is stripped,
  *   regardless of the original method.
  * - **307 Temporary Redirect / 308 Permanent Redirect**: The original method and body
- *   are preserved exactly. These status codes were introduced specifically to provide
- *   unambiguous redirect semantics.
+ *   are preserved exactly. The body must be seekable so it can return to its original
+ *   position before each redirect; otherwise a {@see RequestException} is thrown.
  *
  * Only status codes 301, 302, 303, 307, and 308 are followed. Other 3xx codes
  * (e.g., 300 Multiple Choices, 304 Not Modified) are returned to the caller as-is.
@@ -113,6 +114,7 @@ final readonly class RedirectClient implements ClientInterface
      *
      * @throws Exception\TooManyRedirectsException If the number of redirects exceeds the configured maximum.
      * @throws Exception\ProtocolException If a Location header value cannot be resolved to a valid URL.
+     * @throws Exception\RequestException If a redirect preserves a body that cannot be rewound.
      *
      * @link https://datatracker.ietf.org/doc/html/rfc9110#section-15.4 Redirections
      *
@@ -127,6 +129,7 @@ final readonly class RedirectClient implements ClientInterface
         $redirectCount = 0;
 
         while (true) {
+            $bodyPosition = $request->body instanceof IO\SeekHandleInterface ? $request->body->tell() : null;
             $transaction = $this->inner->send($request, $configuration, $cancellation);
             $response = $transaction->response;
 
@@ -164,6 +167,18 @@ final readonly class RedirectClient implements ClientInterface
                     foreach (self::BODY_HEADERS as $header) {
                         $request = $request->withoutHeader($header);
                     }
+                }
+            }
+
+            if ($request->body !== null) {
+                if (!$request->body instanceof IO\SeekHandleInterface || $bodyPosition === null) {
+                    throw RequestException::forInvalidRequest('Cannot redirect a request with a non-seekable body.');
+                }
+
+                try {
+                    $request->body->seek($bodyPosition);
+                } catch (IO\Exception\ExceptionInterface $exception) {
+                    throw new RequestException('Cannot rewind the request body for a redirect.', previous: $exception);
                 }
             }
 

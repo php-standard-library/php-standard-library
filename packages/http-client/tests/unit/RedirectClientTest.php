@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Psl\HTTP\Client\Tests\Unit;
 
 use Override;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\HTTP\Client\ClientInterface;
 use Psl\HTTP\Client\Exception\ProtocolException;
+use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Exception\TooManyRedirectsException;
 use Psl\HTTP\Client\RedirectClient;
 use Psl\HTTP\Client\SendConfiguration;
@@ -41,6 +43,9 @@ final class RedirectClientTest extends TestCase
             /** @var list<Request> */
             public array $requests = [];
 
+            /** @var list<null|string> */
+            public array $bodies = [];
+
             #[Override]
             public function send(
                 Request $request,
@@ -48,6 +53,7 @@ final class RedirectClientTest extends TestCase
                 CancellationTokenInterface $cancellation = new NullCancellationToken(),
             ): Transaction {
                 $this->requests[] = $request;
+                $this->bodies[] = $request->body?->readAll(cancellation: $cancellation);
 
                 return new Transaction([], null, $this->responses[$this->index++]);
             }
@@ -227,6 +233,46 @@ final class RedirectClientTest extends TestCase
         $client->send(self::request('PUT'));
 
         static::assertSame('PUT', $inner->requests[1]->method);
+    }
+
+    /** @return iterable<string, array{307|308}> */
+    public static function bodyPreservingRedirects(): iterable
+    {
+        yield 'temporary' => [307];
+        yield 'permanent' => [308];
+    }
+
+    #[DataProvider('bodyPreservingRedirects')]
+    public function testRedirectRewindsConsumedBody(int $status): void
+    {
+        $inner = self::fakeClient(self::redirect($status, '/new'), self::redirect($status, '/last'), self::ok());
+        $body = new IO\MemoryHandle('prefix:payload');
+        $body->seek(7);
+        $client = new RedirectClient($inner);
+
+        $client->send(self::request('POST')->withBody($body));
+
+        static::assertSame(['payload', 'payload', 'payload'], $inner->bodies);
+    }
+
+    #[DataProvider('bodyPreservingRedirects')]
+    public function testRedirectRejectsConsumedNonSeekableBody(int $status): void
+    {
+        $inner = self::fakeClient(self::redirect($status, '/new'), self::ok());
+        $body = new IO\Reader(new IO\MemoryHandle('payload'));
+        $client = new RedirectClient($inner);
+
+        try {
+            $client->send(self::request('POST')->withBody($body));
+            static::fail('Expected a request exception for a body that cannot be rewound.');
+        } catch (RequestException $exception) {
+            static::assertStringContainsString(
+                'Cannot redirect a request with a non-seekable body',
+                $exception->getMessage(),
+            );
+        }
+
+        static::assertSame(['payload'], $inner->bodies);
     }
 
     public function testBodyHeadersStrippedOnMethodRewrite(): void

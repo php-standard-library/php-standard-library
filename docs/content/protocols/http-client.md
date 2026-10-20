@@ -24,6 +24,8 @@ Use `Async\concurrently()` to send multiple requests in parallel over the same c
 
 `RedirectClient` wraps any client and automatically follows 3xx redirects with credential stripping on cross-origin hops and method rewriting per RFC 9110.
 
+Redirects that preserve the request body, including 307 and 308, require a seekable body. The client restores its original position before each resend and throws `Exception\RequestException` if it cannot rewind the body.
+
 @example('protocols/http-client-redirects.php')
 
 ## Retries
