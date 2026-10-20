@@ -61,6 +61,52 @@ final class FormatPatternTest extends TestCase
         ));
     }
 
+    public function testHttpAndCookieDatesAreAlwaysInGmt(): void
+    {
+        $timestamp = Timestamp::fromParts(1_705_320_000);
+
+        foreach ([Timezone::UTC, Timezone::AsiaTokyo, Timezone::AmericaNewYork] as $timezone) {
+            static::assertSame('Mon, 15 Jan 2024 12:00:00 GMT', $timestamp->format(FormatPattern::Http, $timezone));
+            static::assertSame(
+                'Mon, 15 Jan 2024 12:00:00 GMT',
+                DateTime::fromTimestamp($timestamp, $timezone)->format(FormatPattern::Http),
+            );
+            static::assertSame('Monday, 15-Jan-2024 12:00:00 GMT', $timestamp->format(
+                FormatPattern::Cookie,
+                $timezone,
+            ));
+
+            static::assertSame(
+                1_705_320_000,
+                Timestamp::parse('Mon, 15 Jan 2024 12:00:00 GMT', FormatPattern::Http, $timezone)->getSeconds(),
+            );
+            static::assertSame(
+                1_705_320_000,
+                Timestamp::parse('Monday, 15-Jan-2024 12:00:00 GMT', FormatPattern::Cookie, $timezone)->getSeconds(),
+            );
+        }
+
+        // The trailing zone text is not checked when parsing (ICU's lenient parser ignores it).
+        foreach (['Mon, 15 Jan 2024 12:00:00 UTC', 'Mon, 15 Jan 2024 12:00:00 +0200'] as $rawString) {
+            static::assertSame(1_705_320_000, Timestamp::parse($rawString, FormatPattern::Http)->getSeconds());
+        }
+    }
+
+    public function testEmailDatesUseANumericOffset(): void
+    {
+        $timestamp = Timestamp::fromParts(1_705_320_000);
+
+        static::assertSame('Mon, 15 Jan 2024 12:00:00 +0000', $timestamp->format(FormatPattern::Email, Timezone::UTC));
+        static::assertSame('Mon, 15 Jan 2024 13:00:00 +0100', $timestamp->format(
+            FormatPattern::Email,
+            Timezone::EuropeParis,
+        ));
+        static::assertSame(
+            1_705_320_000,
+            Timestamp::parse('Mon, 15 Jan 2024 07:00:00 -0500', FormatPattern::Email)->getSeconds(),
+        );
+    }
+
     /**
      * @return iterable<array{int, string}>
      */

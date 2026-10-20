@@ -40,6 +40,11 @@ function create_intl_date_formatter(
         };
     }
 
+    if (FormatPattern::Http === $pattern || FormatPattern::Cookie === $pattern) {
+        // HTTP and cookie dates are always expressed in GMT.
+        $timezone = Timezone::UTC;
+    }
+
     if ($pattern instanceof FormatPattern) {
         $pattern = $pattern->value;
     }

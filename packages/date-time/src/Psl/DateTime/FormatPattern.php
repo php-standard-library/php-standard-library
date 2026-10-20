@@ -25,8 +25,21 @@ enum FormatPattern: string implements DefaultInterface
     case Rfc2822 = 'EEE, dd MMM yyyy HH:mm:ss Z';
     case Iso8601 = 'yyyy-MM-dd\'T\'HH:mm:ss.SSSXXX';
     case Iso8601WithoutMicroseconds = 'yyyy-MM-dd\'T\'HH:mm:ssXXX';
-    case Http = 'EEE, dd MMM yyyy HH:mm:ss zzz';
-    case Cookie = 'EEEE, dd-MMM-yyyy HH:mm:ss zzz';
+    /**
+     * HTTP date (RFC 9110 IMF-fixdate), e.g. "Mon, 15 Jan 2024 12:00:00 GMT".
+     *
+     * HTTP dates are always in GMT, so this pattern is always formatted and parsed in UTC, whatever the
+     * timezone given. When parsing, the trailing "GMT" is not checked: ICU's lenient parser ignores any
+     * zone text there.
+     */
+    case Http = "EEE, dd MMM yyyy HH:mm:ss 'GMT'";
+
+    /**
+     * Cookie expiry date (as PHP's `DATE_COOKIE`), e.g. "Monday, 15-Jan-2024 12:00:00 GMT".
+     *
+     * Like {@see FormatPattern::Http}, this pattern is always formatted and parsed in UTC.
+     */
+    case Cookie = "EEEE, dd-MMM-yyyy HH:mm:ss 'GMT'";
     case SqlDate = 'yyyy-MM-dd';
     case SqlDateTime = 'yyyy-MM-dd HH:mm:ss';
     case XmlRpc = 'yyyyMMdd\'T\'HH:mm:ss';
@@ -58,7 +71,10 @@ enum FormatPattern: string implements DefaultInterface
     case SimpleDate = 'dd/MM/yyyy';
     case American = 'MM/dd/yyyy';
     case WeekdayMonthDayYear = 'EEE, MMM dd, yyyy';
-    case Email = 'EEE, dd MMM yyyy HH:mm:ss ZZZZ';
+    /**
+     * Internet Message Format date (RFC 5322), e.g. "Mon, 15 Jan 2024 13:00:00 +0100".
+     */
+    case Email = 'EEE, dd MMM yyyy HH:mm:ss xx';
     case LogTimestamp = 'yyyy-MM-dd HH:mm:ss,SSS';
     case FullDateTime = 'EEEE, MMMM dd, yyyy HH:mm:ss';
 

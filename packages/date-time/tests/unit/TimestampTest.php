@@ -282,21 +282,21 @@ final class TimestampTest extends TestCase
             FormatPattern::Cookie,
             Timezone::AmericaNewYork,
             Locale::EnglishUnitedStates,
-            'Sunday, 31-Mar-2024 16:44:57 EDT',
+            'Sunday, 31-Mar-2024 20:44:57 GMT',
         ];
         yield [
             1_711_917_897,
             FormatPattern::Http,
             Timezone::EuropeVienna,
             Locale::GermanAustria,
-            'So., 31 März 2024 22:44:57 MESZ',
+            'So., 31 März 2024 20:44:57 GMT',
         ];
         yield [
             1_711_917_897,
             FormatPattern::Email,
             Timezone::EuropeMadrid,
             Locale::SpanishSpain,
-            'dom, 31 mar 2024 22:44:57 GMT+02:00',
+            'dom, 31 mar 2024 22:44:57 +0200',
         ];
         yield [
             1_711_917_897,
