@@ -16,6 +16,7 @@ use Psl\MIME\Tests\Fixture\Certificates;
 use ReflectionMethod;
 
 use function base64_decode;
+use function base64_encode;
 use function count;
 use function explode;
 use function hash;
@@ -563,6 +564,37 @@ final class SignerTest extends TestCase
         static::assertStringEndsWith("\r\nFrom: a@b.com\r\n\r\n", $signer->sign('From: a@b.com'));
     }
 
+    public function testSignAddsOnlyTheBlankLineToAHeaderOnlyMessageEndingInALineBreak(): void
+    {
+        $signer = $this->createSigner();
+
+        $signed = $signer->sign("From: a@b.com\r\nTo: c@d.com\r\n");
+        static::assertStringEndsWith("\r\nFrom: a@b.com\r\nTo: c@d.com\r\n\r\n", $signed);
+        static::assertStringEndsNotWith("\r\n\r\n\r\n", $signed);
+
+        $signed = $signer->sign("From: a@b.com\nTo: c@d.com\n");
+        static::assertStringEndsWith("\nFrom: a@b.com\nTo: c@d.com\n\n", $signed);
+        static::assertStringEndsNotWith("\n\n\n", $signed);
+
+        $signed = $signer->sign('');
+        static::assertStringEndsWith("\r\n\r\n", $signed);
+        static::assertStringEndsNotWith("\r\n\r\n\r\n", $signed);
+    }
+
+    public function testSignKeepsTheBodyOfAMessageWithoutHeaderFields(): void
+    {
+        $signer = $this->createSigner();
+
+        $signed = $signer->sign("\r\nHello\r\n");
+        static::assertStringEndsWith("\r\n\r\nHello\r\n", $signed);
+        static::assertSame(base64_encode(hash('sha256', "Hello\r\n", true)), self::extractTag($signed, 'bh'));
+
+        $signed = $signer->sign("\nHello\n");
+        static::assertStringNotContainsString("\r", $signed);
+        static::assertStringEndsWith("\n\nHello\n", $signed);
+        static::assertSame(base64_encode(hash('sha256', "Hello\r\n", true)), self::extractTag($signed, 'bh'));
+    }
+
     public function testSignMessageWithNoBody(): void
     {
         $message = 'From: sender@example.com';
@@ -1083,6 +1115,14 @@ final class SignerTest extends TestCase
 
         static::assertSame('From: a@b.com', $headers);
         static::assertSame("Body\r\n\r\n", $body);
+    }
+
+    public function testSplitMessageStartingWithABlankLineHasNoHeaders(): void
+    {
+        $method = new ReflectionMethod(Signer::class, 'splitMessage');
+
+        static::assertSame(['', "Body\r\n\r\nmore", "\r\n"], $method->invoke(null, "\r\nBody\r\n\r\nmore"));
+        static::assertSame(['', 'Body', "\n"], $method->invoke(null, "\nBody"));
     }
 
     public function testSplitMessageNoSeparatorReturnsEmptyBody(): void

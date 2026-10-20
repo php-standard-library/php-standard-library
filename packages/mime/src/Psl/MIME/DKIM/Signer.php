@@ -21,6 +21,7 @@ use function preg_match;
 use function preg_replace;
 use function rtrim;
 use function sodium_crypto_sign_detached;
+use function str_ends_with;
 use function str_replace;
 use function str_split;
 use function strlen;
@@ -194,7 +195,11 @@ final readonly class Signer implements SignerInterface
         // message with LF line endings (and is converted to CRLF as a whole in transit).
         $lineEnding = self::lineEnding($message);
         if ($separator === '') {
-            $separator = $lineEnding . $lineEnding;
+            // A message without a body gets the blank line that ends its header section; when its
+            // last header line already ends with a line break, only the blank line is missing.
+            $separator = $rawHeaders === '' || str_ends_with($rawHeaders, "\n")
+                ? $lineEnding
+                : $lineEnding . $lineEnding;
         }
 
         return str_replace("\r\n", $lineEnding, $dkimHeader) . $lineEnding . $rawHeaders . $separator . $body;
@@ -250,7 +255,8 @@ final readonly class Signer implements SignerInterface
      * Split a raw MIME message into its header section and body.
      *
      * The header section ends at the first blank line, whatever its line endings (CRLF CRLF,
-     * LF LF or a mix of both); the body may contain blank lines of any style.
+     * LF LF or a mix of both); the body may contain blank lines of any style. A message that
+     * starts with a blank line has no header fields, and its separator is that blank line alone.
      * Returns the body and the separator as empty if no separator is found.
      *
      * @return array{string, string, string} [headers, body, separator]
@@ -258,7 +264,7 @@ final readonly class Signer implements SignerInterface
     private static function splitMessage(string $message): array
     {
         $match = [];
-        if (preg_match('/\r?\n\r?\n/', $message, $match, PREG_OFFSET_CAPTURE) !== 1) {
+        if (preg_match('/(?:^|\r?\n)\r?\n/', $message, $match, PREG_OFFSET_CAPTURE) !== 1) {
             return [$message, '', ''];
         }
 

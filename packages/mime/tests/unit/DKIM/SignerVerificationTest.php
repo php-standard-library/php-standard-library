@@ -275,6 +275,8 @@ final class SignerVerificationTest extends TestCase
                     . "Hello\r\n",
             'empty body' => "From: joe@football.example.com\r\nTo: suzie@shopping.example.net\r\n\r\n",
             'blank lines only body' => "From: joe@football.example.com\r\n\r\n \t \r\n\r\n\r\n",
+            'headers only, ending in a line break' => "From: joe@football.example.com\r\nTo: suzie@shopping.example.net\r\n",
+            'lf headers only, ending in a line break' => "From: joe@football.example.com\nTo: suzie@shopping.example.net\n",
         ];
 
         foreach (Algorithm::cases() as $algorithm) {
