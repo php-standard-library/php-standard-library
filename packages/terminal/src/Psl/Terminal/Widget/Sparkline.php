@@ -13,6 +13,7 @@ use Psl\Terminal\Rect;
 use function array_slice;
 use function array_values;
 use function count;
+use function is_nan;
 
 /**
  * A sparkline widget that renders data points as Unicode block characters.
@@ -91,8 +92,10 @@ final class Sparkline implements WidgetInterface
                 break;
             }
 
-            /** @var non-negative-int $index */
-            $index = Math\clamp((int) Math\round($value * 7.0), 0, 7);
+            // Clamp before casting: NAN, INF and huge floats cannot be cast to int without a warning.
+            $value = is_nan($value) ? 0.0 : Math\clamp($value, 0.0, 1.0);
+            /** @var int<0, 7> $index */
+            $index = (int) Math\round($value * 7.0);
             $char = self::BLOCKS[$index];
 
             $buffer->set($x, $y, new Cell($char, $this->style));

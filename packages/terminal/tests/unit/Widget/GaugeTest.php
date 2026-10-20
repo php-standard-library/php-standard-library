@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Terminal\Tests\Unit\Widget;
 
+use ErrorException;
 use PHPUnit\Framework\TestCase;
 use Psl\Ansi;
 use Psl\Ansi\Color;
@@ -11,6 +12,12 @@ use Psl\Ansi\Style;
 use Psl\Terminal\Buffer;
 use Psl\Terminal\Rect;
 use Psl\Terminal\Widget\Gauge;
+
+use function restore_error_handler;
+use function set_error_handler;
+
+use const INF;
+use const NAN;
 
 final class GaugeTest extends TestCase
 {
@@ -259,5 +266,29 @@ final class GaugeTest extends TestCase
         Gauge::new()->ratio(0.0)->label('VERY LONG LABEL')->render($area, $buffer);
 
         static::assertSame('V', $buffer->get(0, 0)?->grapheme);
+    }
+
+    public function testNonFiniteRatioRendersWithoutWarning(): void
+    {
+        // Casting NAN to int emits a warning since PHP 8.5.
+        set_error_handler(static function (int $level, string $message): never {
+            throw new ErrorException($message, 0, $level);
+        });
+
+        try {
+            foreach ([NAN, INF, -INF] as $ratio) {
+                $buffer = new Buffer(20, 1);
+                Gauge::new()->ratio($ratio)->render(new Rect(0, 0, 20, 1), $buffer);
+
+                $text = '';
+                for ($x = 0; $x < 20; $x++) {
+                    $text .= $buffer->get($x, 0)->grapheme ?? '';
+                }
+
+                static::assertStringEndsWith($ratio === INF ? ' 100%' : ' 0%', $text);
+            }
+        } finally {
+            restore_error_handler();
+        }
     }
 }

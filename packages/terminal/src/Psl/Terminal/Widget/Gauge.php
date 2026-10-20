@@ -12,6 +12,7 @@ use Psl\Terminal\Cell;
 use Psl\Terminal\Rect;
 
 use function array_values;
+use function is_nan;
 
 /**
  * A horizontal progress bar widget.
@@ -42,11 +43,11 @@ final class Gauge implements WidgetInterface
     }
 
     /**
-     * Set the fill ratio (clamped to 0.0–1.0).
+     * Set the fill ratio (clamped to 0.0–1.0, NAN is treated as 0.0).
      */
     public function ratio(float $ratio): self
     {
-        $this->ratio = Math\clamp($ratio, 0.0, 1.0);
+        $this->ratio = is_nan($ratio) ? 0.0 : Math\clamp($ratio, 0.0, 1.0);
         return $this;
     }
 

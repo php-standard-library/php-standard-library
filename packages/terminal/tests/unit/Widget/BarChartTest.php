@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Terminal\Tests\Unit\Widget;
 
+use ErrorException;
 use PHPUnit\Framework\TestCase;
 use Psl\Ansi;
 use Psl\Ansi\Color;
@@ -11,6 +12,11 @@ use Psl\Ansi\Style;
 use Psl\Terminal\Buffer;
 use Psl\Terminal\Rect;
 use Psl\Terminal\Widget\BarChart;
+
+use function restore_error_handler;
+use function set_error_handler;
+
+use const NAN;
 
 final class BarChartTest extends TestCase
 {
@@ -282,5 +288,30 @@ final class BarChartTest extends TestCase
 
         static::assertSame("\u{2588}", $buffer->get(0, 0)?->grapheme);
         static::assertSame("\u{2588}", $buffer->get(4, 0)?->grapheme);
+    }
+
+    public function testNanValueRendersEmptyBar(): void
+    {
+        $buffer = new Buffer(3, 3);
+        $area = new Rect(0, 0, 3, 3);
+
+        // Casting NAN to int emits a warning since PHP 8.5.
+        set_error_handler(static function (int $level, string $message): never {
+            throw new ErrorException($message, 0, $level);
+        });
+
+        try {
+            BarChart::new()
+                ->data([['A', NAN]])
+                ->barWidth(3)
+                ->barGap(0)
+                ->render($area, $buffer);
+        } finally {
+            restore_error_handler();
+        }
+
+        static::assertSame(' ', $buffer->get(0, 0)?->grapheme);
+        static::assertSame(' ', $buffer->get(0, 1)?->grapheme);
+        static::assertSame('A', $buffer->get(1, 2)?->grapheme);
     }
 }

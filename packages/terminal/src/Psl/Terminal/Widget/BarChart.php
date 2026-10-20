@@ -12,6 +12,7 @@ use Psl\Terminal\Cell;
 use Psl\Terminal\Rect;
 
 use function array_values;
+use function is_nan;
 
 /**
  * A vertical bar chart widget using Unicode block characters.
@@ -109,7 +110,7 @@ final class BarChart implements WidgetInterface
 
         foreach ($this->data as $i => $entry) {
             [$label, $value] = $entry;
-            $value = Math\clamp($value, 0.0, 1.0);
+            $value = is_nan($value) ? 0.0 : Math\clamp($value, 0.0, 1.0);
 
             $barX = $area->x + ($i * ($this->barWidth + $this->barGap));
             if ($barX >= $area->right()) {
