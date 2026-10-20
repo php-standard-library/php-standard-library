@@ -16,11 +16,12 @@ use function str_ends_with;
 use function str_starts_with;
 use function strlen;
 use function strpbrk;
-use function strpos;
 use function strrpos;
 use function strtr;
 use function substr;
 use function trim;
+
+use const PREG_OFFSET_CAPTURE;
 
 /**
  * Represents a single mailbox address per RFC 5322 section 3.4.
@@ -140,12 +141,21 @@ final readonly class Mailbox implements Stringable
             throw ParsingException::forInvalidMailbox($input);
         }
 
-        $angleBracketPos = strpos($input, '<');
-        if ($angleBracketPos !== false) {
-            $closeBracketPos = strpos($input, '>', $angleBracketPos);
-            if ($closeBracketPos === false) {
+        $opening = [];
+        $closing = [];
+        $quotedString = '"(?:[^"\\\\]|\\\\.)*"(*SKIP)(*F)|';
+        if (preg_match('~' . $quotedString . '<~s', $input, $opening, PREG_OFFSET_CAPTURE) === 1) {
+            /** @var non-negative-int $angleBracketPos */
+            $angleBracketPos = $opening[0][1];
+            if (
+                preg_match('~' . $quotedString . '>~s', $input, $closing, PREG_OFFSET_CAPTURE, $angleBracketPos + 1)
+                !== 1
+            ) {
                 throw ParsingException::forInvalidMailbox($input);
             }
+
+            /** @var non-negative-int $closeBracketPos */
+            $closeBracketPos = $closing[0][1];
 
             /** @var non-negative-int $addrSpecLen */
             $addrSpecLen = $closeBracketPos - $angleBracketPos - 1;

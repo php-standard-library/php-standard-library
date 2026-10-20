@@ -80,6 +80,32 @@ final class MailboxTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('provideQuotedAngleBrackets')]
+    public function parseQuotedAngleBrackets(string $input, string $localPart, null|string $displayName): void
+    {
+        $mailbox = Mailbox::parse($input);
+
+        self::assertSame($localPart, $mailbox->localPart);
+        self::assertSame('example.com', $mailbox->domain);
+        self::assertSame($displayName, $mailbox->displayName);
+        self::assertEquals($mailbox, Mailbox::parse($mailbox->toString()));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, null|string}>
+     */
+    public static function provideQuotedAngleBrackets(): iterable
+    {
+        yield 'display name' => ['"Team <Europe>" <alice@example.com>', 'alice', 'Team <Europe>'];
+        yield 'escaped quote' => ['"Team \\"<Europe>" <alice@example.com>', 'alice', 'Team "<Europe>'];
+        yield 'escaped angle brackets' => ['"Team \\<Europe\\>" <alice@example.com>', 'alice', 'Team <Europe>'];
+        yield 'escaped backslash' => ['"Team \\\\<Europe>" <alice@example.com>', 'alice', 'Team \\<Europe>'];
+        yield 'bare quoted local part' => ['"<alice>"@example.com', '"<alice>"', null];
+        yield 'wrapped quoted local part' => ['<"<alice>"@example.com>', '"<alice>"', null];
+        yield 'escaped local quote' => ['<"alice\\">"@example.com>', '"alice\\">"', null];
+    }
+
+    #[Test]
     public function parseWithUnquotedDisplayName(): void
     {
         $mailbox = Mailbox::parse('John Doe <user@example.com>');
