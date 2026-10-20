@@ -121,7 +121,7 @@ final class Child implements ChildInterface
             return;
         }
 
-        $result = proc_terminate($this->process, $signal->value);
+        $result = proc_terminate($this->process, NativeSignal::toNumber($signal));
         if (!$result) {
             throw new Exception\RuntimeException('Failed to send signal to the process.');
         }

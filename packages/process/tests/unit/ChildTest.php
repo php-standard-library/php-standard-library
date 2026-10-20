@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Process\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime;
@@ -205,6 +206,61 @@ final class ChildTest extends TestCase
         static::assertTrue($status->hasBeenSignaled());
         static::assertSame(Signal::Kill, $status->getTerminationSignal());
         static::assertGreaterThan(0, $child->getProcessId());
+    }
+
+    /**
+     * @return iterable<string, array{Signal, non-empty-string}>
+     */
+    public static function provideUserSignals(): iterable
+    {
+        yield 'SIGUSR1' => [Signal::User1, 'USR1'];
+        yield 'SIGUSR2' => [Signal::User2, 'USR2'];
+    }
+
+    /**
+     * @param non-empty-string $name
+     */
+    #[DataProvider('provideUserSignals')]
+    public function testSignalSendsThePlatformSignal(Signal $signal, string $name): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Signal tests are not reliable on Windows.');
+        }
+
+        // The shell traps the signal by name, so it only reports it if it receives
+        // the platform's number for that signal (e.g. SIGUSR1 is 30 on macOS, 10 on Linux).
+        $child = Command::shell("trap 'echo caught; exit 0' {$name}; echo ready; while :; do sleep 0.05; done")
+            ->withStderr(Stdio::null())
+            ->spawn();
+
+        $timeout = new Async\TimeoutCancellationToken(Duration::seconds(10));
+
+        static::assertSame("ready\n", $child->getStdout()->readFixedSize(6, $timeout));
+
+        $child->signal($signal);
+        $output = $child->waitWithOutput($timeout);
+
+        static::assertSame("caught\n", $output->stdout);
+        static::assertTrue($output->status->isSuccessful());
+    }
+
+    /**
+     * @param non-empty-string $name
+     */
+    #[DataProvider('provideUserSignals')]
+    public function testTerminationSignalIsDecodedFromThePlatformSignal(Signal $signal, string $name): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Signal tests are not reliable on Windows.');
+        }
+
+        // The shell kills itself by signal name, so the reported number is the platform's.
+        $status = Command::shell("kill -{$name} \$\$")->status(new Async\TimeoutCancellationToken(Duration::seconds(
+            10,
+        )));
+
+        static::assertTrue($status->hasBeenSignaled());
+        static::assertSame($signal, $status->getTerminationSignal());
     }
 
     public function testSignalOnExitedProcessIsNoop(): void

@@ -51,6 +51,6 @@ final readonly class ExitStatus
             return null;
         }
 
-        return Signal::tryFrom($this->terminationSignal);
+        return Internal\NativeSignal::fromNumber($this->terminationSignal);
     }
 }

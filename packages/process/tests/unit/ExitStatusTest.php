@@ -8,6 +8,11 @@ use PHPUnit\Framework\TestCase;
 use Psl\Process\ExitStatus;
 use Psl\Process\Signal;
 
+use function extension_loaded;
+
+use const SIGUSR1;
+use const SIGUSR2;
+
 final class ExitStatusTest extends TestCase
 {
     public function testSuccessfulExit(): void
@@ -38,6 +43,25 @@ final class ExitStatusTest extends TestCase
         static::assertSame(137, $status->getCode());
         static::assertTrue($status->hasBeenSignaled());
         static::assertSame(Signal::Kill, $status->getTerminationSignal());
+    }
+
+    public function testSignaledWithPlatformUserSignals(): void
+    {
+        if (!extension_loaded('pcntl')) {
+            static::markTestSkipped('The pcntl extension is required to know the platform signal numbers.');
+        }
+
+        static::assertSame(Signal::User1, new ExitStatus(128 + SIGUSR1, true, SIGUSR1)->getTerminationSignal());
+        static::assertSame(Signal::User2, new ExitStatus(128 + SIGUSR2, true, SIGUSR2)->getTerminationSignal());
+
+        // On platforms where SIGUSR1 is not 10 (e.g. SIGBUS on macOS), 10 must not decode as User1.
+        if (SIGUSR1 !== Signal::User1->value) {
+            static::assertNotSame(Signal::User1, new ExitStatus(128 + 10, true, 10)->getTerminationSignal());
+        }
+
+        if (SIGUSR2 !== Signal::User2->value) {
+            static::assertNotSame(Signal::User2, new ExitStatus(128 + 12, true, 12)->getTerminationSignal());
+        }
     }
 
     public function testSignaledWithUnknownSignal(): void
