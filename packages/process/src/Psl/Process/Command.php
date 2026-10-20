@@ -30,12 +30,15 @@ final readonly class Command
     /**
      * @param non-empty-string $program
      * @param list<string> $arguments
-     * @param array<string, string> $environment
+     * @param array<string, null|string> $environment Variables set for the child process; a null value
+     *                                                 removes the variable from the inherited environment.
+     * @param bool $inheritEnvironment Whether the child process starts from a copy of the parent's environment.
      */
     private function __construct(
         private string $program,
         private array $arguments,
         private array $environment,
+        private bool $inheritEnvironment,
         private null|string $workingDirectory,
         private Stdio $stdin,
         private Stdio $stdout,
@@ -57,6 +60,7 @@ final readonly class Command
             program: $program,
             arguments: [],
             environment: [],
+            inheritEnvironment: true,
             workingDirectory: null,
             stdin: Stdio::null(),
             stdout: Stdio::piped(),
@@ -79,6 +83,7 @@ final readonly class Command
             program: $command,
             arguments: [],
             environment: [],
+            inheritEnvironment: true,
             workingDirectory: null,
             stdin: Stdio::null(),
             stdout: Stdio::piped(),
@@ -96,6 +101,7 @@ final readonly class Command
             program: $this->program,
             arguments: [...$this->arguments, $argument],
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -115,6 +121,7 @@ final readonly class Command
             program: $this->program,
             arguments: [...$this->arguments, ...$arguments],
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -132,6 +139,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: [...$this->environment, $name => $value],
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -151,6 +159,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: [...$this->environment, ...$variables],
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -161,16 +170,17 @@ final readonly class Command
 
     /**
      * Removes an environment variable for the child process.
+     *
+     * This removes the variable whether it was set on this command or would be
+     * inherited from the parent process; setting it again afterwards restores it.
      */
     public function withoutEnvironmentVariable(string $name): self
     {
-        $environment = $this->environment;
-        unset($environment[$name]);
-
         return new self(
             program: $this->program,
             arguments: $this->arguments,
-            environment: $environment,
+            environment: [...$this->environment, $name => null],
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -181,6 +191,9 @@ final readonly class Command
 
     /**
      * Clears all environment variables, so the child process inherits nothing.
+     *
+     * The child process starts with an empty environment instead of a copy of the
+     * parent's; only variables set on the command after this call are passed to it.
      */
     public function withClearedEnvironment(): self
     {
@@ -188,6 +201,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: [],
+            inheritEnvironment: false,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -205,6 +219,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $directory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -222,6 +237,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $stdio,
             stdout: $this->stdout,
@@ -239,6 +255,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $stdio,
@@ -256,6 +273,7 @@ final readonly class Command
             program: $this->program,
             arguments: $this->arguments,
             environment: $this->environment,
+            inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
             stdout: $this->stdout,
@@ -281,11 +299,24 @@ final readonly class Command
     }
 
     /**
+     * Returns the environment variables explicitly set on this command.
+     *
+     * Variables inherited from the parent process are not included.
+     *
      * @return array<string, string>
      */
     public function getEnvironmentVariables(): array
     {
-        return $this->environment;
+        $variables = [];
+        foreach ($this->environment as $name => $value) {
+            if (null === $value) {
+                continue;
+            }
+
+            $variables[$name] = $value;
+        }
+
+        return $variables;
     }
 
     public function getWorkingDirectory(): null|string
@@ -356,7 +387,15 @@ final readonly class Command
 
         $command = $this->buildCommand();
 
-        $environment = [...getenv(), ...$this->environment];
+        $environment = $this->inheritEnvironment ? getenv() : [];
+        foreach ($this->environment as $name => $value) {
+            if (null === $value) {
+                unset($environment[$name]);
+            } else {
+                $environment[$name] = $value;
+            }
+        }
+
         $cwd = getcwd();
         $workingDirectory = $this->workingDirectory ?? ($cwd !== false ? $cwd : '');
         if ('' === $workingDirectory || !is_dir($workingDirectory)) {

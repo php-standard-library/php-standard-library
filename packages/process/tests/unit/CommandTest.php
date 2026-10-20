@@ -13,6 +13,9 @@ use Psl\Process\Command;
 use Psl\Process\Exception;
 use Psl\Process\Stdio;
 
+use function json_decode;
+
+use const JSON_THROW_ON_ERROR;
 use const PHP_BINARY;
 
 final class CommandTest extends TestCase
@@ -26,6 +29,21 @@ final class CommandTest extends TestCase
     private static function phpCommand(): Command
     {
         return Command::create(PHP_BINARY)->withArgument('-dopcache.enable=0');
+    }
+
+    /**
+     * Runs the given PHP command and returns the environment the child process saw.
+     *
+     * @return array<string, string>
+     */
+    private static function childEnvironment(Command $command): array
+    {
+        $output = $command->withArgument('-r')->withArgument('echo json_encode(getenv());')->output();
+
+        static::assertTrue($output->status->isSuccessful(), $output->stderr);
+
+        /** @var array<string, string> */
+        return json_decode($output->stdout, true, flags: JSON_THROW_ON_ERROR);
     }
 
     public function testCreate(): void
@@ -160,6 +178,86 @@ final class CommandTest extends TestCase
         $command = Command::create('env')->withEnvironmentVariables(['FOO' => 'bar'])->withClearedEnvironment();
 
         static::assertSame([], $command->getEnvironmentVariables());
+    }
+
+    public function testChildInheritsParentEnvironmentByDefault(): void
+    {
+        Env\set_var('PSL_PROCESS_PARENT_VAR', 'inherited');
+
+        try {
+            $environment = self::childEnvironment(self::phpCommand());
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+        }
+
+        static::assertSame('inherited', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
+    }
+
+    public function testWithClearedEnvironmentDoesNotInheritParentEnvironment(): void
+    {
+        Env\set_var('PSL_PROCESS_PARENT_VAR', 'inherited');
+
+        $command = self::phpCommand()
+            ->withEnvironmentVariable('PSL_PROCESS_DROPPED_VAR', 'dropped')
+            ->withClearedEnvironment()
+            ->withEnvironmentVariable('PSL_PROCESS_CHILD_VAR', 'set');
+
+        if (OS\is_windows()) {
+            // Windows programs, PHP included, can fail to start without SystemRoot.
+            $command = $command->withEnvironmentVariable('SystemRoot', Env\get_var('SystemRoot') ?? 'C:\\Windows');
+        }
+
+        try {
+            $environment = self::childEnvironment($command);
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+        }
+
+        static::assertArrayNotHasKey('PSL_PROCESS_PARENT_VAR', $environment);
+        static::assertArrayNotHasKey('PSL_PROCESS_DROPPED_VAR', $environment);
+        static::assertSame('set', $environment['PSL_PROCESS_CHILD_VAR'] ?? null);
+
+        if (!OS\is_windows()) {
+            // macOS' CoreFoundation, which PHP links against, sets this variable in every process it loads into.
+            unset($environment['__CF_USER_TEXT_ENCODING']);
+
+            static::assertSame(['PSL_PROCESS_CHILD_VAR' => 'set'], $environment);
+        }
+    }
+
+    public function testWithoutEnvironmentVariableRemovesInheritedVariable(): void
+    {
+        Env\set_var('PSL_PROCESS_PARENT_VAR', 'inherited');
+        Env\set_var('PSL_PROCESS_KEPT_VAR', 'kept');
+
+        try {
+            $environment = self::childEnvironment(
+                self::phpCommand()->withoutEnvironmentVariable('PSL_PROCESS_PARENT_VAR'),
+            );
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+            Env\remove_var('PSL_PROCESS_KEPT_VAR');
+        }
+
+        static::assertArrayNotHasKey('PSL_PROCESS_PARENT_VAR', $environment);
+        static::assertSame('kept', $environment['PSL_PROCESS_KEPT_VAR'] ?? null);
+    }
+
+    public function testWithEnvironmentVariableAfterRemovalOverridesInheritedVariable(): void
+    {
+        Env\set_var('PSL_PROCESS_PARENT_VAR', 'inherited');
+
+        try {
+            $environment = self::childEnvironment(
+                self::phpCommand()
+                    ->withoutEnvironmentVariable('PSL_PROCESS_PARENT_VAR')
+                    ->withEnvironmentVariable('PSL_PROCESS_PARENT_VAR', 'overridden'),
+            );
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+        }
+
+        static::assertSame('overridden', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
     }
 
     public function testWithWorkingDirectory(): void

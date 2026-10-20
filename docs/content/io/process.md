@@ -53,6 +53,8 @@ It serves as an alternative to `proc_*`, `symfony/process`, and `amphp/process`,
 
 ### Environment Variables
 
+The child process starts with a copy of the parent's environment. `withEnvironmentVariable()` and `withEnvironmentVariables()` add or override variables, `withoutEnvironmentVariable()` removes a variable even when it is inherited, and `withClearedEnvironment()` starts the child from an empty environment, so only variables set afterwards are passed to it.
+
 @example('io/process-environment.php')
 
 ### Non-Blocking Poll
