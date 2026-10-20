@@ -158,9 +158,11 @@ final class Decoder
             5 => ResponseCode::ServerRefused,
             6 => ResponseCode::DomainShouldNotExist,
             7 => ResponseCode::RecordSetShouldNotExist,
-            8 => ResponseCode::NotAuthoritative,
-            9 => ResponseCode::NameNotInZone,
+            8 => ResponseCode::RecordSetShouldExist,
+            9 => ResponseCode::NotAuthoritative,
+            10 => ResponseCode::NameNotInZone,
             16 => ResponseCode::BadVersion,
+            23 => ResponseCode::BadCookie,
             default => throw ProtocolException::forUnknownResponseCode($rcode),
         };
     }

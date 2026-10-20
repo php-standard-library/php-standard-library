@@ -49,7 +49,12 @@ enum ResponseCode: string
     /**
      * An RRset exists when it should not (RFC 2136 dynamic update).
      */
-    case RecordSetShouldNotExist = 'XRRSET';
+    case RecordSetShouldNotExist = 'YXRRSET';
+
+    /**
+     * An RRset does not exist when it should (RFC 2136 dynamic update).
+     */
+    case RecordSetShouldExist = 'NXRRSET';
 
     /**
      * The server is not authoritative for the zone (RFC 2136 dynamic update).
@@ -65,6 +70,11 @@ enum ResponseCode: string
      * The EDNS version is not supported by the server (RFC 6891).
      */
     case BadVersion = 'BADVERS';
+
+    /**
+     * The server cookie is missing or invalid (RFC 7873).
+     */
+    case BadCookie = 'BADCOOKIE';
 
     /**
      * Whether this response code indicates a successful query.

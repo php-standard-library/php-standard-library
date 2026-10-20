@@ -18,10 +18,12 @@ final class ResponseCodeTest extends TestCase
         static::assertSame('NOTIMP', ResponseCode::NotImplemented->value);
         static::assertSame('REFUSED', ResponseCode::ServerRefused->value);
         static::assertSame('YXDOMAIN', ResponseCode::DomainShouldNotExist->value);
-        static::assertSame('XRRSET', ResponseCode::RecordSetShouldNotExist->value);
+        static::assertSame('YXRRSET', ResponseCode::RecordSetShouldNotExist->value);
+        static::assertSame('NXRRSET', ResponseCode::RecordSetShouldExist->value);
         static::assertSame('NOTAUTH', ResponseCode::NotAuthoritative->value);
         static::assertSame('NOTZONE', ResponseCode::NameNotInZone->value);
         static::assertSame('BADVERS', ResponseCode::BadVersion->value);
+        static::assertSame('BADCOOKIE', ResponseCode::BadCookie->value);
     }
 
     public function testNoErrorIsSuccess(): void

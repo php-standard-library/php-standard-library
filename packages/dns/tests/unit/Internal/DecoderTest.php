@@ -769,16 +769,17 @@ final class DecoderTest extends TestCase
     public function testDecodeAllResponseCodes(): void
     {
         $codes = [
-            0 => ResponseCode::NoError,
-            1 => ResponseCode::FormatError,
-            2 => ResponseCode::ServerFailure,
-            3 => ResponseCode::NonExistentDomain,
-            4 => ResponseCode::NotImplemented,
-            5 => ResponseCode::ServerRefused,
-            6 => ResponseCode::DomainShouldNotExist,
-            7 => ResponseCode::RecordSetShouldNotExist,
-            8 => ResponseCode::NotAuthoritative,
-            9 => ResponseCode::NameNotInZone,
+            0 => 'NOERROR',
+            1 => 'FORMERR',
+            2 => 'SERVFAIL',
+            3 => 'NXDOMAIN',
+            4 => 'NOTIMP',
+            5 => 'REFUSED',
+            6 => 'YXDOMAIN',
+            7 => 'YXRRSET',
+            8 => 'NXRRSET',
+            9 => 'NOTAUTH',
+            10 => 'NOTZONE',
         ];
 
         foreach ($codes as $rcode => $expected) {
@@ -790,7 +791,7 @@ final class DecoderTest extends TestCase
             );
 
             $response = Decoder::decode($packet);
-            static::assertSame($expected, $response->code, 'Failed for rcode ' . (string) $rcode);
+            static::assertSame($expected, $response->code->value, 'Failed for rcode ' . (string) $rcode);
         }
     }
 
@@ -1318,6 +1319,53 @@ final class DecoderTest extends TestCase
         $response = Decoder::decode($writer->toString());
 
         static::assertSame(ResponseCode::BadVersion, $response->code);
+    }
+
+    public function testDecodeBadCookieCombinesHeaderAndOptResponseCodes(): void
+    {
+        $packet = new Writer()
+            ->u16(0x0020)
+            ->u16(0x8187)
+            ->u16(1)
+            ->u16(0)
+            ->u16(0)
+            ->u16(1)
+            ->bytes($this->encodeName('example.com'))
+            ->u16(1)
+            ->u16(1)
+            ->u8(0)
+            ->u16(41)
+            ->u16(1232)
+            ->u32(1 << 24)
+            ->u16(0)
+            ->toString();
+
+        static::assertSame('BADCOOKIE', Decoder::decode($packet)->code->value);
+    }
+
+    public function testDecodeUnknownExtendedResponseCodeThrowsException(): void
+    {
+        $packet = new Writer()
+            ->u16(0x0020)
+            ->u16(0x818F)
+            ->u16(1)
+            ->u16(0)
+            ->u16(0)
+            ->u16(1)
+            ->bytes($this->encodeName('example.com'))
+            ->u16(1)
+            ->u16(1)
+            ->u8(0)
+            ->u16(41)
+            ->u16(1232)
+            ->u32(255 << 24)
+            ->u16(0)
+            ->toString();
+
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('4095');
+
+        Decoder::decode($packet);
     }
 
     public function testDecodeSvcbParamValueExceedsRdata(): void
