@@ -354,4 +354,29 @@ final class UnboundedChannelTest extends TestCase
 
         $receiving->await();
     }
+
+    public function testReceiveDoesNotQueueBehindWaiterOfClosedChannel(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $waiting = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // Closing wakes the waiting receiver up, but it has not run yet when receive() is called again.
+        $sender->close();
+
+        try {
+            $receiver->receive(new Async\TimeoutCancellationToken(Duration::milliseconds(100)));
+
+            static::fail('Expected ClosedChannelException to be thrown.');
+        } catch (Channel\Exception\ClosedChannelException) {
+            static::addToAssertionCount(1);
+        }
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $waiting->await();
+    }
 }

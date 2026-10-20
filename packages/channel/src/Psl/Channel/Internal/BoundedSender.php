@@ -45,8 +45,9 @@ final class BoundedSender implements SenderInterface
     {
         try {
             // If another send() is already waiting on this sender, queue behind it instead of
-            // taking the space it may have been woken up for.
-            if (null !== $this->suspension) {
+            // taking the space it may have been woken up for. A closed channel wakes no one up
+            // anymore, so never queue on it.
+            if (null !== $this->suspension && !$this->state->isClosed()) {
                 $this->waitForSpace($cancellation);
             }
 

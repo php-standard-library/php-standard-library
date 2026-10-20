@@ -642,4 +642,56 @@ final class BoundedChannelTest extends TestCase
         static::assertSame('baz', $receiver->receive());
         static::assertTrue($receiver->isEmpty());
     }
+
+    public function testReceiveDoesNotQueueBehindWaiterOfClosedChannel(): void
+    {
+        /** @var Channel\ReceiverInterface<string> $receiver */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $waiting = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // Closing wakes the waiting receiver up, but it has not run yet when receive() is called again.
+        $sender->close();
+
+        try {
+            $receiver->receive(new Async\TimeoutCancellationToken(Duration::milliseconds(100)));
+
+            static::fail('Expected ClosedChannelException to be thrown.');
+        } catch (Channel\Exception\ClosedChannelException) {
+            static::addToAssertionCount(1);
+        }
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $waiting->await();
+    }
+
+    public function testSendDoesNotQueueBehindWaiterOfClosedChannel(): void
+    {
+        /** @var Channel\SenderInterface<string> $sender */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $waiting = Async\run(static fn(): null => $sender->send('bar'));
+
+        Async\later();
+
+        // Closing wakes the waiting sender up, but it has not run yet when send() is called again.
+        $receiver->close();
+
+        try {
+            $sender->send('baz', new Async\TimeoutCancellationToken(Duration::milliseconds(100)));
+
+            static::fail('Expected ClosedChannelException to be thrown.');
+        } catch (Channel\Exception\ClosedChannelException) {
+            static::addToAssertionCount(1);
+        }
+
+        $this->expectException(Channel\Exception\ClosedChannelException::class);
+
+        $waiting->await();
+    }
 }

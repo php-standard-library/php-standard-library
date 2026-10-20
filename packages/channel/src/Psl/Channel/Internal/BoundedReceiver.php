@@ -45,8 +45,9 @@ final class BoundedReceiver implements ReceiverInterface
     {
         try {
             // If another receive() is already waiting on this receiver, queue behind it instead of
-            // taking the message it may have been woken up for.
-            if (null !== $this->suspension) {
+            // taking the message it may have been woken up for. A closed channel wakes no one up
+            // anymore, so never queue on it.
+            if (null !== $this->suspension && !$this->state->isClosed()) {
                 $this->waitForMessage($cancellation);
             }
 
