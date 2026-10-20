@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\DNSSEC\Tests\Unit\Internal;
 
+use ErrorException;
 use OpenSSLAsymmetricKey;
 use PHPUnit\Framework\TestCase;
 use Psl\Binary\Writer;
@@ -41,6 +42,8 @@ use function is_string;
 use function openssl_pkey_get_details;
 use function openssl_pkey_new;
 use function openssl_sign;
+use function restore_error_handler;
+use function set_error_handler;
 
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_KEYTYPE_RSA;
@@ -291,6 +294,70 @@ final class RrsigVerifierTest extends TestCase
         );
 
         static::assertTrue(RRSIGVerifier::verify($rrsig, $dnskey, [$txtRecord]));
+    }
+
+    public function testVerifyTxtStringLongerThan255BytesKeepsWrappedLengthByte(): void
+    {
+        [$rawKey, $key] = self::generateRsaKey();
+
+        $dnskey = new DNSKEYRecord('example.com', Duration::seconds(3600), 257, 3, Algorithm::RSASHA256, $rawKey);
+        $keyTag = KeyTag::compute($dnskey);
+
+        // Strings longer than 255 bytes can only come from a user-constructed record. The canonical
+        // encoding keeps the low byte of the length (300 & 0xFF = 0x2C), as it did before PHP 8.5.
+        $string = Str\repeat('A', 300);
+        $txtRecord = new TXTRecord('example.com', Duration::seconds(300), [$string]);
+
+        $rrsigPrefix = new Writer()
+            ->u16(RecordType::TXT->value)
+            ->u8(8)
+            ->u8(2)
+            ->u32(300)
+            ->u32(2_000_000_000)
+            ->u32(1_000_000_000)
+            ->u16($keyTag)
+            ->bytes(Encoder::encodeName('example.com'))
+            ->toString();
+
+        $rdata = "\x2C" . $string;
+        $canonicalRr = new Writer()
+            ->bytes(Encoder::encodeName('example.com'))
+            ->u16(RecordType::TXT->value)
+            ->u16(1)
+            ->u32(300)
+            ->u16(Byte\length($rdata))
+            ->bytes($rdata)
+            ->toString();
+
+        $signature = null;
+        if (!openssl_sign($rrsigPrefix . $canonicalRr, $signature, $key, OPENSSL_ALGO_SHA256)) {
+            throw new RuntimeException('Failed to sign data with OpenSSL');
+        }
+
+        $rrsig = new RRSIGRecord(
+            'example.com',
+            Duration::seconds(3600),
+            RecordType::TXT,
+            Algorithm::RSASHA256,
+            2,
+            300,
+            2_000_000_000,
+            1_000_000_000,
+            $keyTag,
+            'example.com',
+            $signature,
+        );
+
+        // Passing a length above 255 to chr() is deprecated since PHP 8.5.
+        set_error_handler(static function (int $level, string $message): never {
+            throw new ErrorException($message, 0, $level);
+        });
+
+        try {
+            static::assertTrue(RRSIGVerifier::verify($rrsig, $dnskey, [$txtRecord]));
+        } finally {
+            restore_error_handler();
+        }
     }
 
     public function testVerifyPtrRecordRdataEncoding(): void

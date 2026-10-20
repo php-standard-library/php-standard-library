@@ -38,7 +38,6 @@ use Psl\Exception\LogicException;
 use function array_filter;
 use function array_slice;
 use function array_values;
-use function chr;
 use function count;
 use function explode;
 use function hex2bin;
@@ -205,7 +204,7 @@ final class RRSIGVerifier
         if ($record instanceof TXTRecord) {
             $result = '';
             foreach ($record->strings as $string) {
-                $result .= chr(strlen($string)) . $string;
+                $result .= pack('C', strlen($string)) . $string;
             }
 
             return $result;
