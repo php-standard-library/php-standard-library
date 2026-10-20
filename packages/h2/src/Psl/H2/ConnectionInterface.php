@@ -84,6 +84,7 @@ interface ConnectionInterface
      * @param positive-int $bytes The minimum number of bytes needed in the window.
      *
      * @throws Exception\ConnectionException If the connection is closed while waiting.
+     * @throws Exception\StreamException If the stream closes or its local endpoint has finished sending.
      * @throws IO\Exception\AlreadyClosedException If the handle has been closed.
      * @throws IO\Exception\RuntimeException If an I/O error occurs.
      * @throws CancelledException If the cancellation token is cancelled.

@@ -1021,6 +1021,7 @@ final class StateMachine
 
         $promised = $this->streams->getOrCreate($promisedStreamId);
         $promised->state = StreamState::ReservedLocal;
+        $this->lastLocalStreamId = max($this->lastLocalStreamId, $promisedStreamId);
 
         return $frames;
     }

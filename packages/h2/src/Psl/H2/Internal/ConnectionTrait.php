@@ -26,6 +26,7 @@ use Throwable;
 
 use function array_filter;
 use function array_values;
+use function in_array;
 use function min;
 use function ord;
 use function strlen;
@@ -45,6 +46,7 @@ use const Psl\H2\FRAME_HEADER_SIZE;
  *
  * @require-implements ConnectionInterface
  *
+ * @mago-expect lint:cyclomatic-complexity
  * @mago-expect lint:kan-defect
  * @mago-expect lint:too-many-properties
  */
@@ -76,7 +78,7 @@ trait ConnectionTrait
      * Each entry is a list of [bytesNeeded, suspension] tuples waiting
      * for that stream's send window to open.
      *
-     * @var array<int, list<array{int, Suspension}>>
+     * @var array<int<0, max>, list<array{positive-int, Suspension}>>
      */
     private array $windowWaiters = [];
 
@@ -155,7 +157,9 @@ trait ConnectionTrait
         try {
             $rawFrame = $this->readFrame($cancellation);
             [$responseFrames, $events] = $this->stateMachine->receive($rawFrame);
-        } catch (ConnectionException $e) {
+        } catch (ConnectionException|IO\Exception\RuntimeException $e) {
+            $this->stateMachine->goAway(ErrorCode::NoError);
+            $this->notifyWindowWaiters(0);
             throw $e;
         } catch (RuntimeException $e) {
             // Report the error to the peer before re-throwing.
@@ -170,6 +174,7 @@ trait ConnectionTrait
                 $frames = $e instanceof StreamException
                     ? $this->stateMachine->resetStreamForError($e->streamId, $e->errorCode)
                     : $this->stateMachine->goAway($errorCode, $e->getMessage());
+                $this->notifyWindowWaiters(0);
                 $this->writeFrames($frames);
             } catch (ProtocolException $limitError) {
                 // @mago-expect lint:no-empty-catch-clause - Best effort after the reset limit is reached.
@@ -185,6 +190,10 @@ trait ConnectionTrait
             throw $e;
         }
 
+        if ($this->windowWaiters !== []) {
+            $this->notifyWindowWaiters($rawFrame->streamId);
+        }
+
         if ($responseFrames !== []) {
             $data = '';
             foreach ($responseFrames as $frame) {
@@ -192,10 +201,6 @@ trait ConnectionTrait
             }
 
             $this->write($data, $cancellation);
-        }
-
-        if ($this->windowWaiters !== []) {
-            $this->notifyWindowWaiters($rawFrame->streamId);
         }
 
         return $events;
@@ -257,6 +262,7 @@ trait ConnectionTrait
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
         $encoded = $this->stateMachine->sendHeadersEncoded($streamId, $headers, $endStream);
+        $this->notifyWindowWaiters($streamId);
         $this->write($encoded, $cancellation);
     }
 
@@ -271,6 +277,7 @@ trait ConnectionTrait
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
         $encoded = $this->stateMachine->sendDataEncoded($streamId, $data, $endStream);
+        $this->notifyWindowWaiters($streamId);
         $this->write($encoded, $cancellation);
     }
 
@@ -284,6 +291,7 @@ trait ConnectionTrait
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
         $frames = $this->stateMachine->resetStream($streamId, $errorCode);
+        $this->notifyWindowWaiters($streamId);
         $this->writeFrames($frames, $cancellation);
     }
 
@@ -310,6 +318,7 @@ trait ConnectionTrait
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
         $frames = $this->stateMachine->goAway($errorCode, $debugData, $lastStreamId);
+        $this->notifyWindowWaiters(0);
         $this->writeFrames($frames, $cancellation);
     }
 
@@ -322,12 +331,8 @@ trait ConnectionTrait
         int $bytes,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
-        if ($this->stateMachine->availableSendWindow($streamId) >= $bytes) {
+        if ($this->hasSendWindow($streamId, $bytes)) {
             return;
-        }
-
-        if ($this->stateMachine->shutdown) {
-            throw ConnectionException::forConnectionClosed();
         }
 
         $cancellation->throwIfCancelled();
@@ -340,6 +345,9 @@ trait ConnectionTrait
             $this->writeBuffer = '';
             $this->writeBufferLength = 0;
             $this->handle->writeAll($data, $cancellation);
+            if ($this->hasSendWindow($streamId, $bytes)) {
+                return;
+            }
         }
 
         $suspension = EventLoop::getSuspension();
@@ -400,6 +408,33 @@ trait ConnectionTrait
     }
 
     /**
+     * @param int<0, max> $streamId
+     * @param positive-int $bytes
+     *
+     * @throws ConnectionException If the connection is closed.
+     * @throws StreamException If the stream can no longer send.
+     */
+    private function hasSendWindow(int $streamId, int $bytes): bool
+    {
+        if ($this->stateMachine->shutdown) {
+            throw ConnectionException::forConnectionClosed();
+        }
+
+        if (
+            $streamId !== 0
+            && in_array(
+                $this->stateMachine->getStreamState($streamId),
+                [StreamState::Closed, StreamState::HalfClosedLocal],
+                true,
+            )
+        ) {
+            throw StreamException::forStreamClosed($streamId);
+        }
+
+        return $this->stateMachine->availableSendWindow($streamId) >= $bytes;
+    }
+
+    /**
      * Check window waiters for a specific stream and resume those whose condition is met.
      *
      * When $streamId is 0 (connection-level window update), all waiters across all
@@ -421,48 +456,43 @@ trait ConnectionTrait
             return;
         }
 
-        if ($streamId === 0) {
-            foreach ($this->windowWaiters as $sid => $waiters) {
-                $remaining = [];
-                foreach ($waiters as $waiter) {
-                    [$bytes, $suspension] = $waiter;
-                    if ($this->stateMachine->availableSendWindow($sid) < $bytes) {
-                        $remaining[] = $waiter;
-                        continue;
-                    }
-
-                    $suspension->resume();
-                }
-
-                if ($remaining === []) {
-                    unset($this->windowWaiters[$sid]);
-                } else {
-                    $this->windowWaiters[$sid] = $remaining;
-                }
-            }
-
-            return;
-        }
-
-        if (!isset($this->windowWaiters[$streamId])) {
-            return;
-        }
-
-        $remaining = [];
-        foreach ($this->windowWaiters[$streamId] as $waiter) {
-            [$bytes, $suspension] = $waiter;
-            if ($this->stateMachine->availableSendWindow($streamId) < $bytes) {
-                $remaining[] = $waiter;
+        foreach ($this->windowWaiters as $sid => $waiters) {
+            if ($streamId !== 0 && $streamId !== $sid) {
                 continue;
             }
 
-            $suspension->resume();
-        }
+            if (
+                $sid !== 0
+                && in_array(
+                    $this->stateMachine->getStreamState($sid),
+                    [StreamState::Closed, StreamState::HalfClosedLocal],
+                    true,
+                )
+            ) {
+                unset($this->windowWaiters[$sid]);
+                foreach ($waiters as [$bytes, $suspension]) {
+                    $suspension->throw(StreamException::forStreamClosed($sid));
+                }
 
-        if ($remaining === []) {
-            unset($this->windowWaiters[$streamId]);
-        } else {
-            $this->windowWaiters[$streamId] = $remaining;
+                continue;
+            }
+
+            $remaining = [];
+            foreach ($waiters as $waiter) {
+                [$bytes, $suspension] = $waiter;
+                if ($this->stateMachine->availableSendWindow($sid) < $bytes) {
+                    $remaining[] = $waiter;
+                    continue;
+                }
+
+                $suspension->resume();
+            }
+
+            if ($remaining === []) {
+                unset($this->windowWaiters[$sid]);
+            } else {
+                $this->windowWaiters[$sid] = $remaining;
+            }
         }
     }
 

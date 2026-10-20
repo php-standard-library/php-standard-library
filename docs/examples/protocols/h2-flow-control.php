@@ -21,5 +21,7 @@ $client->sendHeaders($streamId, [
 
 // sendData splits frames but requires enough window for the whole payload.
 // sendAllData also waits for flow-control window updates.
+// It throws H2\Exception\StreamException if the stream closes while waiting.
+// GOAWAY, EOF, or a read failure instead throws H2\Exception\ConnectionException.
 $largePayload = Str\repeat('data', 10_000);
 $client->sendAllData($streamId, $largePayload, endStream: true);

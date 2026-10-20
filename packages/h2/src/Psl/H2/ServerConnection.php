@@ -103,6 +103,7 @@ final class ServerConnection implements ServerConnectionInterface
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
         $encoded = $this->stateMachine->sendResponseHeadersEncoded($streamId, $status, $headers, $endStream);
+        $this->notifyWindowWaiters($streamId);
         $this->write($encoded, $cancellation);
     }
 
