@@ -43,7 +43,9 @@ use function explode;
 use function hex2bin;
 use function implode;
 use function pack;
+use function rtrim;
 use function sort;
+use function str_ends_with;
 use function strlen;
 use function strtolower;
 
@@ -81,6 +83,19 @@ final class RRSIGVerifier
         array $rrset,
         int $clockSkew = self::DEFAULT_CLOCK_SKEW_SECONDS,
     ): bool {
+        if (
+            rtrim(strtolower($dnskey->name), '.') !== rtrim(strtolower($rrsig->signer), '.')
+            || !self::isSignerForName($rrsig->signer, $rrsig->name)
+        ) {
+            return false;
+        }
+
+        foreach ($rrset as $record) {
+            if (!self::isSignerForName($rrsig->signer, $record->name)) {
+                return false;
+            }
+        }
+
         if (!self::isWithinTimeWindow($rrsig, $clockSkew)) {
             return false;
         }
@@ -88,6 +103,17 @@ final class RRSIGVerifier
         $signedData = self::buildSignedData($rrsig, $rrset);
 
         return SignatureVerifier::verify($rrsig->algorithm, $rrsig->signature, $signedData, $dnskey->publicKey);
+    }
+
+    /**
+     * Check that the owner is at or below the signer's zone apex.
+     */
+    public static function isSignerForName(string $signer, string $name): bool
+    {
+        $signer = rtrim(strtolower($signer), '.');
+        $name = rtrim(strtolower($name), '.');
+
+        return $signer === '' || $name === $signer || str_ends_with($name, '.' . $signer);
     }
 
     /**

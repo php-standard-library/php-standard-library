@@ -16,6 +16,8 @@ Every DNSSEC-signed response includes RRSIG records alongside the answer records
 
 When `SecureResolver` receives a response, it verifies that the RRSIG signatures are valid using the zone's public keys (DNSKEY records). If any signature is invalid or expired, `SignatureFailedException` is thrown.
 
+The signing key must belong to the RRSIG signer, and each signed name must be at or below that zone.
+
 ## DS/DNSKEY: Trust Chain
 
 DNSSEC trust is established through a chain from the DNS root to the target zone. Each parent zone contains a DS (Delegation Signer) record that is a cryptographic hash of the child zone's DNSKEY. By verifying each link in the chain, `TrustChainResolver` proves that the zone's keys are authorized by the parent, all the way up to the root trust anchor.

@@ -364,14 +364,21 @@ final class RrsigVerifierTest extends TestCase
     {
         [$rawKey, $key] = self::generateRsaKey();
 
-        $dnskey = new DNSKEYRecord('example.com', Duration::seconds(3600), 257, 3, Algorithm::RSASHA256, $rawKey);
+        $dnskey = new DNSKEYRecord(
+            '168.192.in-addr.arpa',
+            Duration::seconds(3600),
+            257,
+            3,
+            Algorithm::RSASHA256,
+            $rawKey,
+        );
         $keyTag = KeyTag::compute($dnskey);
 
         $ptrRecord = new PTRRecord('1.0.168.192.in-addr.arpa', Duration::seconds(300), 'host.example.com');
 
         $rdata = Encoder::encodeName(Byte\lowercase('host.example.com'));
 
-        $signerWire = Encoder::encodeName('example.com');
+        $signerWire = Encoder::encodeName('168.192.in-addr.arpa');
         $rrsigPrefix = new Writer()
             ->u16(RecordType::PTR->value)
             ->u8(8)
@@ -408,7 +415,7 @@ final class RrsigVerifierTest extends TestCase
             2_000_000_000,
             1_000_000_000,
             $keyTag,
-            'example.com',
+            '168.192.in-addr.arpa',
             $signature,
         );
 

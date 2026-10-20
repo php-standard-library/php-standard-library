@@ -28,9 +28,12 @@ use Psl\DNSSEC\Internal\NSEC\NSECProofValidator;
 use Psl\DNSSEC\Internal\RRSIG\RRSIGVerifier;
 use Psl\Exception\LogicException;
 
+use function array_all;
+use function array_any;
 use function array_filter;
 use function array_values;
 use function count;
+use function rtrim;
 use function strtolower;
 
 /**
@@ -115,8 +118,12 @@ final readonly class SecureResolver implements ResolverInterface
 
         $signers = [];
         foreach ($rrsigs as $rrsig) {
-            if (!($rrsig instanceof RRSIGRecord && !isset($signers[$rrsig->signer]))) {
+            if (!$rrsig instanceof RRSIGRecord) {
                 continue;
+            }
+
+            if (!RRSIGVerifier::isSignerForName($rrsig->signer, $rrsig->name)) {
+                throw SignatureFailedException::forRRSIG($rrsig->typeCovered->name);
             }
 
             $signers[$rrsig->signer] = true;
@@ -127,10 +134,16 @@ final readonly class SecureResolver implements ResolverInterface
         }
 
         $dnskeys = [];
+        $insecureSigners = [];
         foreach ($signers as $signer => $_) {
             $result = $this->trustChainResolver->resolve($signer, $cancellation);
             if ($result->status === TrustChainStatus::Insecure) {
-                return self::withoutAuthenticatedData($response);
+                if (RRSIGVerifier::isSignerForName($signer, $queryName)) {
+                    return self::withoutAuthenticatedData($response);
+                }
+
+                $insecureSigners[$signer] = true;
+                continue;
             }
 
             if ($result->status === TrustChainStatus::Bogus) {
@@ -146,9 +159,35 @@ final readonly class SecureResolver implements ResolverInterface
             throw InvalidProofException::forExcessiveDNSKEYCount(count($dnskeys));
         }
 
+        if (count($rrsigs) > 8) {
+            throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
+        }
+
+        $rrsigs = array_values(array_filter(
+            $rrsigs,
+            static fn(RecordInterface $r): bool => $r instanceof RRSIGRecord && !isset($insecureSigners[$r->signer]),
+        ));
+        $queryRecords = array_filter(
+            $response->answers,
+            static fn(RecordInterface $r): bool => (
+                !$r instanceof RRSIGRecord
+                && rtrim(strtolower($r->name), '.') === rtrim(strtolower($queryName), '.')
+            ),
+        );
+        if (!array_all($queryRecords, static fn(RecordInterface $record): bool => array_any(
+            $rrsigs,
+            static fn(RecordInterface $r): bool => (
+                $r instanceof RRSIGRecord
+                && $r->typeCovered === $record->kind
+                && rtrim(strtolower($r->name), '.') === rtrim(strtolower($record->name), '.')
+            ),
+        ))) {
+            throw InvalidProofException::forRRSIG($queryName);
+        }
+
         self::verifyRrsigs($response->answers, $rrsigs, $dnskeys);
 
-        return $response;
+        return $insecureSigners === [] ? $response : self::withoutAuthenticatedData($response);
     }
 
     /**
@@ -197,6 +236,10 @@ final readonly class SecureResolver implements ResolverInterface
 
         $firstRrsig = $rrsigs[0];
         if ($firstRrsig instanceof RRSIGRecord) {
+            if (!RRSIGVerifier::isSignerForName($firstRrsig->signer, $queryName)) {
+                throw SignatureFailedException::forRRSIG($firstRrsig->typeCovered->name);
+            }
+
             $result = $this->trustChainResolver->resolve($firstRrsig->signer, $cancellation);
             if ($result->status === TrustChainStatus::Insecure) {
                 return self::withoutAuthenticatedData($response);
@@ -249,17 +292,8 @@ final readonly class SecureResolver implements ResolverInterface
      */
     private static function verifyRrsigs(array $answers, array $rrsigs, array $dnskeys): void
     {
-        $rrsigCount = 0;
-        foreach ($rrsigs as $r) {
-            if (!$r instanceof RRSIGRecord) {
-                continue;
-            }
-
-            $rrsigCount++;
-        }
-
-        if ($rrsigCount > 8) {
-            throw InvalidProofException::forExcessiveRRSIGCount($rrsigCount);
+        if (count($rrsigs) > 8) {
+            throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
         }
 
         foreach ($rrsigs as $rrsig) {
@@ -272,7 +306,7 @@ final readonly class SecureResolver implements ResolverInterface
                 static fn(RecordInterface $r): bool => (
                     $r->kind === $rrsig->typeCovered
                     && !$r instanceof RRSIGRecord
-                    && strtolower($r->name) === strtolower($rrsig->name)
+                    && rtrim(strtolower($r->name), '.') === rtrim(strtolower($rrsig->name), '.')
                 ),
             ));
 

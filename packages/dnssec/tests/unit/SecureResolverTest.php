@@ -15,7 +15,6 @@ use Psl\DateTime\Timestamp;
 use Psl\DNS\DNSSEC\Algorithm;
 use Psl\DNS\DNSSEC\DigestAlgorithm;
 use Psl\DNS\Internal\Encoder;
-use Psl\DNS\Record\AAAARecord;
 use Psl\DNS\Record\ARecord;
 use Psl\DNS\Record\DNSKEYRecord;
 use Psl\DNS\Record\NSECRecord;
@@ -286,7 +285,7 @@ final class SecureResolverTest extends TestCase
         $keyTag2 = KeyTag::compute($dnskey2);
 
         $rrsig1 = new RRSIGRecord(
-            'example.com',
+            'zone1.com',
             Duration::seconds(3600),
             RecordType::A,
             Algorithm::RSASHA256,
@@ -300,7 +299,7 @@ final class SecureResolverTest extends TestCase
         );
 
         $rrsig2 = new RRSIGRecord(
-            'example.com',
+            'zone2.com',
             Duration::seconds(3600),
             RecordType::A,
             Algorithm::RSASHA256,
@@ -418,7 +417,6 @@ final class SecureResolverTest extends TestCase
         );
 
         $aRecord = new ARecord('example.com', Duration::seconds(300), Address::v4('1.2.3.4'));
-        $aaaaRecord = new AAAARecord('example.com', Duration::seconds(300), Address::v6('2001:db8::1'));
 
         $now = Timestamp::now()->getSeconds();
         $expiration = $now + 86_400;
@@ -441,14 +439,14 @@ final class SecureResolverTest extends TestCase
             $signature,
         );
 
-        $inner = self::createMockResolver([$aRecord, $aaaaRecord, $rrsig]);
+        $inner = self::createMockResolver([$aRecord, $rrsig]);
         $trustChain = self::createMockTrustChainResolver(['example.com' => [$nonMatchingDnskey, $dnskey]]);
         $resolver = new SecureResolver($inner, $trustChain);
 
         $response = $resolver->query('example.com', RecordType::A);
 
         static::assertSame(ResponseCode::NoError, $response->code);
-        static::assertCount(3, $response->answers);
+        static::assertSame([$aRecord, $rrsig], $response->answers);
     }
 
     public function testQueryThrowsSignatureVerificationExceptionWithInvalidSignature(): void
@@ -762,7 +760,7 @@ final class SecureResolverTest extends TestCase
         $keyTag2 = KeyTag::compute($dnskey2);
 
         $rrsig1 = new RRSIGRecord(
-            'example.com',
+            'zone1.com',
             Duration::seconds(3600),
             RecordType::A,
             Algorithm::RSASHA256,
@@ -776,7 +774,7 @@ final class SecureResolverTest extends TestCase
         );
 
         $rrsig1dup = new RRSIGRecord(
-            'example.com',
+            'zone1.com',
             Duration::seconds(3600),
             RecordType::A,
             Algorithm::RSASHA256,
@@ -790,7 +788,7 @@ final class SecureResolverTest extends TestCase
         );
 
         $rrsig2 = new RRSIGRecord(
-            'example.com',
+            'zone2.com',
             Duration::seconds(3600),
             RecordType::A,
             Algorithm::RSASHA256,
