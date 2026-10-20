@@ -14,6 +14,7 @@ use Psl\HPACK\Internal\Huffman;
 use Psl\HPACK\Internal\IntegerCodec;
 use Psl\HPACK\Internal\StaticTable;
 
+use function min;
 use function ord;
 use function strlen;
 use function substr;
@@ -215,7 +216,7 @@ final class Decoder
         }
 
         $this->maxTableSize = $maxSize;
-        $this->dynamicTable->setMaxSize($maxSize);
+        $this->dynamicTable->setMaxSize(min($maxSize, $this->dynamicTable->maxSize()));
     }
 
     /**

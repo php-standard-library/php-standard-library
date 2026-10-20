@@ -174,6 +174,14 @@ final class DynamicTable
     }
 
     /**
+     * Return the maximum table size in bytes.
+     */
+    public function maxSize(): int
+    {
+        return $this->maxSize;
+    }
+
+    /**
      * Evict the oldest entry from the table.
      */
     private function evict(): void

@@ -24,6 +24,10 @@ Headers marked as sensitive (e.g. authorization, cookies) are encoded with the "
 
 The dynamic table size can be adjusted at runtime via `resize()`. This is typically driven by the HTTP/2 SETTINGS_HEADER_TABLE_SIZE parameter negotiated between peers.
 
+`Decoder::resize()` changes the allowed table-size limit. Raising that limit leaves the peer's chosen size unchanged until the peer sends an HPACK table-size update. Lowering the limit evicts entries only if the chosen size exceeds it.
+
+@example('protocols/hpack-table-size.php')
+
 The maximum decompressed header list size is configurable via the constructor or `setMaxHeaderListSize()`. Headers that exceed this limit throw `HeaderListSizeException`.
 
 If `encode()` or `encodeWithStatus()` rejects an oversized header list, it leaves the dynamic table and pending size updates unchanged. You can retry with a smaller list on the same encoder. A rejected call may consume its input iterator, so pass a fresh iterator when retrying.
