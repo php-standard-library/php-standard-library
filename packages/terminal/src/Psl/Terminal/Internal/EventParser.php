@@ -28,6 +28,12 @@ final class EventParser
     private bool $inPaste = false;
     private string $pasteBuffer = '';
 
+    /**
+     * Whether the buffer held an incomplete UTF-8 character at the last
+     * {@see flushPending()} call, with no input fed since.
+     */
+    private bool $incompleteCharacterFlushed = false;
+
     private const string PASTE_START = "\e[200~";
     private const string PASTE_END = "\e[201~";
     private const int PASTE_START_LEN = 6;
@@ -40,6 +46,10 @@ final class EventParser
      * ambiguous input. A lone ESC byte that hasn't been completed by
      * subsequent bytes will be emitted as an Escape key event.
      *
+     * A UTF-8 character can be split across two reads, so its leading bytes
+     * are kept through one flush; they are discarded by the next flush if
+     * no input arrived in between.
+     *
      * @return list<Event\Key>
      */
     public function flushPending(): array
@@ -47,6 +57,19 @@ final class EventParser
         if ($this->buffer === "\e") {
             $this->buffer = '';
             return [Event\Key::named('escape')];
+        }
+
+        // feed() only leaves a buffer starting with a non-ASCII byte behind when it
+        // holds the valid prefix of a UTF-8 character still waiting for its remaining bytes.
+        if ($this->buffer !== '' && ord($this->buffer[0]) >= 0x80) {
+            if (!$this->incompleteCharacterFlushed) {
+                $this->incompleteCharacterFlushed = true;
+
+                return [];
+            }
+
+            $this->buffer = '';
+            $this->incompleteCharacterFlushed = false;
         }
 
         return [];
@@ -59,6 +82,7 @@ final class EventParser
      */
     public function feed(string $data): array
     {
+        $this->incompleteCharacterFlushed = false;
         $this->buffer .= $data;
         $events = [];
 
@@ -124,8 +148,12 @@ final class EventParser
     private function parseSingleByte(): Event\Key|null|false
     {
         $byte = $this->buffer[0];
-        $this->buffer = substr($this->buffer, 1);
         $ord = ord($byte);
+        if ($ord >= 0x80) {
+            return $this->parseUtf8();
+        }
+
+        $this->buffer = substr($this->buffer, 1);
 
         return match (true) {
             $ord === 0x0D => Event\Key::named('enter'),
@@ -133,8 +161,7 @@ final class EventParser
             $ord === 0x7F, $ord === 0x08 => Event\Key::named('backspace'),
             $ord >= 0x01 && $ord <= 0x1A => self::controlCharKey($ord),
             $ord === 0x00 => Event\Key::named('ctrl+space'),
-            $ord >= 0x20 && $ord <= 0x7E => Event\Key::char($byte),
-            $ord >= 0xC0 => $this->parseUtf8($byte),
+            $ord >= 0x20 => Event\Key::char($byte),
             default => null,
         };
     }
@@ -146,27 +173,31 @@ final class EventParser
     }
 
     /**
-     * @return Event\Key|false false if the rest of the character has not been received yet
+     * Decode the UTF-8 character at the start of the buffer.
+     *
+     * Ill-formed bytes (see {@see Utf8Sequence::measure()}) are dropped. The
+     * byte that ended an ill-formed sequence is left in the buffer to be
+     * parsed on its own, so a key or escape sequence following a broken
+     * character is never swallowed.
+     *
+     * @return Event\Key|null|false null if ill-formed bytes were dropped, false if the rest of the character has not been received yet
      */
-    private function parseUtf8(string $firstByte): Event\Key|false
+    private function parseUtf8(): Event\Key|null|false
     {
-        $ord = ord($firstByte);
-        $needed = match (true) {
-            ($ord & 0xE0) === 0xC0 => 1,
-            ($ord & 0xF0) === 0xE0 => 2,
-            ($ord & 0xF8) === 0xF0 => 3,
-            default => 0,
-        };
-
-        if (strlen($this->buffer) < $needed) {
-            $this->buffer = $firstByte . $this->buffer;
+        $buffer = $this->buffer;
+        $length = Utf8Sequence::measure($buffer);
+        if ($length === 0) {
             return false;
         }
 
-        $char = $firstByte . substr($this->buffer, 0, $needed);
-        $this->buffer = substr($this->buffer, $needed);
+        if ($length < 0) {
+            $this->buffer = substr($buffer, -$length);
+            return null;
+        }
 
-        return Event\Key::char($char);
+        $this->buffer = substr($buffer, $length);
+
+        return Event\Key::char(substr($buffer, 0, $length));
     }
 
     /**

@@ -134,6 +134,117 @@ final class EventParserAdditionalTest extends TestCase
         static::assertSame("\xE2\x9C\x93", $events[0]->char);
     }
 
+    public function testUtf8LeadByteDoesNotSwallowFollowingAscii(): void
+    {
+        $events = $this->parser->feed("\xC3a");
+
+        static::assertCount(1, $events);
+        static::assertSame('a', $events[0]->char);
+    }
+
+    public function testUtf8LeadByteDoesNotSwallowFollowingEscapeSequence(): void
+    {
+        $events = $this->parser->feed("\xC3\e[A");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('up'));
+    }
+
+    public function testUtf8TruncatedThreeByteCharacterDoesNotWaitForMoreInput(): void
+    {
+        $events = $this->parser->feed("\xE2a");
+
+        static::assertCount(1, $events);
+        static::assertSame('a', $events[0]->char);
+
+        $events = $this->parser->feed("\xE2\x9Cb");
+
+        static::assertCount(1, $events);
+        static::assertSame('b', $events[0]->char);
+    }
+
+    public function testUtf8LeadByteFollowedByAnotherCharacter(): void
+    {
+        $events = $this->parser->feed("\xC3\xC3\xA9");
+
+        static::assertCount(1, $events);
+        static::assertSame("\xC3\xA9", $events[0]->char);
+    }
+
+    public function testUtf8InvalidLeadBytesAreDropped(): void
+    {
+        static::assertSame([], $this->parser->feed("\xC0\xAF"));
+        static::assertSame([], $this->parser->feed("\xC1\xBF"));
+        static::assertSame([], $this->parser->feed("\xF5\x80\x80\x80"));
+        static::assertSame([], $this->parser->feed("\xFF"));
+
+        $events = $this->parser->feed("\xF8a");
+
+        static::assertCount(1, $events);
+        static::assertSame('a', $events[0]->char);
+    }
+
+    public function testUtf8OverlongAndSurrogateSequencesAreDropped(): void
+    {
+        static::assertSame([], $this->parser->feed("\xE0\x80\x80"));
+        static::assertSame([], $this->parser->feed("\xED\xA0\x80"));
+        static::assertSame([], $this->parser->feed("\xF0\x80\x80\x80"));
+        static::assertSame([], $this->parser->feed("\xF4\x90\x80\x80"));
+    }
+
+    public function testUtf8BoundaryCharactersAreAccepted(): void
+    {
+        $events = $this->parser->feed("\xC2\x80\xE0\xA0\x80\xED\x9F\xBF\xF0\x90\x80\x80\xF4\x8F\xBF\xBF");
+
+        static::assertCount(5, $events);
+        static::assertSame("\xC2\x80", $events[0]->char);
+        static::assertSame("\xE0\xA0\x80", $events[1]->char);
+        static::assertSame("\xED\x9F\xBF", $events[2]->char);
+        static::assertSame("\xF0\x90\x80\x80", $events[3]->char);
+        static::assertSame("\xF4\x8F\xBF\xBF", $events[4]->char);
+    }
+
+    public function testFlushPendingKeepsUtf8CharacterSplitAcrossReads(): void
+    {
+        static::assertSame([], $this->parser->feed("\xC3"));
+        static::assertSame([], $this->parser->flushPending());
+
+        $events = $this->parser->feed("\xA9");
+
+        static::assertCount(1, $events);
+        static::assertSame('é', $events[0]->char);
+
+        static::assertSame([], $this->parser->feed("\xF0\x9F"));
+        static::assertSame([], $this->parser->flushPending());
+        static::assertSame([], $this->parser->feed("\x98"));
+        static::assertSame([], $this->parser->flushPending());
+
+        $events = $this->parser->feed("\x80");
+
+        static::assertCount(1, $events);
+        static::assertSame("\u{1F600}", $events[0]->char);
+    }
+
+    public function testFlushPendingDiscardsStaleIncompleteUtf8Character(): void
+    {
+        static::assertSame([], $this->parser->feed("\xC3"));
+        static::assertSame([], $this->parser->flushPending());
+        static::assertSame([], $this->parser->flushPending());
+
+        // The lead byte is gone, so a late continuation byte is a stray byte on its own.
+        static::assertSame([], $this->parser->feed("\xA9"));
+
+        static::assertSame([], $this->parser->feed("\xF0\x9F\x98"));
+        static::assertSame([], $this->parser->flushPending());
+        static::assertSame([], $this->parser->flushPending());
+
+        $events = $this->parser->feed("\x80a");
+
+        static::assertCount(1, $events);
+        static::assertSame('a', $events[0]->char);
+    }
+
     public function testAltPlusLetter(): void
     {
         $events = $this->parser->feed("\ea");
