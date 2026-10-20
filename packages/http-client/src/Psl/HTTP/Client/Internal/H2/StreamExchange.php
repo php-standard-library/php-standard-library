@@ -7,7 +7,6 @@ namespace Psl\HTTP\Client\Internal\H2;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\H2\ClientConnectionInterface;
-use Psl\H2\ErrorCode;
 use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\ExceptionInterface;
 use Psl\H2\Exception\StreamException;
@@ -105,7 +104,7 @@ final class StreamExchange
             );
         }
 
-        $session->acquireStream();
+        $session->acquireStream($cancellation);
 
         if ($session->isClosed()) {
             $session->releaseStream();
@@ -141,18 +140,32 @@ final class StreamExchange
             throw $e;
         }
 
+        $requestReadError = null;
         try {
-            $connection->sendHeaders($streamId, $headers, $request->body === null);
+            $connection->sendHeaders($streamId, $headers, $request->body === null, $cancellation);
             $headersSent = true;
 
             if ($request->body !== null) {
-                self::sendBody($connection, $streamId, $request->body, $request->trailers === null);
+                self::sendBody(
+                    $connection,
+                    $streamId,
+                    $request->body,
+                    $cancellation,
+                    $requestReadError,
+                    $request->trailers === null,
+                );
 
                 if ($request->trailers !== null) {
-                    $trailerFields = $request->trailers->await();
+                    try {
+                        $trailerFields = $request->trailers->await($cancellation);
+                    } catch (IO\Exception\RuntimeException $e) {
+                        $requestReadError = $e;
+                        throw $e;
+                    }
+
                     $trailerHeaders = self::filterHeaders($trailerFields, $request->headers);
 
-                    $connection->sendHeaders($streamId, $trailerHeaders, true);
+                    $connection->sendHeaders($streamId, $trailerHeaders, true, $cancellation);
                 }
             }
 
@@ -186,29 +199,32 @@ final class StreamExchange
                 ),
             );
         } catch (CancelledException|StreamException $e) {
-            $multiplexer->unregister($streamId);
             if (
-                $e instanceof StreamException
-                && $headersSent
+                $headersSent
                 && in_array(
                     $connection->getStreamState($streamId),
-                    [StreamState::Open, StreamState::HalfClosedRemote],
+                    $e instanceof StreamException
+                        ? [StreamState::Open, StreamState::HalfClosedRemote]
+                        : [StreamState::Open, StreamState::HalfClosedRemote, StreamState::HalfClosedLocal],
                     true,
                 )
             ) {
-                try {
-                    $connection->resetStream($streamId, ErrorCode::Cancel);
-                } catch (ExceptionInterface|IO\Exception\RuntimeException) {
-                    $session->markClosed();
-                }
+                $multiplexer->cancel($streamId);
+            } else {
+                $multiplexer->unregister($streamId);
             }
 
             throw $e;
         } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
-            $multiplexer->unregister($streamId);
+            if ($headersSent) {
+                $multiplexer->cancel($streamId);
+            } else {
+                $multiplexer->unregister($streamId);
+            }
+
             if (
                 $e instanceof ConnectionException
-                || $e instanceof IO\Exception\RuntimeException
+                || $e instanceof IO\Exception\RuntimeException && $e !== $requestReadError
                 || $headersSent && $e instanceof ExceptionInterface
             ) {
                 $session->markClosed();
@@ -264,32 +280,46 @@ final class StreamExchange
      * @param ClientConnectionInterface $connection The H2 connection to send DATA frames on.
      * @param positive-int $streamId The stream ID to send data on.
      * @param IO\ReadHandleInterface $body The request body to read from.
+     * @param-out null|IO\Exception\RuntimeException $requestReadError
      * @param bool $endStreamOnFinish Whether to set END_STREAM on the last DATA frame. False when trailers will follow.
      */
     private static function sendBody(
         ClientConnectionInterface $connection,
         int $streamId,
         IO\ReadHandleInterface $body,
+        CancellationTokenInterface $cancellation,
+        null|IO\Exception\RuntimeException &$requestReadError,
         bool $endStreamOnFinish = true,
     ): void {
         $sentEndStream = false;
 
-        while (!$body->reachedEndOfDataSource()) {
-            $chunk = $body->read(16_384);
-            if ($chunk === '') {
-                break;
+        while (true) {
+            try {
+                if ($body->reachedEndOfDataSource()) {
+                    break;
+                }
+
+                $cancellation->throwIfCancelled();
+                $chunk = $body->read(16_384, $cancellation);
+                if ($chunk === '') {
+                    break;
+                }
+
+                $isLast = $body->reachedEndOfDataSource();
+            } catch (IO\Exception\RuntimeException $e) {
+                $requestReadError = $e;
+                throw $e;
             }
 
-            $isLast = $body->reachedEndOfDataSource();
             $endStream = $endStreamOnFinish && $isLast;
-            $connection->sendAllData($streamId, $chunk, $endStream);
+            $connection->sendAllData($streamId, $chunk, $endStream, $cancellation);
             if ($endStream) {
                 $sentEndStream = true;
             }
         }
 
         if ($endStreamOnFinish && !$sentEndStream) {
-            $connection->sendData($streamId, '', endStream: true);
+            $connection->sendData($streamId, '', endStream: true, cancellation: $cancellation);
         }
     }
 }

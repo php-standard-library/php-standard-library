@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Internal\H2;
 
+use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Deferred;
+use Psl\Async\NullCancellationToken;
 use Psl\H2\ClientConnection;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\Configuration;
@@ -11,10 +14,10 @@ use Psl\H2\Setting;
 use Psl\HTTP\Client\Exception\RuntimeException;
 use Psl\HTTP\Client\H2ClientConfiguration;
 use Psl\IO;
-use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
 
+use function array_filter;
 use function array_shift;
+use function array_values;
 
 use const PHP_INT_MAX;
 
@@ -49,7 +52,7 @@ final class H2Session
     private int $maxConcurrentStreams = PHP_INT_MAX;
 
     /**
-     * @var list<Suspension>
+     * @var list<Deferred<null>>
      */
     private array $streamWaiters = [];
 
@@ -95,8 +98,9 @@ final class H2Session
      *
      * @throws RuntimeException If the session has been closed (e.g., due to GOAWAY).
      */
-    public function acquireStream(): void
+    public function acquireStream(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
+        $cancellation->throwIfCancelled();
         if ($this->closed) {
             throw new RuntimeException('HTTP/2 connection is closed.');
         }
@@ -104,11 +108,21 @@ final class H2Session
         $this->multiplexer->start();
 
         while ($this->activeStreams >= $this->maxConcurrentStreams) {
-            $suspension = EventLoop::getSuspension();
-            $this->streamWaiters[] = $suspension;
-            $suspension->suspend();
+            /** @var Deferred<null> $waiter */
+            $waiter = new Deferred();
+            $this->streamWaiters[] = $waiter;
+            $this->multiplexer->start();
+            try {
+                $waiter->getAwaitable()->await($cancellation);
+            } finally {
+                $this->streamWaiters = array_values(array_filter(
+                    $this->streamWaiters,
+                    static fn(Deferred $pending): bool => $pending !== $waiter,
+                ));
+                $this->multiplexer->stopIfIdle();
+            }
 
-            if ($this->closed) {
+            if ($this->isClosed()) {
                 throw new RuntimeException('HTTP/2 connection is closed.');
             }
         }
@@ -125,7 +139,7 @@ final class H2Session
         $waiters = $this->streamWaiters;
         $this->streamWaiters = [];
         foreach ($waiters as $waiter) {
-            $waiter->resume();
+            $waiter->complete(null);
         }
     }
 
@@ -147,7 +161,7 @@ final class H2Session
         }
 
         $waiter = array_shift($this->streamWaiters);
-        $waiter?->resume();
+        $waiter?->complete(null);
     }
 
     /**
@@ -165,7 +179,7 @@ final class H2Session
         $waiters = $this->streamWaiters;
         $this->streamWaiters = [];
         foreach ($waiters as $waiter) {
-            $waiter->resume();
+            $waiter->complete(null);
         }
     }
 

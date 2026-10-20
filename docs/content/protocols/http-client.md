@@ -213,6 +213,8 @@ HTTP/2 obeys the peer's SETTINGS_MAX_CONCURRENT_STREAMS limit. A stream holds it
 
 HTTP/2 checks `maxResponseBodySize` as DATA frames arrive and cancels a stream that exceeds it, even if its body is unread. The same limit bounds each stream's buffer. Flow-control windows still update on receipt because the h2 API cannot defer updates until reads.
 
+Cancellation interrupts stream-slot waits and uploads, including stalled flow-control windows. Cancelling a request or closing its response body early sends RST_STREAM(CANCEL) and frees its stream slot. A request waiting for a pooled connection can cancel its own wait without cancelling the shared connection attempt.
+
 ## Pool Release and Finalize
 
 For HTTP/1.x keep-alive connections, the pooled connection is not released until the response body is fully consumed. The response body handle defers the pool release until EOF or close. This prevents a second request from reusing a connection while the first response body is still being read.

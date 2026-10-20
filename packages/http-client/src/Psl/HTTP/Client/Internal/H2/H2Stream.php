@@ -300,6 +300,7 @@ final class H2Stream
         null|int $maxBytes = null,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): string {
+        $cancellation->throwIfCancelled();
         $this->throwIfErrored();
 
         if ($this->bodyBuffer !== '') {
@@ -315,10 +316,11 @@ final class H2Stream
 
         $id = null;
         if ($cancellation->cancellable) {
-            $id = $cancellation->subscribe(static function (Async\Exception\CancelledException $e) use (
-                $suspension,
-            ): void {
-                $suspension->throw($e);
+            $id = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use ($suspension): void {
+                if ($this->bodyWaiter !== null) {
+                    $this->bodyWaiter = null;
+                    $suspension->throw($e);
+                }
             });
         }
 

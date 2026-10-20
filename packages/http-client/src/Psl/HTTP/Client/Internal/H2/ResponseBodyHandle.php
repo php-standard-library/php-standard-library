@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\HTTP\Client\Internal\H2;
 
 use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\HTTP\Message\FieldMap;
 use Psl\IO;
@@ -120,7 +121,11 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
         $this->throwIfErrored();
 
         try {
+            $cancellation->throwIfCancelled();
             $data = $this->stream->readBody($maxBytes, $cancellation);
+        } catch (CancelledException $e) {
+            $this->close();
+            throw $e;
         } catch (Throwable $e) {
             $this->setError($e);
             $this->throwIfErrored();
@@ -163,7 +168,7 @@ final class ResponseBodyHandle implements IO\ReadHandleInterface, IO\CloseHandle
     {
         if (!$this->closed) {
             $this->closed = true;
-            $this->multiplexer->unregister($this->streamId);
+            $this->multiplexer->cancel($this->streamId);
         }
     }
 

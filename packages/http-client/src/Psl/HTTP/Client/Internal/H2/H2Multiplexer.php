@@ -10,10 +10,12 @@ use Psl\Async\SignalCancellationToken;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event;
+use Psl\H2\Exception\ExceptionInterface;
 use Psl\H2\Exception\StreamException;
 use Psl\H2\Setting;
 use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Client\Exception\RuntimeException;
+use Psl\IO;
 
 /**
  * Background frame reader and per-stream event dispatcher for HTTP/2 connections.
@@ -121,6 +123,11 @@ final class H2Multiplexer
         unset($this->streams[$streamId]);
         $this->session->releaseStream();
 
+        $this->stopIfIdle();
+    }
+
+    public function stopIfIdle(): void
+    {
         if ($this->streams === [] && !$this->session->hasStreamWaiters() && $this->fiberRunning) {
             $this->fiberRunning = false;
             $this->fiberCancellation->cancel();
@@ -141,6 +148,8 @@ final class H2Multiplexer
 
         try {
             $this->connection->resetStream($streamId, ErrorCode::Cancel);
+        } catch (ExceptionInterface|IO\Exception\RuntimeException) {
+            $this->session->markClosed();
         } finally {
             $this->unregister($streamId);
         }

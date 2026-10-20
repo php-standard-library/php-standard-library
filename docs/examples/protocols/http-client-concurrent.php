@@ -10,6 +10,7 @@ use Psl\HTTP\Message;
 use Psl\URL;
 
 // HTTP/2 queues requests at the peer limit until an active stream closes.
+// Cancellation interrupts these waits; close an unread body to cancel its stream.
 
 $client = new Client\Client();
 

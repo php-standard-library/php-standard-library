@@ -294,7 +294,7 @@ final class PooledConnector implements ConnectorInterface
         }
 
         if (array_key_exists($key, $this->pendingConnections)) {
-            [$session, $metadata] = $this->pendingConnections[$key]->await();
+            [$session, $metadata] = $this->pendingConnections[$key]->await($cancellation);
             return new H2Connection($session, $metadata, $this->h2Reconnect(...));
         }
 
