@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\Collection;
 use Psl\Dict;
 use Psl\Vec;
+use stdClass;
 
 final class CountValuesTest extends TestCase
 {
@@ -38,5 +39,26 @@ final class CountValuesTest extends TestCase
                 Vec\concat(['foo', 'bar', 'baz'], ['foo'], ['baz'], ['baz', 'baz']),
             ],
         ];
+    }
+
+    public function testCountValuesOfIterableWithRepeatedKeys(): void
+    {
+        $values = (static function (): iterable {
+            yield from ['a', 'b'];
+            yield from ['a', 'a'];
+        })();
+
+        static::assertSame(['a' => 3, 'b' => 1], Dict\count_values($values));
+    }
+
+    public function testCountValuesOfIterableWithNonArrayKeys(): void
+    {
+        $values = (static function (): iterable {
+            yield new stdClass() => 'a';
+            yield 1.5 => 'b';
+            yield 1.7 => 'a';
+        })();
+
+        static::assertSame(['a' => 2, 'b' => 1], Dict\count_values($values));
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Psl\Dict;
 
 use function array_count_values;
-use function array_values;
 use function is_array;
 use function iterator_to_array;
 
@@ -24,7 +23,8 @@ use function iterator_to_array;
 function count_values(iterable $values): array
 {
     if (!is_array($values)) {
-        $values = array_values(iterator_to_array($values));
+        // The keys are not used: preserving them would drop the values of repeated keys.
+        $values = iterator_to_array($values, preserve_keys: false);
     }
 
     return array_count_values($values);
