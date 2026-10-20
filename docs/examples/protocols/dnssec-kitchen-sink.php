@@ -95,7 +95,7 @@ $searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.interna
 // 8. Check the hosts file before any network query
 $hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
 
-// 9. Cache everything on top
+// 9. Cache positive and negative answers with a positive TTL
 $resolver = new DNS\CachedResolver($hostsAware, $cache);
 
 // 10. Profit!

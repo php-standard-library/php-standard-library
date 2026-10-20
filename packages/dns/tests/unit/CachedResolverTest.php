@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\DNS\Tests\Unit;
 
 use Closure;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
@@ -16,9 +17,11 @@ use Psl\DateTime\Duration;
 use Psl\DNS\CachedResolver;
 use Psl\DNS\EDNS;
 use Psl\DNS\Record\ARecord;
+use Psl\DNS\Record\CNAMERecord;
 use Psl\DNS\Record\NSRecord;
 use Psl\DNS\Record\PTRRecord;
 use Psl\DNS\Record\RecordType;
+use Psl\DNS\Record\SOARecord;
 use Psl\DNS\ResolverInterface;
 use Psl\DNS\Response;
 use Psl\DNS\ResponseCode;
@@ -117,7 +120,7 @@ final class CachedResolverTest extends TestCase
         $resolver->query('fail.example.com', RecordType::A);
         $resolver->query('fail.example.com', RecordType::A);
 
-        static::assertSame(1, $callCount);
+        static::assertSame(2, $callCount);
     }
 
     public function testNoErrorResponseIsCachedWithTtl(): void
@@ -157,7 +160,7 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(120), 'ns1.example.com'),
+                    self::soa('example.com', Duration::seconds(120), Duration::seconds(120)),
                 ],
                 [],
             );
@@ -174,7 +177,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(ResponseCode::NonExistentDomain, $r2->code);
     }
 
-    public function testZeroTtlRecordDoesNotTriggerCacheUpdate(): void
+    public function testZeroTtlRecordIsNotCached(): void
     {
         $callCount = 0;
         $inner = self::countingResolver(static function () use (&$callCount): Response {
@@ -194,8 +197,9 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $cache);
 
         $resolver->query('example.com', RecordType::A);
+        $resolver->query('example.com', RecordType::A);
 
-        static::assertSame(1, $callCount);
+        static::assertSame(2, $callCount);
     }
 
     public function testBuildKeyCaseInsensitive(): void
@@ -284,7 +288,7 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(60), 'ns1.example.com'),
+                    self::soa('example.com', Duration::seconds(60), Duration::seconds(60)),
                 ],
                 [],
             );
@@ -497,8 +501,8 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(120), 'ns1.example.com'),
-                    new NSRecord('example.com', Duration::seconds(60), 'ns2.example.com'),
+                    self::soa('example.com', Duration::seconds(120), Duration::seconds(120)),
+                    self::soa('example.com', Duration::seconds(60), Duration::seconds(60)),
                 ],
                 [],
             );
@@ -593,7 +597,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(2, $callCount);
     }
 
-    public function testNxdomainWithNoRecordsStillCaches(): void
+    public function testNxdomainWithoutSoaIsNotCached(): void
     {
         $callCount = 0;
         $inner = self::countingResolver(static function () use (&$callCount): Response {
@@ -607,7 +611,7 @@ final class CachedResolverTest extends TestCase
         $r1 = $resolver->query('nx.example.com', RecordType::A);
         $r2 = $resolver->query('nx.example.com', RecordType::A);
 
-        static::assertSame(1, $callCount);
+        static::assertSame(2, $callCount);
         static::assertSame(ResponseCode::NonExistentDomain, $r1->code);
         static::assertSame(ResponseCode::NonExistentDomain, $r2->code);
     }
@@ -653,7 +657,7 @@ final class CachedResolverTest extends TestCase
                 0,
                 ResponseCode::NonExistentDomain,
                 [],
-                [new NSRecord('example.com', Duration::seconds(300), 'ns1.example.com')],
+                [self::soa('example.com', Duration::seconds(300), Duration::seconds(300))],
                 [],
             );
         });
@@ -670,7 +674,7 @@ final class CachedResolverTest extends TestCase
         static::assertCount(1, $r1->authority);
     }
 
-    public function testExtractMinTtlDefaultIs60WhenNoRecords(): void
+    public function testNodataWithoutSoaIsNotStored(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -680,11 +684,10 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $store);
         $resolver->query('empty.example.com', RecordType::A);
 
-        static::assertCount(1, $updateCalls);
-        static::assertSame(60, (int) $updateCalls[0]['ttl']->getTotalSeconds());
+        static::assertCount(0, $updateCalls);
     }
 
-    public function testExtractMinTtlDefaultValueIsNotLessThan60(): void
+    public function testNodataWithoutSoaDoesNotUseDefaultTtl(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -694,12 +697,10 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $store);
         $resolver->query('empty.example.com', RecordType::A);
 
-        static::assertCount(1, $updateCalls);
-        static::assertGreaterThanOrEqual(60, (int) $updateCalls[0]['ttl']->getTotalSeconds());
-        static::assertLessThanOrEqual(60, (int) $updateCalls[0]['ttl']->getTotalSeconds());
+        static::assertCount(0, $updateCalls);
     }
 
-    public function testExtractMinTtlDefaultValueIsNotGreaterThan60(): void
+    public function testNxdomainWithoutSoaDoesNotUseDefaultTtl(): void
     {
         $updateCalls = [];
         $store = self::createTrackingUpdateCacheStore($updateCalls);
@@ -711,8 +712,7 @@ final class CachedResolverTest extends TestCase
         $resolver = new CachedResolver($inner, $store);
         $resolver->query('nx.example.com', RecordType::A);
 
-        static::assertCount(1, $updateCalls);
-        static::assertSame(60, (int) $updateCalls[0]['ttl']->getTotalSeconds());
+        static::assertCount(0, $updateCalls);
     }
 
     public function testAuthorityTtlIsUsedWhenNoAnswersPresent(): void
@@ -726,8 +726,8 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(45), 'ns1.example.com'),
-                    new NSRecord('example.com', Duration::seconds(90), 'ns2.example.com'),
+                    self::soa('example.com', Duration::seconds(45), Duration::seconds(45)),
+                    self::soa('example.com', Duration::seconds(90), Duration::seconds(90)),
                 ],
                 [],
             ),
@@ -751,7 +751,7 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(200), 'ns1.example.com'),
+                    self::soa('example.com', Duration::seconds(200), Duration::seconds(200)),
                 ],
                 [],
             ),
@@ -801,9 +801,9 @@ final class CachedResolverTest extends TestCase
                 ResponseCode::NonExistentDomain,
                 [],
                 [
-                    new NSRecord('example.com', Duration::seconds(500), 'ns1.example.com'),
-                    new NSRecord('example.com', Duration::seconds(120), 'ns2.example.com'),
-                    new NSRecord('example.com', Duration::seconds(300), 'ns3.example.com'),
+                    self::soa('example.com', Duration::seconds(500), Duration::seconds(500)),
+                    self::soa('example.com', Duration::seconds(120), Duration::seconds(120)),
+                    self::soa('example.com', Duration::seconds(300), Duration::seconds(300)),
                 ],
                 [],
             ),
@@ -849,7 +849,7 @@ final class CachedResolverTest extends TestCase
                 0,
                 ResponseCode::NonExistentDomain,
                 [],
-                [new NSRecord('example.com', Duration::seconds(60), 'ns1.example.com')],
+                [self::soa('example.com', Duration::seconds(60), Duration::seconds(60))],
                 [],
             );
         });
@@ -940,7 +940,7 @@ final class CachedResolverTest extends TestCase
                 0,
                 ResponseCode::NonExistentDomain,
                 [],
-                [new NSRecord('example.com', Duration::seconds(180), 'ns1.example.com')],
+                [self::soa('example.com', Duration::seconds(180), Duration::seconds(180))],
                 [],
             ),
         );
@@ -983,7 +983,7 @@ final class CachedResolverTest extends TestCase
                 0,
                 ResponseCode::NonExistentDomain,
                 [],
-                [new NSRecord('example.com', Duration::zero(), 'ns1.example.com')],
+                [self::soa('example.com', Duration::zero(), Duration::zero())],
                 [],
             ),
         );
@@ -1147,7 +1147,7 @@ final class CachedResolverTest extends TestCase
         static::assertSame(100, (int) $updateCalls[0]['ttl']->getTotalSeconds());
     }
 
-    public function testComputeCalledWith24HourTtl(): void
+    public function testComputeUsesZeroTtlUntilResponseIsKnown(): void
     {
         $computeTtls = [];
         $store = self::createComputeTrackingCacheStore($computeTtls);
@@ -1167,10 +1167,10 @@ final class CachedResolverTest extends TestCase
 
         static::assertCount(1, $computeTtls);
         static::assertNotNull($computeTtls[0]);
-        static::assertSame(86_400, (int) $computeTtls[0]->getTotalSeconds());
+        static::assertSame(0, (int) $computeTtls[0]->getTotalSeconds());
     }
 
-    public function testComputeFallbackTtlIsExactly24Hours(): void
+    public function testFailureComputeUsesZeroTtl(): void
     {
         $computeTtls = [];
         $store = self::createComputeTrackingCacheStore($computeTtls);
@@ -1184,10 +1184,10 @@ final class CachedResolverTest extends TestCase
 
         static::assertCount(1, $computeTtls);
         static::assertNotNull($computeTtls[0]);
-        static::assertSame(24 * 3600, (int) $computeTtls[0]->getTotalSeconds());
+        static::assertSame(0, (int) $computeTtls[0]->getTotalSeconds());
     }
 
-    public function testComputeTtlIs24HoursNotMoreOrLess(): void
+    public function testComputeDoesNotExposeUnboundedResponse(): void
     {
         $computeTtls = [];
         $store = self::createComputeTrackingCacheStore($computeTtls);
@@ -1207,8 +1207,8 @@ final class CachedResolverTest extends TestCase
 
         static::assertCount(1, $computeTtls);
         static::assertNotNull($computeTtls[0]);
-        static::assertGreaterThanOrEqual(86_400, (int) $computeTtls[0]->getTotalSeconds());
-        static::assertLessThanOrEqual(86_400, (int) $computeTtls[0]->getTotalSeconds());
+        static::assertGreaterThanOrEqual(0, (int) $computeTtls[0]->getTotalSeconds());
+        static::assertLessThanOrEqual(0, (int) $computeTtls[0]->getTotalSeconds());
     }
 
     public function testUpdateIsCalledWhenTtlValueIsNotNull(): void
@@ -1297,7 +1297,7 @@ final class CachedResolverTest extends TestCase
                 0,
                 ResponseCode::NonExistentDomain,
                 [],
-                [new NSRecord('test', Duration::seconds(60), 'ns1.test')],
+                [self::soa('test', Duration::seconds(60), Duration::seconds(60))],
                 [],
             ),
         );
@@ -1375,6 +1375,152 @@ final class CachedResolverTest extends TestCase
         $resolver->query('notimp.example.com', RecordType::A);
 
         static::assertCount(0, $updateCalls);
+    }
+
+    public function testConcurrentQueriesReusePositiveResponse(): void
+    {
+        $calls = 0;
+        $inner = self::countingResolver(static function () use (&$calls): Response {
+            $calls++;
+            Async\sleep(Duration::milliseconds(10));
+            return new Response(
+                0,
+                ResponseCode::NoError,
+                [new ARecord('example.com', Duration::seconds(300), Address::v4('10.0.0.1'))],
+                [],
+                [],
+            );
+        });
+        $resolver = new CachedResolver($inner, new LocalStore());
+
+        [$first, $second] = Async\concurrently([
+            static fn(): Response => $resolver->query('example.com', RecordType::A),
+            static fn(): Response => $resolver->query('example.com', RecordType::A),
+        ]);
+
+        static::assertSame(1, $calls);
+        static::assertSame($first, $second);
+    }
+
+    /** @return iterable<string, array{ResponseCode}> */
+    public static function failureCodes(): iterable
+    {
+        yield 'SERVFAIL' => [ResponseCode::ServerFailure];
+        yield 'REFUSED' => [ResponseCode::ServerRefused];
+        yield 'FORMERR' => [ResponseCode::FormatError];
+        yield 'NOTIMP' => [ResponseCode::NotImplemented];
+    }
+
+    #[DataProvider('failureCodes')]
+    public function testFailuresAreNotReused(ResponseCode $code): void
+    {
+        $calls = 0;
+        $inner = self::countingResolver(static function () use (&$calls, $code): Response {
+            $calls++;
+            return new Response(0, $code, [], [], []);
+        });
+        $resolver = new CachedResolver($inner, new LocalStore());
+
+        $resolver->query('example.com', RecordType::A);
+        $resolver->query('example.com', RecordType::A);
+
+        static::assertSame(2, $calls);
+    }
+
+    /** @return iterable<string, array{ResponseCode, int, int, bool, int}> */
+    public static function negativeTtls(): iterable
+    {
+        yield 'NXDOMAIN SOA MINIMUM' => [ResponseCode::NonExistentDomain, 300, 30, false, 30];
+        yield 'NXDOMAIN SOA TTL' => [ResponseCode::NonExistentDomain, 30, 300, false, 30];
+        yield 'NODATA SOA MINIMUM' => [ResponseCode::NoError, 300, 30, false, 30];
+        yield 'NODATA SOA TTL' => [ResponseCode::NoError, 30, 300, false, 30];
+        yield 'CNAME NODATA' => [ResponseCode::NoError, 300, 30, true, 30];
+        yield 'CNAME NXDOMAIN' => [ResponseCode::NonExistentDomain, 300, 30, true, 30];
+        yield 'CNAME TTL' => [ResponseCode::NonExistentDomain, 300, 300, true, 60];
+        yield 'zero MINIMUM' => [ResponseCode::NonExistentDomain, 300, 0, false, 0];
+        yield 'zero SOA TTL' => [ResponseCode::NoError, 0, 300, false, 0];
+    }
+
+    #[DataProvider('negativeTtls')]
+    public function testNegativeTtlUsesSoa(
+        ResponseCode $code,
+        int $soaTtl,
+        int $minimum,
+        bool $withCname,
+        int $expected,
+    ): void {
+        $updates = [];
+        $store = self::createTrackingUpdateCacheStore($updates);
+        $response = new Response(
+            0,
+            $code,
+            $withCname ? [new CNAMERecord('example.com', Duration::seconds(60), 'missing.example.com')] : [],
+            [self::soa('example.com', Duration::seconds($soaTtl), Duration::seconds($minimum))],
+            [],
+        );
+        $resolver = new CachedResolver(self::countingResolver(static fn(): Response => $response), $store);
+
+        $resolver->query('example.com', RecordType::A);
+
+        static::assertCount($expected === 0 ? 0 : 1, $updates);
+        if ($expected > 0) {
+            static::assertSame($expected, (int) $updates[0]['ttl']->getTotalSeconds());
+        }
+    }
+
+    public function testCookiesAndPaddingDoNotSplitCacheEntries(): void
+    {
+        $calls = 0;
+        $inner = self::countingResolver(static function () use (&$calls): Response {
+            $calls++;
+            return new Response(
+                0,
+                ResponseCode::NoError,
+                [new ARecord('example.com', Duration::seconds(300), Address::v4('10.0.0.1'))],
+                [],
+                [],
+            );
+        });
+        $resolver = new CachedResolver($inner, new LocalStore());
+        $ecs = new EDNS\ECSOption(Address::v4('192.0.2.0'), 24, 0);
+
+        $resolver->query('example.com', RecordType::A, ednsOptions: [new EDNS\CookieOption('aaaaaaaa'), $ecs]);
+        $resolver->query('example.com', RecordType::A, ednsOptions: [
+            $ecs,
+            new EDNS\CookieOption('bbbbbbbb'),
+            new EDNS\PaddingOption(128),
+        ]);
+        $resolver->query('example.com', RecordType::A, ednsOptions: [$ecs]);
+        static::assertSame(1, $calls);
+
+        $resolver->query('example.com', RecordType::A, ednsOptions: [
+            new EDNS\CookieOption('cccccccc'),
+            new EDNS\PaddingOption(32),
+        ]);
+        $resolver->query('example.com', RecordType::A);
+        static::assertSame(2, $calls);
+
+        $resolver->query('example.com', RecordType::A, ednsOptions: [new EDNS\ECSOption(
+            Address::v4('198.51.100.0'),
+            24,
+            0,
+        )]);
+        static::assertSame(3, $calls);
+    }
+
+    private static function soa(string $name, Duration $ttl, Duration $minimum): SOARecord
+    {
+        return new SOARecord(
+            $name,
+            $ttl,
+            'ns1.' . $name,
+            'hostmaster.' . $name,
+            1,
+            Duration::hours(1),
+            Duration::minutes(5),
+            Duration::hours(24),
+            $minimum,
+        );
     }
 
     /**

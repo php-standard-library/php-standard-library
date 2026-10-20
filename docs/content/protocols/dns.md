@@ -32,7 +32,9 @@ Over 20 DNS record types are supported. Responses provide typed access via `getA
 
 ## Caching
 
-`CachedResolver` wraps any resolver with TTL-aware caching. Cache TTL is derived from the minimum record TTL in each response.
+`CachedResolver` wraps any resolver with TTL-aware caching. Positive answers use the lowest answer TTL. NXDOMAIN and NODATA responses require an SOA record and use the lower of its TTL and SOA MINIMUM, as defined by RFC 2308. CNAME records can shorten that TTL. Responses with a zero TTL, server errors, and negative responses without an SOA record are not cached.
+
+Cookies and padding do not change the cache key. Other EDNS options, including Client Subnet, keep separate cache entries.
 
 @example('protocols/dns-caching.php')
 

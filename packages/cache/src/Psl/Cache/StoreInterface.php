@@ -47,7 +47,7 @@ interface StoreInterface
      *
      * @param non-empty-string $key
      * @param (Closure(): T) $computer
-     * @param null|Duration $ttl Time to live. Null means no expiration.
+     * @param null|Duration $ttl Time to live. Null means no expiration; zero expires immediately.
      *
      * @throws Exception\InvalidArgumentException If the key is invalid.
      *
@@ -65,7 +65,7 @@ interface StoreInterface
      *
      * @param non-empty-string $key
      * @param (Closure(null|T): T) $computer
-     * @param null|Duration $ttl Time to live. Null means no expiration.
+     * @param null|Duration $ttl Time to live. Null means no expiration; zero expires immediately.
      *
      * @throws Exception\InvalidArgumentException If the key is invalid.
      *

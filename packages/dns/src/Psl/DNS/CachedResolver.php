@@ -9,6 +9,7 @@ use Psl\Async\NullCancellationToken;
 use Psl\Cache\StoreInterface;
 use Psl\DateTime\Duration;
 use Psl\DNS\Record\RecordType;
+use Psl\DNS\Record\SOARecord;
 use Psl\Ref;
 
 use function md5;
@@ -22,8 +23,9 @@ use const PHP_INT_MAX;
  * Caching decorator for any DNS resolver.
  *
  * Wraps an existing {@see ResolverInterface} and caches responses using a
- * {@see StoreInterface}. Cache TTL is derived from the minimum record TTL
- * in the response.
+ * {@see StoreInterface}. Positive responses use the minimum answer TTL.
+ * Negative responses use the lesser of the SOA TTL and SOA MINIMUM.
+ * Failures and responses with a zero TTL are not cached.
  *
  * @api
  */
@@ -60,7 +62,7 @@ final readonly class CachedResolver implements ResolverInterface
                 $response = $this->inner->query($name, $type, $cancellation, $ednsOptions);
 
                 if ($response->code === ResponseCode::NoError || $response->code === ResponseCode::NonExistentDomain) {
-                    $minTtl = self::extractMinTtl($response);
+                    $minTtl = self::extractMinTtl($response, $type);
                     if ($minTtl > 0) {
                         $ttl->value = Duration::seconds($minTtl);
                     }
@@ -68,7 +70,7 @@ final readonly class CachedResolver implements ResolverInterface
 
                 return $response;
             },
-            Duration::hours(24),
+            Duration::zero(),
         );
 
         if ($ttl->value !== null) {
@@ -86,33 +88,52 @@ final readonly class CachedResolver implements ResolverInterface
     private static function buildKey(string $name, RecordType $kind, array $ednsOptions): string
     {
         $key = strtolower($name) . ':' . $kind->value;
-        if ($ednsOptions !== []) {
-            $key .= ':' . md5(serialize($ednsOptions));
+        $cacheOptions = [];
+        foreach ($ednsOptions as $option) {
+            if ($option->code === 10 || $option->code === 12) {
+                continue;
+            }
+
+            $cacheOptions[] = $option;
+        }
+
+        if ($cacheOptions !== []) {
+            $key .= ':' . md5(serialize($cacheOptions));
         }
 
         return $key;
     }
 
     /**
-     * Extract the minimum TTL across answer and authority records.
+     * Extract the answer TTL or the negative TTL from the SOA (RFC 2308, section 5).
      */
-    private static function extractMinTtl(Response $response): int
+    private static function extractMinTtl(Response $response, RecordType $type): int
     {
         $minTtl = PHP_INT_MAX;
-        $hasRecords = false;
-
+        $hasAnswer = false;
         foreach ($response->answers as $record) {
-            $hasRecords = true;
+            $hasAnswer = $hasAnswer || $record->kind === $type;
             $minTtl = min($minTtl, (int) $record->duration->getTotalSeconds());
         }
 
-        if (!$hasRecords) {
-            foreach ($response->authority as $record) {
-                $hasRecords = true;
-                $minTtl = min($minTtl, (int) $record->duration->getTotalSeconds());
-            }
+        if ($response->code === ResponseCode::NoError && $hasAnswer) {
+            return $minTtl;
         }
 
-        return $hasRecords ? $minTtl : 60;
+        $hasSoa = false;
+        foreach ($response->authority as $record) {
+            if (!$record instanceof SOARecord) {
+                continue;
+            }
+
+            $hasSoa = true;
+            $minTtl = min(
+                $minTtl,
+                (int) $record->duration->getTotalSeconds(),
+                (int) $record->minimumTtl->getTotalSeconds(),
+            );
+        }
+
+        return $hasSoa ? $minTtl : 0;
     }
 }

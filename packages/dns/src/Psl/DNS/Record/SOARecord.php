@@ -29,7 +29,7 @@ final class SOARecord implements RecordInterface
      * @param Duration $refresh The interval before the zone should be refreshed.
      * @param Duration $retry The interval before a failed refresh should be retried.
      * @param Duration $expire The upper limit on the interval before the zone is no longer authoritative.
-     * @param Duration $minimumTtl The minimum TTL for any record in the zone.
+     * @param Duration $minimumTtl The TTL limit for negative answers (RFC 2308).
      */
     public function __construct(
         public readonly string $name,
