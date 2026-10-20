@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Tests\Unit\Internal\H1;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
@@ -51,6 +52,52 @@ final class ChunkedBodyHandleTest extends TestCase
         [$handle] = self::handle("5;ext=val\r\nhello\r\n0\r\n\r\n");
 
         static::assertSame('hello', $handle->readAll());
+    }
+
+    public function testChunkSizeWithBadWhitespaceBeforeExtension(): void
+    {
+        [$handle] = self::handle("5 \t;ext=val\r\nhello\r\n0\r\n\r\n");
+
+        static::assertSame('hello', $handle->readAll());
+    }
+
+    public function testChunkSizeSurroundedBySpacesAndTabsIsTolerated(): void
+    {
+        [$handle] = self::handle(" \t5 \t\r\nhello\r\n0\r\n\r\n");
+
+        static::assertSame('hello', $handle->readAll());
+    }
+
+    #[DataProvider('provideNonBwsWhitespace')]
+    public function testChunkSizeWithNonBwsWhitespaceThrows(string $whitespace): void
+    {
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('Invalid chunk size');
+
+        [$handle] = self::handle("5{$whitespace};ext=val\r\nhello\r\n0\r\n\r\n");
+        $handle->readAll();
+    }
+
+    #[DataProvider('provideNonBwsWhitespace')]
+    public function testChunkSizeWithTrailingNonBwsWhitespaceThrows(string $whitespace): void
+    {
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('Invalid chunk size');
+
+        [$handle] = self::handle("5{$whitespace}\r\nhello\r\n0\r\n\r\n");
+        $handle->readAll();
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonBwsWhitespace(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
+        yield 'bare LF' => ["\n"];
+        yield 'bare CR' => ["\r"];
     }
 
     public function testEmptyChunkedBody(): void

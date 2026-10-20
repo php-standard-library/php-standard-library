@@ -138,7 +138,9 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
             }
 
             $sizeHex = (($pos = strpos($sizeLine, ';')) !== false ? substr($sizeLine, 0, $pos) : null) ?? $sizeLine;
-            $sizeHex = trim($sizeHex);
+            // RFC 9112 Section 7.1.1 only allows BWS (SP / HTAB) before ";". SP / HTAB elsewhere around
+            // the size is tolerated for leniency; any other byte makes the size malformed.
+            $sizeHex = trim($sizeHex, " \t");
 
             if ($sizeHex === '' || !ctype_xdigit($sizeHex)) {
                 throw ProtocolException::forMalformedResponse('Invalid chunk size in chunked transfer encoding.');
