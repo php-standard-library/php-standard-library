@@ -16,6 +16,8 @@ Keys containing `=` or the NUL character are rejected with an `InvariantViolatio
 
 @example('system/env-directories.php')
 
+A directory containing the NUL character is rejected with an `InvariantViolationException`.
+
 ### System Paths
 
 @example('system/env-system-paths.php')

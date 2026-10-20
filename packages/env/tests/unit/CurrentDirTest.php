@@ -31,4 +31,19 @@ final class CurrentDirTest extends TestCase
 
         Env\set_current_dir('/foo/bar/baz/qux');
     }
+
+    public function testChangeCurrentDirectoryThrowsForNulByte(): void
+    {
+        $cwd = Env\current_dir();
+
+        try {
+            Env\set_current_dir(__DIR__ . "\0");
+
+            static::fail('Expected an InvariantViolationException to be thrown.');
+        } catch (InvariantViolationException $exception) {
+            static::assertSame('Unable to change directory', $exception->getMessage());
+        }
+
+        static::assertSame($cwd, Env\current_dir());
+    }
 }
