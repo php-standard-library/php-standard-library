@@ -8,6 +8,7 @@ use Psl\Crypto\Signing;
 use Psl\DNS\DNSSEC\Algorithm;
 use Psl\DNS\Exception\InvalidArgumentException;
 
+use function openssl_pkey_get_public;
 use function openssl_verify;
 
 use const OPENSSL_ALGO_SHA1;
@@ -58,8 +59,9 @@ final class SignatureVerifier
     private static function verifyEd448(string $signature, string $data, string $publicKey): bool
     {
         $pem = DerEncoder::ed448PublicKeyToPem($publicKey);
+        $key = openssl_pkey_get_public($pem);
 
-        return openssl_verify($data, $signature, $pem, 0) === 1;
+        return $key !== false && openssl_verify($data, $signature, $key, 0) === 1;
     }
 
     /**
@@ -95,8 +97,9 @@ final class SignatureVerifier
         int $opensslAlgorithm,
     ): bool {
         $pem = DerEncoder::ecPublicKeyToPem($publicKey, $coordinateSize);
+        $key = openssl_pkey_get_public($pem);
         $derSignature = DerEncoder::ecdsaSignatureToDer($signature, $coordinateSize);
 
-        return openssl_verify($data, $derSignature, $pem, $opensslAlgorithm) === 1;
+        return $key !== false && openssl_verify($data, $derSignature, $key, $opensslAlgorithm) === 1;
     }
 }
