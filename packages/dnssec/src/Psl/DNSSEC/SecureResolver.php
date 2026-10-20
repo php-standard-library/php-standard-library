@@ -113,7 +113,11 @@ final readonly class SecureResolver implements ResolverInterface
             throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
         }
 
-        [$rrsets, $synthesized] = AnswerRrsets::select($response->answers, $queryName, $queryType);
+        [$rrsets, $synthesized, $terminalName, $answered] = AnswerRrsets::select(
+            $response->answers,
+            $queryName,
+            $queryType,
+        );
         $secure = true;
         /** @var array<string, TrustChainResult> $results */
         $results = [];
@@ -172,8 +176,13 @@ final readonly class SecureResolver implements ResolverInterface
         }
 
         $proofs = self::proofRecords($response->authority);
-        if ($proofs !== []) {
-            $secure = $this->verifyAuthority($response, $queryName, $queryType, $cancellation) && $secure;
+        $negative = $response->code === ResponseCode::NonExistentDomain || !$answered && $proofs !== [];
+        if ($response->code === ResponseCode::NonExistentDomain && $answered) {
+            throw InvalidProofException::forSignedResponse($terminalName);
+        }
+
+        if (!$negative && $proofs !== []) {
+            $secure = $this->verifyAuthority($response, $terminalName, $queryType, $cancellation) && $secure;
         }
 
         $answers = array_values(array_filter(
@@ -183,7 +192,7 @@ final readonly class SecureResolver implements ResolverInterface
             ),
         ));
 
-        return new Response(
+        $validated = new Response(
             $response->id,
             $response->code,
             $answers,
@@ -195,6 +204,10 @@ final readonly class SecureResolver implements ResolverInterface
             $secure && $response->authenticatedData,
             $response->checkingDisabled,
         );
+
+        return $negative
+            ? $this->validateNegativeResponse($validated, $terminalName, $queryType, $cancellation)
+            : $validated;
     }
 
     private static function normalizeName(string $name): string

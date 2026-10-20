@@ -34,6 +34,8 @@ When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records 
 
 `SecureResolver` checks every NSEC, NSEC3, and SOA RRset in a signed response with the queried zone's keys. Each RRset needs at least one valid signature with the same owner and covered type. Only verified records reach the denial checks. Missing proof records raise `UnsignedResponseException` or `InvalidProofException`; unsigned or invalid proof RRsets raise `SignatureFailedException`.
 
+For NXDOMAIN after a CNAME or DNAME, the resolver checks each alias link, then requires a denial proof for the final target. A signed alias alone does not prove that its target is absent. A target in an unsigned zone clears AD.
+
 ## Trust Anchors
 
 `TrustChainResolver` uses both IANA root keys, KSK-2017 (20326) and KSK-2024 (38696), as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.

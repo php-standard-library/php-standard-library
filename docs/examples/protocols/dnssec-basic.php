@@ -14,7 +14,7 @@ $trustChain = new DNSSEC\TrustChainResolver($inner);
 $resolver = new DNSSEC\SecureResolver($inner, $trustChain);
 
 // Verify each answer, alias link, and NSEC/NSEC3/SOA proof RRset.
-// Strip unrelated answer records.
+// Strip unrelated answer records. NXDOMAIN must prove the final target absent.
 $response = $resolver->query('example.com', RecordType::A);
 
 // Throws SignatureFailedException, BrokenTrustChainException,

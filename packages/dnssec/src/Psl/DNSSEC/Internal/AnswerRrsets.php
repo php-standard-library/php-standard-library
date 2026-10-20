@@ -33,7 +33,7 @@ final class AnswerRrsets
      *
      * @param list<RecordInterface> $answers
      *
-     * @return array{array<string, non-empty-list<RecordInterface>>, array<string, true>}
+     * @return array{array<string, non-empty-list<RecordInterface>>, array<string, true>, string, bool}
      *
      * @throws InvalidArgumentException If a DNAME substitution exceeds the DNS name limit.
      * @throws InvalidProofException If the alias chain is missing, loops, or disagrees with a DNAME.
@@ -52,6 +52,7 @@ final class AnswerRrsets
         $selected = [];
         $synthesized = [];
         $visited = [];
+        $answered = false;
         $name = self::normalizeName($queryName);
         while (true) {
             if (isset($visited[$name]) || count($visited) > count($rrsets)) {
@@ -95,6 +96,7 @@ final class AnswerRrsets
                 }
 
                 if ($queryType === RecordType::CNAME && $cname instanceof CNAMERecord) {
+                    $answered = true;
                     break;
                 }
 
@@ -105,6 +107,7 @@ final class AnswerRrsets
             $id = self::id($name, $queryType);
             if (isset($rrsets[$id])) {
                 $selected[$id] = $rrsets[$id];
+                $answered = true;
                 break;
             }
 
@@ -124,7 +127,7 @@ final class AnswerRrsets
             throw InvalidProofException::forRRSIG($queryName);
         }
 
-        return [$selected, $synthesized];
+        return [$selected, $synthesized, $name, $answered];
     }
 
     private static function normalizeName(string $name): string
