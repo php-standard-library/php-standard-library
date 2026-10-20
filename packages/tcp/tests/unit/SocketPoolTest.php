@@ -9,8 +9,31 @@ use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\TCP;
 
+use function fclose;
+use function fopen;
+
 final class SocketPoolTest extends TestCase
 {
+    public function testIpv6SpellingsShareThePoolKey(): void
+    {
+        $resource = fopen('php://memory', 'r+');
+        static::assertIsResource($resource);
+        $stream = $this->createStub(TCP\StreamInterface::class);
+        $stream->method('getStream')->willReturn($resource);
+        $connector = $this->createMock(TCP\ConnectorInterface::class);
+        $connector->expects(static::once())->method('connect')->with('::1', 1234)->willReturn($stream);
+        $pool = new TCP\SocketPool($connector);
+
+        try {
+            $first = $pool->checkout('::1', 1234);
+            $pool->checkin($first);
+            static::assertSame($first, $pool->checkout('[::1]', 1234));
+        } finally {
+            $pool->close();
+            fclose($resource);
+        }
+    }
+
     public function testCheckoutCreatesNewConnection(): void
     {
         $listener = TCP\listen('127.0.0.1', 0);

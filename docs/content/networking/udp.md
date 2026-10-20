@@ -19,7 +19,7 @@ An unconnected `Socket` can send to and receive from any address using `sendTo()
 
 @example('networking/udp-connected.php')
 
-You can also create a connected socket directly:
+You can also create a connected socket directly. `UDP\connect()` selects the local socket family from the target, so IPv6 targets work without an explicit local bind:
 
 @example('networking/udp-connect-shorthand.php')
 

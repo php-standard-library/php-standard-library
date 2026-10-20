@@ -13,6 +13,7 @@ use Psl\Network;
 
 use function fclose;
 use function is_resource;
+use function str_contains;
 use function stream_context_create;
 use function stream_set_blocking;
 use function stream_socket_client;
@@ -85,7 +86,13 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
         $ctx = stream_context_create($context);
         $errno = 0;
         $errstr = '';
-        $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND, $ctx);
+        $socket = @stream_socket_server(
+            Network\Address::udp($host, $port)->toString(),
+            $errno,
+            $errstr,
+            STREAM_SERVER_BIND,
+            $ctx,
+        );
 
         if ($socket === false) {
             throw new Network\Exception\RuntimeException("Failed to bind UDP socket: {$errstr}", (int) $errno);
@@ -119,10 +126,11 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
             'bindto' => $bindto,
         ]]);
 
+        $address = Network\Address::udp($host, $port);
         $errno = 0;
         $errstr = '';
         $newStream = @stream_socket_client(
-            "udp://{$host}:{$port}",
+            $address->toString(),
             $errno,
             $errstr,
             null,
@@ -132,11 +140,13 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
 
         if ($newStream === false) {
             // @codeCoverageIgnoreStart
-            throw new Network\Exception\RuntimeException("Failed to connect UDP socket to {$host}:{$port}: {$errstr}");
+            throw new Network\Exception\RuntimeException(
+                "Failed to connect UDP socket to {$address->toString()}: {$errstr}",
+            );
             // @codeCoverageIgnoreEnd
         }
 
-        return new ConnectedSocket($newStream, Network\Address::udp($host, $port));
+        return new ConnectedSocket($newStream, $address);
     }
 
     /**
@@ -157,7 +167,8 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
         Internal\validate_payload_size($data);
         $stream = $this->getResource();
 
-        $target = "{$address->host}:{$address->port}";
+        $host = str_contains($address->host, ':') ? "[{$address->host}]" : $address->host;
+        $target = "{$host}:{$address->port}";
 
         Internal\wait_writable($stream, $cancellation);
 

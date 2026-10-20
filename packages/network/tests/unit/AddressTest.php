@@ -10,6 +10,19 @@ use Psl\Network\SocketScheme;
 
 final class AddressTest extends TestCase
 {
+    public function testIpv6HostsAreUnbracketed(): void
+    {
+        foreach (['::1', '[::1]'] as $host) {
+            foreach ([Address::tcp($host, 80), Address::udp($host, 80)] as $address) {
+                static::assertSame('::1', $address->host);
+                static::assertSame($address->scheme->value . '://[::1]:80', $address->toString());
+            }
+        }
+
+        static::assertSame('[socket]', Address::unix('[socket]')->host);
+        static::assertSame('unix://[socket]', Address::unix('[socket]')->toString());
+    }
+
     public function testAddress(): void
     {
         $address = Address::create(SocketScheme::Tcp, '127.0.0.2', 8080);

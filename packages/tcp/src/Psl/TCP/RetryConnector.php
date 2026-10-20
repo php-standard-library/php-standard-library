@@ -59,8 +59,9 @@ final readonly class RetryConnector implements ConnectorInterface
                 $messages[] = "Attempt {$attempts}: {$e->getMessage()}";
 
                 if ($attempts >= $this->maxAttempts) {
+                    $address = Network\Address::tcp($host, $port)->toString();
                     throw new Network\Exception\RuntimeException(
-                        "Failed to connect to {$host}:{$port} after {$attempts} attempts. " . implode(' ', $messages),
+                        "Failed to connect to {$address} after {$attempts} attempts. " . implode(' ', $messages),
                         (int) $e->getCode(),
                         $e,
                     );

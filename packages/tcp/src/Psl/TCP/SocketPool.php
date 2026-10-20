@@ -7,6 +7,7 @@ namespace Psl\TCP;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\DateTime\Duration;
+use Psl\Network;
 use Revolt\EventLoop;
 
 use function array_filter;
@@ -61,7 +62,7 @@ final class SocketPool implements SocketPoolInterface
         int $port,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): StreamInterface {
-        $key = "{$host}:{$port}";
+        $key = Network\Address::tcp($host, $port)->toString();
 
         // Try to reuse an idle connection
         while (isset($this->idle[$key]) && $this->idle[$key] !== []) {

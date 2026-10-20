@@ -6,10 +6,12 @@ namespace Psl\UDP;
 
 use Psl\Network;
 
+use function stream_socket_client;
+
 /**
  * Create a connected UDP socket to the given host and port.
  *
- * This is a convenience function that binds a local socket and connects it in one step.
+ * The target address determines the local socket family.
  *
  * @param non-empty-string $host
  * @param int<0, 65535> $port
@@ -20,7 +22,16 @@ use Psl\Network;
  */
 function connect(string $host, int $port): ConnectedSocket
 {
-    $socket = Socket::bind();
+    $address = Network\Address::udp($host, $port);
+    $errno = 0;
+    $errstr = '';
+    $stream = @stream_socket_client($address->toString(), $errno, $errstr);
+    if ($stream === false) {
+        throw new Network\Exception\RuntimeException(
+            "Failed to connect UDP socket to {$address->toString()}: {$errstr}",
+            (int) $errno,
+        );
+    }
 
-    return $socket->connect($host, $port);
+    return new ConnectedSocket($stream, $address);
 }

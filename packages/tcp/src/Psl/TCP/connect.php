@@ -9,6 +9,9 @@ use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\Network;
 
+use function str_contains;
+use function str_starts_with;
+
 /**
  * Connect to a TCP socket.
  *
@@ -35,6 +38,10 @@ function connect(
     }
 
     $context = ['socket' => $socketOptions];
+
+    if (str_contains($host, ':') && !str_starts_with($host, '[')) {
+        $host = "[{$host}]";
+    }
 
     $socket = Network\Internal\socket_connect("tcp://{$host}:{$port}", $context, $cancellation);
 

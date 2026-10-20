@@ -6,6 +6,9 @@ namespace Psl\TCP;
 
 use Psl\Network;
 
+use function str_contains;
+use function str_starts_with;
+
 use const PHP_OS_FAMILY;
 
 /**
@@ -36,6 +39,10 @@ function listen(
 
     if (null !== $configuration->bindTo) {
         $socketContext['socket']['bindto'] = $configuration->bindTo;
+    }
+
+    if (str_contains($host, ':') && !str_starts_with($host, '[')) {
+        $host = "[{$host}]";
     }
 
     $socket = Network\Internal\server_listen("tcp://{$host}:{$port}", $socketContext);

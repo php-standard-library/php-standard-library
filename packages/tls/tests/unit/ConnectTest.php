@@ -11,6 +11,8 @@ use Psl\TCP;
 use Psl\TLS;
 
 use function extension_loaded;
+use function fclose;
+use function stream_socket_server;
 
 final class ConnectTest extends TestCase
 {
@@ -21,6 +23,45 @@ final class ConnectTest extends TestCase
     {
         if (!extension_loaded('openssl')) {
             static::markTestSkipped('OpenSSL extension is required for TLS tests.');
+        }
+    }
+
+    public function testIpv6ConvenienceConnect(): void
+    {
+        $probe = @stream_socket_server('tcp://[::1]:0');
+        if ($probe === false) {
+            static::markTestSkipped('IPv6 loopback sockets are unavailable.');
+        }
+
+        fclose($probe);
+
+        $acceptor = new TLS\Acceptor(TLS\ServerConfiguration::create(TLS\Certificate::create(
+            self::CERT_FILE,
+            self::KEY_FILE,
+        )));
+        $listener = TCP\listen('::1');
+        $port = $listener->getLocalAddress()->port;
+
+        try {
+            Async\concurrently([
+                static function () use ($listener, $acceptor): void {
+                    $stream = $acceptor->accept($listener->accept());
+                    static::assertSame('::1', $stream->getPeerAddress()->host);
+                    $stream->writeAll('hello');
+                    $stream->close();
+                },
+                static function () use ($port): void {
+                    $configuration = TLS\ClientConfiguration::default()
+                        ->withPeerVerification(false)
+                        ->withAllowSelfSigned(true);
+                    $stream = TLS\connect('::1', $port, $configuration);
+                    static::assertSame('::1', $stream->getPeerAddress()->host);
+                    static::assertSame('hello', $stream->readFixedSize(5));
+                    $stream->close();
+                },
+            ]);
+        } finally {
+            $listener->close();
         }
     }
 

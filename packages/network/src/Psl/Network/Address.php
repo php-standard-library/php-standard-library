@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Psl\Network;
 
+use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function substr;
+
 /**
  * @psalm-immutable
  *
@@ -35,6 +41,16 @@ final readonly class Address
      */
     private function __construct(SocketScheme $scheme, string $host, null|int $port)
     {
+        if (
+            $scheme !== SocketScheme::Unix
+            && strlen($host) > 2
+            && str_starts_with($host, '[')
+            && str_ends_with($host, ']')
+        ) {
+            /** @var non-empty-string $host */
+            $host = substr($host, 1, -1);
+        }
+
         $this->scheme = $scheme;
         $this->host = $host;
         $this->port = $port;
@@ -91,10 +107,13 @@ final readonly class Address
      */
     public function toString(): string
     {
+        $host = $this->scheme !== SocketScheme::Unix && str_contains($this->host, ':')
+            ? "[{$this->host}]"
+            : $this->host;
         if (null === $this->port) {
-            return "{$this->scheme->value}://{$this->host}";
+            return "{$this->scheme->value}://{$host}";
         }
 
-        return "{$this->scheme->value}://{$this->host}:{$this->port}";
+        return "{$this->scheme->value}://{$host}:{$this->port}";
     }
 }

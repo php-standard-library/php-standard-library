@@ -8,7 +8,7 @@ It provides the abstraction layer that protocol-specific components build on top
 
 ### Address
 
-`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port.
+`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port. IPv6 hosts have no brackets in `host`; `toString()` adds them around the host. Both `::1` and `[::1]` inputs produce the same address.
 
 @example('networking/network-addresses.php')
 

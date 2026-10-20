@@ -15,7 +15,10 @@ use function chr;
 use function inet_pton;
 use function ord;
 use function pack;
+use function str_ends_with;
+use function str_starts_with;
 use function strlen;
+use function substr;
 
 /**
  * Perform a SOCKS5 handshake on an existing stream.
@@ -66,6 +69,10 @@ function socks5_handshake(
         namespace\socks5_authenticate($stream, $username, $password, $cancellation);
     } elseif ($method !== 0x00) {
         throw new Exception\SocksException("SOCKS5 server selected unsupported authentication method: {$method}.");
+    }
+
+    if (str_starts_with($host, '[') && str_ends_with($host, ']')) {
+        $host = substr($host, 1, -1);
     }
 
     $request = "\x05\x01\x00";
