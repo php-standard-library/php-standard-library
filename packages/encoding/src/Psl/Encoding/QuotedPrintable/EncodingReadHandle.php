@@ -9,7 +9,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
 use function sprintf;
-use function str_ends_with;
 use function strlen;
 use function strpos;
 use function substr;
@@ -17,7 +16,9 @@ use function substr;
 /**
  * A read handle that encodes raw text from an inner readable handle using quoted-printable encoding.
  *
- * Reads line-by-line from the inner handle and encodes each line via {@see encode_line()}.
+ * Reads from the inner handle and encodes each complete line (terminated by CRLF, LF or CR) via
+ * {@see encode_line()}. The bytes read from this handle are identical to {@see encode()} applied
+ * to all the data of the inner handle, with the same `$maxLineLength` and `$lineEnding`.
  *
  * @api
  */
@@ -25,14 +26,20 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
 {
     use IO\ReadHandleConvenienceMethodsTrait;
 
-    private IO\Reader $reader;
     private string $buffer = '';
     private bool $eof = false;
-    private bool $firstLine = true;
+    private readonly Internal\StreamEncoder $encoder;
 
-    public function __construct(IO\ReadHandleInterface $handle)
-    {
-        $this->reader = new IO\Reader($handle);
+    /**
+     * @param positive-int $maxLineLength Maximum encoded line length (default 76 per RFC 2045).
+     * @param non-empty-string $lineEnding Line ending sequence (default "\r\n" per RFC 2045).
+     */
+    public function __construct(
+        private readonly IO\ReadHandleInterface $handle,
+        int $maxLineLength = 76,
+        string $lineEnding = "\r\n",
+    ) {
+        $this->encoder = new Internal\StreamEncoder($maxLineLength, $lineEnding);
     }
 
     public function reachedEndOfDataSource(): bool
@@ -232,39 +239,19 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
 
     private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        if ($this->eof) {
-            // @codeCoverageIgnoreStart
-            return;
-            // @codeCoverageIgnoreEnd
-        }
+        while (!$this->eof) {
+            $chunk = $this->handle->read(4096, $cancellation);
+            if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
+                $this->eof = true;
+                $this->buffer .= $this->encoder->finalize();
 
-        $line = $this->reader->readUntil("\n", $cancellation);
-        if ($line !== null) {
-            $line = str_ends_with($line, "\r") ? substr($line, 0, -1) : $line;
-
-            if (!$this->firstLine) {
-                // @codeCoverageIgnoreStart
-                $this->buffer .= "\r\n";
-                // @codeCoverageIgnoreEnd
+                return;
             }
 
-            $this->buffer .= namespace\encode_line($line);
-            $this->firstLine = false;
-
-            return;
-        }
-
-        $remaining = $this->reader->read(null, $cancellation);
-        if ($remaining !== '') {
-            $remaining = str_ends_with($remaining, "\r") ? substr($remaining, 0, -1) : $remaining;
-
-            if (!$this->firstLine) {
-                $this->buffer .= "\r\n";
+            $this->buffer .= $this->encoder->update($chunk);
+            if ($this->buffer !== '' || $chunk === '') {
+                return;
             }
-
-            $this->buffer .= namespace\encode_line($remaining);
         }
-
-        $this->eof = true;
     }
 }

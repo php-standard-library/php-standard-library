@@ -8,16 +8,15 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
-use function str_ends_with;
 use function strlen;
-use function strpos;
-use function substr;
 
 /**
  * A write handle that accepts raw text and writes quoted-printable encoded output to an inner handle.
  *
- * Buffers input until complete lines (terminated by \n) are available,
- * encodes each line via {@see encode_line()}, and writes to the inner handle with "\r\n" line endings.
+ * Buffers input until complete lines (terminated by CRLF, LF or CR) are available, and encodes
+ * each line via {@see encode_line()}. Once {@see flush()} has been called, the bytes written to the
+ * inner handle are identical to {@see encode()} applied to all the data written, with the same
+ * `$maxLineLength` and `$lineEnding`.
  *
  * @api
  */
@@ -25,19 +24,28 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
 {
     use IO\WriteHandleConvenienceMethodsTrait;
 
-    private string $buffer = '';
-    private bool $firstLine = true;
+    private readonly Internal\StreamEncoder $encoder;
 
+    /**
+     * @param positive-int $maxLineLength Maximum encoded line length (default 76 per RFC 2045).
+     * @param non-empty-string $lineEnding Line ending sequence (default "\r\n" per RFC 2045).
+     */
     public function __construct(
         private readonly IO\WriteHandleInterface $handle,
-    ) {}
+        int $maxLineLength = 76,
+        string $lineEnding = "\r\n",
+    ) {
+        $this->encoder = new Internal\StreamEncoder($maxLineLength, $lineEnding);
+    }
 
     public function tryWrite(string $bytes): int
     {
-        $length = strlen($bytes);
-        $this->buffer .= $bytes;
-        $this->drainCompleteLines();
-        return $length;
+        $encoded = $this->encoder->update($bytes);
+        if ($encoded !== '') {
+            $this->handle->writeAll($encoded);
+        }
+
+        return strlen($bytes);
     }
 
     public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
@@ -46,36 +54,15 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
     }
 
     /**
-     * Flush any remaining buffered data through the encoder to the inner handle.
+     * Encode the last line and write it to the inner handle.
+     *
+     * Call this once all data has been written; data written afterwards starts a new encoded stream.
      */
     public function flush(): void
     {
-        if ($this->buffer !== '') {
-            $line = str_ends_with($this->buffer, "\r") ? substr($this->buffer, 0, -1) : $this->buffer;
-
-            if (!$this->firstLine) {
-                $this->handle->writeAll("\r\n");
-            }
-
-            $this->handle->writeAll(namespace\encode_line($line));
-            $this->buffer = '';
-            $this->firstLine = false;
-        }
-    }
-
-    private function drainCompleteLines(): void
-    {
-        while (false !== ($pos = strpos($this->buffer, "\n"))) {
-            $line = substr($this->buffer, 0, $pos);
-            $line = str_ends_with($line, "\r") ? substr($line, 0, -1) : $line;
-            $this->buffer = substr($this->buffer, $pos + 1);
-
-            if (!$this->firstLine) {
-                $this->handle->writeAll("\r\n");
-            }
-
-            $this->handle->writeAll(namespace\encode_line($line));
-            $this->firstLine = false;
+        $encoded = $this->encoder->finalize();
+        if ($encoded !== '') {
+            $this->handle->writeAll($encoded);
         }
     }
 }
