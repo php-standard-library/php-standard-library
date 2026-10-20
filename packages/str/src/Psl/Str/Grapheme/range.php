@@ -13,24 +13,24 @@ use Psl\Str\Exception;
  * Slice a string using a range.
  *
  * If the range doesn't have an upper range, the slice will contain the
- * rest of the string. If the upper-bound is equal to the lower-bound,
- * then an empty string will be returned.
+ * rest of the string. If the upper-bound is exclusive and equal to the
+ * lower-bound, then an empty string will be returned.
  *
  * Example:
  *
  * ```php
  * use Psl\Range;
- * use Psl\Str;
+ * use Psl\Str\Grapheme;
  *
  * $string = 'Hello, World!';
  *
- * Str\range($string, Range\between(0, 3, upperInclusive: true)); // 'Hell'
- * Str\range($string, Range\between(0, 3, upperInclusive: false)); // 'Hel'
- * Str\range($string, Range\from(3)); // 'lo, World!'
- * Str\range($string, Range\to(3, true)); // 'Hell'
- * Str\range($string, Range\to(3, false)); // 'Hel'
- * Str\range($string, Range\full()); // 'Hello, World!'
- * Str\range($string, Range\between(7, 5, true)); // 'World'
+ * Grapheme\range($string, Range\between(0, 3, upperInclusive: true)); // 'Hell'
+ * Grapheme\range($string, Range\between(0, 3, upperInclusive: false)); // 'Hel'
+ * Grapheme\range($string, Range\from(3)); // 'lo, World!'
+ * Grapheme\range($string, Range\to(3, true)); // 'Hell'
+ * Grapheme\range($string, Range\to(3, false)); // 'Hel'
+ * Grapheme\range($string, Range\full()); // 'Hello, World!'
+ * Grapheme\range($string, Range\between(7, 11, true)); // 'World'
  * ```
  *
  * @param RangeInterface $range

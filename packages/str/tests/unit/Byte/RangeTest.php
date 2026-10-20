@@ -30,6 +30,7 @@ final class RangeTest extends TestCase
             ['Hello, World!', 'Hello, World!', Range\from(0)],
             ['World!', 'Hello, World!', Range\between(7, 12, upperInclusive: true)],
             ['World', 'Hello, World!', Range\between(7, 12, upperInclusive: false)],
+            ['World', 'Hello, World!', Range\between(7, 11, upperInclusive: true)],
             [
                 'destiny',
                 'People linked by destiny will always find each other.',

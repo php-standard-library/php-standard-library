@@ -13,8 +13,8 @@ use Psl\Str\Exception;
  * Slice a string using a range.
  *
  * If the range doesn't have an upper range, the slice will contain the
- * rest of the string. If the upper-bound is equal to the lower-bound,
- * then an empty string will be returned.
+ * rest of the string. If the upper-bound is exclusive and equal to the
+ * lower-bound, then an empty string will be returned.
  *
  * Example:
  *
@@ -30,7 +30,7 @@ use Psl\Str\Exception;
  * Byte\range($string, Range\to(3, true)); // 'Hell'
  * Byte\range($string, Range\to(3, false)); // 'Hel'
  * Byte\range($string, Range\full()); // 'Hello, World!'
- * Byte\range($string, Range\between(7, 5, true)); // 'World'
+ * Byte\range($string, Range\between(7, 11, true)); // 'World'
  * ```
  *
  * @param RangeInterface $range
