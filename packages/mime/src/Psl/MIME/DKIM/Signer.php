@@ -130,11 +130,15 @@ final readonly class Signer implements SignerInterface
         $params[] = 'b=';
 
         $dkimHeader = 'DKIM-Signature: ' . implode('; ', $params);
-        $headerCanonData .= rtrim(self::canonicalizeHeader(
-            'DKIM-Signature',
-            implode('; ', $params),
-            $this->configuration->headerCanonicalization,
-        ));
+
+        // RFC 6376 §3.7: the DKIM-Signature header field is hashed last, exactly as it will be
+        // inserted (name included, "b=" empty), canonicalized like any other header field, and
+        // without its trailing CRLF.
+        $headerCanonData .= substr(
+            self::canonicalizeHeader('DKIM-Signature', $dkimHeader, $this->configuration->headerCanonicalization),
+            0,
+            -2,
+        );
 
         $signature = $this->computeSignature($headerCanonData);
         $encodedSignature = rtrim(chunk_split(base64_encode($signature), 73, "\r\n "));
@@ -193,7 +197,7 @@ final readonly class Signer implements SignerInterface
             }
 
             $current = count($headers);
-            $name = substr($line, 0, $colonPos);
+            $name = rtrim(substr($line, 0, $colonPos), " \t");
             $value = $line;
             $headers[] = [$name, $value];
         }
@@ -206,7 +210,9 @@ final readonly class Signer implements SignerInterface
      * Canonicalize a single header line according to the specified DKIM canonicalization mode.
      *
      * Simple mode returns the raw line with CRLF. Relaxed mode lowercases the header name,
-     * unfolds continuation lines, and collapses whitespace.
+     * unfolds continuation lines, collapses whitespace, and removes whitespace around the colon.
+     *
+     * @link https://datatracker.ietf.org/doc/html/rfc6376#section-3.4.2
      */
     private static function canonicalizeHeader(string $name, string $rawLine, Canonicalization $mode): string
     {
@@ -214,7 +220,8 @@ final readonly class Signer implements SignerInterface
             return $rawLine . "\r\n";
         }
 
-        // Relaxed: lowercase name, unfold, collapse whitespace
+        // Relaxed: lowercase name, unfold, collapse whitespace, strip WSP around the colon.
+        $name = rtrim($name, " \t");
         $colonPos = strpos($rawLine, ':');
         $value = $colonPos !== false ? substr($rawLine, $colonPos + 1) : '';
         $value = str_replace("\r\n", '', $value);
