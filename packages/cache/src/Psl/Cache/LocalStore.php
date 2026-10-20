@@ -21,8 +21,9 @@ use function sprintf;
  * Uses {@see Async\KeyedSequence} to serialize operations per key,
  * preventing cache stampedes in concurrent fiber environments.
  *
- * Expired entries are cleaned up proactively via an event loop timer
- * that activates when TTL'd entries exist, rather than lazily on access.
+ * Expired entries are never returned: they are removed when accessed, and
+ * also swept proactively by an event loop timer that is only active while
+ * entries with a TTL exist, so they do not linger in memory.
  *
  * @api
  */
@@ -64,7 +65,7 @@ final class LocalStore implements StoreInterface
 
     /**
      * @param positive-int $maxSize Maximum number of entries. Oldest entries are evicted when full.
-     * @param null|Duration $cleanupInterval How often to sweep expired entries, 1 second if null.
+     * @param null|Duration $cleanupInterval How often to sweep expired entries, 3 seconds if null.
      *
      * @throws Exception\InvalidArgumentException If $maxSize is not a positive integer.
      */

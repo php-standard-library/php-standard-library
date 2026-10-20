@@ -20,7 +20,7 @@ Operations on the same key are serialized via `KeyedSequence`. Different keys ru
 
 ## TTL Expiration
 
-Entries with a TTL are proactively cleaned up via an event loop timer, not lazily on access. The timer activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration.
+An expired entry is never returned: it is removed when it is accessed, and an event loop timer also sweeps expired entries proactively so they do not linger in memory. The timer runs every 3 seconds by default (configurable with the `$cleanupInterval` constructor argument), activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration. It never keeps the event loop running on its own.
 
 ## NullStore
 
