@@ -114,6 +114,9 @@ final class StateMachine
      */
     private bool $assemblingTrailing = false;
 
+    /** Whether to refuse the stream after decoding its field block. */
+    private bool $refusingStream = false;
+
     /** Stream error to report after decoding the current field block. */
     private null|StreamException $pendingHeaderError = null;
 
@@ -1191,12 +1194,12 @@ final class StateMachine
                 );
             }
 
-            if (!$this->streams->canAcceptPeerStream()) {
-                return [[new RstStreamFrame($frame->streamId, ErrorCode::RefusedStream)->toRaw()], []];
+            $this->refusingStream = !$this->streams->canAcceptPeerStream();
+            if (!$this->refusingStream) {
+                $stream->state = StreamState::Open;
+                $this->streams->incrementActive($frame->streamId);
             }
 
-            $stream->state = StreamState::Open;
-            $this->streams->incrementActive($frame->streamId);
             $this->lastPeerStreamId = max($this->lastPeerStreamId, $frame->streamId);
         }
 
@@ -1275,6 +1278,12 @@ final class StateMachine
 
         $error = $this->pendingHeaderError;
         $this->pendingHeaderError = null;
+        if ($this->refusingStream) {
+            $this->refusingStream = false;
+
+            return [$this->resetStreamForError($streamId, ErrorCode::RefusedStream), []];
+        }
+
         if ($error !== null) {
             throw $error;
         }

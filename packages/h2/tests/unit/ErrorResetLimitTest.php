@@ -51,6 +51,7 @@ final class ErrorResetLimitTest extends TestCase
     {
         yield 'malformed headers' => ['malformed'];
         yield 'stream window overflow' => ['overflow'];
+        yield 'refused stream' => ['refused'];
     }
 
     private function assertLimited(string $cause, int $limit, Configuration $configuration): void
