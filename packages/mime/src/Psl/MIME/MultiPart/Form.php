@@ -76,12 +76,20 @@ final class Form implements MultiPartInterface
      * Creates a part with a Content-Disposition of "form-data" and the given
      * field name. The value is stored in memory as a {@see IO\MemoryHandle}.
      *
+     * As in the HTML form-data encoding algorithm, CR, LF and the double quote in the field name
+     * are percent-encoded (`%0D`, `%0A`, `%22`), so a name can never break out of the header line.
+     *
      * @param string $name The form field name, used in the Content-Disposition "name" parameter.
      * @param string $value The field value.
+     *
+     * @link https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart-form-data
      */
     public function addField(string $name, string $value): void
     {
-        $disposition = new ContentDisposition('form-data', Parameters::fromPairs([['name', $name]]));
+        $disposition = new ContentDisposition('form-data', Parameters::fromPairs([[
+            'name',
+            self::escapeParameterValue($name),
+        ]]));
 
         $this->parts[] = new Part(Headers::fromPairs([[
             'Content-Disposition',
@@ -95,8 +103,8 @@ final class Form implements MultiPartInterface
      * The part's Content-Disposition is replaced with a "form-data" disposition carrying the
      * given field name and, when the part's own disposition names a file, its "filename"
      * parameter (RFC 7578 §4.2). As in the HTML form-data encoding algorithm, CR, LF and the
-     * double quote in the filename are percent-encoded (`%0D`, `%0A`, `%22`), so a filename can
-     * never break out of the header line.
+     * double quote in the field name and the filename are percent-encoded (`%0D`, `%0A`, `%22`),
+     * so neither can break out of the header line.
      *
      * RFC 7578 §4.7 deprecates Content-Transfer-Encoding in multipart/form-data (senders should
      * not use it, and servers ignore it), so the part's transfer encoding is undone: base64 and
@@ -117,7 +125,7 @@ final class Form implements MultiPartInterface
      */
     public function addPart(string $name, PartInterface $part): void
     {
-        $parameters = [['name', $name]];
+        $parameters = [['name', self::escapeParameterValue($name)]];
         $filename = self::filename($part);
         if ($filename !== null) {
             $parameters[] = ['filename', self::escapeParameterValue($filename)];

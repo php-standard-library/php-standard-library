@@ -210,6 +210,40 @@ final class FormDataTest extends TestCase
         static::assertSame('real body', $parts[0]->body()->readAll());
     }
 
+    public function testAddFieldPercentEncodesLineBreaksAndQuotesInName(): void
+    {
+        $form = new Form('field-inject-boundary');
+        $form->addField("a\"\r\nX-Injected: yes\r\n\r\nfake", 'value');
+
+        $body = $form->body()->readAll();
+
+        static::assertStringNotContainsString("\r\nX-Injected", $body);
+        static::assertStringContainsString(
+            'Content-Disposition: form-data; name="a%22%0D%0AX-Injected: yes%0D%0A%0D%0Afake"' . "\r\n",
+            $body,
+        );
+
+        $parts = iterator_to_array(new Parser('field-inject-boundary')->parse(new IO\MemoryHandle($body)), false);
+
+        static::assertCount(1, $parts);
+        static::assertFalse($parts[0]->headers->has('x-injected'));
+        static::assertSame('value', $parts[0]->body()->readAll());
+    }
+
+    public function testAddPartPercentEncodesLineBreaksAndQuotesInName(): void
+    {
+        $form = new Form('part-inject-boundary');
+        $form->addPart("a\"\r\nX-Injected: yes", new Part(Headers::default(), new IO\MemoryHandle('value')));
+
+        $body = $form->body()->readAll();
+
+        static::assertStringNotContainsString("\r\nX-Injected", $body);
+        static::assertStringContainsString(
+            'Content-Disposition: form-data; name="a%22%0D%0AX-Injected: yes"' . "\r\n",
+            $body,
+        );
+    }
+
     public function testAddTextPartSendsDecodedText(): void
     {
         $text = "caf\u{e9} = cr\u{e8}me br\u{fb}l\u{e9}e, a line that is long enough to need a soft line break in QP";
