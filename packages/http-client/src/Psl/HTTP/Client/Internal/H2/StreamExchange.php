@@ -8,6 +8,7 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\ErrorCode;
+use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\ExceptionInterface;
 use Psl\H2\Exception\StreamException;
 use Psl\H2\StreamState;
@@ -49,8 +50,10 @@ use function trim;
  * HEADERS arrive (not when the body is fully consumed), because HTTP/2 streams
  * can receive data independently of the concurrency limit once headers are received.
  *
- * Cancellation and stream errors unregister the stream and release its slot.
- * Connection and I/O errors also mark the session as closed.
+ * Cancellation and stream errors unregister the stream and release its slot;
+ * a stream error affects only the failed stream (RFC 9113 Section 5.4.2).
+ * Connection and I/O failures, and HTTP/2 protocol failures after HEADERS
+ * were written, also mark the session as closed.
  *
  * H1/H2 header mapping: connection-specific fields and fields named in
  * Connection are dropped from headers and trailers. Only te: trailers is
@@ -199,7 +202,11 @@ final class StreamExchange
         } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
             $multiplexer->unregister($streamId);
             $session->releaseStream();
-            if ($headersSent || !$e instanceof ExceptionInterface) {
+            if (
+                $e instanceof ConnectionException
+                || $e instanceof IO\Exception\RuntimeException
+                || $headersSent && $e instanceof ExceptionInterface
+            ) {
                 $session->markClosed();
             }
 

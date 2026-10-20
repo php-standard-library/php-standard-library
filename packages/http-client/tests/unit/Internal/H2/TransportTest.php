@@ -1138,11 +1138,13 @@ final class TransportTest extends TestCase
             /** @var int<0, 65535> $portB */
             $portB = $addressB->port;
 
+            $reconnected = false;
             $reconnect = static function (
                 Request $request,
                 ClientConfiguration $configuration,
                 Async\CancellationTokenInterface $cancellation,
-            ) use ($connector, $portB, $h2Config): H2Connection {
+            ) use ($connector, $portB, $h2Config, &$reconnected): H2Connection {
+                $reconnected = true;
                 $streamB = $connector->connect('127.0.0.1', $portB, new TimeoutCancellationToken(Duration::seconds(5)));
                 $sessionB = new H2Session($streamB, $h2Config);
                 return new H2Connection(
@@ -1161,10 +1163,13 @@ final class TransportTest extends TestCase
             $request = new Request(method: 'GET', url: $url, requestTarget: '/');
             $config = new ClientConfiguration();
 
-            $tx = $h2Connection->exchange($request, $config);
-
-            static::assertSame(200, $tx->response->status);
-            static::assertSame('server-b', $tx->response->headers->get('x-source'));
+            try {
+                $h2Connection->exchange($request, $config);
+                static::fail('A GOAWAY covering the stream must fail the exchange without a replay.');
+            } catch (Exception\RuntimeException $error) {
+                static::assertStringContainsString('HTTP/2 connection is closed', $error->getMessage());
+                static::assertFalse($reconnected);
+            }
         } finally {
             $listenerA->close();
             $listenerB->close();
@@ -1182,134 +1187,51 @@ final class TransportTest extends TestCase
         }
     }
 
-    public function testReconnectOnGoAwayWithError(): void
+    public function testGoAwayWithErrorDoesNotReplayExchange(): void
     {
-        $listenerA = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));
-        $addressA = $listenerA->getLocalAddress();
-
-        $serverFutureA = Async\run(static function () use ($listenerA): void {
-            try {
-                $conn = $listenerA->accept();
-                $server = new H2\ServerConnection($conn);
-                $server->readClientPreface();
-                $server->initialize();
-
-                while ($server->isConnected()) {
-                    try {
-                        $events = $server->readEvent(new TimeoutCancellationToken(Duration::seconds(5)));
-                    } catch (CancelledException) {
-                        break;
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $reconnected = false;
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+            static function () use (&$reconnected): H2Connection {
+                $reconnected = true;
+                throw new Exception\RuntimeException('Unexpected replay.');
+            },
+        );
+        $serverTask = Async\run(static function () use ($server): void {
+            $h2 = new H2\ServerConnection($server);
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (true) {
+                foreach ($h2->readEvent() as $event) {
+                    if (!$event instanceof H2\Event\HeadersReceived) {
+                        continue;
                     }
 
-                    foreach ($events as $event) {
-                        if (!$event instanceof H2\Event\HeadersReceived) {
-                            continue;
-                        }
-
-                        $server->goAway(H2\ErrorCode::InternalError);
-                        return;
-                    }
+                    $h2->goAway(H2\ErrorCode::InternalError);
+                    return;
                 }
-            } catch (
-                IO\Exception\ExceptionInterface|Network\Exception\ExceptionInterface|H2\Exception\ExceptionInterface|HPACK\Exception\ExceptionInterface
-            ) {
-                // @mago-expect lint:no-empty-catch-clause — server cleanup.
-            }
-        });
-
-        $listenerB = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));
-        $addressB = $listenerB->getLocalAddress();
-
-        $serverFutureB = Async\run(static function () use ($listenerB): void {
-            try {
-                $conn = $listenerB->accept();
-                $server = new H2\ServerConnection($conn);
-                $server->readClientPreface();
-                $server->initialize();
-
-                while ($server->isConnected()) {
-                    try {
-                        $events = $server->readEvent(new TimeoutCancellationToken(Duration::seconds(5)));
-                    } catch (CancelledException) {
-                        break;
-                    }
-
-                    foreach ($events as $event) {
-                        if (!$event instanceof H2\Event\HeadersReceived) {
-                            continue;
-                        }
-
-                        $server->sendHeadersWithStatus(
-                            $event->streamId,
-                            '200',
-                            [
-                                new HPACK\Header('x-source', 'server-b'),
-                            ],
-                            endStream: true,
-                        );
-                    }
-                }
-            } catch (
-                IO\Exception\ExceptionInterface|Network\Exception\ExceptionInterface|H2\Exception\ExceptionInterface|HPACK\Exception\ExceptionInterface
-            ) {
-                // @mago-expect lint:no-empty-catch-clause — server cleanup.
             }
         });
 
         try {
-            $connector = new TCP\Connector(new TCP\ConnectConfiguration(noDelay: true));
-
-            /** @var int<0, 65535> $portA */
-            $portA = $addressA->port;
-            $streamA = $connector->connect('127.0.0.1', $portA, new TimeoutCancellationToken(Duration::seconds(5)));
-
-            $h2Config = new H2ClientConfiguration();
-            $h2Session = new H2Session($streamA, $h2Config);
-
-            /** @var int<0, 65535> $portB */
-            $portB = $addressB->port;
-
-            $reconnect = static function (
-                Request $request,
-                ClientConfiguration $configuration,
-                Async\CancellationTokenInterface $cancellation,
-            ) use ($connector, $portB, $h2Config): H2Connection {
-                $streamB = $connector->connect('127.0.0.1', $portB, new TimeoutCancellationToken(Duration::seconds(5)));
-                $sessionB = new H2Session($streamB, $h2Config);
-                return new H2Connection(
-                    $sessionB,
-                    new ConnectionMetadata($streamB->getLocalAddress(), $streamB->getPeerAddress(), null),
+            try {
+                $connection->exchange(
+                    new Request(method: 'GET', url: URL\parse('http://example.com/')),
+                    new ClientConfiguration(),
                 );
-            };
+                static::fail('GOAWAY must fail the exchange.');
+            } catch (ProtocolException $error) {
+                static::assertStringContainsString('Connection closed by server', $error->getMessage());
+                static::assertFalse($reconnected);
+            }
 
-            $h2Connection = new H2Connection(
-                $h2Session,
-                new ConnectionMetadata($streamA->getLocalAddress(), $streamA->getPeerAddress(), null),
-                $reconnect,
-            );
-
-            $url = URL\parse('http://127.0.0.1/');
-            $request = new Request(method: 'GET', url: $url, requestTarget: '/');
-            $config = new ClientConfiguration();
-
-            $tx = $h2Connection->exchange($request, $config);
-
-            static::assertSame(200, $tx->response->status);
-            static::assertSame('server-b', $tx->response->headers->get('x-source'));
+            $serverTask->await();
         } finally {
-            $listenerA->close();
-            $listenerB->close();
-            try {
-                $serverFutureA->await();
-            } catch (Throwable) {
-                // @mago-expect lint:no-empty-catch-clause
-            }
-
-            try {
-                $serverFutureB->await();
-            } catch (Throwable) {
-                // @mago-expect lint:no-empty-catch-clause
-            }
+            $client->close();
+            $server->close();
         }
     }
 

@@ -28,11 +28,9 @@ use Psl\TLS;
  * one TCP/TLS connection. Each exchange opens a new HTTP/2 stream via
  * {@see StreamExchange::exchange()}.
  *
- * When the underlying session is closed (e.g., server sent GOAWAY per
- * RFC 9113 Section 6.8, or an unrecoverable I/O error occurs), the connection
- * transparently reconnects through the pool via the reconnect closure, so
- * callers never see session lifecycle errors. This reconnection is attempted
- * at most once per exchange to avoid infinite loops.
+ * If the session is already closed, the connection reconnects before sending
+ * the request. Failed exchanges are not replayed: the server may have processed
+ * the request, and its body may have been consumed (RFC 9113 Section 8.7).
  *
  * Unlike {@see H1\H1Connection}, HTTP/2 connections do not need
  * {@see finalize()} logic because stream multiplexing eliminates the
@@ -63,8 +61,8 @@ final readonly class H2Connection implements ConnectionInterface
      *
      * Opens a new HTTP/2 stream on the underlying {@see H2Session} and performs
      * the exchange via {@see StreamExchange::exchange()}. If the session is closed
-     * before or during the exchange, and a reconnect closure is available, the
-     * exchange is retried on a fresh connection obtained from the pool.
+     * before the exchange, a reconnect closure can supply a fresh connection.
+     * Errors after an exchange starts are returned without replaying the request.
      *
      * Errors from the H2 layer ({@see H2\Exception\ExceptionInterface}) are
      * wrapped in {@see Exception\RuntimeException} for a consistent exception
@@ -91,19 +89,7 @@ final readonly class H2Connection implements ConnectionInterface
 
         try {
             return StreamExchange::exchange($this->session, $request, $url, $configuration, $cancellation);
-        } catch (CancelledException $e) {
-            throw $e;
-        } catch (Exception\RuntimeException|IO\Exception\RuntimeException|Network\Exception\RuntimeException $e) {
-            if ($this->session->isClosed() && $this->reconnect !== null) {
-                return $this->reconnectAndExchange($request, $configuration, $cancellation);
-            }
-
-            throw $e;
         } catch (H2\Exception\ExceptionInterface $e) {
-            if ($this->session->isClosed() && $this->reconnect !== null) {
-                return $this->reconnectAndExchange($request, $configuration, $cancellation);
-            }
-
             throw new Exception\RuntimeException($e->getMessage(), previous: $e);
         }
     }
