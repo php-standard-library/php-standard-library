@@ -174,6 +174,8 @@ Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. 
 
 Request trailers are sent via `Request::$trailers`, an `Awaitable<FieldMap>` that resolves after the body. Response trailers are available via `Response::$trailers`, which resolves after the response body is fully consumed.
 
+HTTP/1 requests reject invalid method tokens, field names, and CR/LF in fields with `RequestException`. Explicit `Transfer-Encoding: chunked` uses chunk framing. A `Content-Length` must match the bytes read from the body. These checks also apply to `Expect: 100-continue`.
+
 Trailers require chunked transfer encoding (HTTP/1.1) or HTTP/2 DATA frames. They are not available with HTTP/1.0. Declare expected trailer field names using the `Trailer` header.
 
 @example('protocols/http-client-trailers.php')

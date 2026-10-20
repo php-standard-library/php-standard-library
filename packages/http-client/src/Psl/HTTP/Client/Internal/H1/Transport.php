@@ -16,10 +16,7 @@ use Psl\HTTP\Message\Transaction;
 use Psl\IO;
 use Psl\URL\URL;
 
-use function dechex;
-use function str_contains;
 use function str_starts_with;
-use function strlen;
 use function strtolower;
 
 /**
@@ -121,9 +118,11 @@ final class Transport
 
                 RequestWriter::write(
                     $connection->stream,
-                    $expectRequest->withBody(null),
+                    $expectRequest,
                     $url,
-                    cancellation: $cancellation,
+                    $resolvedTrailers,
+                    $cancellation,
+                    headersOnly: true,
                 );
 
                 $interimLine = $connection->reader->readUntilBounded(
@@ -135,7 +134,7 @@ final class Transport
                     $connection->reader->readUntil("\r\n", $cancellation);
 
                     if ($request->body !== null) {
-                        self::writeBody($connection, $expectRequest, $resolvedTrailers, $cancellation);
+                        RequestWriter::writeBody($connection->stream, $expectRequest, $resolvedTrailers, $cancellation);
                     }
                 } elseif ($interimLine !== null) {
                     $preReadStatusLine = $interimLine;
@@ -158,78 +157,6 @@ final class Transport
             return [$transaction, $keepAlive];
         } catch (IO\Exception\OverflowException) {
             throw ProtocolException::forMalformedResponse('Response exceeds maximum header size.');
-        }
-    }
-
-    /**
-     * Write the request body to the connection, using chunked encoding if applicable.
-     *
-     * If the request has Transfer-Encoding: chunked, the body is written in
-     * chunked format with an optional trailer section (RFC 9112 Section 7.1).
-     * Otherwise, the body is written as raw bytes.
-     *
-     * @param H1Connection $connection The connection to write to.
-     * @param Request $request The request containing headers and body.
-     * @param null|Message\FieldMap $trailers Resolved trailer fields, or null if none.
-     * @param CancellationTokenInterface $cancellation Token to cancel the write.
-     *
-     * @throws IO\Exception\RuntimeException If writing fails.
-     * @throws CancelledException If the write timeout is exceeded.
-     */
-    private static function writeBody(
-        H1Connection $connection,
-        Request $request,
-        null|Message\FieldMap $trailers,
-        CancellationTokenInterface $cancellation,
-    ): void {
-        $body = $request->body;
-        if ($body === null) {
-            return;
-        }
-
-        $hasChunked = false;
-        $te = $request->headers->get('transfer-encoding');
-        if ($te !== null && strtolower($te) === 'chunked') {
-            $hasChunked = true;
-        }
-
-        if ($hasChunked) {
-            while (!$body->reachedEndOfDataSource()) {
-                $chunk = $body->read(8192, $cancellation);
-                if ($chunk === '') {
-                    break;
-                }
-
-                $connection->stream->writeAll(dechex(strlen($chunk)) . "\r\n" . $chunk . "\r\n", $cancellation);
-            }
-
-            $terminator = "0\r\n";
-            if ($trailers !== null && !$trailers->isEmpty()) {
-                foreach ($trailers as [$name, $value]) {
-                    if (
-                        str_contains($name, "\r")
-                        || str_contains($name, "\n")
-                        || str_contains($value, "\r")
-                        || str_contains($value, "\n")
-                    ) {
-                        continue;
-                    }
-
-                    $terminator .= $name . ': ' . $value . "\r\n";
-                }
-            }
-
-            $terminator .= "\r\n";
-            $connection->stream->writeAll($terminator, $cancellation);
-        } else {
-            while (!$body->reachedEndOfDataSource()) {
-                $chunk = $body->read(8192, $cancellation);
-                if ($chunk === '') {
-                    break;
-                }
-
-                $connection->stream->writeAll($chunk, $cancellation);
-            }
         }
     }
 }

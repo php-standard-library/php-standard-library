@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Tests\Unit\Internal\H1;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Internal\H1\RequestWriter;
 use Psl\HTTP\Client\Tests\Fixture\H1\FakeStream;
 use Psl\HTTP\Message\FieldMap;
@@ -119,7 +121,7 @@ final class RequestWriterTest extends TestCase
         static::assertStringNotContainsString('transfer-encoding', $written);
     }
 
-    public function testHeadersWithCrlfAreStripped(): void
+    public function testHeadersWithCrlfAreRejected(): void
     {
         $request = new Request(
             method: 'GET',
@@ -132,15 +134,11 @@ final class RequestWriterTest extends TestCase
         );
 
         $request = $request->withRequestTarget('/');
-        $written = self::write($request);
-
-        static::assertStringContainsString("accept: */*\r\n", $written);
-        static::assertStringContainsString("x-safe: ok\r\n", $written);
-        static::assertStringNotContainsString('x-injected', $written);
-        static::assertStringNotContainsString('X-Fake', $written);
+        $this->expectException(RequestException::class);
+        self::write($request);
     }
 
-    public function testHeaderNameWithNewlineIsStripped(): void
+    public function testHeaderNameWithNewlineIsRejected(): void
     {
         $request = new Request(
             method: 'GET',
@@ -152,10 +150,8 @@ final class RequestWriterTest extends TestCase
         );
 
         $request = $request->withRequestTarget('/');
-        $written = self::write($request);
-
-        static::assertStringNotContainsString('x-bad', $written);
-        static::assertStringContainsString("x-good: value\r\n", $written);
+        $this->expectException(RequestException::class);
+        self::write($request);
     }
 
     public function testRequestTargetWithCrlfThrows(): void
@@ -216,7 +212,7 @@ final class RequestWriterTest extends TestCase
         static::assertStringEndsWith("0\r\n\r\n", $written);
     }
 
-    public function testChunkedBodyTrailersWithCrlfAreStripped(): void
+    public function testChunkedBodyTrailersWithCrlfAreRejected(): void
     {
         $body = 'data';
         $request = new Request(
@@ -231,9 +227,83 @@ final class RequestWriterTest extends TestCase
             ["x-evil\r\ninjection", 'value'],
             ['x-safe',              'ok'],
         ]);
-        $written = self::write($request, null, $trailers);
+        $this->expectException(RequestException::class);
+        self::write($request, null, $trailers);
+    }
 
-        static::assertStringNotContainsString('x-evil', $written);
-        static::assertStringContainsString("x-safe: ok\r\n", $written);
+    public function testExplicitChunkedEncodingFramesBody(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            url: null,
+            headers: FieldMap::from([['transfer-encoding', 'chunked']]),
+            body: new IO\MemoryHandle('hello'),
+        );
+        static::assertStringEndsWith("\r\n\r\n5\r\nhello\r\n0\r\n\r\n", self::write($request));
+    }
+
+    public function testExplicitChunkedEncodingTerminatesEmptyBody(): void
+    {
+        $request = new Request(method: 'POST', url: null, headers: FieldMap::from([['transfer-encoding', 'chunked']]));
+        static::assertStringEndsWith("\r\n\r\n0\r\n\r\n", self::write($request));
+    }
+
+    #[DataProvider('invalidRequests')]
+    public function testInvalidRequestIsRejected(
+        string $method,
+        FieldMap $headers,
+        null|string $body,
+        null|FieldMap $trailers,
+    ): void {
+        $this->expectException(RequestException::class);
+        self::write(
+            new Request(
+                method: $method,
+                url: null,
+                headers: $headers,
+                body: $body === null ? null : new IO\MemoryHandle($body),
+            ),
+            trailers: $trailers,
+        );
+    }
+
+    /** @return iterable<string, array{string, FieldMap, null|string, null|FieldMap}> */
+    public static function invalidRequests(): iterable
+    {
+        yield 'method injection' => ["GET\r\nInjected", FieldMap::default(), null, null];
+        yield 'method separator' => ['GET /', FieldMap::default(), null, null];
+        yield 'header name separator' => ['GET', FieldMap::from([['bad:name', 'value']]), null, null];
+        yield 'trailer name separator' => [
+            'POST',
+            FieldMap::default(),
+            'hello',
+            FieldMap::from([['bad name', 'value']]),
+        ];
+        yield 'trailer value injection' => [
+            'POST',
+            FieldMap::default(),
+            'hello',
+            FieldMap::from([['name', "value\r\ninjected: true"]]),
+        ];
+        yield 'short body' => ['POST', FieldMap::from([['content-length', '6']]), 'hello', null];
+        yield 'long body' => ['POST', FieldMap::from([['content-length', '4']]), 'hello', null];
+        yield 'missing body' => ['POST', FieldMap::from([['content-length', '1']]), null, null];
+        yield 'invalid length' => ['POST', FieldMap::from([['content-length', '1x']]), 'hello', null];
+        yield 'overflow length' => [
+            'POST',
+            FieldMap::from([['content-length', '99999999999999999999999']]),
+            'hello',
+            null,
+        ];
+        yield 'conflicting framing' => [
+            'POST',
+            FieldMap::from([
+                ['content-length',    '5'],
+                ['transfer-encoding', 'chunked'],
+            ]),
+            'hello',
+            null,
+        ];
+        yield 'unsupported encoding' => ['POST', FieldMap::from([['transfer-encoding', 'gzip']]), 'hello', null];
     }
 }

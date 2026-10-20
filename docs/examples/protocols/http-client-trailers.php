@@ -13,6 +13,7 @@ use Psl\URL;
 $client = new Client\Client();
 
 // Sending request trailers using an Awaitable<FieldMap>.
+// Invalid trailer names and CR/LF in fields throw RequestException in HTTP/1.
 // Trailers are sent after the body with chunked transfer encoding (H1) or after DATA frames (H2).
 $deferred = new Async\Deferred();
 $request = new Message\Request(

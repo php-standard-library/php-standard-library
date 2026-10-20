@@ -11,11 +11,9 @@ use Throwable;
 /**
  * Thrown when the request itself is invalid or cannot be dispatched.
  *
- * This exception indicates a problem with the request that is detected before
- * the HTTP exchange begins on the wire. Unlike {@see ProtocolException}, which
- * signals a server-side or transport-level protocol violation, this exception
- * signals that the client cannot even attempt the exchange because the request
- * is structurally unsound.
+ * This exception reports invalid request fields, framing, or body replay.
+ * Most checks run before sending. A streamed body's Content-Length mismatch
+ * can surface after the client has sent headers or part of the body.
  *
  * Two categories of request errors are covered:
  *

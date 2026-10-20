@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Connection\ConnectionMetadata;
+use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Internal\H1\H1Connection;
 use Psl\HTTP\Client\Internal\H1\Transport;
 use Psl\HTTP\Client\Tests\Fixture\H1\FakeStream;
@@ -134,5 +135,23 @@ final class ExpectContinueBugTest extends TestCase
 
         static::assertStringContainsString("content-length: 7\r\n", $stream->written);
         static::assertStringContainsString('payload', $stream->written);
+    }
+
+    public function testExpectContinueChecksContentLength(): void
+    {
+        $url = URL\parse('http://example.com/');
+        $request = new Request(
+            method: 'POST',
+            url: $url,
+            headers: FieldMap::from([
+                ['expect',         '100-continue'],
+                ['content-length', '6'],
+            ]),
+            body: new IO\MemoryHandle('hello'),
+        );
+        $stream = new FakeStream("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n");
+        $connection = new H1Connection($stream, new ConnectionMetadata(Network\Address::tcp(), Network\Address::tcp()));
+        $this->expectException(RequestException::class);
+        Transport::exchange($connection, $request, $url, new ClientConfiguration());
     }
 }
