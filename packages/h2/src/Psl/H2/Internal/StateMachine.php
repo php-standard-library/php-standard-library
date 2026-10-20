@@ -323,7 +323,20 @@ final class StateMachine
             throw ProtocolException::forConnectionError($e->getMessage(), $e);
         }
 
-        return $this->buildHeaderFramesEncoded($streamId, $encoded, $endStream);
+        $frames = $this->buildHeaderFramesEncoded($streamId, $encoded, $endStream);
+        $stream = $this->streams->get($streamId);
+        if ($this->isClient && $stream !== null) {
+            foreach ($normalized as $header) {
+                if ($header->name !== ':method') {
+                    continue;
+                }
+
+                $stream->requestMethod = $header->value;
+                break;
+            }
+        }
+
+        return $frames;
     }
 
     /**
@@ -1160,10 +1173,11 @@ final class StateMachine
             if (!$isTrailing) {
                 $contentLength = self::resolveContentLength($streamId, $headers);
 
-                // RFC 9113 §8.1.1: only servers enforce the declared length against
-                // received DATA. HEAD responses may declare content-length without
-                // sending any DATA frames.
-                if (!$this->isClient && $contentLength !== null) {
+                // RFC 9113 §8.1.1 excludes responses defined as having no content.
+                if (
+                    $contentLength !== null
+                    && (!$this->isClient || self::responseHasContent($headers, $stream->requestMethod))
+                ) {
                     $stream->declaredContentLength = (int) $contentLength;
                 }
             }
@@ -1225,6 +1239,33 @@ final class StateMachine
         }
 
         return $resolved;
+    }
+
+    /**
+     * @param list<Header> $headers
+     */
+    private static function responseHasContent(array $headers, null|string $requestMethod): bool
+    {
+        if ($requestMethod === 'HEAD') {
+            return false;
+        }
+
+        foreach ($headers as $header) {
+            if ($header->name !== ':status') {
+                continue;
+            }
+
+            $status = (int) $header->value;
+
+            return (
+                $status >= 200
+                && $status !== 204
+                && $status !== 304
+                && ($requestMethod !== 'CONNECT' || $status >= 300)
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -1579,6 +1620,14 @@ final class StateMachine
 
         $promised = $this->streams->getOrCreate($promisedStreamId);
         $promised->state = StreamState::ReservedRemote;
+        foreach ($headers as $header) {
+            if ($header->name !== ':method') {
+                continue;
+            }
+
+            $promised->requestMethod = $header->value;
+            break;
+        }
 
         return [[], [new PushPromiseReceived($streamId, $promisedStreamId, $headers)]];
     }

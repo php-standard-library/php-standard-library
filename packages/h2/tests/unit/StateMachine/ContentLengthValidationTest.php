@@ -16,7 +16,7 @@ use Psl\HPACK\Header;
 use function str_repeat;
 
 /**
- * Server-side `content-length` validation against received DATA frames.
+ * `content-length` validation against received DATA frames.
  *
  * See GHSA-pw9p-jvrm-f7rm and RFC 9113 §8.1.1 / §8.1.2.6.
  */
@@ -177,7 +177,7 @@ final class ContentLengthValidationTest extends TestCase
         $sm->receive(new DataFrame(1, 'def', false)->toRaw());
     }
 
-    public function testClientDoesNotValidateContentLength(): void
+    public function testHeadResponseDoesNotValidateContentLength(): void
     {
         $sm = new StateMachine(true);
         $sm->initialize();

@@ -36,6 +36,11 @@ final class StreamEntry
     public bool $receivedHeaders = false;
 
     /**
+     * Request method used to determine whether a response carries content.
+     */
+    public null|string $requestMethod = null;
+
+    /**
      * Value of the content-length header declared by the peer in the initial
      * HEADERS block, or null if absent (RFC 9113 §8.1.1).
      */
