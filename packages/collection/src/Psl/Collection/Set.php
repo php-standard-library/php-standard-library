@@ -84,17 +84,17 @@ final readonly class Set implements SetInterface
     }
 
     /**
-     * Create a set from the given items, using the keys of the array as the set values.
+     * Create a set from the given items, using the values of the iterable as the set values.
      *
      * @template Ts of array-key
      *
-     * @param iterable<array-key, Ts> $items
+     * @param iterable<mixed, Ts> $items
      *
      * @return Set<Ts>
      */
     public static function fromItems(iterable $items): Set
     {
-        $array = iterator_to_array($items);
+        $array = iterator_to_array($items, preserve_keys: false);
 
         return self::fromArray($array);
     }

@@ -84,13 +84,13 @@ final class MutableVector implements MutableVectorInterface
      *
      * @template Ts
      *
-     * @param iterable<array-key, Ts> $items
+     * @param iterable<mixed, Ts> $items
      *
      * @return MutableVector<Ts>
      */
     public static function fromItems(iterable $items): MutableVector
     {
-        $array = iterator_to_array($items);
+        $array = iterator_to_array($items, preserve_keys: false);
 
         return self::fromArray($array);
     }

@@ -8,6 +8,7 @@ use Override;
 use Psl\Collection;
 use Psl\Collection\Exception;
 use Psl\Collection\MutableVector;
+use stdClass;
 
 final class MutableVectorTest extends AbstractVectorTestCase
 {
@@ -242,6 +243,26 @@ final class MutableVectorTest extends AbstractVectorTestCase
     {
         $vector = MutableVector::fromItems([1, 2, 3]);
         static::assertSame([1, 2, 3], $vector->toArray());
+    }
+
+    public function testFromItemsWithDuplicateKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield from [1, 2];
+            yield from [3, 4];
+        })();
+
+        static::assertSame([1, 2, 3, 4], MutableVector::fromItems($items)->toArray());
+    }
+
+    public function testFromItemsWithNonArrayKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield new stdClass() => 'a';
+            yield 1.5 => 'b';
+        })();
+
+        static::assertSame(['a', 'b'], MutableVector::fromItems($items)->toArray());
     }
 
     /**

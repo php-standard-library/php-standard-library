@@ -89,13 +89,13 @@ final class MutableSet implements MutableSetInterface
      *
      * @template Ts of array-key
      *
-     * @param iterable<Ts, Ts> $items
+     * @param iterable<mixed, Ts> $items
      *
      * @return MutableSet<Ts>
      */
     public static function fromItems(iterable $items): MutableSet
     {
-        $array = iterator_to_array($items);
+        $array = iterator_to_array($items, preserve_keys: false);
 
         return self::fromArray($array);
     }

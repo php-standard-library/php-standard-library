@@ -7,6 +7,7 @@ namespace Psl\Collection\Tests\Unit;
 use Override;
 use Psl\Collection\Exception;
 use Psl\Collection\MutableSet;
+use stdClass;
 
 final class MutableSetTest extends AbstractSetTestCase
 {
@@ -150,6 +151,26 @@ final class MutableSetTest extends AbstractSetTestCase
     {
         $set = MutableSet::fromItems(['a', 'b', 'b', 'c']);
         static::assertSame(['a' => 'a', 'b' => 'b', 'c' => 'c'], $set->toArray());
+    }
+
+    public function testFromItemsWithDuplicateKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield from ['a', 'b'];
+            yield from ['c', 'd'];
+        })();
+
+        static::assertSame(['a' => 'a', 'b' => 'b', 'c' => 'c', 'd' => 'd'], MutableSet::fromItems($items)->toArray());
+    }
+
+    public function testFromItemsWithNonArrayKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield new stdClass() => 'a';
+            yield 1.5 => 'b';
+        })();
+
+        static::assertSame(['a' => 'a', 'b' => 'b'], MutableSet::fromItems($items)->toArray());
     }
 
     public function testFromArrayKeysConstructor(): void

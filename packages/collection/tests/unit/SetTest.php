@@ -6,6 +6,7 @@ namespace Psl\Collection\Tests\Unit;
 
 use Override;
 use Psl\Collection\Set;
+use stdClass;
 
 final class SetTest extends AbstractSetTestCase
 {
@@ -23,6 +24,26 @@ final class SetTest extends AbstractSetTestCase
         static::assertTrue($set->contains('foo'));
         static::assertTrue($set->contains('bar'));
         static::assertTrue($set->contains('baz'));
+    }
+
+    public function testFromItemsWithDuplicateKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield from ['a', 'b'];
+            yield from ['c', 'd'];
+        })();
+
+        static::assertSame(['a' => 'a', 'b' => 'b', 'c' => 'c', 'd' => 'd'], Set::fromItems($items)->toArray());
+    }
+
+    public function testFromItemsWithNonArrayKeys(): void
+    {
+        $items = (static function (): iterable {
+            yield new stdClass() => 'a';
+            yield 1.5 => 'b';
+        })();
+
+        static::assertSame(['a' => 'a', 'b' => 'b'], Set::fromItems($items)->toArray());
     }
 
     /**

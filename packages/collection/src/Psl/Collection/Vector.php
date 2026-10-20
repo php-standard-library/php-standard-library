@@ -81,13 +81,13 @@ final readonly class Vector implements VectorInterface
      *
      * @template Ts
      *
-     * @param iterable<array-key, Ts> $items
+     * @param iterable<mixed, Ts> $items
      *
      * @return Vector<Ts>
      */
     public static function fromItems(iterable $items): Vector
     {
-        $array = iterator_to_array($items);
+        $array = iterator_to_array($items, preserve_keys: false);
 
         return self::fromArray($array);
     }
