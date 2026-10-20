@@ -119,7 +119,7 @@ final class ResourceHandle extends IO\Internal\ResourceHandle implements
                 return $this->tryLock($type);
             } catch (File\Exception\AlreadyLockedException) {
                 Async\sleep($wait, $cancellation);
-                $wait = Duration::nanoseconds((int) min(
+                $wait = Duration::milliseconds((int) min(
                     $wait->getTotalMilliseconds() * 2,
                     $max->getTotalMilliseconds(),
                 ));
