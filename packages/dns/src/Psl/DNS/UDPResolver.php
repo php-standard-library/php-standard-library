@@ -12,6 +12,13 @@ use Psl\DNS\Record\RecordType;
 use Psl\IO;
 use Psl\Network;
 use Psl\UDP;
+use UnexpectedValueException;
+
+use function inet_pton;
+use function str_contains;
+use function strlen;
+use function trim;
+use function unpack;
 
 /**
  * DNS resolver that sends queries over UDP.
@@ -51,13 +58,45 @@ final readonly class UDPResolver implements ResolverInterface
         [$id, $packet] = Encoder::encode($name, $type, $this->dnssec, $this->udpPayloadSize, $ednsOptions);
 
         try {
-            $socket = UDP\Socket::bind();
+            $host = trim($this->host, '[]');
+            $ipv6 = str_contains($host, ':');
+            $socket = UDP\Socket::bind($ipv6 ? '[::]' : '0.0.0.0');
             try {
-                $address = Network\Address::udp($this->host, $this->port);
+                $address = Network\Address::udp($ipv6 ? '[' . $host . ']' : $this->host, $this->port);
                 $socket->sendTo($packet, $address, $cancellation);
                 /** @var positive-int $bufferSize */
                 $bufferSize = $this->udpPayloadSize;
                 [$responseData, $peer] = $socket->receiveFrom($bufferSize, $cancellation);
+                $sameHost = $ipv6 ? inet_pton($peer->host) === inet_pton($host) : $peer->host === $host;
+                if (!$sameHost || $peer->port !== $this->port) {
+                    throw Exception\ProtocolException::forUnexpectedSource(
+                        $this->host . ':' . $this->port,
+                        $peer->host . ':' . ($peer->port ?? 0),
+                    );
+                }
+
+                if (strlen($responseData) < 12) {
+                    throw Exception\ProtocolException::forTooShort(strlen($responseData));
+                }
+
+                $responseId = unpack('n', $responseData)[1];
+                if ($responseId !== $id) {
+                    throw Exception\ProtocolException::forTransactionIDMismatch($id, $responseId);
+                }
+
+                if (!Decoder::matchesQuestion($responseData, $packet, allowEmptyError: true)) {
+                    $exception = new UnexpectedValueException(
+                        'Response question does not match the query name, type, and class',
+                    );
+                    throw Exception\ProtocolException::forDecodingFailure($exception->getMessage(), $exception);
+                }
+
+                $response = Decoder::decode($responseData);
+                if (Decoder::isTruncated($responseData)) {
+                    throw Exception\ProtocolException::forUDPResponse();
+                }
+
+                return $response;
             } finally {
                 $socket->close();
             }
@@ -68,23 +107,5 @@ final readonly class UDPResolver implements ResolverInterface
         } catch (Network\Exception\RuntimeException $e) {
             throw Exception\NetworkException::forQueryFailed('UDP', $e->getMessage(), $e);
         }
-
-        if ($peer->host !== $this->host || $peer->port !== $this->port) {
-            throw Exception\ProtocolException::forUnexpectedSource(
-                $this->host . ':' . $this->port,
-                $peer->host . ':' . ($peer->port ?? 0),
-            );
-        }
-
-        $response = Decoder::decode($responseData);
-        if ($response->id !== $id) {
-            throw Exception\ProtocolException::forTransactionIDMismatch($id, $response->id);
-        }
-
-        if (Decoder::isTruncated($responseData)) {
-            throw Exception\ProtocolException::forUDPResponse();
-        }
-
-        return $response;
     }
 }

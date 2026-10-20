@@ -18,6 +18,8 @@ Resolvers can be composed for different strategies: direct UDP/TCP, fallback on 
 
 `FallbackResolver` tries the next resolver after a transport or protocol failure, SERVFAIL, or REFUSED. It returns NXDOMAIN at once because the response answers the query. It returns other response codes, including FORMERR, and propagates invalid input and cancellation. Use `SplitHorizonResolver` to route static names separately from public DNS.
 
+`UDPResolver` supports IPv4 and IPv6 nameserver addresses. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
+
 @example('protocols/dns-resolvers.php')
 
 ## Record Types

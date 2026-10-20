@@ -18,9 +18,11 @@ use Psl\IP\Address;
 use ValueError;
 
 use function bin2hex;
+use function chr;
 use function implode;
 use function max;
 use function ord;
+use function strcasecmp;
 use function strlen;
 use function substr;
 use function unpack;
@@ -69,6 +71,45 @@ final class Decoder
         $flags = unpack('n', $data, 2)[1];
 
         return ($flags & 0x0200) !== 0;
+    }
+
+    /**
+     * Match the response question to the encoded query (RFC 5452 section 9.1).
+     * UDP error replies may omit the question when they contain no records.
+     */
+    public static function matchesQuestion(string $data, string $query, bool $allowEmptyError = false): bool
+    {
+        if (
+            $allowEmptyError
+            && strlen($data) === 12
+            && (ord($data[3]) & 0x0F) !== 0
+            && substr($data, 4) === "\0\0\0\0\0\0\0\0"
+        ) {
+            return true;
+        }
+
+        if (strlen($data) < 12 || substr($data, 4, 2) !== "\x00\x01") {
+            return false;
+        }
+
+        try {
+            $offset = 12;
+            $queryOffset = 12;
+            $name = self::readName($data, $offset, strlen($data), wire: true);
+            $queryName = self::readName($query, $queryOffset, strlen($query), wire: true);
+
+            return (
+                strcasecmp($name, $queryName) === 0
+                && self::readBytes($data, $offset, strlen($data), 4) === self::readBytes(
+                    $query,
+                    $queryOffset,
+                    strlen($query),
+                    4,
+                )
+            );
+        } catch (OutOfBoundsException|ProtocolException $e) {
+            return false;
+        }
     }
 
     /**
@@ -1167,7 +1208,7 @@ final class Decoder
      * @throws OutOfBoundsException If a read offset exceeds the packet bounds.
      * @throws ProtocolException If DNS name compression is invalid.
      */
-    private static function readName(string $data, int &$offset, int $length): string
+    private static function readName(string $data, int &$offset, int $length, bool $wire = false): string
     {
         $labels = [];
         $jumps = 0;
@@ -1226,7 +1267,7 @@ final class Decoder
                     $offset = $currentOffset;
                 }
 
-                $labels[] = $label;
+                $labels[] = $wire ? chr($lengthByte) . $label : $label;
                 $totalLength += $lengthByte + 1;
                 if ($totalLength > 253) {
                     throw ProtocolException::forCompressionNameTooLong();
@@ -1234,6 +1275,6 @@ final class Decoder
             }
         }
 
-        return implode('.', $labels);
+        return implode($wire ? '' : '.', $labels);
     }
 }

@@ -8,7 +8,7 @@ use Psl\DNS;
 use Psl\TCP;
 use Psl\TLS;
 
-// UDP resolver (standard DNS, port 53)
+// UDP rejects a wrong ID or question, so fallback can try TCP.
 $udp = new DNS\UDPResolver('8.8.8.8');
 
 // TCP resolver with connection pooling

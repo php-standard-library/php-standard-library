@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\Binary\Reader;
 use Psl\Binary\Writer;
+use Psl\DateTime\Duration;
 use Psl\DNS\Exception\ProtocolException;
 use Psl\DNS\Record\RecordType;
 use Psl\DNS\UDPResolver;
@@ -43,6 +44,6 @@ final class TruncationBeforeTxidTest extends TestCase
         $this->expectExceptionMessage('does not match query ID');
 
         $resolver = new UDPResolver(host: $localAddress->host, port: $localAddress->port ?? 0);
-        $resolver->query('test.example', RecordType::A);
+        $resolver->query('test.example', RecordType::A, new Async\TimeoutCancellationToken(Duration::seconds(2)));
     }
 }
