@@ -69,7 +69,7 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         if ($input === '') {
             return new self([]);
@@ -79,12 +79,12 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
         $segments = self::splitAddresses($input);
 
         foreach ($segments as $segment) {
-            $segment = trim($segment);
+            $segment = trim($segment, " \t\r\n");
             if ($segment === '') {
                 continue;
             }
 
-            if (str_contains($segment, ':') && str_ends_with(trim($segment), ';')) {
+            if (str_contains($segment, ':') && str_ends_with(trim($segment, " \t\r\n"), ';')) {
                 $addresses[] = Group::parse($segment);
             } else {
                 $addresses[] = Mailbox::parse($segment);
@@ -278,7 +278,7 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
             $current .= $char;
         }
 
-        if (trim($current) !== '') {
+        if (trim($current, " \t\r\n") !== '') {
             $segments[] = $current;
         }
 

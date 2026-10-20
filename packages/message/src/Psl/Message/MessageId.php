@@ -77,7 +77,7 @@ final readonly class MessageId implements Stringable
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         if ($input === '') {
             throw ParsingException::forInvalidMessageId($input);

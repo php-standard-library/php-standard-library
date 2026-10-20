@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\Message\Exception\ParsingException;
@@ -79,6 +80,33 @@ final class MessageIdTest extends TestCase
         $id = MessageId::parse('  <unique@example.com>  ');
 
         self::assertSame('unique@example.com', $id->id);
+    }
+
+    #[Test]
+    public function parseTrimsFoldingWhitespace(): void
+    {
+        $id = MessageId::parse("\r\n \t<unique@example.com>\r\n");
+
+        self::assertSame('unique@example.com', $id->id);
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function parseDoesNotTrimControlCharacters(string $char): void
+    {
+        $id = MessageId::parse("<unique@example.com>{$char}");
+
+        self::assertSame("<unique@example.com>{$char}", $id->id);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     #[Test]

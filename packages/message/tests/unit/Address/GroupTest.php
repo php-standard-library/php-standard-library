@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit\Address;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\Message\Address\Group;
@@ -324,6 +325,34 @@ final class GroupTest extends TestCase
         $group = Group::parse("Team: alice@example.com;\n");
 
         static::assertSame('Team', $group->displayName);
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function parseDoesNotTrimControlCharactersAfterSemicolon(string $char): void
+    {
+        $this->expectException(ParsingException::class);
+
+        Group::parse("Team: alice@example.com;{$char}");
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function parseDoesNotTrimControlCharactersAroundDisplayName(string $char): void
+    {
+        $group = Group::parse("{$char}Team{$char}: alice@example.com;");
+
+        static::assertSame("{$char}Team{$char}", $group->displayName);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     #[Test]

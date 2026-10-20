@@ -99,14 +99,14 @@ final readonly class Mailbox implements Stringable
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         if ($input === '') {
             throw ParsingException::forInvalidMailbox($input);
         }
 
         [$input, $comment] = self::stripComments($input);
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         if ($input === '') {
             throw ParsingException::forInvalidMailbox($input);
@@ -122,7 +122,7 @@ final readonly class Mailbox implements Stringable
             /** @var non-negative-int $addrSpecLen */
             $addrSpecLen = $closeBracketPos - $angleBracketPos - 1;
             $addrSpec = substr($input, $angleBracketPos + 1, $addrSpecLen);
-            $displayPart = trim(substr($input, 0, $angleBracketPos));
+            $displayPart = trim(substr($input, 0, $angleBracketPos), " \t\r\n");
 
             $displayName = self::parseDisplayName($displayPart);
 
@@ -278,7 +278,7 @@ final readonly class Mailbox implements Stringable
         null|string $comment,
         string $originalInput,
     ): self {
-        $addrSpec = trim($addrSpec);
+        $addrSpec = trim($addrSpec, " \t\r\n");
         $atPos = strrpos($addrSpec, '@');
 
         if ($atPos === false || $atPos === 0 || $atPos === (strlen($addrSpec) - 1)) {

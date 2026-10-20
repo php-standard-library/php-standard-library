@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit\Address;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\Message\Address\AddressList;
 use Psl\Message\Address\Group;
 use Psl\Message\Address\Mailbox;
+use Psl\Message\Exception\ParsingException;
 
 use function array_key_first;
 
@@ -743,6 +745,25 @@ final class AddressListTest extends TestCase
 
         static::assertCount(0, $list);
         static::assertSame('', $list->toString());
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function parseDoesNotSkipControlCharacterOnlySegments(string $char): void
+    {
+        $this->expectException(ParsingException::class);
+
+        AddressList::parse("alice@example.com,{$char}");
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     #[Test]

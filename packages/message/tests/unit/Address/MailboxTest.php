@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit\Address;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\Message\Address\Mailbox;
@@ -640,6 +641,36 @@ final class MailboxTest extends TestCase
         $this->expectException(ParsingException::class);
 
         Mailbox::parse("\n\t");
+    }
+
+    #[Test]
+    public function parseTrimsFoldingWhitespace(): void
+    {
+        $mailbox = Mailbox::parse("\r\n Alice\r\n <\r\n alice@example.com\r\n >\r\n");
+
+        static::assertSame('Alice', $mailbox->displayName);
+        static::assertSame('alice@example.com', $mailbox->address);
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function parseDoesNotTrimControlCharacters(string $char): void
+    {
+        $mailbox = Mailbox::parse("{$char}Alice{$char} <{$char}alice@example.com{$char}>");
+
+        static::assertSame("{$char}Alice{$char}", $mailbox->displayName);
+        static::assertSame("{$char}alice", $mailbox->localPart);
+        static::assertSame("example.com{$char}", $mailbox->domain);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     #[Test]

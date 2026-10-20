@@ -59,24 +59,24 @@ final readonly class Group implements Stringable
      */
     public static function parse(string $input): self
     {
-        $input = trim($input);
+        $input = trim($input, " \t\r\n");
 
         $colonPos = strpos($input, ':');
         if ($colonPos === false || $colonPos === 0) {
             throw ParsingException::forInvalidGroup($input);
         }
 
-        if (!str_ends_with(trim($input), ';')) {
+        if (!str_ends_with(trim($input, " \t\r\n"), ';')) {
             throw ParsingException::forInvalidGroup($input);
         }
 
-        $displayName = EncodedWord\decode(trim(substr($input, 0, $colonPos)));
+        $displayName = EncodedWord\decode(trim(substr($input, 0, $colonPos), " \t\r\n"));
 
         /** @var int $semicolonPos - guaranteed non-null because we checked ends_with(';') above */
         $semicolonPos = strrpos($input, ';');
         /** @var non-negative-int $length */
         $length = $semicolonPos - $colonPos - 1;
-        $mailboxListStr = trim(substr($input, $colonPos + 1, $length));
+        $mailboxListStr = trim(substr($input, $colonPos + 1, $length), " \t\r\n");
 
         if ($mailboxListStr === '') {
             return new self($displayName);
@@ -85,7 +85,7 @@ final readonly class Group implements Stringable
         $parts = explode(',', $mailboxListStr);
         $mailboxes = [];
         foreach ($parts as $part) {
-            $part = trim($part);
+            $part = trim($part, " \t\r\n");
             if ($part === '') {
                 continue;
             }
