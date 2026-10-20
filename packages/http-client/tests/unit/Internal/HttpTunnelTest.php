@@ -11,6 +11,7 @@ use Psl\DateTime\Duration;
 use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Client\Internal\HttpTunnel;
 use Psl\HTTP\Client\ProxyConfiguration;
+use Psl\HTTP\Client\Tests\Fixture\H1\FakeStream;
 use Psl\IO;
 use Psl\IO\Reader;
 use Psl\Network;
@@ -20,6 +21,28 @@ use Psl\URL;
 
 final class HttpTunnelTest extends TestCase
 {
+    public function testConnectPreservesBytesAfterHeaders(): void
+    {
+        $input = new FakeStream("HTTP/1.1 200 Connection Established\r\nx-proxy: test\r\n\r\ntunnel data");
+        $stream = static::createStub(TCP\StreamInterface::class);
+        $stream->method('read')->willReturnCallback($input->read(...));
+        $stream->method('reachedEndOfDataSource')->willReturnCallback($input->reachedEndOfDataSource(...));
+        $connector = static::createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($stream);
+
+        $tunnel = HttpTunnel::connect(
+            $connector,
+            new ProxyConfiguration(URL\parse('http://proxy.example/')),
+            'example.com',
+            443,
+            new Async\NullCancellationToken(),
+            new TLS\ClientConfiguration(),
+        );
+
+        static::assertSame($stream, $tunnel);
+        static::assertSame('tunnel data', $tunnel->read());
+    }
+
     public function testConnectTunnelSuccess(): void
     {
         $listener = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));

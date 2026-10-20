@@ -15,7 +15,9 @@ use Psl\TLS\ClientConfiguration;
 use Psl\TLS\Connector;
 
 use function preg_match;
+use function str_ends_with;
 use function strlen;
+use function substr;
 
 /**
  * Establishes an HTTP CONNECT tunnel through an HTTP proxy.
@@ -74,9 +76,8 @@ final class HttpTunnel
 
         $stream->writeAll($connectRequest, $cancellation);
 
-        $reader = new IO\Reader($stream);
         try {
-            $statusLine = $reader->readUntilBounded("\r\n", 8192, $cancellation);
+            $statusLine = self::readLine($stream, 8192, $cancellation);
         } catch (IO\Exception\OverflowException) {
             throw ProtocolException::forMalformedResponse('CONNECT status line exceeds maximum size.');
         }
@@ -102,7 +103,7 @@ final class HttpTunnel
             }
 
             try {
-                $line = $reader->readUntilBounded("\r\n", $remaining, $cancellation);
+                $line = self::readLine($stream, $remaining, $cancellation);
             } catch (IO\Exception\OverflowException) {
                 throw ProtocolException::forMalformedResponse('CONNECT headers exceed maximum size.');
             }
@@ -122,5 +123,32 @@ final class HttpTunnel
         }
 
         return $stream;
+    }
+
+    /** @param positive-int $maxBytes */
+    private static function readLine(
+        TCP\StreamInterface $stream,
+        int $maxBytes,
+        CancellationTokenInterface $cancellation,
+    ): null|string {
+        $line = '';
+        // The caller uses the raw stream for TLS, so leave tunnel bytes unread.
+        while (strlen($line) <= ($maxBytes + 1)) {
+            $byte = $stream->read(1, $cancellation);
+            if ($byte === '') {
+                if ($stream->reachedEndOfDataSource()) {
+                    return null;
+                }
+
+                continue;
+            }
+
+            $line .= $byte;
+            if (str_ends_with($line, "\r\n")) {
+                return substr($line, 0, -2);
+            }
+        }
+
+        throw new IO\Exception\OverflowException('CONNECT line exceeds maximum size.');
     }
 }

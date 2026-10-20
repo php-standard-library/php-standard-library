@@ -18,6 +18,7 @@ $configuration = new Client\ClientConfiguration(
     ),
 );
 
+// CONNECT leaves all bytes after the proxy headers for the tunnel.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));

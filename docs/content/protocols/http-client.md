@@ -76,6 +76,8 @@ Use `$proxyConfiguration` to route requests through an HTTP proxy. Configure the
 
 @example('protocols/http-client-tunnel.php')
 
+CONNECT reads stop at the end of the proxy headers, leaving any following tunnel bytes on the stream.
+
 ## HTTP/2 over Plaintext (h2c)
 
 For servers that support HTTP/2 without TLS, set `protocolVersions` to only `ProtocolVersion::V20`. The client uses prior-knowledge mode per RFC 9113 Section 3.4 - it sends the HTTP/2 connection preface directly on the TCP connection, skipping TLS and ALPN negotiation entirely.
