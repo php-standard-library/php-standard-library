@@ -10,7 +10,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\IO;
 use Psl\IO\Exception;
 use Psl\IO\Internal\ResourceHandle;
-use Psl\Network;
 use Psl\Network\Address;
 use Psl\Unix;
 use Revolt\EventLoop;
@@ -50,17 +49,8 @@ final class Stream implements Unix\StreamInterface
             // Unix sockets: one side may not have a name.
             // Server-accepted: local = path, peer = unavailable.
             // Client: local = unavailable, peer = path.
-            try {
-                $local = Network\Internal\get_sock_name($stream);
-            } catch (Network\Exception\RuntimeException) {
-                $local = null;
-            }
-
-            try {
-                $peer = Network\Internal\get_peer_name($stream);
-            } catch (Network\Exception\RuntimeException) {
-                $peer = null;
-            }
+            $local = namespace\get_address($stream, peer: false);
+            $peer = namespace\get_address($stream, peer: true);
 
             $resolved = $local ?? $peer ?? Address::unix('<anonymous>');
             $this->localAddress = $localAddress ?? $local ?? $resolved;

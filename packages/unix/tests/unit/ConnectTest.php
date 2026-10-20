@@ -52,6 +52,37 @@ final class ConnectTest extends TestCase
         ]);
     }
 
+    public function testAddressesOfPathContainingColon(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Unix Server is not supported on Windows platform.');
+        }
+
+        // A name containing ":" used to be read as a TCP host and port: "tcp://<dir>/psl-colon:8080".
+        $file = Filesystem\create_temporary_file(prefix: 'psl-colon');
+        $sock = $file . ':8080.sock';
+        $listener = Unix\listen($sock);
+
+        try {
+            [$server, $client] = Async\concurrently([
+                $listener->accept(...),
+                static fn(): Unix\StreamInterface => Unix\connect($sock),
+            ]);
+
+            static::assertSame('unix://' . $sock, $listener->getLocalAddress()->toString());
+            static::assertSame('unix://' . $sock, $server->getLocalAddress()->toString());
+            static::assertSame('unix://' . $sock, $client->getPeerAddress()->toString());
+            static::assertSame('unix://' . $sock, $client->getLocalAddress()->toString());
+
+            $client->close();
+            $server->close();
+        } finally {
+            $listener->close();
+            unlink($sock);
+            Filesystem\delete_file($file);
+        }
+    }
+
     public function testConnectRejectsPathContainingNullByte(): void
     {
         if (OS\is_windows()) {

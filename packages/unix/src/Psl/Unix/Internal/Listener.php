@@ -92,13 +92,9 @@ final class Listener implements Unix\ListenerInterface
         $this->impl = $impl;
         $this->capacity = $idleConnections;
 
-        try {
-            $this->localAddress = Network\Internal\get_sock_name($impl);
-        } catch (Network\Exception\RuntimeException) {
-            // PHP does not report the name of a socket in the Linux abstract namespace,
-            // as it starts with a NUL byte.
-            $this->localAddress = $boundAddress;
-        }
+        // PHP does not report the name of a socket in the Linux abstract namespace,
+        // as it starts with a NUL byte.
+        $this->localAddress = namespace\get_address($impl, peer: false) ?? $boundAddress;
 
         $this->peerAddress = Network\Address::unix('<anonymous>');
 

@@ -6,6 +6,7 @@ declare(strict_types=1);
     $functions = [
         'Psl\Unix\Internal\assert_not_windows' => __DIR__ . '/Unix/Internal/assert_not_windows.php',
         'Psl\Unix\Internal\assert_valid_path' => __DIR__ . '/Unix/Internal/assert_valid_path.php',
+        'Psl\Unix\Internal\get_address' => __DIR__ . '/Unix/Internal/get_address.php',
         'Psl\Unix\connect' => __DIR__ . '/Unix/connect.php',
         'Psl\Unix\listen' => __DIR__ . '/Unix/listen.php',
     ];
