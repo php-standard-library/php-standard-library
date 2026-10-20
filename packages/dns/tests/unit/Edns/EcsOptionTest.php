@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Psl\DNS\Tests\Unit\Edns;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Binary\Writer;
 use Psl\DNS\EDNS\ECSOption;
+use Psl\DNS\Exception\InvalidArgumentException;
 use Psl\DNS\Internal\EDNS\EDNSCodec;
 use Psl\IP\Address;
 use Psl\IP\Family;
@@ -220,5 +222,33 @@ final class EcsOptionTest extends TestCase
         static::assertInstanceOf(ECSOption::class, $ecs);
         static::assertSame(24, $ecs->sourcePrefixLength);
         static::assertSame(20, $ecs->scopePrefixLength);
+    }
+
+    #[DataProvider('provideSourcePrefixLengthExceedingAddressLength')]
+    public function testToWireFormatRejectsSourcePrefixLengthExceedingAddressLength(
+        Address $address,
+        int $sourcePrefixLength,
+        int $addressBits,
+    ): void {
+        $option = new ECSOption($address, $sourcePrefixLength, 0);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Failed to encode ECS option: source prefix length '
+            . $sourcePrefixLength
+            . ' exceeds the '
+            . $addressBits
+            . '-bit address.',
+        );
+
+        $option->toWireFormat();
+    }
+
+    public static function provideSourcePrefixLengthExceedingAddressLength(): iterable
+    {
+        yield 'ipv4, whole extra byte' => [Address::v4('198.51.100.0'), 40, 32];
+        yield 'ipv4, partial extra byte' => [Address::v4('198.51.100.0'), 33, 32];
+        yield 'ipv6, partial extra byte' => [Address::v6('2001:db8::'), 129, 128];
+        yield 'ipv6, max u8' => [Address::v6('2001:db8::'), 255, 128];
     }
 }

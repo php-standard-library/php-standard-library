@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\DNS\EDNS;
 
+use OutOfRangeException;
 use Psl\DNS\Exception\InvalidArgumentException;
 use Psl\IP\Address;
 use Throwable;
@@ -12,6 +13,7 @@ use function ceil;
 use function chr;
 use function ord;
 use function pack;
+use function strlen;
 use function substr;
 
 /**
@@ -49,6 +51,16 @@ final class ECSOption implements OptionInterface
     {
         try {
             $binary = $this->address->toBytes();
+            $addressBits = strlen($binary) * 8;
+            if ($this->sourcePrefixLength > $addressBits) {
+                throw new OutOfRangeException(
+                    'source prefix length '
+                    . $this->sourcePrefixLength
+                    . ' exceeds the '
+                    . $addressBits
+                    . '-bit address',
+                );
+            }
 
             /** @var non-negative-int $truncatedLength */
             $truncatedLength = (int) ceil($this->sourcePrefixLength / 8.0);
