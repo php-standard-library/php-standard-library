@@ -38,7 +38,10 @@ final class Socket
     }
 
     /**
-     * Bind the socket to a filesystem path.
+     * Bind the socket to a path.
+     *
+     * A path starting with a NUL byte names a socket in the Linux abstract namespace; any other
+     * path is a filesystem path.
      *
      * @param non-empty-string $path
      *
@@ -103,7 +106,7 @@ final class Socket
 
         $stream = Network\Internal\server_listen("unix://{$this->bindPath}", $context);
 
-        return new Internal\Listener($stream, $configuration->idleConnections);
+        return new Internal\Listener($stream, Network\Address::unix($this->bindPath), $configuration->idleConnections);
     }
 
     /**

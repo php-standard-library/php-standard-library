@@ -4,7 +4,7 @@ The `Unix` component provides a non-blocking API for Unix domain socket connecti
 
 Unix domain sockets provide local inter-process communication without the overhead of TCP's network stack. Not available on Windows.
 
-`Unix\connect()`, `Unix\listen()`, `Unix\Socket::bind()` and `Unix\Socket::connect()` throw `Network\Exception\InvalidArgumentException` for a socket path containing a NUL byte, which the operating system would otherwise silently truncate. A path starting with a NUL byte names a socket in the Linux abstract namespace instead, where every byte is part of the name; `Unix\connect()` passes it through unchanged.
+`Unix\connect()`, `Unix\listen()`, `Unix\Socket::bind()` and `Unix\Socket::connect()` throw `Network\Exception\InvalidArgumentException` for a socket path containing a NUL byte, which the operating system would otherwise silently truncate. A path starting with a NUL byte names a socket in the Linux abstract namespace instead, where every byte is part of the name; all four pass it through unchanged.
 
 ## Usage
 

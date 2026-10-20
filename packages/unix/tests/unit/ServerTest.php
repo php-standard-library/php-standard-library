@@ -12,6 +12,8 @@ use Psl\Network\Exception;
 use Psl\OS;
 use Psl\Unix;
 
+use function bin2hex;
+use function random_bytes;
 use function unlink;
 
 final class ServerTest extends TestCase
@@ -57,6 +59,36 @@ final class ServerTest extends TestCase
         }
 
         static::assertFalse($bound);
+    }
+
+    public function testListenOnAbstractSocket(): void
+    {
+        if (OS\OperatingSystemFamily::Linux !== OS\family()) {
+            static::markTestSkipped('The abstract socket namespace is only supported on Linux.');
+        }
+
+        $name = "\0psl-unix-test-" . bin2hex(random_bytes(8));
+        // Without the fallback to the given path, this throws, as PHP cannot read the socket's name.
+        $listener = Unix\listen($name);
+
+        try {
+            static::assertSame($name, $listener->getLocalAddress()->host);
+
+            [$server, $client] = Async\concurrently([
+                $listener->accept(...),
+                static fn(): Unix\StreamInterface => Unix\connect($name),
+            ]);
+
+            static::assertSame($name, $server->getLocalAddress()->host);
+
+            $client->writeAll('ping');
+            static::assertSame('ping', $server->readFixedSize(4));
+
+            $client->close();
+            $server->close();
+        } finally {
+            $listener->close();
+        }
     }
 
     public function testGetLocalAddressOnStoppedListener(): void

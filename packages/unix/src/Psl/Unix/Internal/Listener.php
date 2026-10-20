@@ -80,13 +80,26 @@ final class Listener implements Unix\ListenerInterface
 
     /**
      * @param resource $impl
+     * @param Network\Address $boundAddress The address the socket was bound to, reported as the local
+     *                                     address when the socket's name cannot be read from it.
      * @param int<1, max> $idleConnections
      */
-    public function __construct(mixed $impl, int $idleConnections = self::DEFAULT_IDLE_CONNECTIONS)
-    {
+    public function __construct(
+        mixed $impl,
+        Network\Address $boundAddress,
+        int $idleConnections = self::DEFAULT_IDLE_CONNECTIONS,
+    ) {
         $this->impl = $impl;
         $this->capacity = $idleConnections;
-        $this->localAddress = Network\Internal\get_sock_name($impl);
+
+        try {
+            $this->localAddress = Network\Internal\get_sock_name($impl);
+        } catch (Network\Exception\RuntimeException) {
+            // PHP does not report the name of a socket in the Linux abstract namespace,
+            // as it starts with a NUL byte.
+            $this->localAddress = $boundAddress;
+        }
+
         $this->peerAddress = Network\Address::unix('<anonymous>');
 
         $this->watcher = EventLoop::onReadable($impl, function (string $watcher, mixed $resource): void {
