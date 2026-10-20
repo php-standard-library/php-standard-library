@@ -260,6 +260,60 @@ final class CommandTest extends TestCase
         static::assertSame('overridden', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
     }
 
+    public function testEmptyEnvironmentVariableValueIsPassed(): void
+    {
+        Env\set_var('PSL_PROCESS_PARENT_VAR', 'inherited');
+
+        try {
+            $environment = self::childEnvironment(
+                self::phpCommand()
+                    ->withEnvironmentVariable('PSL_PROCESS_EMPTY_VAR', '')
+                    ->withEnvironmentVariable('PSL_PROCESS_PARENT_VAR', ''),
+            );
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+        }
+
+        static::assertSame('', $environment['PSL_PROCESS_EMPTY_VAR'] ?? null);
+        static::assertSame('', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
+    }
+
+    public function testEmptyInheritedEnvironmentVariableIsPassed(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Setting a variable to an empty value removes it on Windows.');
+        }
+
+        Env\set_var('PSL_PROCESS_PARENT_VAR', '');
+
+        try {
+            $environment = self::childEnvironment(self::phpCommand());
+        } finally {
+            Env\remove_var('PSL_PROCESS_PARENT_VAR');
+        }
+
+        static::assertSame('', $environment['PSL_PROCESS_PARENT_VAR'] ?? null);
+    }
+
+    public function testIntegerLikeEnvironmentVariableNameIsPassed(): void
+    {
+        $command = self::phpCommand()
+            ->withEnvironmentVariable('123', 'first')
+            ->withEnvironmentVariables(['456' => 'second'])
+            ->withEnvironmentVariable('PSL_PROCESS_VAR', 'third');
+
+        static::assertSame(
+            ['123' => 'first', '456' => 'second', 'PSL_PROCESS_VAR' => 'third'],
+            $command->getEnvironmentVariables(),
+        );
+
+        $environment = self::childEnvironment($command);
+
+        static::assertSame('first', $environment['123'] ?? null);
+        static::assertSame('second', $environment['456'] ?? null);
+        static::assertSame('third', $environment['PSL_PROCESS_VAR'] ?? null);
+    }
+
     public function testWithWorkingDirectory(): void
     {
         $command = Command::create('ls')->withWorkingDirectory('/tmp');

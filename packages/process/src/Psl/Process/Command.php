@@ -9,6 +9,7 @@ use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
+use function array_replace;
 use function defined;
 use function getcwd;
 use function getenv;
@@ -141,7 +142,7 @@ final readonly class Command
         return new self(
             program: $this->program,
             arguments: $this->arguments,
-            environment: [...$this->environment, $name => $value],
+            environment: array_replace($this->environment, [$name => $value]),
             inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
@@ -163,7 +164,7 @@ final readonly class Command
         return new self(
             program: $this->program,
             arguments: $this->arguments,
-            environment: [...$this->environment, ...$variables],
+            environment: array_replace($this->environment, $variables),
             inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
@@ -184,7 +185,7 @@ final readonly class Command
         return new self(
             program: $this->program,
             arguments: $this->arguments,
-            environment: [...$this->environment, $name => null],
+            environment: array_replace($this->environment, [$name => null]),
             inheritEnvironment: $this->inheritEnvironment,
             workingDirectory: $this->workingDirectory,
             stdin: $this->stdin,
@@ -408,13 +409,21 @@ final readonly class Command
 
         $command = $this->buildCommand();
 
-        $environment = $this->inheritEnvironment ? getenv() : [];
+        $variables = $this->inheritEnvironment ? getenv() : [];
         foreach ($this->environment as $name => $value) {
             if (null === $value) {
-                unset($environment[$name]);
+                unset($variables[$name]);
             } else {
-                $environment[$name] = $value;
+                $variables[$name] = $value;
             }
+        }
+
+        // Given a NAME => VALUE map, proc_open() skips variables whose value is empty and
+        // passes integer-keyed entries (integer-like names) through without their name,
+        // so hand it the "NAME=VALUE" entries instead, which it passes through as is.
+        $environment = [];
+        foreach ($variables as $name => $value) {
+            $environment[] = $name . '=' . $value;
         }
 
         $cwd = getcwd();
@@ -444,6 +453,8 @@ final readonly class Command
         // @codeCoverageIgnoreEnd
 
         $pipes = [];
+        // proc_open() accepts a list of "NAME=VALUE" entries for $env_vars, which its stub does not describe.
+        // @mago-expect analysis:invalid-argument
         $process = @proc_open($command, $descriptors, $pipes, $workingDirectory, $environment, $options);
         // @codeCoverageIgnoreStart
         if (!is_resource($process)) {
