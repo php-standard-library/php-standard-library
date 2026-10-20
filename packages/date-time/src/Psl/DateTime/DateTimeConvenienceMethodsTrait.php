@@ -7,7 +7,6 @@ namespace Psl\DateTime;
 use Override;
 use Psl\Locale\Locale;
 
-use function abs;
 use function ceil;
 use function intdiv;
 use function max;
@@ -482,95 +481,67 @@ trait DateTimeConvenienceMethodsTrait
     /**
      * Adds the specified years to this date-time object, returning a new instance with the added years.
      *
-     * @throws Exception\UnexpectedValueException If adding the years results in an arithmetic issue.
+     * The day is clamped to the length of the resulting month (February 29 plus one year is February 28),
+     * and the wall-clock time is kept. See {@see DateTimeConvenienceMethodsTrait::plusDays()} for how a
+     * wall-clock time that does not exist, or exists twice, on the resulting day is resolved.
+     *
+     * @throws Exception\UnderflowException If adding the years results in an arithmetic underflow.
+     * @throws Exception\OverflowException If adding the years results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
     public function plusYears(int $years): static
     {
-        return $this->plusMonths($years * namespace\MONTHS_PER_YEAR);
+        return $this->shiftLocalDateTime(1, $years, 0, 0, 0);
     }
 
     /**
      * Subtracts the specified years from this date-time object, returning a new instance with the subtracted years.
      *
-     * @throws Exception\UnexpectedValueException If subtracting the years results in an arithmetic issue.
+     * The day is clamped to the length of the resulting month, and the wall-clock time is kept.
+     * See {@see DateTimeConvenienceMethodsTrait::plusYears()}.
+     *
+     * @throws Exception\UnderflowException If subtracting the years results in an arithmetic underflow.
+     * @throws Exception\OverflowException If subtracting the years results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
     public function minusYears(int $years): static
     {
-        return $this->minusMonths($years * namespace\MONTHS_PER_YEAR);
+        return $this->shiftLocalDateTime(-1, $years, 0, 0, 0);
     }
 
     /**
      * Adds the specified months to this date-time object, returning a new instance with the added months.
      *
-     * @throws Exception\UnexpectedValueException If adding the months results in an arithmetic issue.
+     * The day is clamped to the length of the resulting month (January 31 plus one month is the last day
+     * of February), and the wall-clock time is kept. See {@see DateTimeConvenienceMethodsTrait::plusDays()}
+     * for how a wall-clock time that does not exist, or exists twice, on the resulting day is resolved.
+     *
+     * @throws Exception\UnderflowException If adding the months results in an arithmetic underflow.
+     * @throws Exception\OverflowException If adding the months results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
     public function plusMonths(int $months): static
     {
-        if (0 === $months) {
-            return $this;
-        }
-
-        if ($months < 1) {
-            return $this->minusMonths(-$months);
-        }
-
-        $plusYears = intdiv($months, namespace\MONTHS_PER_YEAR);
-        $monthsLeft = $months - ($plusYears * namespace\MONTHS_PER_YEAR);
-        $targetMonth = $this->getMonth() + $monthsLeft;
-
-        if ($targetMonth > namespace\MONTHS_PER_YEAR) {
-            $plusYears++;
-            $targetMonth -= namespace\MONTHS_PER_YEAR;
-        }
-
-        $targetMonthEnum = Month::from($targetMonth);
-
-        return $this->withDate(
-            $targetYear = $this->getYear() + $plusYears,
-            $targetMonthEnum->value,
-            min($this->getDay(), $targetMonthEnum->getDaysForYear($targetYear)),
-        );
+        return $this->shiftLocalDateTime(1, 0, $months, 0, 0);
     }
 
     /**
      * Subtracts the specified months from this date-time object, returning a new instance with the subtracted months.
      *
-     * @throws Exception\UnexpectedValueException If subtracting the months results in an arithmetic issue.
+     * The day is clamped to the length of the resulting month, and the wall-clock time is kept.
+     * See {@see DateTimeConvenienceMethodsTrait::plusMonths()}.
+     *
+     * @throws Exception\UnderflowException If subtracting the months results in an arithmetic underflow.
+     * @throws Exception\OverflowException If subtracting the months results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
     public function minusMonths(int $months): static
     {
-        if (0 === $months) {
-            return $this;
-        }
-
-        if ($months < 1) {
-            return $this->plusMonths(-$months);
-        }
-
-        $minusYears = intdiv($months, namespace\MONTHS_PER_YEAR);
-        $monthsLeft = $months - ($minusYears * namespace\MONTHS_PER_YEAR);
-        $targetMonth = $this->getMonth() - $monthsLeft;
-
-        if ($targetMonth <= 0) {
-            $minusYears++;
-            $targetMonth = namespace\MONTHS_PER_YEAR - abs($targetMonth);
-        }
-
-        $targetMonthEnum = Month::from($targetMonth);
-
-        return $this->withDate(
-            $targetYear = $this->getYear() - $minusYears,
-            $targetMonthEnum->value,
-            min($this->getDay(), $targetMonthEnum->getDaysForYear($targetYear)),
-        );
+        return $this->shiftLocalDateTime(-1, 0, $months, 0, 0);
     }
 
     /**

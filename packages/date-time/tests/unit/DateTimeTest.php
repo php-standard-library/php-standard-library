@@ -1279,6 +1279,56 @@ final class DateTimeTest extends TestCase
         );
     }
 
+    public function testMonthAndYearArithmeticIntoASkippedWallClockTime(): void
+    {
+        // 01:30 does not exist on 2024-03-31 in Europe/London; it moves forward by the one-hour gap.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2023, 3, 31, 1, 30);
+
+        static::assertSame('2024-03-31T02:30:00+01:00', $dt->plusYears(1)->toRfc3339());
+        static::assertSame('2024-03-31T02:30:00+01:00', $dt->plusMonths(12)->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 5, 31, 1, 30);
+
+        static::assertSame('2024-03-31T02:30:00+01:00', $dt->minusMonths(2)->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2025, 3, 31, 1, 30);
+
+        static::assertSame('2024-03-31T02:30:00+01:00', $dt->minusYears(1)->toRfc3339());
+
+        // America/Santiago skips midnight when daylight saving time starts (2024-09-08 00:00 → 01:00).
+        $dt = DateTime::fromParts(Timezone::AmericaSantiago, 2024, 8, 8);
+
+        static::assertSame('2024-09-08T01:00:00-03:00', $dt->plusMonths(1)->toRfc3339());
+    }
+
+    public function testMonthAndYearArithmeticOutsideTheSupportedRangeThrows(): void
+    {
+        $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);
+
+        static::assertSame('5368709-01-01T00:00:00+00:00', $dt->plusYears(5_366_685)->toRfc3339());
+        static::assertSame('-5838268-01-01T00:00:00+00:00', $dt->minusYears(5_840_292)->toRfc3339());
+
+        foreach ([
+            [static fn(): DateTime => $dt->plusYears(5_366_686), OverflowException::class],
+            [static fn(): DateTime => $dt->minusYears(5_840_293), UnderflowException::class],
+            [static fn(): DateTime => $dt->plusMonths(72_000_000), OverflowException::class],
+            [static fn(): DateTime => $dt->minusMonths(72_000_000), UnderflowException::class],
+            [static fn(): DateTime => $dt->plusYears(6_000_000), OverflowException::class],
+            [static fn(): DateTime => $dt->minusYears(6_000_000), UnderflowException::class],
+            [static fn(): DateTime => $dt->plusYears(PHP_INT_MAX), OverflowException::class],
+            [static fn(): DateTime => $dt->minusYears(PHP_INT_MAX), UnderflowException::class],
+            [static fn(): DateTime => $dt->plusMonths(PHP_INT_MIN), UnderflowException::class],
+            [static fn(): DateTime => $dt->minusMonths(PHP_INT_MIN), OverflowException::class],
+        ] as [$operation, $exception]) {
+            try {
+                $operation();
+                static::fail('Expected ' . $exception);
+            } catch (OverflowException|UnderflowException $e) {
+                static::assertInstanceOf($exception, $e);
+            }
+        }
+    }
+
     public function testDayArithmeticOverflow(): void
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);

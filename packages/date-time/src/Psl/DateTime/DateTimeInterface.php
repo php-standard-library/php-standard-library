@@ -451,7 +451,12 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Adds the specified years to this date-time object, returning a new instance with the added years.
      *
-     * @throws Exception\UnexpectedValueException If adding the years results in an invalid date.
+     * The day is clamped to the length of the resulting month (February 29 plus one year is February 28),
+     * and the wall-clock time is kept. See {@see DateTimeInterface::plusDays()} for how a wall-clock time
+     * that does not exist, or exists twice, on the resulting day is resolved.
+     *
+     * @throws Exception\UnderflowException If adding the years results in an arithmetic underflow.
+     * @throws Exception\OverflowException If adding the years results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
@@ -460,7 +465,12 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Adds the specified months to this date-time object, returning a new instance with the added months.
      *
-     * @throws Exception\UnexpectedValueException If adding the months results in an invalid date.
+     * The day is clamped to the length of the resulting month (January 31 plus one month is the last day
+     * of February), and the wall-clock time is kept. See {@see DateTimeInterface::plusDays()} for how a
+     * wall-clock time that does not exist, or exists twice, on the resulting day is resolved.
+     *
+     * @throws Exception\UnderflowException If adding the months results in an arithmetic underflow.
+     * @throws Exception\OverflowException If adding the months results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
@@ -499,7 +509,11 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Subtracts the specified years from this date-time object, returning a new instance with the subtracted years.
      *
-     * @throws Exception\UnexpectedValueException If subtracting the years results in an invalid date.
+     * The day is clamped to the length of the resulting month, and the wall-clock time is kept.
+     * See {@see DateTimeInterface::plusYears()}.
+     *
+     * @throws Exception\UnderflowException If subtracting the years results in an arithmetic underflow.
+     * @throws Exception\OverflowException If subtracting the years results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
@@ -508,7 +522,11 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Subtracts the specified months from this date-time object, returning a new instance with the subtracted months.
      *
-     * @throws Exception\UnexpectedValueException If subtracting the months results in an invalid date.
+     * The day is clamped to the length of the resulting month, and the wall-clock time is kept.
+     * See {@see DateTimeInterface::plusMonths()}.
+     *
+     * @throws Exception\UnderflowException If subtracting the months results in an arithmetic underflow.
+     * @throws Exception\OverflowException If subtracting the months results in an arithmetic overflow.
      *
      * @psalm-mutation-free
      */
