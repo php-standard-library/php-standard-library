@@ -293,6 +293,12 @@ final class CompositeListener implements ListenerInterface
 
                 $this->backlog[] = $result;
                 $this->notifySignal();
+
+                // Inner accepts are only started by accept() calls that start waiting: start this one
+                // again for the calls still waiting, as no new call may come while they wait.
+                if (0 !== $this->signal->count()) {
+                    $this->startPendingAccepts();
+                }
             });
         }
     }

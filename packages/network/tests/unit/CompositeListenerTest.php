@@ -417,6 +417,79 @@ final class CompositeListenerTest extends TestCase
         $composite->close();
     }
 
+    public function testEveryWaitingCallGetsAConnection(): void
+    {
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $first = Async\run($composite->accept(...));
+        $second = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        [$server, $client] = Network\socket_pair();
+        $listener->push($server);
+
+        Async\later();
+        Async\later();
+
+        // The inner accept is started again for the call still waiting, without waiting for a new call.
+        static::assertSame(1, $listener->waiting);
+
+        [$otherServer, $otherClient] = Network\socket_pair();
+        $listener->push($otherServer);
+
+        static::assertSame($server, $first->await());
+        static::assertSame(
+            $otherServer,
+            $second->await(new Async\TimeoutCancellationToken(Duration::milliseconds(100))),
+        );
+
+        $client->close();
+        $server->close();
+        $otherClient->close();
+        $otherServer->close();
+        $composite->close();
+    }
+
+    public function testFailedInnerAcceptIsStartedAgainForTheCallsStillWaiting(): void
+    {
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $first = Async\run($composite->accept(...));
+        $second = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        $error = new Network\Exception\RuntimeException('TLS handshake failed.');
+        $listener->push($error);
+
+        Async\later();
+        Async\later();
+
+        static::assertSame(1, $listener->waiting);
+
+        [$server, $client] = Network\socket_pair();
+        $listener->push($server);
+
+        try {
+            $first->await();
+
+            static::fail('Expected the inner accept() error to be thrown.');
+        } catch (Network\Exception\RuntimeException $exception) {
+            static::assertSame($error, $exception);
+        }
+
+        static::assertSame($server, $second->await(new Async\TimeoutCancellationToken(Duration::milliseconds(100))));
+
+        $client->close();
+        $server->close();
+        $composite->close();
+    }
+
     public function testConnectionAcceptedAfterCloseIsClosed(): void
     {
         $listener = new FakeListener();
