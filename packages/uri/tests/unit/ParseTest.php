@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\URI\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Str;
 use Psl\URI;
@@ -136,6 +137,42 @@ final class ParseTest extends TestCase
         static::assertNull($uri->authority);
         static::assertSame('/absolute/path', $uri->path);
         static::assertSame(PathKind::Absolute, $uri->pathKind);
+    }
+
+    #[DataProvider('invalidRelativePaths')]
+    public function testRejectsColonInFirstRelativePathSegment(string $input): void
+    {
+        $this->expectException(InvalidURIException::class);
+
+        URI\parse($input);
+    }
+
+    /** @return iterable<array{string}> */
+    public static function invalidRelativePaths(): iterable
+    {
+        yield [':'];
+        yield [':segment'];
+        yield ['::/segment'];
+        yield [':segment/next?query#fragment'];
+        yield ['1:segment'];
+    }
+
+    #[DataProvider('validPathsWithColon')]
+    public function testAcceptsColonOutsideFirstRelativePathSegment(string $input, string $path): void
+    {
+        static::assertSame($path, URI\parse($input)->path);
+    }
+
+    /** @return iterable<array{string, string}> */
+    public static function validPathsWithColon(): iterable
+    {
+        yield ['./:segment', './:segment'];
+        yield ['path/:segment', 'path/:segment'];
+        yield ['/:segment', '/:segment'];
+        yield ['%3Asegment', '%3Asegment'];
+        yield ['//host/:segment', '/:segment'];
+        yield ['scheme:path:segment', 'path:segment'];
+        yield ['path?query:value#fragment:value', 'path'];
     }
 
     public function testEmptyString(): void
@@ -446,12 +483,9 @@ final class ParseTest extends TestCase
 
     public function testColonSlashSlashWithoutScheme(): void
     {
-        $uri = URI\parse('://host');
+        $this->expectException(InvalidURIException::class);
 
-        static::assertNull($uri->scheme);
-        static::assertNull($uri->authority);
-        static::assertSame('://host', $uri->path);
-        static::assertSame(PathKind::Rootless, $uri->pathKind);
+        URI\parse('://host');
     }
 
     public function testQueryAndFragmentBothPresent(): void

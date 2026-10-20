@@ -8,6 +8,8 @@ Parse any URI string into a structured, normalized `URI` object:
 
 @example('networking/uri-parsing.php')
 
+A relative path cannot contain a literal colon in its first segment. Add `./` before that segment, or encode the colon as `%3A`, as required by [RFC 3986 Section 4.2](https://datatracker.ietf.org/doc/html/rfc3986#section-4.2).
+
 Normalization is applied eagerly: scheme and host are lowercased, percent-encoding is normalized (unreserved characters decoded, hex digits uppercased), and dot segments (`/../`, `/./`) are removed.
 
 ## Reference Resolution

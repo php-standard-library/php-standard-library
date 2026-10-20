@@ -66,6 +66,8 @@ final class Parser
             self::validateScheme($scheme);
             $scheme = Normalizer::normalizeScheme($scheme);
             /** @var non-empty-string $scheme */
+        } elseif (!$hasAuthority && preg_match('/^[^\/]*:/', $path)) {
+            throw InvalidURIException::forInvalidPath($path);
         }
 
         $authority = $hasAuthority ? self::parseAuthority($authorityString) : null;

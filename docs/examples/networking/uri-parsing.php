@@ -24,3 +24,6 @@ IO\write_line('%s', $uri->fragment ?? '<unknown>');
 
 // "https://example.com:443/bar?q=1#frag"
 IO\write_line('%s', $uri->toString());
+
+// Prefix a path segment that contains a colon with "./".
+IO\write_line('%s', URI\parse('./:segment')->path); // "./:segment"
