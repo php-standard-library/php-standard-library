@@ -1036,4 +1036,14 @@ final class EventParserAdditionalTest extends TestCase
         static::assertInstanceOf(Event\Mouse::class, $events[1]);
         static::assertSame(Event\MouseKind::Press, $events[1]->kind);
     }
+
+    public function testSgrMouseExtraButtonsAreNotReportedAsLeftMiddleOrRight(): void
+    {
+        // Buttons 8-11: press, release, drag, and a modifier bit on top.
+        $events = $this->parser->feed("\e[<128;10;5M\e[<129;10;5m\e[<162;11;5M\e[<147;10;5Ma");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('a', $events[0]->char);
+    }
 }

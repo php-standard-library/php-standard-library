@@ -26,6 +26,12 @@ final class SgrMouseParser
         }
 
         $btn = (int) $parts[0];
+        // Buttons 8-11 (codes 128-131, such as the back and forward side buttons)
+        // have no MouseButton case; drop them rather than report Left, Middle or Right.
+        if (($btn & 0b1000_0000) !== 0) {
+            return null;
+        }
+
         $col = (int) $parts[1] - 1;
         $row = (int) $parts[2] - 1;
 
