@@ -10,12 +10,15 @@ use Psl\Message\Exception\ParsingException;
 use Stringable;
 
 use function preg_match;
+use function preg_replace;
+use function preg_replace_callback;
 use function str_ends_with;
-use function str_replace;
 use function str_starts_with;
 use function strlen;
+use function strpbrk;
 use function strpos;
 use function strrpos;
+use function strtr;
 use function substr;
 use function trim;
 
@@ -34,6 +37,10 @@ use function trim;
  */
 final readonly class Mailbox implements Stringable
 {
+    private const string ATOM = '[a-zA-Z0-9!#$%&\'*+/=?^_`{|}\x7e\x{80}-\x{10ffff}-]+';
+
+    private const string QUOTED = '"(?:[\x09\x20\x21\x23-\x5b\x5d-\x7e\x{80}-\x{10ffff}]|\\\\[\x09\x20-\x7e])*"';
+
     /**
      * The local part of the address (before @).
      */
@@ -76,6 +83,24 @@ final readonly class Mailbox implements Stringable
             throw InvalidMailboxException::forEmptyDomain();
         }
 
+        // RFC 5322 dot-atoms, with UTF-8 characters allowed by RFC 6532.
+        $dotAtom = self::ATOM . '(?:\.' . self::ATOM . ')*';
+        if (preg_match('~\A(?:' . $dotAtom . '|' . self::QUOTED . ')\z~u', $localPart) !== 1) {
+            throw InvalidMailboxException::forInvalidLocalPart($localPart);
+        }
+
+        if (preg_match('~\A(?:' . $dotAtom . '|\[[\x21-\x5a\x5e-\x7e]+\])\z~u', $domain) !== 1) {
+            throw InvalidMailboxException::forInvalidDomain($domain);
+        }
+
+        if ($displayName !== null && strpbrk($displayName, "\r\n\0") !== false) {
+            throw InvalidMailboxException::forInvalidDisplayName();
+        }
+
+        if ($comment !== null && strpbrk($comment, "\r\n\0") !== false) {
+            throw InvalidMailboxException::forInvalidComment();
+        }
+
         $this->localPart = $localPart;
         $this->domain = $domain;
         $this->displayName = $displayName;
@@ -94,6 +119,9 @@ final readonly class Mailbox implements Stringable
      * - `local@domain (comment)` -RFC 5322 §3.2.2 comments
      * - `john@(comment)example.com` -comments within addr-spec
      * - Encoded-word display names per RFC 2047
+     *
+     * Quotes legacy dotted local parts and obsolete quoted-word sequences.
+     * Removes a final domain dot. Direct construction requires current syntax.
      *
      * @throws ParsingException If the input is not a valid mailbox.
      */
@@ -148,14 +176,17 @@ final readonly class Mailbox implements Stringable
             $encoded = EncodedWord\encode($this->displayName);
 
             if ($encoded === $this->displayName && preg_match('/[^a-zA-Z0-9 ]/', $this->displayName)) {
-                $result = '"' . str_replace('"', '\\"', $this->displayName) . '" <' . $this->address . '>';
+                $result = '"' . strtr($this->displayName, [
+                    '\\' => '\\\\',
+                    '"' => '\\"',
+                ]) . '" <' . $this->address . '>';
             } else {
                 $result = $encoded . ' <' . $this->address . '>';
             }
         }
 
         if ($this->comment !== null) {
-            $result .= ' (' . $this->comment . ')';
+            $result .= ' (' . strtr($this->comment, ['\\' => '\\\\', '(' => '\\(', ')' => '\\)']) . ')';
         }
 
         return $result;
@@ -263,7 +294,7 @@ final readonly class Mailbox implements Stringable
             /** @var non-negative-int $innerLen */
             $innerLen = strlen($displayPart) - 2;
 
-            return str_replace('\\"', '"', substr($displayPart, 1, $innerLen));
+            return preg_replace('/\\\\([\x09\x20-\x7e])/', '$1', substr($displayPart, 1, $innerLen));
         }
 
         return EncodedWord\decode($displayPart);
@@ -287,6 +318,27 @@ final readonly class Mailbox implements Stringable
 
         $localPart = substr($addrSpec, 0, $atPos);
         $domain = substr($addrSpec, $atPos + 1);
+        if (str_ends_with($domain, '.')) {
+            $domain = substr($domain, 0, -1);
+        }
+
+        $dotAtom = self::ATOM . '(?:\.' . self::ATOM . ')*';
+        if (preg_match('~\A(?:' . $dotAtom . '|' . self::QUOTED . ')\z~u', $localPart) !== 1) {
+            $word = '(?:' . self::ATOM . '|' . self::QUOTED . ')?';
+            if (preg_match('~\A' . $word . '(?:\.' . $word . ')*\z~u', $localPart) !== 1) {
+                throw ParsingException::forInvalidMailbox($originalInput);
+            }
+
+            $localPart =
+                preg_replace_callback(
+                    '~' . self::QUOTED . '~u',
+                    static fn(array $match): string => (
+                        preg_replace('/\\\\([\x09\x20-\x7e])/', '$1', substr($match[0], 1, -1)) ?? ''
+                    ),
+                    $localPart,
+                ) ?? $localPart;
+            $localPart = '"' . strtr($localPart, ['\\' => '\\\\', '"' => '\\"']) . '"';
+        }
 
         try {
             return new self($localPart, $domain, $displayName, $comment);

@@ -8,6 +8,8 @@ use Psl\IO;
 use Psl\Message;
 use Psl\MIME\Part;
 
+// Header values must not contain CR, LF, or NUL.
+// Mailbox quotes and escapes display names for use in headers.
 // Addresses accept strings, Mailbox, or AddressList
 $message = new Message\Message()
     ->withFrom('Alice <alice@example.com>')

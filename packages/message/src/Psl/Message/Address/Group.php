@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\Message\Address;
 
 use Psl\Encoding\EncodedWord;
+use Psl\Message\Exception\InvalidArgumentException;
 use Psl\Message\Exception\ParsingException;
 use Stringable;
 
@@ -12,6 +13,7 @@ use function array_map;
 use function explode;
 use function implode;
 use function str_ends_with;
+use function strpbrk;
 use function strpos;
 use function strrpos;
 use function substr;
@@ -46,6 +48,10 @@ final readonly class Group implements Stringable
      */
     public function __construct(string $displayName, array $mailboxes = [])
     {
+        if (strpbrk($displayName, "\r\n\0") !== false) {
+            throw InvalidArgumentException::forInvalidHeaderValue();
+        }
+
         $this->displayName = $displayName;
         $this->mailboxes = $mailboxes;
     }
@@ -54,10 +60,11 @@ final readonly class Group implements Stringable
      * Parse a group from a string.
      *
      * Expects `display-name : [mailbox-list] ;` format.
+     * With $lenient, skip malformed mailboxes in received headers.
      *
      * @throws ParsingException If the input is not a valid group.
      */
-    public static function parse(string $input): self
+    public static function parse(string $input, bool $lenient = false): self
     {
         $input = trim($input, " \t\r\n");
 
@@ -71,6 +78,10 @@ final readonly class Group implements Stringable
         }
 
         $displayName = EncodedWord\decode(trim(substr($input, 0, $colonPos), " \t\r\n"));
+
+        if (strpbrk($displayName, "\r\n\0") !== false) {
+            throw ParsingException::forInvalidGroup($input);
+        }
 
         /** @var int $semicolonPos - guaranteed non-null because we checked ends_with(';') above */
         $semicolonPos = strrpos($input, ';');
@@ -90,7 +101,13 @@ final readonly class Group implements Stringable
                 continue;
             }
 
-            $mailboxes[] = Mailbox::parse($part);
+            try {
+                $mailboxes[] = Mailbox::parse($part);
+            } catch (ParsingException $exception) {
+                if (!$lenient) {
+                    throw $exception;
+                }
+            }
         }
 
         return new self($displayName, $mailboxes);

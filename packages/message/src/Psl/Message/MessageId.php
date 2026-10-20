@@ -14,6 +14,7 @@ use function random_bytes;
 use function str_ends_with;
 use function str_starts_with;
 use function strlen;
+use function strpbrk;
 use function substr;
 use function trim;
 
@@ -44,6 +45,10 @@ final readonly class MessageId implements Stringable
     public function __construct(string $id)
     {
         if ($id === '') { // @mago-expect analysis:redundant-comparison,impossible-condition - runtime check
+            throw ParsingException::forInvalidMessageId($id);
+        }
+
+        if (strpbrk($id, "\r\n\0") !== false) {
             throw ParsingException::forInvalidMessageId($id);
         }
 

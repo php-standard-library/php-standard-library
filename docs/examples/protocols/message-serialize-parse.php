@@ -27,3 +27,8 @@ $parsed = Message\parse($handle);
 $parsed->subject; // "Round trip"
 $parsed->from?->mailboxes()[0]?->address; // "alice@example.com"
 $parsed->content->body()->readAll(); // encoded body content
+
+// Received headers keep usable fields and recipients.
+$received = Message\parse("Subject : hello\r\nTo: alice@example.com, invalid\r\n\r\nbody");
+$received->subject; // "hello"
+$received->to?->toString(); // "alice@example.com"

@@ -21,6 +21,7 @@ use function array_map;
 use function implode;
 use function preg_match_all;
 use function str_starts_with;
+use function strpbrk;
 use function strtolower;
 use function trim;
 
@@ -381,6 +382,10 @@ final class Message implements MessageInterface
      */
     public function withSubject(string $subject): self
     {
+        if (strpbrk($subject, "\r\n\0") !== false) {
+            throw Exception\InvalidArgumentException::forInvalidHeaderValue();
+        }
+
         $message = clone $this;
         $message->subject = $subject;
         $message->headers = $this->headers->replace('Subject', EncodedWord\encode($subject));
@@ -499,13 +504,9 @@ final class Message implements MessageInterface
             return null;
         }
 
-        try {
-            $list = AddressList::parse($value);
+        $list = AddressList::parse($value, lenient: true);
 
-            return $list->addresses === [] ? null : $list;
-        } catch (Exception\ParsingException) {
-            return null;
-        }
+        return $list->addresses === [] ? null : $list;
     }
 
     private static function parseSender(null|string $value): null|Mailbox

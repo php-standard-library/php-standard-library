@@ -75,3 +75,5 @@ Detect MIME types from content bytes using magic signatures, RIFF sub-formats, I
 | RFC 9110 | Content negotiation (Accept header) |
 
 See `src/Psl/MIME/` for the full API.
+
+Received message and multipart headers may use whitespace before the colon. The parsers skip fields with invalid names or CR, LF, or NUL in unfolded values. `Headers::fromPairs()` and `Headers::with()` stay strict. `Parameters::parse()` reports unsafe decoded values with `ParameterParsingException`.

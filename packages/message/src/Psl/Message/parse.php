@@ -13,7 +13,11 @@ use Psl\MIME\Headers;
 use Psl\MIME\MultiPart\Parser;
 use Psl\MIME\Part\Part;
 
+use function array_filter;
+use function array_values;
 use function is_string;
+use function preg_match;
+use function strpbrk;
 use function strpos;
 use function strtolower;
 use function substr;
@@ -25,6 +29,9 @@ use function trim;
  * Reads headers line by line from the input, then wraps the remaining
  * stream as the message body. The body is returned as a raw {@see Part}
  * whose content type reflects the message's Content-Type header.
+ *
+ * Accepts whitespace before the colon and skips invalid field names or values
+ * containing CR, LF, or NUL. Other headers and the body remain available.
  *
  * For multipart messages, the body stream can be further decomposed
  * using {@see Parser}.
@@ -77,13 +84,21 @@ function parse(
             continue;
         }
 
-        $currentName = substr($line, 0, $colonPos);
+        $currentName = trim(substr($line, 0, $colonPos), " \t");
         $currentValue = trim(substr($line, $colonPos + 1), " \t");
     }
 
     if ($currentName !== null) {
         $headerPairs[] = [$currentName, $currentValue];
     }
+
+    $headerPairs = array_values(array_filter(
+        $headerPairs,
+        static fn(array $pair): bool => (
+            preg_match('/\A[\x21-\x39\x3b-\x7e]+\z/', $pair[0]) === 1
+            && strpbrk($pair[1], "\r\n\0") === false
+        ),
+    ));
 
     if ($headerPairs === []) {
         throw ParsingException::forMalformedMessage('no headers found');

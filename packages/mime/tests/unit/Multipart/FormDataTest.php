@@ -7,6 +7,7 @@ namespace Psl\MIME\Tests\Unit\Multipart;
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
 use Psl\MIME\ContentDisposition;
+use Psl\MIME\Exception\InvalidArgumentException;
 use Psl\MIME\Headers;
 use Psl\MIME\MediaType;
 use Psl\MIME\MultiPart\Form;
@@ -184,30 +185,31 @@ final class FormDataTest extends TestCase
         static::assertSame("\x00\x01\x02", $parts[0]->body()->readAll());
     }
 
-    public function testAddPartPercentEncodesLineBreaksAndQuotesInFilename(): void
+    public function testAddPartPercentEncodesQuotesInFilename(): void
     {
         $form = new Form('inject-boundary');
-        $form->addPart(
-            'upload',
-            new Data(new IO\MemoryHandle('real body'), filename: "a.txt\"\r\nX-Injected: yes\r\n\r\nfake\r\"\n"),
-        );
+        $form->addPart('upload', new Data(new IO\MemoryHandle('real body'), filename: 'a "quoted" name.txt'));
 
         $body = $form->body()->readAll();
 
-        static::assertStringNotContainsString("\r\nX-Injected", $body);
         static::assertStringContainsString(
-            'Content-Disposition: form-data; name=upload; filename="a.txt%22%0D%0AX-Injected: yes%0D%0A%0D%0Afake%0D%22%0A"'
-            . "\r\n",
+            'Content-Disposition: form-data; name=upload; filename="a %22quoted%22 name.txt"' . "\r\n",
             $body,
         );
 
         $parts = iterator_to_array(new Parser('inject-boundary')->parse(new IO\MemoryHandle($body)), false);
 
         static::assertCount(1, $parts);
-        static::assertFalse($parts[0]->headers->has('x-injected'));
         $disposition = ContentDisposition::parse((string) $parts[0]->headers->get('content-disposition'));
-        static::assertSame('a.txt%22%0D%0AX-Injected: yes%0D%0A%0D%0Afake%0D%22%0A', $disposition->unsafeFilename());
+        static::assertSame('a %22quoted%22 name.txt', $disposition->unsafeFilename());
         static::assertSame('real body', $parts[0]->body()->readAll());
+    }
+
+    public function testPartWithLineBreaksInFilenameIsRejectedBeforeReachingTheForm(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new Data(new IO\MemoryHandle('real body'), filename: "a.txt\"\r\nX-Injected: yes\r\n\r\nfake\r\"\n");
     }
 
     public function testAddFieldPercentEncodesLineBreaksAndQuotesInName(): void

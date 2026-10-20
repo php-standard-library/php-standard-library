@@ -405,9 +405,9 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseEscapedCharOutsideCommentPreserved(): void
     {
-        $mailbox = Mailbox::parse('john\\@extra@example.com');
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('example.com', $mailbox->domain);
+        Mailbox::parse('john\\@extra@example.com');
     }
 
     #[Test]
@@ -432,10 +432,9 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseUnmatchedClosingParenDoesNotCrash(): void
     {
-        $mailbox = Mailbox::parse('john)@example.com');
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('john)', $mailbox->localPart);
-        static::assertSame('example.com', $mailbox->domain);
+        Mailbox::parse('john)@example.com');
     }
 
     #[Test]
@@ -552,10 +551,9 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseEscapedCharOutsideCommentPreservesBackslash(): void
     {
-        $mailbox = Mailbox::parse("john\\@@example.com");
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('example.com', $mailbox->domain);
-        static::assertStringContainsString('\\@', $mailbox->localPart);
+        Mailbox::parse("john\\@@example.com");
     }
 
     #[Test]
@@ -656,11 +654,9 @@ final class MailboxTest extends TestCase
     #[DataProvider('provideNonWhitespaceControlCharacters')]
     public function parseDoesNotTrimControlCharacters(string $char): void
     {
-        $mailbox = Mailbox::parse("{$char}Alice{$char} <{$char}alice@example.com{$char}>");
+        $this->expectException(ParsingException::class);
 
-        static::assertSame("{$char}Alice{$char}", $mailbox->displayName);
-        static::assertSame("{$char}alice", $mailbox->localPart);
-        static::assertSame("example.com{$char}", $mailbox->domain);
+        Mailbox::parse("{$char}Alice{$char} <{$char}alice@example.com{$char}>");
     }
 
     /**
@@ -749,9 +745,9 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseBackslashEscapeAtEndOfStringOutsideComment(): void
     {
-        $mailbox = Mailbox::parse('user\\@@example.com');
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('example.com', $mailbox->domain);
+        Mailbox::parse('user\\@@example.com');
     }
 
     #[Test]
@@ -870,10 +866,10 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseBackslashEscapeOutsideCommentAtBoundary(): void
     {
-        $input = 'u\\@r@example.com';
-        $mailbox = Mailbox::parse($input);
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('example.com', $mailbox->domain);
+        $input = 'u\\@r@example.com';
+        Mailbox::parse($input);
     }
 
     #[Test]
@@ -889,10 +885,10 @@ final class MailboxTest extends TestCase
     #[Test]
     public function parseBackslashAsLastCharOutsideComment(): void
     {
-        $input = 'a@b.com\\';
-        $mailbox = Mailbox::parse($input);
+        $this->expectException(ParsingException::class);
 
-        static::assertSame('a', $mailbox->localPart);
+        $input = 'a@b.com\\';
+        Mailbox::parse($input);
     }
 
     #[Test]

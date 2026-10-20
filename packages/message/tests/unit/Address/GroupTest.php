@@ -340,6 +340,10 @@ final class GroupTest extends TestCase
     #[DataProvider('provideNonWhitespaceControlCharacters')]
     public function parseDoesNotTrimControlCharactersAroundDisplayName(string $char): void
     {
+        if ($char === "\0") {
+            $this->expectException(ParsingException::class);
+        }
+
         $group = Group::parse("{$char}Team{$char}: alice@example.com;");
 
         static::assertSame("{$char}Team{$char}", $group->displayName);

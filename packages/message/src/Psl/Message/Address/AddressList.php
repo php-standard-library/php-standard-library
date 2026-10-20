@@ -64,10 +64,11 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
      *
      * Handles comma-separated mailboxes and groups.
      * Groups are detected by `display-name : ... ;` syntax.
+     * With $lenient, skip malformed entries in received headers.
      *
      * @throws ParsingException If the input cannot be parsed.
      */
-    public static function parse(string $input): self
+    public static function parse(string $input, bool $lenient = false): self
     {
         $input = trim($input, " \t\r\n");
 
@@ -84,10 +85,16 @@ final readonly class AddressList implements Countable, IteratorAggregate, String
                 continue;
             }
 
-            if (str_contains($segment, ':') && str_ends_with(trim($segment, " \t\r\n"), ';')) {
-                $addresses[] = Group::parse($segment);
-            } else {
-                $addresses[] = Mailbox::parse($segment);
+            try {
+                if (str_contains($segment, ':') && str_ends_with(trim($segment, " \t\r\n"), ';')) {
+                    $addresses[] = Group::parse($segment, $lenient);
+                } else {
+                    $addresses[] = Mailbox::parse($segment);
+                }
+            } catch (ParsingException $exception) {
+                if (!$lenient) {
+                    throw $exception;
+                }
             }
         }
 

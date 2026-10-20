@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\ContentDisposition;
 use Psl\MIME\Exception\ContentDispositionParsingException;
+use Psl\MIME\Exception\InvalidArgumentException;
 use Psl\MIME\Parameters;
 use Stringable;
 
@@ -373,12 +374,11 @@ final class ContentDispositionTest extends TestCase
         static::assertNull($cd->filename());
     }
 
-    public function testFilenameReturnsNullForNullByte(): void
+    public function testRejectsFilenameWithNullByte(): void
     {
-        $cd = new ContentDisposition('attachment', Parameters::fromPairs([['filename', "evil\x00.txt"]]));
+        $this->expectException(InvalidArgumentException::class);
 
-        static::assertNull($cd->filename());
-        static::assertSame("evil\x00.txt", $cd->unsafeFilename());
+        new ContentDisposition('attachment', Parameters::fromPairs([['filename', "evil\x00.txt"]]));
     }
 
     public function testFilenameWithWindowsPath(): void

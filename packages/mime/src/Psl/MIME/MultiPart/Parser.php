@@ -15,6 +15,8 @@ use Psl\MIME\Part\Part;
 use Psl\MIME\Part\PartInterface;
 use Psl\MIME\TransferEncoding;
 
+use function array_filter;
+use function array_values;
 use function explode;
 use function is_array;
 use function max;
@@ -24,6 +26,7 @@ use function rtrim;
 use function str_replace;
 use function str_starts_with;
 use function strlen;
+use function strpbrk;
 use function strpos;
 use function strspn;
 use function substr;
@@ -255,7 +258,13 @@ final class Parser implements ParserInterface
             $headers[] = [$currentName, $currentValue];
         }
 
-        return $headers;
+        return array_values(array_filter(
+            $headers,
+            static fn(array $pair): bool => (
+                preg_match('/\A[\x21-\x39\x3b-\x7e]+\z/', $pair[0]) === 1
+                && strpbrk($pair[1], "\r\n\0") === false
+            ),
+        ));
     }
 
     /**

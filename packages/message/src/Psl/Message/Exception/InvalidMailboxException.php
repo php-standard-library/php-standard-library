@@ -50,4 +50,20 @@ final class InvalidMailboxException extends InvalidArgumentException
     {
         return new self('Invalid mailbox domain: "' . $input . '".');
     }
+
+    /**
+     * The display name contains a header delimiter.
+     */
+    public static function forInvalidDisplayName(): self
+    {
+        return new self('Mailbox display name must not contain CR, LF, or NUL.');
+    }
+
+    /**
+     * The comment contains a header delimiter.
+     */
+    public static function forInvalidComment(): self
+    {
+        return new self('Mailbox comment must not contain CR, LF, or NUL.');
+    }
 }

@@ -94,6 +94,10 @@ final class MessageIdTest extends TestCase
     #[DataProvider('provideNonWhitespaceControlCharacters')]
     public function parseDoesNotTrimControlCharacters(string $char): void
     {
+        if ($char === "\0") {
+            $this->expectException(ParsingException::class);
+        }
+
         $id = MessageId::parse("<unique@example.com>{$char}");
 
         self::assertSame("<unique@example.com>{$char}", $id->id);

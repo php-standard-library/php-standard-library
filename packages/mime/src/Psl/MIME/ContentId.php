@@ -14,6 +14,7 @@ use function random_bytes;
 use function str_ends_with;
 use function str_starts_with;
 use function strlen;
+use function strpbrk;
 use function substr;
 use function trim;
 
@@ -43,6 +44,10 @@ final readonly class ContentId implements Stringable
     public function __construct(string $id)
     {
         if ($id === '') {
+            throw ContentIdParsingException::forInvalidContentId($id);
+        }
+
+        if (strpbrk($id, "\r\n\0") !== false) {
             throw ContentIdParsingException::forInvalidContentId($id);
         }
 

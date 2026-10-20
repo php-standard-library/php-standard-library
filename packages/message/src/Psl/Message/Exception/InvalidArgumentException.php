@@ -32,4 +32,12 @@ class InvalidArgumentException extends Exception\InvalidArgumentException implem
     {
         return new self('Envelope must have at least one recipient.');
     }
+
+    /**
+     * A header value contains a line break or null byte.
+     */
+    public static function forInvalidHeaderValue(): self
+    {
+        return new self('Header values must not contain CR, LF, or NUL.');
+    }
 }

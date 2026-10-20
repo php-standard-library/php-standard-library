@@ -344,19 +344,17 @@ final class AddressListTest extends TestCase
     #[Test]
     public function parseUnclosedQuoteDoesNotAccessOutOfBounds(): void
     {
-        $list = AddressList::parse('"unclosed, bob@example.com');
+        $this->expectException(ParsingException::class);
 
-        static::assertCount(1, $list);
+        AddressList::parse('"unclosed, bob@example.com');
     }
 
     #[Test]
     public function parseAngleBracketDepthTracking(): void
     {
-        $list = AddressList::parse('Alice <alice@example.com>, >bob@example.com');
+        $this->expectException(ParsingException::class);
 
-        static::assertCount(2, $list);
-        static::assertInstanceOf(Mailbox::class, $list->addresses[0]);
-        static::assertSame('alice@example.com', $list->addresses[0]->address);
+        AddressList::parse('Alice <alice@example.com>, >bob@example.com');
     }
 
     #[Test]
@@ -433,9 +431,9 @@ final class AddressListTest extends TestCase
     #[Test]
     public function parseColonWithoutSemicolonIsMailbox(): void
     {
-        $list = AddressList::parse('just-semicolon@example.com;');
+        $this->expectException(ParsingException::class);
 
-        static::assertCount(1, $list);
+        AddressList::parse('just-semicolon@example.com;');
     }
 
     #[Test]
@@ -633,10 +631,10 @@ final class AddressListTest extends TestCase
     #[Test]
     public function splitAddressesClosingAngleBracketIgnoredAtDepthZero(): void
     {
-        $input = '>alice@example.com, bob@example.com';
-        $list = AddressList::parse($input);
+        $this->expectException(ParsingException::class);
 
-        static::assertCount(2, $list);
+        $input = '>alice@example.com, bob@example.com';
+        AddressList::parse($input);
     }
 
     #[Test]
@@ -666,7 +664,7 @@ final class AddressListTest extends TestCase
         static::assertCount(1, $list);
         static::assertInstanceOf(Mailbox::class, $list->addresses[0]);
         static::assertSame('user@example.com', $list->addresses[0]->address);
-        static::assertSame('A\\BC', $list->addresses[0]->displayName);
+        static::assertSame('ABC', $list->addresses[0]->displayName);
     }
 
     #[Test]
@@ -918,10 +916,10 @@ final class AddressListTest extends TestCase
     #[Test]
     public function splitAddressesClosingBracketAtZeroDepthIsLiteral(): void
     {
-        $input = 'a>b@example.com';
-        $list = AddressList::parse($input);
+        $this->expectException(ParsingException::class);
 
-        static::assertCount(1, $list);
+        $input = 'a>b@example.com';
+        AddressList::parse($input);
     }
 
     #[Test]

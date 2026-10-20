@@ -102,6 +102,10 @@ final class ContentIdTest extends TestCase
     #[DataProvider('provideNonWhitespaceControlCharacters')]
     public function testParseDoesNotTrimControlCharacters(string $char): void
     {
+        if ($char === "\0") {
+            $this->expectException(ContentIdParsingException::class);
+        }
+
         $id = ContentId::parse("<part1@example.com>{$char}");
 
         static::assertSame("<part1@example.com>{$char}", $id->id);

@@ -7,6 +7,7 @@ namespace Psl\MIME\Tests\Unit;
 use ArrayIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\MIME\Exception\InvalidArgumentException;
 use Psl\MIME\Exception\InvalidMediaTypeComponentException;
 use Psl\MIME\Exception\ParameterParsingException;
 use Psl\MIME\Parameters;
@@ -418,13 +419,13 @@ final class ParametersTest extends TestCase
         static::assertEmpty($result);
     }
 
-    public function testIsTokenWithControlCharAtIndex0(): void
+    public function testRejectsNullAtIndexZero(): void
     {
-        $params = Parameters::fromPairs([
+        $this->expectException(InvalidArgumentException::class);
+
+        Parameters::fromPairs([
             ['key', "\x00rest"],
         ]);
-
-        static::assertStringContainsString('"', $params->toString());
     }
 
     public function testIsTokenIteratesFromZeroIndex(): void
@@ -469,5 +470,22 @@ final class ParametersTest extends TestCase
     {
         $params = Parameters::fromPairs([['x', 'v']]);
         static::assertSame('v', $params->get('x'));
+    }
+
+    #[DataProvider('unsafeParsedValues')]
+    public function testUnsafeParsedValueThrowsParameterParsingException(string $input): void
+    {
+        $this->expectException(ParameterParsingException::class);
+
+        Parameters::parse($input);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function unsafeParsedValues(): iterable
+    {
+        yield 'quoted NUL' => ["; filename=\"before\0after\""];
+        yield 'encoded NUL' => ["; filename*=utf-8''before%00after"];
+        yield 'encoded CR' => ["; filename*=utf-8''before%0Dafter"];
+        yield 'encoded LF' => ["; filename*=utf-8''before%0Aafter"];
     }
 }

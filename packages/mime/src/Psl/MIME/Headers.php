@@ -11,15 +11,19 @@ use Psl\Default\DefaultInterface;
 use Stringable;
 
 use function count;
+use function preg_match;
 use function preg_split;
 use function str_split;
 use function strlen;
+use function strpbrk;
 use function strtolower;
 
 /**
  * Immutable ordered collection of header name-value pairs.
  *
- * Names are compared case-insensitively per RFC 2045.
+ * Names are compared case-insensitively per RFC 2045. Names must contain
+ * printable ASCII without spaces or colons; values must not contain CR, LF, or NUL.
+ * Pass unfolded values and let toFoldedString() fold them for transmission.
  *
  * @implements IteratorAggregate<int, array{string, string}>
  *
@@ -48,6 +52,7 @@ final readonly class Headers implements Countable, IteratorAggregate, Stringable
     {
         $headers = [];
         foreach ($pairs as [$header, $value]) {
+            self::validate($header, $value);
             $headers[] = [
                 $header,
                 strtolower($header),
@@ -56,6 +61,22 @@ final readonly class Headers implements Countable, IteratorAggregate, Stringable
         }
 
         return new self($headers);
+    }
+
+    /**
+     * @throws Exception\InvalidArgumentException If a name or value could inject a header.
+     */
+    private static function validate(string $name, string $value): void
+    {
+        if (preg_match('/\A[\x21-\x39\x3b-\x7e]+\z/', $name) !== 1) {
+            throw Exception\InvalidArgumentException::create(
+                'Header names must contain printable ASCII without spaces or colons.',
+            );
+        }
+
+        if (strpbrk($value, "\r\n\0") !== false) {
+            throw Exception\InvalidArgumentException::create('Header values must not contain CR, LF, or NUL.');
+        }
     }
 
     /**
@@ -121,6 +142,8 @@ final readonly class Headers implements Countable, IteratorAggregate, Stringable
      */
     public function with(string $name, string $value): self
     {
+        self::validate($name, $value);
+
         return new self([...$this->pairs, [$name, strtolower($name), $value]]);
     }
 

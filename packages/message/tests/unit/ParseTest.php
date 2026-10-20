@@ -92,9 +92,16 @@ final class ParseTest extends TestCase
     #[DataProvider('provideNonWspControlCharacters')]
     public function parseOnlyStripsWspAroundHeaderValues(string $char): void
     {
-        $raw = "X-Custom: \t{$char}value{$char} \t\r\nX-Folded: first\r\n \t{$char}second{$char}\r\n\r\nbody";
+        $raw = "Subject: test\r\nX-Custom: \t{$char}value{$char} \t\r\nX-Folded: first\r\n \t{$char}second{$char}\r\n\r\nbody";
 
         $message = Message\parse($raw);
+
+        if ($char === "\0") {
+            self::assertNull($message->headers->get('X-Custom'));
+            self::assertNull($message->headers->get('X-Folded'));
+
+            return;
+        }
 
         self::assertSame("{$char}value{$char}", $message->headers->get('X-Custom'));
         self::assertSame("first {$char}second{$char}", $message->headers->get('X-Folded'));

@@ -571,6 +571,13 @@ final class ParserTest extends TestCase
         $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
 
         static::assertCount(1, $parts);
+        if ($char === "\0") {
+            static::assertNull($parts[0]->headers->get('x-custom'));
+            static::assertNull($parts[0]->headers->get('x-folded'));
+
+            return;
+        }
+
         static::assertSame("{$char}value{$char}", $parts[0]->headers->get('x-custom'));
         static::assertSame("first {$char}second{$char}", $parts[0]->headers->get('x-folded'));
     }
@@ -1898,5 +1905,26 @@ final class ParserTest extends TestCase
 
         static::assertSame(['first'], $bodies);
         static::assertLessThan(64 * 1024, $handle->tell());
+    }
+
+    #[DataProvider('malformedReceivedHeaders')]
+    public function testSkipsMalformedReceivedFields(string $field): void
+    {
+        $input = "--boundary\r\n" . $field . "X-Good \t: kept\r\n\r\nbody\r\n--boundary--\r\n";
+        $parts = iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($input)));
+
+        static::assertCount(1, $parts);
+        static::assertSame([['X-Good', 'kept']], $parts[0]->headers->pairs());
+        static::assertSame('body', $parts[0]->body->readAll());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function malformedReceivedHeaders(): iterable
+    {
+        yield 'space in name' => ["Bad Name: ignored\r\n"];
+        yield '8-bit name' => ["\xff-Name: ignored\r\n"];
+        yield 'NUL value' => ["X-Bad: before\0after\r\n"];
+        yield 'bare CR value' => ["X-Bad: before\rafter\r\n"];
+        yield 'folded NUL value' => ["X-Bad: before\r\n after\0end\r\n"];
     }
 }

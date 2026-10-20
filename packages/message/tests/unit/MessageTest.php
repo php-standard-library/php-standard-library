@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\IO;
 use Psl\Message\Message;
 use Psl\Message\MessageId;
+use Psl\MIME\Exception\InvalidArgumentException;
 use Psl\MIME\Headers;
 use Psl\MIME\Part;
 
@@ -467,22 +468,22 @@ final class MessageTest extends TestCase
     #[Test]
     public function dateWithFoldingWhitespaceIsTrimmed(): void
     {
-        $message = new Message(Headers::fromPairs([
+        $this->expectException(InvalidArgumentException::class);
+
+        new Message(Headers::fromPairs([
             ['Date', "\r\n Mon, 01 Jan 2024 12:00:00 +0000\r\n"],
         ]));
-
-        static::assertNotNull($message->date);
     }
 
     #[Test]
     #[DataProvider('provideLeadingControlCharacters')]
     public function dateWithLeadingControlCharactersIsNotTrimmed(string $prefix): void
     {
-        $message = new Message(Headers::fromPairs([
+        $this->expectException(InvalidArgumentException::class);
+
+        new Message(Headers::fromPairs([
             ['Date', "{$prefix}Mon, 01 Jan 2024 12:00:00 +0000"],
         ]));
-
-        static::assertNull($message->date);
     }
 
     /**

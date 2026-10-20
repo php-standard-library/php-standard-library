@@ -16,6 +16,7 @@ use function count;
 use function ord;
 use function str_contains;
 use function strlen;
+use function strpbrk;
 use function strtolower;
 use function strtr;
 
@@ -38,7 +39,13 @@ final readonly class Parameters implements Countable, IteratorAggregate, Stringa
      */
     private function __construct(
         private array $pairs,
-    ) {}
+    ) {
+        foreach ($pairs as [$_, $value]) {
+            if (strpbrk($value, "\r\n\0") !== false) {
+                throw Exception\InvalidArgumentException::create('Parameter values must not contain CR, LF, or NUL.');
+            }
+        }
+    }
 
     /**
      * Parse a parameter string (the portion after the semicolon in a media type).
@@ -51,7 +58,11 @@ final readonly class Parameters implements Countable, IteratorAggregate, Stringa
      */
     public static function parse(string $input): self
     {
-        return new self(MediaTypeParser::parseParameters($input));
+        try {
+            return new self(MediaTypeParser::parseParameters($input));
+        } catch (Exception\InvalidArgumentException) {
+            throw Exception\ParameterParsingException::forInvalidParameter($input);
+        }
     }
 
     /**
