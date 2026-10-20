@@ -6,7 +6,6 @@ namespace Psl\H2\Tests\Unit\StateMachine;
 
 use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
-use Psl\H2\Exception\FrameDecodingException;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame\ContinuationFrame;
@@ -119,7 +118,7 @@ final class ErrorTest extends TestCase
 
         $raw = new RawFrame(FrameType::Priority->value, 0, 1, pack('NC', 0, 15) . "\x00");
 
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(StreamException::class);
         $sm->receive($raw);
     }
 

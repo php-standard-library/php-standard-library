@@ -6,6 +6,7 @@ namespace Psl\H2\Frame;
 
 use Override;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function ord;
 use function strlen;
@@ -39,6 +40,7 @@ final readonly class DataFrame implements FrameInterface
     /**
      * Parse a raw frame into a DataFrame, handling padding removal if present.
      *
+     * @throws ProtocolException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the frame payload is malformed or missing required fields.
      */
     #[Override]
@@ -55,7 +57,7 @@ final readonly class DataFrame implements FrameInterface
         if ($padded) {
             $payloadLength = strlen($payload);
             if ($payloadLength < 1) {
-                throw FrameDecodingException::forInvalidPayload('DATA', 'missing pad length');
+                throw ProtocolException::forFrameSizeError(1, $payloadLength);
             }
 
             $padLength = ord($payload[0]);

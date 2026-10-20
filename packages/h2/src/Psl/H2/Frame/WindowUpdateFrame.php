@@ -6,6 +6,7 @@ namespace Psl\H2\Frame;
 
 use Override;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function pack;
 use function strlen;
@@ -39,13 +40,14 @@ final readonly class WindowUpdateFrame implements FrameInterface
     /**
      * Parse a raw frame into a WindowUpdateFrame, extracting the window size increment.
      *
+     * @throws ProtocolException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the payload is not exactly 4 bytes or the increment is zero.
      */
     #[Override]
     public static function fromRaw(RawFrame $frame): static
     {
         if (strlen($frame->payload) !== 4) {
-            throw FrameDecodingException::forInvalidPayload('WINDOW_UPDATE', 'payload must be exactly 4 bytes');
+            throw ProtocolException::forFrameSizeError(4, strlen($frame->payload));
         }
 
         $increment = unpack('N', $frame->payload, 0)[1] & 0x7FFF_FFFF;

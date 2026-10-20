@@ -7,6 +7,8 @@ namespace Psl\H2\Tests\Unit\Frame;
 use PHPUnit\Framework\TestCase;
 use Psl\Binary\Writer;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\FrameType;
 use Psl\H2\Frame\RawFrame;
@@ -59,7 +61,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testPingFrameInvalidLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::Ping->value, 0x00, 0, '1234');
         Frame\PingFrame::fromRaw($raw);
@@ -75,7 +77,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testWindowUpdateInvalidLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::WindowUpdate->value, 0x00, 1, 'xx');
         Frame\WindowUpdateFrame::fromRaw($raw);
@@ -83,7 +85,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testRstStreamInvalidLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::RstStream->value, 0x00, 1, 'xx');
         Frame\RstStreamFrame::fromRaw($raw);
@@ -91,7 +93,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testSettingsAckWithPayload(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::Settings->value, 0x01, 0, 'extra');
         Frame\SettingsFrame::fromRaw($raw);
@@ -99,7 +101,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testSettingsInvalidPayloadLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::Settings->value, 0x00, 0, 'xyz');
         Frame\SettingsFrame::fromRaw($raw);
@@ -107,7 +109,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testPriorityFrameInvalidLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(StreamException::class);
 
         $raw = new RawFrame(FrameType::Priority->value, 0x00, 3, 'xx');
         Frame\PriorityFrame::fromRaw($raw);
@@ -115,7 +117,7 @@ final class EdgeCasesTest extends TestCase
 
     public function testGoAwayFrameInvalidLength(): void
     {
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
 
         $raw = new RawFrame(FrameType::GoAway->value, 0x00, 0, 'short');
         Frame\GoAwayFrame::fromRaw($raw);

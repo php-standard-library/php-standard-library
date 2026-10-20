@@ -7,6 +7,7 @@ namespace Psl\H2\Frame;
 use Override;
 use Psl\H2\ErrorCode;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function pack;
 use function strlen;
@@ -38,6 +39,7 @@ final readonly class RstStreamFrame implements FrameInterface
     /**
      * Parse a raw frame into a RstStreamFrame, extracting the error code.
      *
+     * @throws ProtocolException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the stream ID is zero or the payload is not exactly 4 bytes.
      */
     #[Override]
@@ -48,7 +50,7 @@ final readonly class RstStreamFrame implements FrameInterface
         }
 
         if (strlen($frame->payload) !== 4) {
-            throw FrameDecodingException::forInvalidPayload('RST_STREAM', 'payload must be exactly 4 bytes');
+            throw ProtocolException::forFrameSizeError(4, strlen($frame->payload));
         }
 
         $errorCode = ErrorCode::tryFrom(unpack('N', $frame->payload, 0)[1]) ?? ErrorCode::InternalError;

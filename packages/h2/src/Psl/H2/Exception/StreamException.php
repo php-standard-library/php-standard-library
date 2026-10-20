@@ -26,6 +26,18 @@ final class StreamException extends RuntimeException
     }
 
     /**
+     * Create a stream error for an invalid frame size (RFC 9113 Section 6.3).
+     */
+    public static function forFrameSizeError(int $streamId, int $expected, int $actual): self
+    {
+        return new self(
+            'Stream ' . $streamId . ' frame size error: expected ' . $expected . ' bytes, got ' . $actual . '.',
+            $streamId,
+            ErrorCode::FrameSizeError,
+        );
+    }
+
+    /**
      * Create a stream error for malformed HTTP fields (RFC 9113 §8.1.1).
      */
     public static function forMalformedMessage(int $streamId, string $detail): self

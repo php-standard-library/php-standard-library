@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Psl\H2\Frame;
 
 use Override;
-use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function strlen;
 
@@ -44,14 +44,14 @@ final readonly class PingFrame implements FrameInterface
     /**
      * Parse a raw frame into a PingFrame, extracting the opaque data and ACK flag.
      *
-     * @throws FrameDecodingException If the payload is not exactly 8 bytes.
+     * @throws ProtocolException If the payload is not exactly 8 bytes.
      */
     #[Override]
     public static function fromRaw(RawFrame $frame): static
     {
         $payload = $frame->payload;
         if ('' === $payload || strlen($payload) !== 8) {
-            throw FrameDecodingException::forInvalidPingLength(strlen($frame->payload));
+            throw ProtocolException::forFrameSizeError(8, strlen($frame->payload));
         }
 
         $ack = ($frame->flags & 0x01) !== 0;

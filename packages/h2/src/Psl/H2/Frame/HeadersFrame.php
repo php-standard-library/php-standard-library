@@ -6,6 +6,7 @@ namespace Psl\H2\Frame;
 
 use Override;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function ord;
 use function pack;
@@ -51,6 +52,7 @@ final readonly class HeadersFrame implements FrameInterface
     /**
      * Parse a raw frame into a HeadersFrame, extracting padding, priority, and header block fragment.
      *
+     * @throws ProtocolException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the frame payload is malformed or missing required fields.
      */
     #[Override]
@@ -71,10 +73,14 @@ final readonly class HeadersFrame implements FrameInterface
         $padLength = 0;
         if ($padded) {
             if ($payloadLength < 1) {
-                throw FrameDecodingException::forInvalidPayload('HEADERS', 'missing pad length');
+                throw ProtocolException::forFrameSizeError(1, $payloadLength);
             }
 
             $padLength = ord($payload[0]);
+            if ($padLength >= $payloadLength) {
+                throw FrameDecodingException::forInvalidPaddingLength($padLength, $payloadLength);
+            }
+
             $offset = 1;
         }
 
@@ -83,7 +89,7 @@ final readonly class HeadersFrame implements FrameInterface
         $exclusive = false;
         if ($priority) {
             if (($payloadLength - $offset) < 5) {
-                throw FrameDecodingException::forInvalidPayload('HEADERS', 'missing priority data');
+                throw ProtocolException::forFrameSizeError($offset + 5, $payloadLength);
             }
 
             /** @var int<0, max> $depValue */

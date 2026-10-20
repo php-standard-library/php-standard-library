@@ -7,6 +7,7 @@ namespace Psl\H2\Tests\Unit\Frame;
 use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Frame\AltSvcFrame;
 use Psl\H2\Frame\DataFrame;
 use Psl\H2\Frame\FrameType;
@@ -124,7 +125,7 @@ final class MutationCoverageTest extends TestCase
     public function testDataFramePaddedFlagParsingMinimum(): void
     {
         $raw = new RawFrame(FrameType::Data->value, 0x08, 1, '');
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         DataFrame::fromRaw($raw);
     }
 
@@ -227,7 +228,7 @@ final class MutationCoverageTest extends TestCase
     public function testGoAwayFramePayloadLessThan8BytesFails(): void
     {
         $raw = new RawFrame(FrameType::GoAway->value, 0, 0, str_repeat("\x00", 7));
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         GoAwayFrame::fromRaw($raw);
     }
 
@@ -295,7 +296,7 @@ final class MutationCoverageTest extends TestCase
     public function testHeadersFramePaddedEmptyPayloadFails(): void
     {
         $raw = new RawFrame(FrameType::Headers->value, 0x08, 1, '');
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         HeadersFrame::fromRaw($raw);
     }
 
@@ -351,7 +352,7 @@ final class MutationCoverageTest extends TestCase
     public function testHeadersFramePriorityInsufficientDataFails(): void
     {
         $raw = new RawFrame(FrameType::Headers->value, 0x20, 1, 'abc');
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         HeadersFrame::fromRaw($raw);
     }
 
@@ -573,7 +574,7 @@ final class MutationCoverageTest extends TestCase
     public function testPushPromiseFramePaddedEmptyPayloadFails(): void
     {
         $raw = new RawFrame(FrameType::PushPromise->value, 0x08, 1, '');
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         PushPromiseFrame::fromRaw($raw);
     }
 
@@ -656,7 +657,7 @@ final class MutationCoverageTest extends TestCase
     public function testPushPromiseFrameMissingPromisedStreamIdFails(): void
     {
         $raw = new RawFrame(FrameType::PushPromise->value, 0x04, 1, 'ab');
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         PushPromiseFrame::fromRaw($raw);
     }
 
@@ -698,7 +699,7 @@ final class MutationCoverageTest extends TestCase
     {
         $payload = pack('nN', 0x3, 100);
         $raw = new RawFrame(FrameType::Settings->value, 0x01, 0, $payload);
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         SettingsFrame::fromRaw($raw);
     }
 
@@ -875,8 +876,7 @@ final class MutationCoverageTest extends TestCase
     public function testHeadersFramePriorityWith4BytesFails(): void
     {
         $raw = new RawFrame(FrameType::Headers->value, 0x24, 1, 'abcd');
-        $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing priority data');
+        $this->expectException(ProtocolException::class);
         HeadersFrame::fromRaw($raw);
     }
 
@@ -942,8 +942,7 @@ final class MutationCoverageTest extends TestCase
     public function testPushPromiseFrameMissingStreamIdFails(): void
     {
         $raw = new RawFrame(FrameType::PushPromise->value, 0x00, 1, 'abc');
-        $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing promised stream ID');
+        $this->expectException(ProtocolException::class);
         PushPromiseFrame::fromRaw($raw);
     }
 
@@ -1017,8 +1016,7 @@ final class MutationCoverageTest extends TestCase
     public function testPushPromiseFramePaddedWithPayloadLengthExactly1Fails(): void
     {
         $raw = new RawFrame(FrameType::PushPromise->value, 0x0C, 1, chr(0));
-        $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing promised stream ID');
+        $this->expectException(ProtocolException::class);
         PushPromiseFrame::fromRaw($raw);
     }
 
@@ -1037,8 +1035,7 @@ final class MutationCoverageTest extends TestCase
         $padLength = 0;
         $payload = chr($padLength) . 'ab';
         $raw = new RawFrame(FrameType::PushPromise->value, 0x0C, 1, $payload);
-        $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing promised stream ID');
+        $this->expectException(ProtocolException::class);
         PushPromiseFrame::fromRaw($raw);
     }
 
@@ -1116,8 +1113,7 @@ final class MutationCoverageTest extends TestCase
     public function testHeadersFramePriorityMinusOffsetDetectsShortPayload(): void
     {
         $raw = new RawFrame(FrameType::Headers->value, 0x28, 1, chr(0) . 'abcd');
-        $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing priority data');
+        $this->expectException(ProtocolException::class);
         HeadersFrame::fromRaw($raw);
     }
 
@@ -1197,7 +1193,7 @@ final class MutationCoverageTest extends TestCase
         $payload = chr($padLength) . 'ab';
         $raw = new RawFrame(FrameType::PushPromise->value, 0x0C, 1, $payload);
         $this->expectException(FrameDecodingException::class);
-        $this->expectExceptionMessage('missing promised stream ID');
+        $this->expectExceptionMessage('padding');
         PushPromiseFrame::fromRaw($raw);
     }
 

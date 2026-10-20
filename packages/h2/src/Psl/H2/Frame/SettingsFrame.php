@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Psl\H2\Frame;
 
 use Override;
-use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function pack;
 use function strlen;
@@ -78,7 +78,7 @@ final readonly class SettingsFrame implements FrameInterface
     /**
      * Parse a raw frame into a SettingsFrame, extracting key-value setting pairs.
      *
-     * @throws FrameDecodingException If an ACK frame has a non-empty payload or the payload length is not a multiple of 6.
+     * @throws ProtocolException If an ACK frame has a non-empty payload or the payload length is not a multiple of 6.
      */
     #[Override]
     public static function fromRaw(RawFrame $frame): static
@@ -87,11 +87,11 @@ final readonly class SettingsFrame implements FrameInterface
         $payloadLength = strlen($frame->payload);
 
         if ($ack && $payloadLength !== 0) {
-            throw FrameDecodingException::forInvalidPayload('SETTINGS', 'ACK frame must have empty payload');
+            throw ProtocolException::forFrameSizeError(0, $payloadLength);
         }
 
         if (($payloadLength % 6) !== 0) {
-            throw FrameDecodingException::forInvalidPayload('SETTINGS', 'payload length must be a multiple of 6');
+            throw ProtocolException::forFrameSizeError($payloadLength + 6 - ($payloadLength % 6), $payloadLength);
         }
 
         /** @var list<array{positive-int, non-negative-int}> $settingPairs */

@@ -6,6 +6,7 @@ namespace Psl\H2\Frame;
 
 use Override;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function ord;
 use function pack;
@@ -43,6 +44,7 @@ final readonly class PushPromiseFrame implements FrameInterface
     /**
      * Parse a raw frame into a PushPromiseFrame, extracting the promised stream ID and header block fragment.
      *
+     * @throws ProtocolException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the stream IDs are missing or the payload is malformed.
      */
     #[Override]
@@ -57,15 +59,19 @@ final readonly class PushPromiseFrame implements FrameInterface
         $padLength = 0;
         if ($padded) {
             if ($payloadLength < 1) {
-                throw FrameDecodingException::forInvalidPayload('PUSH_PROMISE', 'missing pad length');
+                throw ProtocolException::forFrameSizeError(1, $payloadLength);
             }
 
             $padLength = ord($payload[0]);
+            if ($padLength >= $payloadLength) {
+                throw FrameDecodingException::forInvalidPaddingLength($padLength, $payloadLength);
+            }
+
             $offset = 1;
         }
 
-        if (($payloadLength - $offset - $padLength) < 4) {
-            throw FrameDecodingException::forInvalidPayload('PUSH_PROMISE', 'missing promised stream ID');
+        if (($payloadLength - $offset) < 4) {
+            throw ProtocolException::forFrameSizeError($offset + 4, $payloadLength);
         }
 
         /** @var int<0, max> $promisedStreamId */

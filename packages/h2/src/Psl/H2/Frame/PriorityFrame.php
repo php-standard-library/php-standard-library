@@ -6,6 +6,7 @@ namespace Psl\H2\Frame;
 
 use Override;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\StreamException;
 
 use function ord;
 use function pack;
@@ -42,6 +43,7 @@ final readonly class PriorityFrame implements FrameInterface
     /**
      * Parse a raw frame into a PriorityFrame, extracting stream dependency, weight, and exclusivity.
      *
+     * @throws StreamException If the payload is too short or has an invalid fixed size.
      * @throws FrameDecodingException If the stream ID is zero or the payload is not exactly 5 bytes.
      */
     #[Override]
@@ -52,7 +54,7 @@ final readonly class PriorityFrame implements FrameInterface
         }
 
         if (strlen($frame->payload) !== 5) {
-            throw FrameDecodingException::forInvalidPayload('PRIORITY', 'payload must be exactly 5 bytes');
+            throw StreamException::forFrameSizeError($frame->streamId, 5, strlen($frame->payload));
         }
 
         /** @var int<0, max> $depValue */

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Psl\H2\Frame;
 
 use Override;
-use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 
 use function pack;
 use function strlen;
@@ -50,14 +50,14 @@ final readonly class GoAwayFrame implements FrameInterface
     /**
      * Parse a raw frame into a GoAwayFrame, extracting the last stream ID, error code, and optional debug data.
      *
-     * @throws FrameDecodingException If the payload is less than 8 bytes.
+     * @throws ProtocolException If the payload is less than 8 bytes.
      */
     #[Override]
     public static function fromRaw(RawFrame $frame): static
     {
         $payloadLength = strlen($frame->payload);
         if ($payloadLength < 8) {
-            throw FrameDecodingException::forInvalidPayload('GOAWAY', 'payload must be at least 8 bytes');
+            throw ProtocolException::forFrameSizeError(8, $payloadLength);
         }
 
         /** @var int<0, max> $lastStreamId */

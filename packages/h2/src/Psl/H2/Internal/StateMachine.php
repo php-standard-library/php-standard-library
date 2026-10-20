@@ -301,7 +301,11 @@ final class StateMachine
 
         if ($streamId !== 0) {
             if ($type === 2 && $payloadLength !== 5) {
-                throw FrameDecodingException::forInvalidPayload('PRIORITY', 'payload must be exactly 5 bytes');
+                if ($this->getStreamState($streamId) === StreamState::Idle) {
+                    throw ProtocolException::forFrameSizeError(5, $payloadLength);
+                }
+
+                throw StreamException::forFrameSizeError($streamId, 5, $payloadLength);
             }
 
             if ($type === 4 || $type === 6 || $type === 7 || $type === 0xc || $type === 0x10) {
@@ -1466,7 +1470,7 @@ final class StateMachine
 
         if (($rawFrame->flags & 0x08) !== 0) {
             if ($payloadLength < 1) {
-                throw FrameDecodingException::forInvalidPayload('DATA', 'missing pad length');
+                throw ProtocolException::forFrameSizeError(1, $payloadLength);
             }
 
             $padLength = ord($payload[0]);
@@ -1629,7 +1633,7 @@ final class StateMachine
     private function receiveWindowUpdateRaw(RawFrame $rawFrame): array
     {
         if (strlen($rawFrame->payload) !== 4) {
-            throw FrameDecodingException::forInvalidPayload('WINDOW_UPDATE', 'payload must be exactly 4 bytes');
+            throw ProtocolException::forFrameSizeError(4, strlen($rawFrame->payload));
         }
 
         if ($rawFrame->streamId !== 0 && $this->getStreamState($rawFrame->streamId) === StreamState::Closed) {

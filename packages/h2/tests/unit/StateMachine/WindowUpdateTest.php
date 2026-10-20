@@ -9,6 +9,7 @@ use Psl\H2\ErrorCode;
 use Psl\H2\Event\WindowUpdated;
 use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\FrameDecodingException;
+use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\FrameType;
 use Psl\H2\Frame\HeadersFrame;
@@ -84,7 +85,7 @@ final class WindowUpdateTest extends TestCase
 
         $raw = new RawFrame(FrameType::WindowUpdate->value, 0x00, 1, 'abc');
 
-        $this->expectException(FrameDecodingException::class);
+        $this->expectException(ProtocolException::class);
         $this->expectExceptionMessage('4 bytes');
 
         $sm->receive($raw);
