@@ -10,6 +10,7 @@ use Psl\Encoding\QuotedPrintable;
 use Psl\IO;
 
 use function str_repeat;
+use function str_split;
 
 /**
  * The streaming handles must produce the same bytes as {@see QuotedPrintable\encode()} and
@@ -88,6 +89,109 @@ final class StreamParityTest extends TestCase
         $handle = new QuotedPrintable\DecodingReadHandle(new IO\MemoryHandle("abc\r\n=\r\n"));
 
         static::assertSame("abc\r\n", $handle->readAll());
+    }
+
+    #[DataProvider('provideText')]
+    public function testEncodingWriteHandleMatchesEncode(string $text): void
+    {
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\EncodingWriteHandle($inner);
+        $handle->writeAll($text);
+        $handle->flush();
+
+        static::assertSame(QuotedPrintable\encode($text), self::contents($inner));
+    }
+
+    #[DataProvider('provideText')]
+    public function testEncodingWriteHandleMatchesEncodeWhenWrittenByteByByte(string $text): void
+    {
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\EncodingWriteHandle($inner);
+        foreach (str_split($text) as $byte) {
+            $handle->writeAll($byte);
+        }
+
+        $handle->flush();
+
+        static::assertSame(QuotedPrintable\encode($text), self::contents($inner));
+    }
+
+    #[DataProvider('provideText')]
+    public function testEncodingWriteHandleFlushedAfterEveryByteDecodesToTheSameText(string $text): void
+    {
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\EncodingWriteHandle($inner);
+        foreach (str_split($text) as $byte) {
+            $handle->writeAll($byte);
+            $handle->flush();
+        }
+
+        static::assertSame(
+            QuotedPrintable\decode(QuotedPrintable\encode($text)),
+            QuotedPrintable\decode(self::contents($inner)),
+        );
+    }
+
+    public function testEncodingWriteHandleFlushBetweenCarriageReturnAndLineFeed(): void
+    {
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\EncodingWriteHandle($inner);
+        $handle->writeAll("abc\r");
+        $handle->flush();
+        $handle->writeAll("\ndef");
+        $handle->flush();
+
+        static::assertSame("abc\r\ndef", self::contents($inner));
+    }
+
+    #[DataProvider('provideText')]
+    public function testDecodingWriteHandleMatchesDecode(string $text): void
+    {
+        $encoded = QuotedPrintable\encode($text);
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\DecodingWriteHandle($inner);
+        $handle->writeAll($encoded);
+        $handle->flush();
+
+        static::assertSame(QuotedPrintable\decode($encoded), self::contents($inner));
+    }
+
+    #[DataProvider('provideText')]
+    public function testDecodingWriteHandleMatchesDecodeWhenWrittenByteByByte(string $text): void
+    {
+        $encoded = QuotedPrintable\encode($text);
+        $inner = new IO\MemoryHandle();
+        $handle = new QuotedPrintable\DecodingWriteHandle($inner);
+        foreach (str_split($encoded) as $byte) {
+            $handle->writeAll($byte);
+        }
+
+        $handle->flush();
+
+        static::assertSame(QuotedPrintable\decode($encoded), self::contents($inner));
+    }
+
+    #[DataProvider('provideText')]
+    public function testWriteHandlesRoundTrip(string $text): void
+    {
+        $encoded = new IO\MemoryHandle();
+        $encoding = new QuotedPrintable\EncodingWriteHandle($encoded);
+        $encoding->writeAll($text);
+        $encoding->flush();
+
+        $decoded = new IO\MemoryHandle();
+        $decoding = new QuotedPrintable\DecodingWriteHandle($decoded);
+        $decoding->writeAll(self::contents($encoded));
+        $decoding->flush();
+
+        static::assertSame(QuotedPrintable\decode(QuotedPrintable\encode($text)), self::contents($decoded));
+    }
+
+    private static function contents(IO\MemoryHandle $handle): string
+    {
+        $handle->seek(0);
+
+        return $handle->readAll();
     }
 
     private static function readInSingleBytes(IO\ReadHandleInterface $handle): string
