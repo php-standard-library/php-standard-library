@@ -9,11 +9,13 @@ use function preg_match;
 /**
  * Checks whether the given text contains any ANSI escape sequences.
  *
+ * Recognizes the same sequences as {@see strip()}.
+ *
  * @pure
  *
  * @api
  */
 function contains(string $text): bool
 {
-    return preg_match('/\e(?:\[\??[0-9;]*[A-Za-z]|\][^\x07\e]*(?:\e\\\\|\x07))/', $text) === 1;
+    return preg_match(Internal\ESCAPE_SEQUENCE_PATTERN, $text) === 1;
 }

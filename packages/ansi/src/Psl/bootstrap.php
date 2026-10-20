@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 (static function (): void {
+    $constants = [
+        'Psl\Ansi\Internal\ESCAPE_SEQUENCE_PATTERN' => __DIR__ . '/Ansi/Internal/constants.php',
+    ];
+
     $functions = [
         'Psl\Ansi\Color\ansi256' => __DIR__ . '/Ansi/Color/ansi256.php',
         'Psl\Ansi\Color\black' => __DIR__ . '/Ansi/Color/black.php',
@@ -70,6 +74,14 @@ declare(strict_types=1);
         'Psl\Ansi\reset' => __DIR__ . '/Ansi/reset.php',
         'Psl\Ansi\strip' => __DIR__ . '/Ansi/strip.php',
     ];
+
+    foreach ($constants as $constant => $path) {
+        if (defined($constant)) {
+            continue;
+        }
+
+        require_once $path;
+    }
 
     foreach ($functions as $function => $path) {
         if (function_exists($function)) {
