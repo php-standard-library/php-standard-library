@@ -1,6 +1,6 @@
 # DNS
 
-The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. All resolvers are non-blocking and composable via the decorator pattern.
+The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. Resolvers can wrap one another to combine their features. Queries use non-blocking I/O; resolving a nameserver hostname uses a blocking system lookup.
 
 ## Basic Usage
 
@@ -18,7 +18,7 @@ Resolvers can be composed for different strategies: direct UDP/TCP, fallback on 
 
 `FallbackResolver` tries the next resolver after a transport or protocol failure, SERVFAIL, or REFUSED. It returns NXDOMAIN at once because the response answers the query. It returns other response codes, including FORMERR, and propagates invalid input and cancellation. Use `SplitHorizonResolver` to route static names separately from public DNS.
 
-`UDPResolver` supports IPv4 and IPv6 nameserver addresses. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
+`UDPResolver` supports IPv4 and IPv6 nameserver addresses and hostnames with IPv4 addresses. It resolves each hostname once per query through the system resolver, then uses that address to send the query and check the reply source. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
 
 `TCPResolver` also checks the response question and closes the connection if the name, type, or class does not match.
 

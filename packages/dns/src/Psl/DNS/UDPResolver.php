@@ -14,6 +14,7 @@ use Psl\Network;
 use Psl\UDP;
 use UnexpectedValueException;
 
+use function gethostbyname;
 use function inet_pton;
 use function str_contains;
 use function strlen;
@@ -58,11 +59,20 @@ final readonly class UDPResolver implements ResolverInterface
         [$id, $packet] = Encoder::encode($name, $type, $this->dnssec, $this->udpPayloadSize, $ednsOptions);
 
         try {
+            $cancellation->throwIfCancelled();
             $host = trim($this->host, '[]');
+            if (!str_contains($host, ':')) {
+                $host = gethostbyname($host);
+            }
+
+            if ($host === '' || inet_pton($host) === false) {
+                throw Exception\NetworkException::forQueryFailed('UDP', 'Could not resolve nameserver ' . $this->host);
+            }
+
             $ipv6 = str_contains($host, ':');
             $socket = UDP\Socket::bind($ipv6 ? '[::]' : '0.0.0.0');
             try {
-                $address = Network\Address::udp($ipv6 ? '[' . $host . ']' : $this->host, $this->port);
+                $address = Network\Address::udp($ipv6 ? '[' . $host . ']' : $host, $this->port);
                 $socket->sendTo($packet, $address, $cancellation);
                 /** @var positive-int $bufferSize */
                 $bufferSize = $this->udpPayloadSize;

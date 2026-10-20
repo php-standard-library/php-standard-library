@@ -430,6 +430,34 @@ final class UDPResolverTest extends TestCase
         ];
     }
 
+    public function testHostnameNameserver(): void
+    {
+        $socket = Socket::bind('127.0.0.1', 0);
+        $address = $socket->getLocalAddress();
+        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(5));
+
+        $serverFuture = Async\run(static function () use ($socket, $cancellation): void {
+            [$data, $peer] = $socket->receiveFrom(512, $cancellation);
+            $id = new Reader($data)->u16();
+            $response = pack('n6', $id, 0x8180, 1, 0, 0, 0) . Encoder::encodeName('example.com') . pack('nn', 1, 1);
+            $socket->sendTo($response, $peer, $cancellation);
+        });
+
+        /** @var int<0, 65535> $port */
+        $port = $address->port;
+        $resolver = new UDPResolver(host: 'localhost', port: $port);
+
+        try {
+            static::assertSame(
+                ResponseCode::NoError,
+                $resolver->query('example.com', RecordType::A, $cancellation)->code,
+            );
+        } finally {
+            $socket->close();
+            $serverFuture->await();
+        }
+    }
+
     #[DataProvider('provideIpv6Hosts')]
     public function testIpv6Nameserver(string $host): void
     {

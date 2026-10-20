@@ -11,6 +11,9 @@ use Psl\TLS;
 // UDP rejects a wrong ID or question, so fallback can try TCP.
 $udp = new DNS\UDPResolver('8.8.8.8');
 
+// Hostnames use a blocking system IPv4 lookup once per query.
+$localUdp = new DNS\UDPResolver('localhost');
+
 // TCP pools connections and rejects replies with a different question.
 $tcp = new DNS\TCPResolver('8.8.8.8');
 
