@@ -270,8 +270,7 @@ final readonly class DateTime implements
     {
         $timezone ??= Timezone::default();
 
-        /** @var IntlCalendar $calendar */
-        $calendar = IntlCalendar::createInstance(Internal\to_intl_timezone($timezone));
+        $calendar = Internal\create_intl_calendar($timezone);
 
         $calendar->setTime($timestamp->getSeconds() * namespace\MILLISECONDS_PER_SECOND);
 

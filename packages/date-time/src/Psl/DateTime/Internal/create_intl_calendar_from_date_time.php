@@ -23,10 +23,7 @@ function create_intl_calendar_from_date_time(
     int $minutes,
     int $seconds,
 ): IntlCalendar {
-    /**
-     * @var IntlCalendar $calendar
-     */
-    $calendar = IntlCalendar::createInstance(namespace\to_intl_timezone($timezone));
+    $calendar = namespace\create_intl_calendar($timezone);
 
     // The calendar starts at the current time; clear it so no field (most notably the milliseconds)
     // leaks from "now" into the computed time.

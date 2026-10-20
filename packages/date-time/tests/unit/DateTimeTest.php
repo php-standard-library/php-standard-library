@@ -19,12 +19,14 @@ use Psl\DateTime\Internal;
 use Psl\DateTime\Meridiem;
 use Psl\DateTime\Month;
 use Psl\DateTime\Period;
+use Psl\DateTime\Timestamp;
 use Psl\DateTime\TimeStyle;
 use Psl\DateTime\Timezone;
 use Psl\DateTime\Weekday;
 use Psl\Json;
 use Psl\Locale\Locale;
 
+use function locale_set_default;
 use function time;
 
 final class DateTimeTest extends TestCase
@@ -313,6 +315,52 @@ final class DateTimeTest extends TestCase
 
         static::assertSame([$year, 6, 15, 10, 30, 0, 0], $fromTimestamp->getParts());
         static::assertSame($datetime->getEra(), $fromTimestamp->getEra());
+    }
+
+    /**
+     * @return iterable<array{string}>
+     */
+    public static function provideLocalesWithNonGregorianDefaultCalendars(): iterable
+    {
+        yield ['th_TH']; // Buddhist
+        yield ['fa_IR']; // Persian
+        yield ['ar_SA@calendar=islamic-umalqura'];
+        yield ['ja_JP@calendar=japanese'];
+    }
+
+    #[DataProvider('provideLocalesWithNonGregorianDefaultCalendars')]
+    public function testCalendarIsGregorianRegardlessOfDefaultLocale(string $locale): void
+    {
+        locale_set_default($locale);
+
+        $datetime = DateTime::fromParts(Timezone::UTC, 2024, 1, 15, 12);
+
+        static::assertSame(1_705_320_000, $datetime->getTimestamp()->getSeconds());
+
+        $fromTimestamp = DateTime::fromTimestamp(Timestamp::fromParts(1_705_320_000), Timezone::UTC);
+
+        static::assertSame([2024, 1, 15, 12, 0, 0, 0], $fromTimestamp->getParts());
+        static::assertSame([2024, 2, 15, 12, 0, 0, 0], $fromTimestamp->plusMonths(1)->getParts());
+        static::assertSame(2024, $fromTimestamp->toIntl()->get(IntlCalendar::FIELD_EXTENDED_YEAR));
+    }
+
+    public function testToIntlKeepsTheWeekDataOfTheDefaultLocale(): void
+    {
+        locale_set_default('de_DE');
+
+        $calendar = DateTime::fromParts(Timezone::UTC, 2024, 1, 7, 12)->toIntl();
+
+        static::assertSame(IntlCalendar::DOW_MONDAY, $calendar->getFirstDayOfWeek());
+        static::assertSame(4, $calendar->getMinimalDaysInFirstWeek());
+        static::assertSame(1, $calendar->get(IntlCalendar::FIELD_WEEK_OF_YEAR));
+
+        locale_set_default('fa_IR');
+
+        $calendar = DateTime::fromParts(Timezone::UTC, 2024, 1, 7, 12)->toIntl();
+
+        static::assertSame('gregorian', $calendar->getType());
+        static::assertSame(IntlCalendar::DOW_SATURDAY, $calendar->getFirstDayOfWeek());
+        static::assertSame(2024, $calendar->get(IntlCalendar::FIELD_EXTENDED_YEAR));
     }
 
     public function testYearArithmeticCrossesIntoBeforeChrist(): void

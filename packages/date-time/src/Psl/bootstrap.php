@@ -8,6 +8,7 @@ declare(strict_types=1);
     ];
 
     $functions = [
+        'Psl\DateTime\Internal\create_intl_calendar' => __DIR__ . '/DateTime/Internal/create_intl_calendar.php',
         'Psl\DateTime\Internal\create_intl_calendar_from_date_time' =>
             __DIR__ . '/DateTime/Internal/create_intl_calendar_from_date_time.php',
         'Psl\DateTime\Internal\create_intl_date_formatter' =>
