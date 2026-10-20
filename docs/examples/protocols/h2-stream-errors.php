@@ -13,6 +13,7 @@ while ($connection->isConnected()) {
         $events = $connection->readEvent();
         // Handle events for the active streams.
     } catch (H2\Exception\StreamException $error) {
+        // HEADERS after the peer ended its side report ErrorCode::StreamClosed here.
         // H2 sent RST_STREAM for $error->streamId. Keep reading other streams.
         continue;
     }

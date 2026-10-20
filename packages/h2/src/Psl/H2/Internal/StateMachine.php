@@ -119,7 +119,7 @@ final class StateMachine
     private bool $refusingStream = false;
 
     /** Stream error to report after decoding the current field block. */
-    private null|StreamException $pendingHeaderError = null;
+    private null|StreamException|ProtocolException $pendingHeaderError = null;
 
     /** @var array<int, positive-int> Connection window credit owed after DATA stream errors. */
     private array $pendingReceiveWindowUpdates = [];
@@ -1230,6 +1230,14 @@ final class StateMachine
             : null;
 
         $stream = $this->streams->getOrCreate($frame->streamId);
+
+        $error = match ($stream->state) {
+            StreamState::HalfClosedRemote => StreamException::forStreamClosed($frame->streamId),
+            StreamState::ReservedLocal => ProtocolException::forConnectionError(
+                'HEADERS received on a reserved local stream',
+            ),
+            default => $error,
+        };
 
         $isNewStream = $stream->state === StreamState::Idle;
 
