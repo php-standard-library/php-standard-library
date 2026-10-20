@@ -36,4 +36,24 @@ final class AfterTest extends TestCase
             ['rld!',       'Hello, world!',  'o',     7],
         ];
     }
+
+    #[DataProvider('provideEncodingData')]
+    public function testAfterWithEncoding(
+        null|string $expected,
+        string $haystack,
+        string $needle,
+        Str\Encoding $encoding,
+    ): void {
+        static::assertSame($expected, Str\after($haystack, $needle, 0, $encoding));
+    }
+
+    /**
+     * The needle length must be computed with the given encoding: "\xC3\xA9" is one UTF-8
+     * character but two ISO-8859-1 characters, "\x00b" is one UTF-16BE character but two UTF-8 characters.
+     */
+    public static function provideEncodingData(): iterable
+    {
+        yield 'iso-8859-1' => ['xyz', "\xC3\xA9xyz", "\xC3\xA9", Str\Encoding::Iso88591];
+        yield 'utf-16be' => ["\x00c", "\x00a\x00b\x00c", "\x00b", Str\Encoding::Utf16be];
+    }
 }

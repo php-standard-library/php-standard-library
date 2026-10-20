@@ -22,7 +22,7 @@ function after_last_ci(
         return null;
     }
 
-    $position += namespace\length($needle);
+    $position += namespace\length($needle, $encoding);
 
     return namespace\slice($haystack, $position, null, $encoding);
 }

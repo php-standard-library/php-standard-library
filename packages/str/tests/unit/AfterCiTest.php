@@ -40,6 +40,10 @@ final class AfterCiTest extends TestCase
             [', world!', 'Hello, world!', 'o', 0, Str\Encoding::Utf8],
             ['rld!', 'Hello, world!', 'o', 7, Str\Encoding::Utf8],
             ['rld!', 'Hello, world!', 'o', 7, Str\Encoding::Ascii],
+            // The needle length must be computed with the given encoding: "\xE3\xA9" is two ISO-8859-1 characters,
+            // but a truncated UTF-8 sequence that counts as one; "\x00B" is one UTF-16BE character but two UTF-8 ones.
+            ['xyz', "\xC3\xA9xyz", "\xE3\xA9", 0, Str\Encoding::Iso88591],
+            ["\x00c", "\x00a\x00b\x00c", "\x00B", 0, Str\Encoding::Utf16be],
         ];
     }
 }

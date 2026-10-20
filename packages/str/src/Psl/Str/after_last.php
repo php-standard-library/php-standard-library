@@ -18,7 +18,7 @@ function after_last(string $haystack, string $needle, int $offset = 0, Encoding 
         return null;
     }
 
-    $position += namespace\length($needle);
+    $position += namespace\length($needle, $encoding);
 
     return namespace\slice($haystack, $position, null, $encoding);
 }

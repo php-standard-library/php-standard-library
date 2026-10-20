@@ -36,4 +36,24 @@ final class AfterLastCiTest extends TestCase
             ['rld!',       'Hello, world!',  'o',     7],
         ];
     }
+
+    #[DataProvider('provideEncodingData')]
+    public function testAfterLastCiWithEncoding(
+        null|string $expected,
+        string $haystack,
+        string $needle,
+        Str\Encoding $encoding,
+    ): void {
+        static::assertSame($expected, Str\after_last_ci($haystack, $needle, 0, $encoding));
+    }
+
+    /**
+     * The needle length must be computed with the given encoding: "\xE3\xA9" is two ISO-8859-1 characters,
+     * but a truncated UTF-8 sequence that counts as one; "\x00B" is one UTF-16BE character but two UTF-8 ones.
+     */
+    public static function provideEncodingData(): iterable
+    {
+        yield 'iso-8859-1' => ['yz', "\xC3\xA9x\xC3\xA9yz", "\xE3\xA9", Str\Encoding::Iso88591];
+        yield 'utf-16be' => ["\x00d", "\x00a\x00b\x00c\x00b\x00d", "\x00B", Str\Encoding::Utf16be];
+    }
 }
