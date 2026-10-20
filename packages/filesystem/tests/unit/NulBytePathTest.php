@@ -123,6 +123,10 @@ final class NulBytePathTest extends TestCase
                 $directory . '/copy.txt',
             ),
         ];
+        // the source is validated even when an existing destination makes the copy a no-op.
+        yield 'copy source onto an existing destination' => [
+            static fn(string $file): mixed => Filesystem\copy($file . "\0", $file),
+        ];
         // the source is checked before the destination.
         yield 'copy source and destination' => [
             static fn(string $file, string $directory): mixed => Filesystem\copy(

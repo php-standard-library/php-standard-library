@@ -41,6 +41,19 @@ final class CopyTest extends AbstractFilesystemTestCase
         static::assertSame('Hello, World!', File\read($markdownFile));
     }
 
+    public function testCopyThrowsForMissingSourceEvenIfDestinationExists(): void
+    {
+        $missingFile = Str\join([$this->directory, 'missing.txt'], Filesystem\SEPARATOR);
+        $markdownFile = Str\join([$this->directory, 'hello.md'], Filesystem\SEPARATOR);
+
+        File\write($markdownFile, '# Hello, World!');
+
+        $this->expectException(Filesystem\Exception\NotFoundException::class);
+        $this->expectExceptionMessage('File "' . $missingFile . '" is not found.');
+
+        Filesystem\copy($missingFile, $markdownFile);
+    }
+
     public function testCopyExecutableBits(): void
     {
         $shellFile = Str\join([$this->directory, 'hello.sh'], Filesystem\SEPARATOR);

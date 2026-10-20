@@ -23,11 +23,6 @@ use function str_contains;
  */
 function copy(string $source, string $destination, bool $overwrite = false): void
 {
-    $destinationExists = namespace\is_file($destination);
-    if (!$overwrite && $destinationExists) {
-        return;
-    }
-
     if (!namespace\is_file($source)) {
         throw Exception\NotFoundException::forFile($source);
     }
@@ -38,6 +33,10 @@ function copy(string $source, string $destination, bool $overwrite = false): voi
 
     if (str_contains($destination, "\0")) {
         throw new Exception\InvalidArgumentException('$destination should not contain a NUL byte.');
+    }
+
+    if (!$overwrite && namespace\is_file($destination)) {
+        return;
     }
 
     $result = php_copy($source, $destination);
