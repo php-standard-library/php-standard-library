@@ -53,7 +53,7 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
     public function tryRead(null|int $maxBytes = null): string
     {
         if ($this->buffer === '' && !$this->eof) {
-            $this->fillBuffer();
+            $this->fillBuffer(wait: false);
         }
 
         if ($this->buffer === '') {
@@ -257,11 +257,19 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
         return null;
     }
 
-    private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
-    {
+    /**
+     * @param bool $wait Whether to wait for data from the inner handle, or to only take what it has
+     *                  available right away, without waiting (for {@see tryRead()}).
+     */
+    private function fillBuffer(
+        CancellationTokenInterface $cancellation = new NullCancellationToken(),
+        bool $wait = true,
+    ): void {
         while (!$this->eof) {
             // The encoder groups the bytes itself: read 72 MIME lines worth of bytes (4104) at a time.
-            $chunk = $this->handle->read(namespace\CHUNK_SIZE * 72, $cancellation);
+            $chunk = $wait
+                ? $this->handle->read(namespace\CHUNK_SIZE * 72, $cancellation)
+                : $this->handle->tryRead(namespace\CHUNK_SIZE * 72);
             if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
                 $this->eof = true;
                 $this->buffer .= $this->encoder->finalize();

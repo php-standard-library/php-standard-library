@@ -49,7 +49,7 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
     public function tryRead(null|int $maxBytes = null): string
     {
         if ($this->buffer === '' && !$this->eof) {
-            $this->fillBuffer();
+            $this->fillBuffer(wait: false);
         }
 
         if ($this->buffer === '') {
@@ -247,17 +247,22 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
     }
 
     /**
+     * @param bool $wait Whether to wait for data from the inner handle, or to only take what it has
+     *                  available right away, without waiting (for {@see tryRead()}).
+     *
      * @throws Exception\RangeException If the hex data contains invalid characters or has an odd length at EOF.
      */
-    private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
-    {
+    private function fillBuffer(
+        CancellationTokenInterface $cancellation = new NullCancellationToken(),
+        bool $wait = true,
+    ): void {
         if ($this->eof) {
             // @codeCoverageIgnoreStart
             return;
             // @codeCoverageIgnoreEnd
         }
 
-        $chunk = $this->handle->read(4096, $cancellation);
+        $chunk = $wait ? $this->handle->read(4096, $cancellation) : $this->handle->tryRead(4096);
         if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
             $this->eof = true;
             // Decode any remaining bytes.
