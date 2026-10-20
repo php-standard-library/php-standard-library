@@ -321,6 +321,8 @@ final class Reader implements BufferedReadHandleInterface
 
             $this->buffer = $this->getHandle()->tryRead();
             if ('' === $this->buffer) {
+                $this->eof = $this->handle->reachedEndOfDataSource();
+
                 return '';
             }
         }

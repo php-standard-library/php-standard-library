@@ -10,10 +10,11 @@ use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
 /**
- * A test handle that counts reads attempted after it has reported the end of the data source.
+ * A test handle that counts reads attempted after it has signalled the end of the data source,
+ * either by returning an empty read at EOF or by reporting it from `reachedEndOfDataSource()`.
  *
  * Reading past EOF is not free for every source: on an interactive terminal, EOF (Ctrl-D)
- * is a one-shot event and a further read waits for more input.
+ * is a one-shot event delivered as an empty read, and a further read waits for more input.
  */
 final class EofTrackingHandle implements IO\ReadHandleInterface
 {
@@ -21,7 +22,7 @@ final class EofTrackingHandle implements IO\ReadHandleInterface
 
     public int $readsAfterEof = 0;
 
-    private bool $reportedEof = false;
+    private bool $signalledEof = false;
     private IO\MemoryHandle $inner;
 
     public function __construct(string $content)
@@ -32,11 +33,16 @@ final class EofTrackingHandle implements IO\ReadHandleInterface
     #[Override]
     public function tryRead(null|int $maxBytes = null): string
     {
-        if ($this->reportedEof) {
+        if ($this->signalledEof) {
             $this->readsAfterEof++;
         }
 
-        return $this->inner->tryRead($maxBytes);
+        $chunk = $this->inner->tryRead($maxBytes);
+        if ('' === $chunk && $this->inner->reachedEndOfDataSource()) {
+            $this->signalledEof = true;
+        }
+
+        return $chunk;
     }
 
     #[Override]
@@ -50,8 +56,10 @@ final class EofTrackingHandle implements IO\ReadHandleInterface
     #[Override]
     public function reachedEndOfDataSource(): bool
     {
-        $this->reportedEof = $this->inner->reachedEndOfDataSource();
+        if ($this->inner->reachedEndOfDataSource()) {
+            $this->signalledEof = true;
+        }
 
-        return $this->reportedEof;
+        return $this->signalledEof;
     }
 }
