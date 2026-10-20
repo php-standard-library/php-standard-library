@@ -14,6 +14,7 @@ use WeakMap;
 
 use function array_map;
 use function array_shift;
+use function count;
 
 /**
  * A listener that accepts connections from multiple inner listeners concurrently.
@@ -22,6 +23,15 @@ use function array_shift;
  * that doesn't already have a pending accept gets one in-flight accept fiber.
  * The first to return is delivered; others fill the backlog (bounded by N where
  * N = number of listeners) for subsequent calls.
+ *
+ * If an inner listener's accept() fails (e.g. a TLS handshake failure), the error
+ * is delivered to a caller of {@see accept()} like a connection would be; the
+ * other listeners keep accepting. An inner listener that reports it has been
+ * stopped is no longer used, and once all of them are stopped, {@see accept()}
+ * throws {@see Exception\AlreadyStoppedException}.
+ *
+ * In-flight inner accepts are cancelled when the last waiting {@see accept()} call
+ * is cancelled, and when the composite listener is closed.
  *
  * Backpressure propagates naturally: if the composite consumer is slow, inner
  * listeners' accept() calls block, their own backlogs fill, and they stop
@@ -39,18 +49,31 @@ final class CompositeListener implements ListenerInterface
     private bool $closed = false;
 
     /**
-     * Accepted streams waiting to be consumed. Bounded by the number of listeners.
+     * Accept results waiting to be consumed: accepted streams, or errors thrown by
+     * an inner listener's accept(). Bounded by the number of listeners.
      *
-     * @var list<StreamInterface>
+     * @var list<StreamInterface|Throwable>
      */
     private array $backlog = [];
 
     /**
-     * Tracks which listeners have an in-flight accept fiber.
+     * Tracks which listeners have an in-flight accept fiber, and the token it was started with.
+     *
+     * @var array<int, Async\SignalCancellationToken>
+     */
+    private array $pending = [];
+
+    /**
+     * Tracks which listeners have reported being stopped.
      *
      * @var array<int, true>
      */
-    private array $pending = [];
+    private array $stopped = [];
+
+    /**
+     * Token given to newly started inner accepts.
+     */
+    private Async\SignalCancellationToken $acceptCancellation;
 
     /**
      * @var WeakMap<Suspension<null>, true>
@@ -58,54 +81,70 @@ final class CompositeListener implements ListenerInterface
     private WeakMap $signal;
 
     /**
+     * Number of waiting accept() calls that have been woken up, but have not run yet.
+     *
+     * @var int<0, max>
+     */
+    private int $woken = 0;
+
+    /**
      * @param non-empty-list<ListenerInterface> $listeners
      */
     public function __construct(array $listeners)
     {
         $this->listeners = $listeners;
+        $this->acceptCancellation = new Async\SignalCancellationToken();
         $this->signal = new WeakMap();
     }
 
     /**
      * Accept the next connection from any of the inner listeners.
      *
+     * Errors thrown by an inner listener's accept() are rethrown as-is.
+     *
      * @throws Exception\AlreadyStoppedException If all listeners have been stopped.
+     * @throws Exception\RuntimeException If an inner listener failed to accept an incoming connection.
      * @throws Async\Exception\CancelledException If the cancellation token is cancelled while waiting.
      */
     #[Override]
     public function accept(CancellationTokenInterface $cancellation = new NullCancellationToken()): StreamInterface
     {
-        if ($this->closed) {
-            throw new Exception\AlreadyStoppedException('All listeners have been stopped.');
+        $waited = false;
+        while (true) {
+            if ($this->closed) {
+                throw new Exception\AlreadyStoppedException('All listeners have been stopped.');
+            }
+
+            if ($this->backlog !== []) {
+                $result = array_shift($this->backlog);
+                if ($result instanceof Throwable) {
+                    throw $result;
+                }
+
+                return $result;
+            }
+
+            if (count($this->stopped) === count($this->listeners)) {
+                throw new Exception\AlreadyStoppedException('All listeners have been stopped.');
+            }
+
+            if ($cancellation->isCancelled()) {
+                // A call cancelled after being woken up, that finds nothing to take, was still waiting:
+                // like a call cancelled while waiting, it must not leave inner accepts running for nobody.
+                if ($waited) {
+                    $this->cancelPendingAcceptsIfNobodyIsWaiting();
+                }
+
+                $cancellation->throwIfCancelled();
+            }
+
+            $this->startPendingAccepts();
+
+            // Being woken up does not guarantee a result: another caller may have taken it from
+            // the backlog before this fiber got to run, in which case the loop waits again.
+            $waited = true;
+            $this->wait($cancellation);
         }
-
-        if ($this->backlog !== []) {
-            return array_shift($this->backlog);
-        }
-
-        $this->startPendingAccepts();
-
-        $cancellation->throwIfCancelled();
-
-        /** @var Suspension<null> $signal */
-        $signal = Async\Scheduler::getSuspension();
-        $this->signal[$signal] = true;
-        $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use ($signal): void {
-            unset($this->signal[$signal]);
-            $signal->throw($e);
-        });
-
-        try {
-            $signal->suspend();
-        } finally {
-            $cancellation->unsubscribe($subscription);
-        }
-
-        if ($this->backlog !== []) {
-            return array_shift($this->backlog);
-        }
-
-        throw new Exception\AlreadyStoppedException('All listeners have been stopped.');
     }
 
     /**
@@ -148,8 +187,12 @@ final class CompositeListener implements ListenerInterface
 
         $this->closed = true;
 
-        foreach ($this->backlog as $stream) {
-            $stream->close();
+        foreach ($this->backlog as $result) {
+            if (!$result instanceof StreamInterface) {
+                continue;
+            }
+
+            $result->close();
         }
 
         $this->backlog = [];
@@ -158,10 +201,41 @@ final class CompositeListener implements ListenerInterface
             $listener->close();
         }
 
-        $signals = $this->signal;
-        $this->signal = new WeakMap();
-        foreach ($signals as $signal => $_) {
-            $signal->resume(null);
+        // Do not rely on inner listeners interrupting their pending accepts when closed.
+        $this->cancelPendingAccepts();
+
+        $this->notifyAllSignals();
+    }
+
+    /**
+     * Wait until an inner accept completes, or the listener is closed.
+     *
+     * @throws Async\Exception\CancelledException If the cancellation token is cancelled while waiting.
+     */
+    private function wait(CancellationTokenInterface $cancellation): void
+    {
+        /** @var Suspension<null> $signal */
+        $signal = Async\Scheduler::getSuspension();
+        $this->signal[$signal] = true;
+        $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use ($signal): void {
+            // The signal may have already been resumed by an inner accept, or by close().
+            if (!$this->signal->offsetExists($signal)) {
+                return;
+            }
+
+            $this->signal->offsetUnset($signal);
+            $signal->throw($e);
+
+            $this->cancelPendingAcceptsIfNobodyIsWaiting();
+        });
+
+        try {
+            $signal->suspend();
+
+            // @mago-expect analysis:invalid-property-assignment-value - every resumed signal was counted when woken up.
+            $this->woken--;
+        } finally {
+            $cancellation->unsubscribe($subscription);
         }
     }
 
@@ -170,31 +244,91 @@ final class CompositeListener implements ListenerInterface
      */
     private function startPendingAccepts(): void
     {
+        $acceptCancellation = $this->acceptCancellation;
         foreach ($this->listeners as $i => $listener) {
-            if (isset($this->pending[$i])) {
+            if (isset($this->pending[$i]) || isset($this->stopped[$i])) {
                 continue;
             }
 
-            $this->pending[$i] = true;
+            $this->pending[$i] = $acceptCancellation;
 
-            Async\Scheduler::defer(function () use ($i, $listener): void {
+            Async\Scheduler::defer(function () use ($i, $listener, $acceptCancellation): void {
+                $stopped = false;
+                $result = null;
+
                 try {
-                    $stream = $listener->accept();
-                } catch (Throwable) {
+                    $result = $listener->accept($acceptCancellation);
+                } catch (Exception\AlreadyStoppedException) {
+                    $stopped = true;
+                } catch (Throwable $error) {
+                    // Errors caused by cancelling the accept are of no interest to anyone.
+                    if (!$acceptCancellation->isCancelled()) {
+                        $result = $error;
+                    }
+                }
+
+                if (($this->pending[$i] ?? null) === $acceptCancellation) {
                     unset($this->pending[$i]);
-                    $this->notifySignal();
+                }
+
+                if ($stopped) {
+                    $this->stopped[$i] = true;
+                    // Every waiting call must find out if all listeners are now stopped.
+                    $this->notifyAllSignals();
+
                     return;
                 }
 
-                unset($this->pending[$i]);
-                $this->backlog[] = $stream;
+                if (null === $result) {
+                    return;
+                }
+
+                if ($this->closed) {
+                    if ($result instanceof StreamInterface) {
+                        $result->close();
+                    }
+
+                    return;
+                }
+
+                $this->backlog[] = $result;
                 $this->notifySignal();
             });
         }
     }
 
     /**
-     * Notify the waiting accept() call that something happened.
+     * Cancel all in-flight inner accepts, unless an accept() call is still waiting for them.
+     *
+     * Do not leave the in-flight inner accepts running once nobody is waiting for them. A call that has
+     * been woken up, but has not run yet, still counts: it waits again if another call took what it was
+     * woken up for, and cancelling would abort inner accepts in the middle of a TLS handshake.
+     */
+    private function cancelPendingAcceptsIfNobodyIsWaiting(): void
+    {
+        if (0 === $this->signal->count() && 0 === $this->woken) {
+            $this->cancelPendingAccepts();
+        }
+    }
+
+    /**
+     * Cancel all in-flight inner accepts; new ones are started with a fresh token.
+     */
+    private function cancelPendingAccepts(): void
+    {
+        if ($this->pending === []) {
+            return;
+        }
+
+        $acceptCancellation = $this->acceptCancellation;
+        $this->acceptCancellation = new Async\SignalCancellationToken();
+        $this->pending = [];
+
+        $acceptCancellation->cancel();
+    }
+
+    /**
+     * Notify one waiting accept() call that something happened.
      *
      * @mago-expect lint:loop-does-not-iterate
      */
@@ -202,8 +336,22 @@ final class CompositeListener implements ListenerInterface
     {
         foreach ($this->signal as $signal => $_) {
             unset($this->signal[$signal]);
-            $signal?->resume(null);
+            $this->woken++;
+            $signal->resume(null);
             break;
+        }
+    }
+
+    /**
+     * Notify all waiting accept() calls that something happened.
+     */
+    private function notifyAllSignals(): void
+    {
+        $signals = $this->signal;
+        $this->signal = new WeakMap();
+        foreach ($signals as $signal => $_) {
+            $this->woken++;
+            $signal->resume(null);
         }
     }
 }

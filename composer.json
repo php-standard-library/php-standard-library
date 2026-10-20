@@ -313,6 +313,7 @@
             "Psl\\Math\\Tests\\Benchmark\\": "packages/math/tests/benchmark/",
             "Psl\\Math\\Tests\\Unit\\": "packages/math/tests/unit/",
             "Psl\\Message\\Tests\\Unit\\": "packages/message/tests/unit/",
+            "Psl\\Network\\Tests\\Fixture\\": "packages/network/tests/fixture/",
             "Psl\\Network\\Tests\\Unit\\": "packages/network/tests/unit/",
             "Psl\\OS\\Tests\\Unit\\": "packages/os/tests/unit/",
             "Psl\\Observer\\Tests\\Unit\\": "packages/observer/tests/unit/",
