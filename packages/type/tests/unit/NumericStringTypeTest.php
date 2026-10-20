@@ -7,6 +7,9 @@ namespace Psl\Type\Tests\Unit;
 use Override;
 use Psl\Type;
 
+use const INF;
+use const NAN;
+
 /**
  * @extends TypeTestCase<numeric-string>
  */
@@ -28,6 +31,8 @@ final class NumericStringTypeTest extends TypeTestCase
         yield [0, '0'];
         yield [1.0, '1'];
         yield [1.23, '1.23'];
+        yield [1e100, '1.0E+100'];
+        yield [-0.0, '-0'];
         yield ['0', '0'];
         yield ['123', '123'];
         yield ['1e23', '1e23'];
@@ -47,6 +52,10 @@ final class NumericStringTypeTest extends TypeTestCase
         yield [false];
         yield [true];
         yield [STDIN];
+        // Non-finite floats would be cast to "NAN" / "INF" / "-INF", which are not numeric strings.
+        yield [NAN];
+        yield [INF];
+        yield [-INF];
     }
 
     #[Override]

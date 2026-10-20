@@ -10,6 +10,9 @@ use Psl\Type\Exception\AssertException;
 use Psl\Type\Exception\CoercionException;
 use Stringable;
 
+use function is_finite;
+use function is_float;
+use function is_int;
 use function is_numeric;
 use function is_string;
 
@@ -41,7 +44,8 @@ final readonly class NumericStringType extends Type\Type
             return $value;
         }
 
-        if (is_numeric($value)) {
+        // NAN and INF are floats, but casting them yields "NAN" / "INF", which are not numeric strings.
+        if (is_int($value) || is_float($value) && is_finite($value)) {
             return (string) $value;
         }
 
