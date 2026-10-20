@@ -27,12 +27,14 @@ use function iterator_to_array;
  */
 function associate(iterable $keys, iterable $values): array
 {
+    // Only the values of both iterables are used: preserving their keys would drop the elements of
+    // repeated keys.
     if (!is_array($keys)) {
-        $keys = iterator_to_array($keys);
+        $keys = iterator_to_array($keys, preserve_keys: false);
     }
 
     if (!is_array($values)) {
-        $values = iterator_to_array($values);
+        $values = iterator_to_array($values, preserve_keys: false);
     }
 
     $keysCount = count($keys);

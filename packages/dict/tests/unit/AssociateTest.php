@@ -7,6 +7,7 @@ namespace Psl\Dict\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Psl\Collection;
 use Psl\Dict;
+use stdClass;
 
 final class AssociateTest extends TestCase
 {
@@ -26,6 +27,40 @@ final class AssociateTest extends TestCase
             ['a' => 1, 'b' => 2, 'c' => 3],
             Dict\associate(Collection\Vector::fromArray(['a', 'b', 'c']), Collection\Vector::fromArray([1, 2, 3])),
         );
+    }
+
+    public function testAssociateIterablesWithRepeatedKeys(): void
+    {
+        $keys = (static function (): iterable {
+            yield from ['a', 'b'];
+            yield from ['c', 'd'];
+        })();
+        $values = (static function (): iterable {
+            yield from [1, 2];
+            yield from [3, 4];
+        })();
+
+        static::assertSame(['a' => 1, 'b' => 2, 'c' => 3, 'd' => 4], Dict\associate($keys, $values));
+    }
+
+    public function testAssociateIterableWithRepeatedKeysAndArray(): void
+    {
+        $keys = (static function (): iterable {
+            yield from ['a', 'b'];
+            yield from ['c', 'd'];
+        })();
+
+        static::assertSame(['a' => 1, 'b' => 2, 'c' => 3, 'd' => 4], Dict\associate($keys, [1, 2, 3, 4]));
+    }
+
+    public function testAssociateIterablesWithNonArrayKeys(): void
+    {
+        $keys = (static function (): iterable {
+            yield new stdClass() => 'a';
+            yield new stdClass() => 'b';
+        })();
+
+        static::assertSame(['a' => 1, 'b' => 2], Dict\associate($keys, [1, 2]));
     }
 
     public function testAssociateWithMissingKeys(): void
