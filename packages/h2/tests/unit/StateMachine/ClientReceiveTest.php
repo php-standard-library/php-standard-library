@@ -22,12 +22,14 @@ final class ClientReceiveTest extends TestCase
     {
         $sm = new StateMachine(true);
         $sm->initialize();
+        $sm->sendHeadersEncoded(1, [new Header(':method', 'GET')], true);
         $encoder = new Encoder();
 
         $pushPromiseBlock = $encoder->encode([
             new Header(':method', 'GET'),
             new Header(':path', '/pushed'),
             new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
         ]);
         $raw = new PushPromiseFrame(1, 2, $pushPromiseBlock, true)->toRaw();
         [, $events] = $sm->receive($raw);
@@ -55,12 +57,14 @@ final class ClientReceiveTest extends TestCase
     {
         $sm = new StateMachine(true);
         $sm->initialize();
+        $sm->sendHeadersEncoded(1, [new Header(':method', 'GET')], true);
         $encoder = new Encoder();
 
         $pushPromiseBlock = $encoder->encode([
             new Header(':method', 'GET'),
             new Header(':path', '/empty-push'),
             new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
         ]);
         $raw = new PushPromiseFrame(1, 2, $pushPromiseBlock, true)->toRaw();
         $sm->receive($raw);

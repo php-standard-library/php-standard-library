@@ -30,7 +30,12 @@ final class PushPromiseStreamStateTest extends TestCase
     {
         $encoder = new Encoder();
         $bad = $encoder->encode([new Header(':method', 'GET'), new Header(':scheme', 'https')]);
-        $headers = [new Header(':method', 'GET'), new Header(':scheme', 'https'), new Header(':path', '/')];
+        $headers = [
+            new Header(':method', 'GET'),
+            new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
+            new Header(':path', '/'),
+        ];
         $input = Frame\encode(new PushPromiseFrame(1, 2, $continued ? substr($bad, 0, 1) : $bad, !$continued)->toRaw());
         if ($continued) {
             $input .= Frame\encode(new ContinuationFrame(1, substr($bad, 1), true)->toRaw());

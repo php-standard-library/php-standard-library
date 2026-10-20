@@ -26,6 +26,7 @@ final class ReservedStreamCompressionTest extends TestCase
         $request = [
             new Header(':method', 'GET'),
             new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
             new Header(':path', '/'),
         ];
         [$frame] = Frame\decode($client->sendHeadersEncoded(1, $request, true));

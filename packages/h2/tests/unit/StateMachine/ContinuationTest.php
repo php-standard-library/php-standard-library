@@ -108,6 +108,7 @@ final class ContinuationTest extends TestCase
             new Header(':method', 'GET'),
             new Header(':path', '/pushed'),
             new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
             new Header('x-extra', 'data'),
         ]);
 

@@ -27,5 +27,8 @@ $server->sendHeadersWithStatus($pushStreamId, '200', [
 ]);
 $server->sendData($pushStreamId, 'body { color: red; }', endStream: true);
 
+// Check the promised origin against the server's authority before using a push.
+// Reset an unauthorized promised stream with H2\ErrorCode::ProtocolError.
+
 // Client can reject unwanted pushes
 $client->rejectPush($pushStreamId);

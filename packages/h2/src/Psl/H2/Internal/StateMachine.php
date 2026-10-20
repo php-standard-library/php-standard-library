@@ -56,6 +56,7 @@ use function str_repeat;
 use function strlen;
 use function strtolower;
 use function substr;
+use function trim;
 use function unpack;
 
 use const PHP_INT_MAX;
@@ -1748,6 +1749,16 @@ final class StateMachine
             throw ProtocolException::forConnectionError('PUSH_PROMISE received but ENABLE_PUSH is 0');
         }
 
+        $associatedState = $this->getStreamState($frame->streamId);
+        if (
+            ($frame->streamId % 2) !== 1
+            || $associatedState !== StreamState::Open
+            && $associatedState !== StreamState::HalfClosedLocal
+            && $associatedState !== StreamState::Closed
+        ) {
+            throw ProtocolException::forConnectionError('PUSH_PROMISE received on an invalid associated stream');
+        }
+
         $this->validatePeerStreamId($frame->promisedStreamId);
         $this->lastPeerStreamId = $frame->promisedStreamId;
 
@@ -1775,7 +1786,34 @@ final class StateMachine
             throw ProtocolException::forCompressionError($e);
         }
 
+        // RFC 9113 §5.1: a promise can arrive after we reset its associated stream.
+        if ($this->getStreamState($streamId) === StreamState::Closed) {
+            return [$this->resetStream($promisedStreamId, ErrorCode::Cancel), []];
+        }
+
         HeaderValidator::validate($headers, false, false, $promisedStreamId);
+        $authority = null;
+        foreach ($headers as $header) {
+            if ($header->name === ':method' && $header->value !== 'GET' && $header->value !== 'HEAD') {
+                throw StreamException::forMalformedMessage(
+                    $promisedStreamId,
+                    'Promised method must be safe and cacheable',
+                );
+            }
+
+            if ($header->name === ':authority') {
+                $authority = $header->value;
+            }
+        }
+
+        if ($authority === null || $authority === '') {
+            throw StreamException::forMalformedMessage($promisedStreamId, 'Promised request must include :authority');
+        }
+
+        $contentLength = self::resolveContentLength($promisedStreamId, $headers);
+        if ($contentLength !== null && trim($contentLength, '0') !== '') {
+            throw StreamException::forMalformedMessage($promisedStreamId, 'Promised request must not include content');
+        }
 
         $promised = $this->streams->getOrCreate($promisedStreamId);
         $promised->state = StreamState::ReservedRemote;

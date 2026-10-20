@@ -23,7 +23,12 @@ final class StreamConcurrencyTest extends TestCase
      */
     private function requestHeaders(): array
     {
-        return [new Header(':method', 'GET'), new Header(':scheme', 'https'), new Header(':path', '/')];
+        return [
+            new Header(':method', 'GET'),
+            new Header(':scheme', 'https'),
+            new Header(':authority', 'example.com'),
+            new Header(':path', '/'),
+        ];
     }
 
     public function testLocalStreamsDoNotConsumePeerLimit(): void

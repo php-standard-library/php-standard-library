@@ -163,6 +163,7 @@ final class ClientContentLengthTest extends TestCase
                 $encoder->encode([
                     new Header(':method', 'HEAD'),
                     new Header(':scheme', 'https'),
+                    new Header(':authority', 'example.com'),
                     new Header(':path', '/pushed'),
                 ]),
                 true,
@@ -194,6 +195,7 @@ final class ClientContentLengthTest extends TestCase
                 $encoder->encode([
                     new Header(':method', 'GET'),
                     new Header(':scheme', 'https'),
+                    new Header(':authority', 'example.com'),
                     new Header(':path', '/pushed'),
                 ]),
                 true,
