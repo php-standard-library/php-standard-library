@@ -16,9 +16,10 @@ interface StreamEncryptorInterface extends Crypto\StreamEncryptorInterface
     /**
      * Encrypt a stream of data.
      *
-     * @param positive-int $chunkSize The size of each plaintext chunk to process.
+     * @param positive-int $chunkSize The size of each plaintext chunk, at most MAX_CHUNK_BYTES.
      *
      * @throws Exception\RuntimeException If encryption fails.
+     * @throws Exception\InvalidArgumentException If the chunk size is outside 1..MAX_CHUNK_BYTES.
      */
     public function copySealed(
         IO\ReadHandleInterface $source,

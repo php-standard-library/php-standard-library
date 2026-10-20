@@ -22,7 +22,7 @@ For large data or file encryption, the `StreamEncryptor` class provides streamin
 
 @example('security/crypto-symmetric-stream.php')
 
-The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk individually and detects reordering or truncation.
+The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk and detects reordering or truncation. Encryption fills each chunk across short reads and marks the final chunk only at EOF. The source must reach EOF before encryption can finish. Chunk sizes must be between 1 byte and `Symmetric\MAX_CHUNK_BYTES` (16 MiB).
 
 ## Asymmetric Encryption
 

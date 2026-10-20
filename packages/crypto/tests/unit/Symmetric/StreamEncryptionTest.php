@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Psl\Crypto\Tests\Unit\Symmetric;
 
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\Crypto\Exception;
 use Psl\Crypto\Symmetric;
@@ -24,6 +26,23 @@ use const SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES;
 
 final class StreamEncryptionTest extends TestCase
 {
+    #[TestWith([0])]
+    #[TestWith([-1])]
+    public function testCopySealedRejectsNonPositiveChunksBeforeWriting(int $chunkSize): void
+    {
+        $encrypted = new IO\MemoryHandle();
+        $encryptor = new Symmetric\StreamEncryptor(Symmetric\generate_key());
+
+        $this->expectException(Exception\InvalidArgumentException::class);
+
+        try {
+            $encryptor->copySealed(new IO\MemoryHandle(), $encrypted, $chunkSize);
+        } finally {
+            $encrypted->seek(0);
+            static::assertSame('', $encrypted->readAll());
+        }
+    }
+
     public function testEncryptDecryptRoundtrip(): void
     {
         $key = Symmetric\generate_key();
@@ -622,7 +641,7 @@ final class StreamEncryptionTest extends TestCase
         static::assertSame(8192, $storedChunkSize);
     }
 
-    public function testCopySealedBreaksOnEmptyChunk(): void
+    public function testCopySealedWaitsForEofAfterEmptyChunk(): void
     {
         $key = Symmetric\generate_key();
         $encryptor = new Symmetric\StreamEncryptor($key);
@@ -638,7 +657,7 @@ final class StreamEncryptionTest extends TestCase
 
             public function reachedEndOfDataSource(): bool
             {
-                return false;
+                return !$this->firstRead && $this->inner->reachedEndOfDataSource();
             }
 
             public function tryRead(null|int $maxBytes = null): string
@@ -686,88 +705,45 @@ final class StreamEncryptionTest extends TestCase
         $encryptor->copyOpened($encrypted, $decrypted);
 
         $decrypted->seek(0);
-        static::assertSame('', $decrypted->readAll());
+        static::assertSame('more data after empty', $decrypted->readAll());
     }
 
     public function testIsLastWithShortChunkButNotEof(): void
     {
-        $key = Symmetric\generate_key();
-        $encryptor = new Symmetric\StreamEncryptor($key);
-
-        $plaintext = 'short';
-        $sourceHandle = new class($plaintext) implements IO\ReadHandleInterface {
-            private IO\MemoryHandle $inner;
-            private int $readCount = 0;
-
-            public function __construct(string $data)
-            {
-                $this->inner = new IO\MemoryHandle($data);
-            }
-
-            public function reachedEndOfDataSource(): bool
-            {
-                return false;
-            }
-
-            public function tryRead(null|int $maxBytes = null): string
-            {
-                return $this->doRead($maxBytes);
-            }
-
-            public function read(
-                null|int $maxBytes = null,
-                CancellationTokenInterface $cancellation = new NullCancellationToken(),
-            ): string {
-                return $this->doRead($maxBytes);
-            }
-
-            public function readAll(
-                null|int $maxBytes = null,
-                CancellationTokenInterface $cancellation = new NullCancellationToken(),
-            ): string {
-                return $this->inner->readAll($maxBytes, $cancellation);
-            }
-
-            public function readFixedSize(
-                int $size,
-                CancellationTokenInterface $cancellation = new NullCancellationToken(),
-            ): string {
-                return $this->inner->readFixedSize($size, $cancellation);
-            }
-
-            private function doRead(null|int $maxBytes): string
-            {
-                $this->readCount++;
-                if ($this->readCount === 1) {
-                    return $this->inner->read($maxBytes);
-                }
-
-                return '';
-            }
-        };
-
+        $encryptor = new Symmetric\StreamEncryptor(Symmetric\generate_key());
+        $plaintext = 'Short reads must preserve the whole source.';
         $encrypted = new IO\MemoryHandle();
-        $encryptor->copySealed($sourceHandle, $encrypted, 8192);
+
+        $encryptor->copySealed(new TrickleReadHandle($plaintext, 3), $encrypted, 8);
 
         $encrypted->seek(0);
-        $data = $encrypted->readAll();
-
-        $pos = Symmetric\STREAM_HEADER_BYTES + 4; // skip header + chunkSize
-        $frameCount = 0;
-        while ($pos < Byte\length($data)) {
-            /** @var int $frameLen */
-            $frameLen = unpack('V', Byte\slice($data, $pos, 4))[1];
-            $pos += 4 + $frameLen;
-            $frameCount++;
-        }
-
-        static::assertSame(1, $frameCount, 'Expected exactly 1 frame (FINAL) for a short chunk with || operator.');
-
         $decrypted = new IO\MemoryHandle();
-        $encryptor->copyOpened(new IO\MemoryHandle($data), $decrypted);
+        $encryptor->copyOpened($encrypted, $decrypted);
 
         $decrypted->seek(0);
         static::assertSame($plaintext, $decrypted->readAll());
+    }
+
+    public function testCopySealedDoesNotFinalizeAnOpenSource(): void
+    {
+        $encryptor = new Symmetric\StreamEncryptor(Symmetric\generate_key());
+
+        $this->expectException(CancelledException::class);
+        $encryptor->copySealed(new SocketLikeReadHandle('short'), new IO\MemoryHandle());
+    }
+
+    public function testCopySealedRejectsOversizedChunksBeforeWriting(): void
+    {
+        $encryptor = new Symmetric\StreamEncryptor(Symmetric\generate_key());
+        $destination = new IO\MemoryHandle();
+
+        try {
+            $this->expectException(Exception\InvalidArgumentException::class);
+            $encryptor->copySealed(new IO\MemoryHandle('data'), $destination, Symmetric\MAX_CHUNK_BYTES + 1);
+        } finally {
+            $destination->seek(0);
+            static::assertSame('', $destination->readAll());
+        }
     }
 
     public function testMaxChunkBytesIsAccepted(): void

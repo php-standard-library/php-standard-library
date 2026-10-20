@@ -10,7 +10,7 @@ use Psl\IO;
 $key = Symmetric\generate_key();
 $streamEncryptor = new Symmetric\StreamEncryptor($key);
 
-// Encrypt a stream in chunks (useful for large files)
+// Encrypt in chunks, filling short reads until the source reaches EOF.
 $source = new IO\MemoryHandle('This is a large message that will be encrypted in chunks.');
 $encrypted = new IO\MemoryHandle();
 
