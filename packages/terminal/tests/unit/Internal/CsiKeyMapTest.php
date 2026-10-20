@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Terminal\Tests\Unit\Internal;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Terminal\Internal\CsiKeyMap;
 
@@ -269,43 +270,69 @@ final class CsiKeyMapTest extends TestCase
         static::assertNull($key);
     }
 
-    public function testMapFunctionKeyF1(): void
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideSs3NamedKeys(): iterable
     {
-        $key = CsiKeyMap::map('O', 'P');
-
-        static::assertNotNull($key);
-        static::assertTrue($key->is('f1'));
+        yield 'F1' => ['P', 'f1'];
+        yield 'F2' => ['Q', 'f2'];
+        yield 'F3' => ['R', 'f3'];
+        yield 'F4' => ['S', 'f4'];
+        yield 'application cursor up' => ['A', 'up'];
+        yield 'application cursor down' => ['B', 'down'];
+        yield 'application cursor right' => ['C', 'right'];
+        yield 'application cursor left' => ['D', 'left'];
+        yield 'application cursor home' => ['H', 'home'];
+        yield 'application cursor end' => ['F', 'end'];
+        yield 'keypad tab' => ['I', 'tab'];
+        yield 'keypad enter' => ['M', 'enter'];
+        yield 'rxvt ctrl+up' => ['a', 'ctrl+up'];
+        yield 'rxvt ctrl+down' => ['b', 'ctrl+down'];
+        yield 'rxvt ctrl+right' => ['c', 'ctrl+right'];
+        yield 'rxvt ctrl+left' => ['d', 'ctrl+left'];
     }
 
-    public function testMapFunctionKeyF2(): void
+    #[DataProvider('provideSs3NamedKeys')]
+    public function testMapSs3NamedKey(string $final, string $expected): void
     {
-        $key = CsiKeyMap::map('O', 'Q');
+        $key = CsiKeyMap::mapSs3($final);
 
         static::assertNotNull($key);
-        static::assertTrue($key->is('f2'));
+        static::assertNull($key->char);
+        static::assertSame($expected, $key->name);
     }
 
-    public function testMapFunctionKeyF3(): void
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideSs3KeypadCharacters(): iterable
     {
-        $key = CsiKeyMap::map('O', 'R');
+        yield 'multiply' => ['j', '*'];
+        yield 'add' => ['k', '+'];
+        yield 'separator' => ['l', ','];
+        yield 'subtract' => ['m', '-'];
+        yield 'decimal' => ['n', '.'];
+        yield 'divide' => ['o', '/'];
+        yield 'equal' => ['X', '='];
+        yield '0' => ['p', '0'];
+        yield '5' => ['u', '5'];
+        yield '9' => ['y', '9'];
+    }
+
+    #[DataProvider('provideSs3KeypadCharacters')]
+    public function testMapSs3KeypadCharacter(string $final, string $expected): void
+    {
+        $key = CsiKeyMap::mapSs3($final);
 
         static::assertNotNull($key);
-        static::assertTrue($key->is('f3'));
+        static::assertSame($expected, $key->char);
     }
 
-    public function testMapFunctionKeyF4(): void
+    public function testMapSs3UnknownReturnsNull(): void
     {
-        $key = CsiKeyMap::map('O', 'S');
-
-        static::assertNotNull($key);
-        static::assertTrue($key->is('f4'));
-    }
-
-    public function testMapFunctionKeyUnknownReturnsNull(): void
-    {
-        $key = CsiKeyMap::map('O', 'X');
-
-        static::assertNull($key);
+        static::assertNull(CsiKeyMap::mapSs3('Z'));
+        static::assertNull(CsiKeyMap::mapSs3('E'));
     }
 
     public function testMapKittyKeyEnterNoModifier(): void

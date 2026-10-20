@@ -44,7 +44,8 @@ final class EventParser
      *
      * Call this periodically (e.g. on each render tick) to resolve
      * ambiguous input. A lone ESC byte that hasn't been completed by
-     * subsequent bytes will be emitted as an Escape key event.
+     * subsequent bytes will be emitted as an Escape key event, and ESC O
+     * that was not followed by the final byte of an SS3 sequence as Alt+O.
      *
      * A UTF-8 character can be split across two reads, so its leading bytes
      * are kept through one flush; they are discarded by the next flush if
@@ -57,6 +58,11 @@ final class EventParser
         if ($this->buffer === "\e") {
             $this->buffer = '';
             return [Event\Key::named('escape')];
+        }
+
+        if ($this->buffer === "\eO") {
+            $this->buffer = '';
+            return [Event\Key::named('alt+O')];
         }
 
         // feed() only leaves a buffer starting with a non-ASCII byte behind when it
@@ -215,6 +221,10 @@ final class EventParser
             return $this->parseCsiSequence();
         }
 
+        if ($second === 'O') {
+            return $this->parseSs3Sequence();
+        }
+
         if (ord($second) >= 0x20 && ord($second) <= 0x7E) {
             $this->buffer = substr($this->buffer, 2);
             return Event\Key::named('alt+' . $second);
@@ -222,6 +232,34 @@ final class EventParser
 
         $this->buffer = substr($this->buffer, 1);
         return Event\Key::named('escape');
+    }
+
+    /**
+     * Parse an SS3 sequence: ESC O followed by a single final byte.
+     *
+     * xterm-compatible terminals send SS3 sequences for F1-F4, and for the
+     * cursor and keypad keys when the application cursor (DECCKM) or
+     * application keypad (DECKPAM) mode is enabled. ESC O followed by
+     * anything but the final byte of a known SS3 key is Alt+O, and the
+     * byte after it is parsed on its own.
+     *
+     * @return Event\Key|false false if the final byte has not been received yet
+     */
+    private function parseSs3Sequence(): Event\Key|false
+    {
+        if (strlen($this->buffer) < 3) {
+            return false;
+        }
+
+        $key = CsiKeyMap::mapSs3($this->buffer[2]);
+        if ($key === null) {
+            $this->buffer = substr($this->buffer, 2);
+            return Event\Key::named('alt+O');
+        }
+
+        $this->buffer = substr($this->buffer, 3);
+
+        return $key;
     }
 
     /**

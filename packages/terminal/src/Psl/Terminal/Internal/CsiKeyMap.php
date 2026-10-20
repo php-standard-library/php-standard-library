@@ -12,7 +12,7 @@ use function explode;
 use function str_contains;
 
 /**
- * Maps CSI escape sequences to key events.
+ * Maps CSI and SS3 escape sequences to key events.
  *
  * @internal
  */
@@ -31,10 +31,6 @@ final class CsiKeyMap
 
         if ($final === '~') {
             return self::mapTilde($params);
-        }
-
-        if ($params === 'O') {
-            return self::mapFunctionKey($final);
         }
 
         // Kitty keyboard protocol: \e[codepoint u (no modifier)
@@ -107,15 +103,60 @@ final class CsiKeyMap
         return Event\Key::named(self::modifierPrefix((int) $parts[1]) . $baseKey);
     }
 
-    private static function mapFunctionKey(string $final): null|Event\Key
+    /**
+     * Map the final byte of an SS3 sequence (ESC O final) to a Key event.
+     *
+     * Covers F1-F4, the cursor keys in application cursor mode (DECCKM), the
+     * keypad in application keypad mode (DECKPAM), and rxvt's Ctrl+arrow keys.
+     */
+    public static function mapSs3(string $final): null|Event\Key
     {
-        return match ($final) {
-            'P' => Event\Key::named('f1'),
-            'Q' => Event\Key::named('f2'),
-            'R' => Event\Key::named('f3'),
-            'S' => Event\Key::named('f4'),
+        $name = match ($final) {
+            'A' => 'up',
+            'B' => 'down',
+            'C' => 'right',
+            'D' => 'left',
+            'H' => 'home',
+            'F' => 'end',
+            'P' => 'f1',
+            'Q' => 'f2',
+            'R' => 'f3',
+            'S' => 'f4',
+            'I' => 'tab',
+            'M' => 'enter',
+            'a' => 'ctrl+up',
+            'b' => 'ctrl+down',
+            'c' => 'ctrl+right',
+            'd' => 'ctrl+left',
             default => null,
         };
+
+        if ($name !== null) {
+            return Event\Key::named($name);
+        }
+
+        $char = match ($final) {
+            'j' => '*',
+            'k' => '+',
+            'l' => ',',
+            'm' => '-',
+            'n' => '.',
+            'o' => '/',
+            'p' => '0',
+            'q' => '1',
+            'r' => '2',
+            's' => '3',
+            't' => '4',
+            'u' => '5',
+            'v' => '6',
+            'w' => '7',
+            'x' => '8',
+            'y' => '9',
+            'X' => '=',
+            default => null,
+        };
+
+        return $char === null ? null : Event\Key::char($char);
     }
 
     private static function mapModified(string $params, string $final): null|Event\Key

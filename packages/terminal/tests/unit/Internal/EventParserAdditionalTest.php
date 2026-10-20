@@ -272,6 +272,111 @@ final class EventParserAdditionalTest extends TestCase
         static::assertTrue($events[0]->is('alt+!'));
     }
 
+    public function testSs3FunctionKeys(): void
+    {
+        $events = $this->parser->feed("\eOP\eOQ\eOR\eOS");
+
+        static::assertCount(4, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('f1'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('f2'));
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('f3'));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertTrue($events[3]->is('f4'));
+    }
+
+    public function testSs3ApplicationCursorKeys(): void
+    {
+        $events = $this->parser->feed("\eOA\eOB\eOC\eOD\eOH\eOF");
+
+        static::assertCount(6, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('up'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('down'));
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('right'));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertTrue($events[3]->is('left'));
+        static::assertInstanceOf(Event\Key::class, $events[4]);
+        static::assertTrue($events[4]->is('home'));
+        static::assertInstanceOf(Event\Key::class, $events[5]);
+        static::assertTrue($events[5]->is('end'));
+    }
+
+    public function testSs3ApplicationKeypadKeys(): void
+    {
+        $events = $this->parser->feed("\eOM\eOq\eOk");
+
+        static::assertCount(3, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('enter'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('1', $events[1]->char);
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertSame('+', $events[2]->char);
+    }
+
+    public function testSs3SplitAcrossFeeds(): void
+    {
+        static::assertSame([], $this->parser->feed("\eO"));
+
+        $events = $this->parser->feed('P');
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('f1'));
+    }
+
+    public function testAltShiftOFollowedByByteThatIsNotAnSs3Key(): void
+    {
+        $events = $this->parser->feed("\eOz\eOZa");
+
+        static::assertCount(5, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+O'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('z', $events[1]->char);
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('alt+O'));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertSame('Z', $events[3]->char);
+        static::assertInstanceOf(Event\Key::class, $events[4]);
+        static::assertSame('a', $events[4]->char);
+    }
+
+    public function testAltShiftOFollowedByNonFinalByte(): void
+    {
+        $events = $this->parser->feed("\eO\e[A");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+O'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('up'));
+
+        $events = $this->parser->feed("\eO1");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+O'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('1', $events[1]->char);
+    }
+
+    public function testFlushPendingEmitsAltShiftO(): void
+    {
+        static::assertSame([], $this->parser->feed("\eO"));
+
+        $flushed = $this->parser->flushPending();
+
+        static::assertCount(1, $flushed);
+        static::assertTrue($flushed[0]->is('alt+O'));
+        static::assertSame([], $this->parser->flushPending());
+    }
+
     public function testEscFollowedByEscEmitsEscapeKey(): void
     {
         $events = $this->parser->feed("\e\e");
