@@ -39,6 +39,13 @@ final class TextPartTest extends TestCase
         static::assertSame(TransferEncoding::QuotedPrintable, $part->encoding);
     }
 
+    public function testQuotedPrintableBodyKeepsTrailingLineBreaks(): void
+    {
+        $part = new Text(new IO\MemoryHandle("caf\u{e9}\nau lait\n\n"));
+
+        static::assertSame("caf=C3=A9\r\nau lait\r\n\r\n", $part->body()->readAll());
+    }
+
     public function testExplicitEncoding(): void
     {
         $part = new Text(new IO\MemoryHandle('Hello'), encoding: TransferEncoding::Base64);

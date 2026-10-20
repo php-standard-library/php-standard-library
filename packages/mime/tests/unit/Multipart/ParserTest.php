@@ -186,6 +186,17 @@ final class ParserTest extends TestCase
         static::assertSame('Hello World', $parts[0]->body->readAll());
     }
 
+    public function testDecodeQuotedPrintableTransferEncodingKeepsTrailingLineBreaks(): void
+    {
+        $body = "--boundary\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nHello=20World\r\n\r\n\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', decodeTransferEncoding: true);
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame("Hello World\r\n\r\n", $parts[0]->body->readAll());
+    }
+
     public function testDecodeTransferEncodingStripsHeader(): void
     {
         $encoded = Base64\encode('data');
