@@ -199,6 +199,7 @@ final class StreamExchange
                 ),
             );
         } catch (CancelledException|StreamException $e) {
+            $streamError = $stream->getError();
             if (
                 $headersSent
                 && in_array(
@@ -214,8 +215,13 @@ final class StreamExchange
                 $multiplexer->unregister($streamId);
             }
 
+            if ($e instanceof StreamException && $streamError instanceof UnprocessedRequestException) {
+                throw $streamError;
+            }
+
             throw $e;
         } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
+            $streamError = $stream->getError();
             if ($headersSent) {
                 $multiplexer->cancel($streamId);
             } else {
@@ -228,6 +234,10 @@ final class StreamExchange
                 || $headersSent && $e instanceof ExceptionInterface
             ) {
                 $session->markClosed();
+            }
+
+            if ($e instanceof ExceptionInterface && $streamError instanceof UnprocessedRequestException) {
+                throw $streamError;
             }
 
             throw $e;

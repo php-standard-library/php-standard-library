@@ -12,6 +12,8 @@ $client = new Client\Client(
     configuration: new Client\ClientConfiguration(protocolVersions: [Message\ProtocolVersion::V20]),
 );
 
+// GOAWAY and REFUSED_STREAM allow one retry only when the server did not process the request.
+// A request body must be seekable and rewound to its original position.
 $tx = $client->send(new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://localhost:8080/')));
 
 $tx->response->protocolVersion; // ProtocolVersion::V20

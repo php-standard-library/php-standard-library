@@ -603,7 +603,7 @@ final class PooledConnector implements ConnectorInterface
      *
      * The returned connection carries a reconnect callback ({@see h2Reconnect()})
      * so that a session closed before an exchange starts can be replaced.
-     * Failed exchanges are not replayed.
+     * Only requests the peer did not process can be retried.
      *
      * @param Network\StreamInterface $stream The underlying TCP, TLS, or Unix stream.
      * @param ConnectionMetadata $metadata Transport-level metadata for the connection.
@@ -660,7 +660,7 @@ final class PooledConnector implements ConnectorInterface
      *
      * When an HTTP/2 session is terminated (e.g., by a GOAWAY frame or
      * connection error), {@see H2Connection::exchange()} calls this method
-     * only before starting a new exchange. It does not replay a failed request.
+     * before sending, or once after the peer proves it did not process the request.
      *
      * Delegates to {@see connect()}, which may return an existing pooled
      * session, a coalesced session from another fiber, or a brand-new

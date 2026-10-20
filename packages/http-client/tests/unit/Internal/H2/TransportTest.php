@@ -1076,7 +1076,7 @@ final class TransportTest extends TestCase
                             continue;
                         }
 
-                        $server->goAway(H2\ErrorCode::NoError);
+                        $server->goAway(H2\ErrorCode::NoError, lastStreamId: 0);
                         return;
                     }
                 }
@@ -1164,13 +1164,11 @@ final class TransportTest extends TestCase
             $request = new Request(method: 'GET', url: $url, requestTarget: '/');
             $config = new ClientConfiguration();
 
-            try {
-                $h2Connection->exchange($request, $config);
-                static::fail('A GOAWAY covering the stream must fail the exchange without a replay.');
-            } catch (Exception\RuntimeException $error) {
-                static::assertStringContainsString('HTTP/2 connection is closed', $error->getMessage());
-                static::assertFalse($reconnected);
-            }
+            $tx = $h2Connection->exchange($request, $config);
+
+            static::assertTrue($reconnected);
+            static::assertSame(200, $tx->response->status);
+            static::assertSame('server-b', $tx->response->headers->get('x-source'));
         } finally {
             $listenerA->close();
             $listenerB->close();

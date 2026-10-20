@@ -257,7 +257,10 @@ final class H2Multiplexer
                 $this->cancel($sid);
             }
         } elseif ($event instanceof Event\StreamReset) {
-            $stream->fail(ProtocolException::forMalformedResponse('Stream reset: ' . $event->errorCode->name));
+            $error = ProtocolException::forMalformedResponse('Stream reset: ' . $event->errorCode->name);
+            $stream->fail(
+                $event->errorCode === ErrorCode::RefusedStream ? new UnprocessedRequestException($error) : $error,
+            );
             $this->unregister($sid);
         }
 
@@ -280,27 +283,17 @@ final class H2Multiplexer
     {
         $this->session->markClosed();
 
-        if ($event->errorCode !== ErrorCode::NoError) {
-            $error = new ProtocolException('Connection closed by server: ' . $event->errorCode->name);
-            foreach ($this->streams as $sid => $stream) {
-                $stream->fail($error);
-                $this->unregister($sid);
-            }
-
-            $this->fiberCancellation->cancel();
-            $this->fiberCancellation = new SignalCancellationToken();
-            return;
-        }
-
         $this->goAwayLastStreamId = $event->lastStreamId;
-        $error = new RuntimeException('HTTP/2 connection is closed.');
+        $error = $event->errorCode === ErrorCode::NoError
+            ? new RuntimeException('HTTP/2 connection is closed.')
+            : new ProtocolException('Connection closed by server: ' . $event->errorCode->name);
 
         foreach ($this->streams as $sid => $stream) {
-            if ($sid <= $event->lastStreamId) {
+            if ($sid <= $event->lastStreamId && $event->errorCode === ErrorCode::NoError) {
                 continue;
             }
 
-            $stream->fail($error);
+            $stream->fail($sid > $event->lastStreamId ? new UnprocessedRequestException($error) : $error);
             $this->unregister($sid);
         }
 

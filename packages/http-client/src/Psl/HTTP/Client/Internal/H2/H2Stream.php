@@ -110,6 +110,8 @@ final class H2Stream
     ) {
         /** @var Async\Deferred<array{int<100, 999>, FieldMap, bool}> */
         $this->responseDeferred = new Async\Deferred();
+        // An upload can fail before the exchange awaits response headers.
+        $this->responseDeferred->getAwaitable()->ignore();
     }
 
     /**

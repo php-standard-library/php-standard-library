@@ -207,7 +207,7 @@ Pool entries also require matching SNI hosts, TLS settings, HTTP and SOCKS proxy
 - **HTTP/2**: A single multiplexed connection per origin is shared across concurrent requests. Each request opens one HTTP/2 stream on the shared connection. If the connection is closed (GOAWAY frame or connection error), it is removed and a new connection is established on the next request.
 - **Connection coalescing**: When multiple fibers concurrently request connections to the same HTTPS origin, the first fiber performs the TLS handshake. If HTTP/2 is negotiated, waiting fibers reuse the session instead of opening redundant connections. If HTTP/1.1 is negotiated, waiting fibers establish their own connections.
 
-An exchange that fails after it starts is not replayed automatically, since the server may have processed it and consumed its request body.
+HTTP/2 retries a failed exchange at most once when GOAWAY places its stream above the last-stream-id or REFUSED_STREAM proves that the server did not process it (RFC 9113 Section 8.7). This includes POST. The body must be absent, or seekable and rewound to its original position. Other failures do not cause a replay.
 
 HTTP/2 obeys the peer's SETTINGS_MAX_CONCURRENT_STREAMS limit. A stream holds its slot until it closes, including while its response body is still arriving.
 

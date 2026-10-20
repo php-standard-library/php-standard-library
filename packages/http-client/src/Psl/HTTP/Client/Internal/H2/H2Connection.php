@@ -29,8 +29,8 @@ use Psl\TLS;
  * {@see StreamExchange::exchange()}.
  *
  * If the session is already closed, the connection reconnects before sending
- * the request. Failed exchanges are not replayed: the server may have processed
- * the request, and its body may have been consumed (RFC 9113 Section 8.7).
+ * the request. It retries once when GOAWAY or REFUSED_STREAM proves that the
+ * server did not process the request, and its body can be rewound (RFC 9113 Section 8.7).
  *
  * Unlike {@see H1\H1Connection}, HTTP/2 connections do not need
  * {@see finalize()} logic because stream multiplexing eliminates the
@@ -62,7 +62,8 @@ final readonly class H2Connection implements ConnectionInterface
      * Opens a new HTTP/2 stream on the underlying {@see H2Session} and performs
      * the exchange via {@see StreamExchange::exchange()}. If the session is closed
      * before the exchange, a reconnect closure can supply a fresh connection.
-     * Errors after an exchange starts are returned without replaying the request.
+     * Retries once only when the peer proves it did not process the request and
+     * the body is absent or can be rewound to its original position.
      *
      * Errors from the H2 layer ({@see H2\Exception\ExceptionInterface}) are
      * wrapped in {@see Exception\RuntimeException} for a consistent exception
@@ -81,14 +82,46 @@ final readonly class H2Connection implements ConnectionInterface
         ClientConfiguration $configuration,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): Transaction {
+        return $this->exchangeWithRetry($request, $configuration, $cancellation, true);
+    }
+
+    private function exchangeWithRetry(
+        Request $request,
+        ClientConfiguration $configuration,
+        CancellationTokenInterface $cancellation,
+        bool $retry,
+    ): Transaction {
         if ($this->session->isClosed()) {
-            return $this->reconnectAndExchange($request, $configuration, $cancellation);
+            return $this->reconnectAndExchange($request, $configuration, $cancellation, $retry);
         }
 
         $url = $request->url ?? throw Exception\RequestException::forMissingUrl();
+        $body = $request->body;
+        $position = null;
+        if ($retry && $body instanceof IO\SeekHandleInterface) {
+            try {
+                $position = $body->tell();
+            } catch (IO\Exception\RuntimeException) {
+                // @mago-expect lint:no-empty-catch-clause - The request can proceed without retry support.
+            }
+        }
 
         try {
             return StreamExchange::exchange($this->session, $request, $url, $configuration, $cancellation);
+        } catch (UnprocessedRequestException $e) {
+            if (!$retry || $this->reconnect === null || $body !== null && $position === null) {
+                throw $e->failure;
+            }
+
+            if ($body instanceof IO\SeekHandleInterface && $position !== null) {
+                try {
+                    $body->seek($position);
+                } catch (IO\Exception\RuntimeException) {
+                    throw $e->failure;
+                }
+            }
+
+            return $this->reconnectAndExchange($request, $configuration, $cancellation, false);
         } catch (H2\Exception\ExceptionInterface $e) {
             throw new Exception\RuntimeException($e->getMessage(), previous: $e);
         }
@@ -125,12 +158,17 @@ final readonly class H2Connection implements ConnectionInterface
         Request $request,
         ClientConfiguration $configuration,
         CancellationTokenInterface $cancellation,
+        bool $retry,
     ): Transaction {
         if ($this->reconnect === null) {
             throw new Exception\RuntimeException('HTTP/2 connection is closed.');
         }
 
         $connection = ($this->reconnect)($request, $configuration, $cancellation);
+
+        if ($connection instanceof self) {
+            return $connection->exchangeWithRetry($request, $configuration, $cancellation, $retry);
+        }
 
         return $connection->exchange($request, $configuration, $cancellation);
     }
