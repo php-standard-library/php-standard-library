@@ -7,12 +7,11 @@ namespace Psl\Terminal\Internal;
 use Psl\Terminal\Event;
 
 use function chr;
-use function count;
-use function explode;
 use function ord;
 use function str_starts_with;
 use function strlen;
 use function strpos;
+use function strspn;
 use function substr;
 
 /**
@@ -263,41 +262,40 @@ final class EventParser
     }
 
     /**
+     * Parse a control sequence, as defined by ECMA-48: ESC [, parameter bytes
+     * (0x30-0x3F), intermediate bytes (0x20-0x2F) and a final byte (0x40-0x7E).
+     *
+     * rxvt ends its Shift+key sequences with `$`, an intermediate byte, so `$`
+     * after a decimal parameter also ends the sequence. Any other byte that
+     * cannot be part of a control sequence means it is not one: ESC [ is then
+     * Alt+[, and the bytes after it are parsed on their own, so a broken
+     * sequence never swallows the keys that follow it.
+     *
      * @return Event\Key|Event\Mouse|Event\Resize|Event\Focus|null|false
      */
     private function parseCsiSequence(): Event\Key|Event\Mouse|Event\Resize|Event\Focus|null|false
     {
         $len = strlen($this->buffer);
+        if ($len > 2 && $this->buffer[2] === '[') {
+            return $this->parseLinuxConsoleFunctionKey();
+        }
 
         for ($i = 2; $i < $len; $i++) {
             $c = $this->buffer[$i];
-
-            if ($i === 2 && $c === '<') {
-                return $this->parseSgrMouse();
-            }
-
-            if ($c >= 'A' && $c <= 'Z' || $c === '~' || $c >= 'a' && $c <= 'z') {
-                $paramLen = $i - 2;
-                $params = substr($this->buffer, 2, $paramLen);
+            $ord = ord($c);
+            $isFinal = $ord >= 0x40 && $ord <= 0x7E;
+            $isRxvtShiftFinal = $c === '$' && $i > 2 && strspn($this->buffer, '0123456789', 2) === ($i - 2);
+            if ($isFinal || $isRxvtShiftFinal) {
+                $params = substr($this->buffer, 2, $i - 2);
                 $this->buffer = substr($this->buffer, $i + 1);
 
-                if ($params === '' && $c === 'I') {
-                    return new Event\Focus(true);
-                }
+                return CsiEventMap::map($params, $c);
+            }
 
-                if ($params === '' && $c === 'O') {
-                    return new Event\Focus(false);
-                }
+            if ($ord < 0x20 || $ord > 0x3F) {
+                $this->buffer = substr($this->buffer, 2);
 
-                // In-band resize: \e[48;rows;cols;height_px;width_px t
-                if ($c === 't') {
-                    $resize = self::parseInBandResize($params);
-                    if ($resize !== null) {
-                        return $resize;
-                    }
-                }
-
-                return CsiKeyMap::map($params, $c);
+                return Event\Key::named('alt+[');
             }
         }
 
@@ -305,45 +303,25 @@ final class EventParser
     }
 
     /**
-     * Parse in-band resize notification (mode 2048).
+     * Parse the Linux console's F1-F5 keys: ESC [ [ followed by A-E.
      *
-     * Format: \e[48;rows;cols;height_px;width_px t
+     * @return Event\Key|null|false null for any other ESC [ [ sequence, false if it has not been received completely yet
      */
-    private static function parseInBandResize(string $params): null|Event\Resize
+    private function parseLinuxConsoleFunctionKey(): Event\Key|null|false
     {
-        $parts = explode(';', $params);
-        if (count($parts) < 3 || $parts[0] !== '48') {
+        if (strlen($this->buffer) < 4) {
+            return false;
+        }
+
+        $key = CsiKeyMap::mapLinuxConsoleFunctionKey($this->buffer[3]);
+        if ($key === null) {
+            // ESC [ [ is a control sequence with the final byte "[", which is not a key.
+            $this->buffer = substr($this->buffer, 3);
             return null;
         }
 
-        $rows = (int) $parts[1];
-        $cols = (int) $parts[2];
-        if ($cols <= 0 || $rows <= 0) {
-            return null;
-        }
+        $this->buffer = substr($this->buffer, 4);
 
-        return new Event\Resize($cols, $rows);
-    }
-
-    /**
-     * @return Event\Mouse|null|false
-     */
-    private function parseSgrMouse(): Event\Mouse|null|false
-    {
-        $len = strlen($this->buffer);
-
-        for ($i = 3; $i < $len; $i++) {
-            $c = $this->buffer[$i];
-            if ($c === 'M' || $c === 'm') {
-                $paramLen = $i - 3;
-                $params = substr($this->buffer, 3, $paramLen);
-                $isRelease = $c === 'm';
-                $this->buffer = substr($this->buffer, $i + 1);
-
-                return SgrMouseParser::parse($params, $isRelease);
-            }
-        }
-
-        return false;
+        return $key;
     }
 }

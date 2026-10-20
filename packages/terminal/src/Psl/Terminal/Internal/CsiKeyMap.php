@@ -66,6 +66,16 @@ final class CsiKeyMap
     ];
 
     /**
+     * Modifiers that rxvt encodes in the final byte of `CSI number final`
+     * keys, which otherwise end in `~` (e.g. `CSI 3 $` is Shift+Delete).
+     */
+    private const array RXVT_MODIFIER_FINALS = [
+        '$' => 'shift+',
+        '^' => 'ctrl+',
+        '@' => 'ctrl+shift+',
+    ];
+
+    /**
      * Kitty keyboard protocol key codes (`CSI code u`) of keys that have a name.
      *
      * Codes from 57344 (U+E000) on are the functional keys the protocol
@@ -130,7 +140,8 @@ final class CsiKeyMap
      * Map a CSI sequence (params + final byte) to a Key event.
      *
      * Handles the legacy encodings (`CSI letter`, `CSI 1 ; modifiers letter`,
-     * `CSI number [; modifiers] ~`) and the kitty keyboard protocol
+     * `CSI number [; modifiers] ~`, and rxvt's `CSI number $`/`^`/`@` for
+     * Shift, Ctrl and Ctrl+Shift) and the kitty keyboard protocol
      * (`CSI code[:alternates] [; modifiers[:event-type] [; text]] u`). The
      * kitty event type also applies to the legacy forms: key releases are
      * dropped, since a Key event is a key press; repeats are reported as
@@ -148,6 +159,13 @@ final class CsiKeyMap
         // '?' of a kitty keyboard flags reply (CSI ? flags u), is not a key.
         if (strspn($params, '0123456789;:') !== strlen($params)) {
             return null;
+        }
+
+        $rxvtPrefix = self::RXVT_MODIFIER_FINALS[$final] ?? null;
+        if ($rxvtPrefix !== null) {
+            $name = self::TILDE_KEYS[$params] ?? null;
+
+            return $name === null ? null : Event\Key::named($rxvtPrefix . $name);
         }
 
         $fields = explode(';', $params);
@@ -232,6 +250,23 @@ final class CsiKeyMap
         };
 
         return $char === null ? null : Event\Key::char($char);
+    }
+
+    /**
+     * Map the last byte of the Linux console's F1-F5 keys (`ESC [ [ letter`) to a Key event.
+     */
+    public static function mapLinuxConsoleFunctionKey(string $letter): null|Event\Key
+    {
+        $name = match ($letter) {
+            'A' => 'f1',
+            'B' => 'f2',
+            'C' => 'f3',
+            'D' => 'f4',
+            'E' => 'f5',
+            default => null,
+        };
+
+        return $name === null ? null : Event\Key::named($name);
     }
 
     private static function mapKittyKey(int $code, string $prefix): null|Event\Key

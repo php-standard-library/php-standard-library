@@ -920,4 +920,120 @@ final class EventParserAdditionalTest extends TestCase
         static::assertInstanceOf(Event\Paste::class, $events[1]);
         static::assertSame('paste', $events[1]->text);
     }
+
+    public function testCsiSequenceWithUnknownFinalByteDoesNotSwallowNextKey(): void
+    {
+        $events = $this->parser->feed("\e[5{a\e[1;2|b");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('a', $events[0]->char);
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('b', $events[1]->char);
+    }
+
+    public function testCsiSequenceBrokenByControlByteIsAltBracket(): void
+    {
+        $events = $this->parser->feed("\e[\r\e[1\e[A");
+
+        static::assertCount(5, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+['));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('enter'));
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('alt+['));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertSame('1', $events[3]->char);
+        static::assertInstanceOf(Event\Key::class, $events[4]);
+        static::assertTrue($events[4]->is('up'));
+
+        $events = $this->parser->feed("\e[\xC3\xA9");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+['));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('é', $events[1]->char);
+    }
+
+    public function testCsiSequenceBrokenByEscapeKeepsFollowingSequence(): void
+    {
+        $events = $this->parser->feed("\e[3\e[B");
+
+        static::assertCount(3, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('alt+['));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('3', $events[1]->char);
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('down'));
+    }
+
+    public function testRxvtModifiedKeys(): void
+    {
+        $events = $this->parser->feed("\e[3\$x\e[2^y\e[7@z");
+
+        static::assertCount(6, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('shift+delete'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('x', $events[1]->char);
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('ctrl+insert'));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertSame('y', $events[3]->char);
+        static::assertInstanceOf(Event\Key::class, $events[4]);
+        static::assertTrue($events[4]->is('ctrl+shift+home'));
+        static::assertInstanceOf(Event\Key::class, $events[5]);
+        static::assertSame('z', $events[5]->char);
+    }
+
+    public function testDollarIntermediateByteInNonRxvtSequence(): void
+    {
+        // DECRPM reply: the "$" is an intermediate byte, "y" is the final byte.
+        $events = $this->parser->feed("\e[?2026;2\$yq");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('q', $events[0]->char);
+    }
+
+    public function testLinuxConsoleFunctionKeys(): void
+    {
+        $events = $this->parser->feed("\e[[A\e[[B\e[[C\e[[D\e[[E");
+
+        static::assertCount(5, $events);
+        foreach (['f1', 'f2', 'f3', 'f4', 'f5'] as $index => $name) {
+            static::assertInstanceOf(Event\Key::class, $events[$index]);
+            static::assertTrue($events[$index]->is($name));
+        }
+
+        static::assertSame([], $this->parser->feed("\e[["));
+
+        $events = $this->parser->feed('A');
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('f1'));
+
+        $events = $this->parser->feed("\e[[Za");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('Z', $events[0]->char);
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('a', $events[1]->char);
+    }
+
+    public function testSgrMouseSequenceWithUnexpectedFinalByteDoesNotSwallowNextKey(): void
+    {
+        $events = $this->parser->feed("\e[<0;10;5Xa\e[<0;10;5M");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('a', $events[0]->char);
+        static::assertInstanceOf(Event\Mouse::class, $events[1]);
+        static::assertSame(Event\MouseKind::Press, $events[1]->kind);
+    }
 }

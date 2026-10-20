@@ -687,4 +687,53 @@ final class CsiKeyMapTest extends TestCase
     {
         static::assertNull(CsiKeyMap::map($params, $final));
     }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function provideRxvtModifiedKeys(): iterable
+    {
+        yield 'shift+delete' => ['3', '$', 'shift+delete'];
+        yield 'shift+home' => ['7', '$', 'shift+home'];
+        yield 'shift+F11' => ['23', '$', 'shift+f11'];
+        yield 'ctrl+insert' => ['2', '^', 'ctrl+insert'];
+        yield 'ctrl+page down' => ['6', '^', 'ctrl+page_down'];
+        yield 'ctrl+F1' => ['11', '^', 'ctrl+f1'];
+        yield 'ctrl+shift+end' => ['8', '@', 'ctrl+shift+end'];
+    }
+
+    #[DataProvider('provideRxvtModifiedKeys')]
+    public function testMapRxvtModifiedKey(string $params, string $final, string $expected): void
+    {
+        $key = CsiKeyMap::map($params, $final);
+
+        static::assertNotNull($key);
+        static::assertNull($key->char);
+        static::assertSame($expected, $key->name);
+    }
+
+    public function testMapRxvtFinalWithoutKnownNumberReturnsNull(): void
+    {
+        static::assertNull(CsiKeyMap::map('', '@'));
+        static::assertNull(CsiKeyMap::map('99', '^'));
+        static::assertNull(CsiKeyMap::map('3;5', '$'));
+    }
+
+    public function testMapUnknownFinalByteReturnsNull(): void
+    {
+        static::assertNull(CsiKeyMap::map('5', '{'));
+        static::assertNull(CsiKeyMap::map('', '`'));
+    }
+
+    public function testMapLinuxConsoleFunctionKey(): void
+    {
+        foreach (['A' => 'f1', 'B' => 'f2', 'C' => 'f3', 'D' => 'f4', 'E' => 'f5'] as $letter => $name) {
+            $key = CsiKeyMap::mapLinuxConsoleFunctionKey($letter);
+
+            static::assertNotNull($key);
+            static::assertSame($name, $key->name);
+        }
+
+        static::assertNull(CsiKeyMap::mapLinuxConsoleFunctionKey('F'));
+    }
 }
