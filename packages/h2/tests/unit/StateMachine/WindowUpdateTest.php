@@ -7,10 +7,10 @@ namespace Psl\H2\Tests\Unit\StateMachine;
 use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event\WindowUpdated;
+use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\FrameDecodingException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\FrameType;
-use Psl\H2\Frame\GoAwayFrame;
 use Psl\H2\Frame\HeadersFrame;
 use Psl\H2\Frame\RawFrame;
 use Psl\H2\Frame\RstStreamFrame;
@@ -141,18 +141,11 @@ final class WindowUpdateTest extends TestCase
         static::assertSame(2000, $events[0]->increment);
     }
 
-    public function testConnectionLevelWindowOverflowReturnsGoAway(): void
+    public function testConnectionLevelWindowOverflowThrows(): void
     {
         $sm = new StateMachine(false);
-        $sm->initialize();
-
-        $raw = new WindowUpdateFrame(0, MAX_WINDOW_SIZE)->toRaw();
-        [$responseFrames, $events] = $sm->receive($raw);
-
-        static::assertCount(1, $responseFrames);
-        $goaway = GoAwayFrame::fromRaw($responseFrames[0]);
-        static::assertSame(ErrorCode::FlowControlError->value, $goaway->errorCode);
-        static::assertSame([], $events);
+        $this->expectException(FlowControlException::class);
+        $sm->receive(new WindowUpdateFrame(0, MAX_WINDOW_SIZE)->toRaw());
     }
 
     public function testStreamLevelWindowOverflowReturnsRstStream(): void
@@ -175,16 +168,5 @@ final class WindowUpdateTest extends TestCase
         $rst = RstStreamFrame::fromRaw($responseFrames[0]);
         static::assertSame(1, $rst->streamId);
         static::assertSame(ErrorCode::FlowControlError, $rst->errorCode);
-    }
-
-    public function testConnectionWindowOverflowDoesNotThrow(): void
-    {
-        $sm = new StateMachine(false);
-        $sm->initialize();
-
-        $raw = new WindowUpdateFrame(0, MAX_WINDOW_SIZE)->toRaw();
-        [$responseFrames] = $sm->receive($raw);
-
-        static::assertNotEmpty($responseFrames);
     }
 }
