@@ -7,7 +7,9 @@ namespace Psl\H2\Internal;
 use Psl\H2\Exception\StreamException;
 use Psl\HPACK\Header;
 
+use function strlen;
 use function strpbrk;
+use function strspn;
 use function strtolower;
 use function trim;
 
@@ -129,6 +131,13 @@ final readonly class HeaderValidator
                     throw StreamException::forMalformedMessage(
                         $streamId,
                         'Header name "' . $header->name . '" contains uppercase characters',
+                    );
+                }
+
+                if (strspn($name, "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz") !== strlen($name)) {
+                    throw StreamException::forMalformedMessage(
+                        $streamId,
+                        'Header name "' . $name . '" contains invalid characters',
                     );
                 }
 
