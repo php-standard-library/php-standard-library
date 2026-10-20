@@ -22,7 +22,10 @@ use function substr;
  * - `text/html` - content starting with `<!DOCTYPE html` or `<html`
  * - `image/svg+xml` - XML content containing `<svg`
  * - `application/xml` - content starting with `<?xml`
- * - `application/json` - content starting with `{` or `[` that passes JSON validation
+ * - `application/json` - content starting with `{` or `[` that passes JSON validation; content
+ *   that fills the {@see SNIFF_BUFFER_SIZE} window may be a truncated document, so only its first
+ *   {@see SNIFF_BUFFER_SIZE} bytes are checked, and only to be a valid JSON prefix
+ *   ({@see JsonPrefixScanner})
  * - `text/x-script` - content starting with a shebang (`#!`)
  * - `text/plain` - fallback for all other non-binary content
  *
@@ -51,8 +54,11 @@ function sniff_text(string $content): null|string
     }
 
     if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
-        $snippet = substr($trimmed, 0, min(strlen($trimmed), 4096));
-        if (json_validate($snippet)) {
+        $isJson = strlen($content) < namespace\SNIFF_BUFFER_SIZE
+            ? json_validate($trimmed)
+            : JsonPrefixScanner::isValidPrefix(substr($trimmed, 0, namespace\SNIFF_BUFFER_SIZE));
+
+        if ($isJson) {
             return 'application/json';
         }
     }

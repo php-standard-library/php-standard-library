@@ -9,8 +9,51 @@ use Psl\IO;
 use Psl\MIME\Sniff;
 use Psl\Str;
 
+use function json_encode;
+use function strlen;
+
+use const JSON_THROW_ON_ERROR;
+
 final class SniffTest extends TestCase
 {
+    public function testFromStringJsonLargerThanSniffWindow(): void
+    {
+        $json = self::largeJson();
+
+        static::assertGreaterThan(4096, strlen($json));
+        static::assertSame('application/json', Sniff\from_string($json)->essence());
+    }
+
+    public function testFromHandleJsonLargerThanSniffWindow(): void
+    {
+        $handle = new IO\MemoryHandle(self::largeJson());
+
+        static::assertSame('application/json', Sniff\from_handle($handle)->essence());
+        static::assertSame(0, $handle->tell());
+    }
+
+    public function testFromHandleJsonTruncatedInsideStringEscape(): void
+    {
+        // The 4096-byte sniff window ends between "\" and "u00e9".
+        $json = '["' . Str\repeat('a', 4096 - 3) . '\\u00e9"]';
+        $handle = new IO\MemoryHandle($json);
+
+        static::assertSame('application/json', Sniff\from_handle($handle)->essence());
+    }
+
+    public function testFromStringLargeInvalidJsonIsText(): void
+    {
+        $content = '{"key": "value", oops' . Str\repeat(' padding', 1000) . '}';
+
+        static::assertSame('text/plain', Sniff\from_string($content)->essence());
+    }
+
+    public function testFromStringSmallTruncatedJsonIsText(): void
+    {
+        // Content shorter than the sniff window is complete, so it must be valid JSON.
+        static::assertSame('text/plain', Sniff\from_string('{"key": "val')->essence());
+    }
+
     public function testFromStringPng(): void
     {
         $png =
@@ -700,5 +743,21 @@ final class SniffTest extends TestCase
         $type = Sniff\from_string('a');
 
         static::assertSame('text/plain', $type->essence());
+    }
+
+    private static function largeJson(): string
+    {
+        $items = [];
+        for ($i = 0; $i < 200; $i++) {
+            $items[] = [
+                'id' => $i,
+                'name' => 'item ' . $i,
+                'tags' => ['a', 'b'],
+                'price' => $i * 1.5,
+                'active' => true,
+            ];
+        }
+
+        return json_encode(['items' => $items], JSON_THROW_ON_ERROR);
     }
 }

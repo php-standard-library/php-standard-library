@@ -7,7 +7,9 @@ namespace Psl\MIME\Sniff\Internal;
 /**
  * Maximum number of bytes read from a handle for MIME sniffing.
  *
- * Used by {@see \Psl\MIME\Sniff\from_handle()} to limit the read size.
+ * Used by {@see \Psl\MIME\Sniff\from_handle()} to limit the read size, and by {@see sniff_text()},
+ * which treats content of at least this size as possibly truncated (only a prefix of a larger
+ * resource) when checking for JSON.
  *
  * @internal
  */
