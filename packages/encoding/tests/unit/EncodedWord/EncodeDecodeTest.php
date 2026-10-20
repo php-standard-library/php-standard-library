@@ -66,6 +66,30 @@ final class EncodeDecodeTest extends TestCase
         static::assertSame("caf\xC3\xA9", EncodedWord\decode('=?UTF-8?B?Y2Fmw6k=?='));
     }
 
+    /**
+     * An "=" not followed by two hex digits is kept literally (RFC 2045 §6.7, note 2)
+     * instead of being decoded to a NUL or other control byte.
+     */
+    #[DataProvider('provideInvalidQEscapes')]
+    public function testDecodeQEncodedInvalidEscapeIsKeptLiterally(string $expected, string $input): void
+    {
+        static::assertSame($expected, EncodedWord\decode($input));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideInvalidQEscapes(): iterable
+    {
+        yield 'non-hex digits' => ['a=XYb', '=?UTF-8?Q?a=XYb?='];
+        yield 'one non-hex digit' => ['a=4Gb', '=?UTF-8?Q?a=4Gb?='];
+        yield 'followed by underscore' => ['100= off', '=?UTF-8?Q?100=_off?='];
+        yield 'trailing' => ['a=', '=?UTF-8?Q?a=?='];
+        yield 'trailing with one digit' => ['a=4', '=?UTF-8?Q?a=4?='];
+        yield 'valid lowercase escape' => ['a=b', '=?UTF-8?Q?a=3db?='];
+        yield 'invalid then valid escape' => ['=A', '=?UTF-8?Q?==41?='];
+    }
+
     public function testDecodeQEncodedUnderscore(): void
     {
         static::assertSame('hello world', EncodedWord\decode('=?UTF-8?Q?hello_world?='));
