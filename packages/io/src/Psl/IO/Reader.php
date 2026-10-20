@@ -39,12 +39,12 @@ final class Reader implements BufferedReadHandleInterface
     #[Override]
     public function reachedEndOfDataSource(): bool
     {
-        if ($this->eof) {
-            return true;
-        }
-
         if ('' !== $this->buffer) {
             return false;
+        }
+
+        if ($this->eof) {
+            return true;
         }
 
         // @codeCoverageIgnoreStart
@@ -72,17 +72,17 @@ final class Reader implements BufferedReadHandleInterface
     ): string {
         do {
             $length = strlen($this->buffer);
-            if ($length >= $size || $this->eof) {
+            if ($length >= $size) {
                 break;
+            }
+
+            if ($this->eof) {
+                throw new Exception\RuntimeException('Reached end of file before requested size.');
             }
 
             $toRead = $size - $length;
             $this->fillBuffer($toRead, $cancellation);
         } while (true);
-
-        if ($this->eof) {
-            throw new Exception\RuntimeException('Reached end of file before requested size.');
-        }
 
         $bufferSize = strlen($this->buffer);
         if ($size === $bufferSize) {
@@ -288,11 +288,11 @@ final class Reader implements BufferedReadHandleInterface
         null|int $maxBytes = null,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): string {
-        if ($this->eof) {
-            return '';
-        }
-
         if ('' === $this->buffer) {
+            if ($this->eof) {
+                return '';
+            }
+
             $this->fillBuffer(null, $cancellation);
         }
 
@@ -307,11 +307,11 @@ final class Reader implements BufferedReadHandleInterface
     #[Override]
     public function tryRead(null|int $maxBytes = null): string
     {
-        if ($this->eof) {
-            return '';
-        }
-
         if ('' === $this->buffer) {
+            if ($this->eof) {
+                return '';
+            }
+
             $this->buffer = $this->getHandle()->tryRead();
             if ('' === $this->buffer) {
                 return '';

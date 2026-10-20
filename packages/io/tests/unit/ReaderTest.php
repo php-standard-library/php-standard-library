@@ -87,6 +87,53 @@ final class ReaderTest extends TestCase
         static::assertSame('', $reader->read());
     }
 
+    public function testBufferedDataRemainsReadableAfterAFailedFixedSizeRead(): void
+    {
+        $reader = new IO\Reader(new IO\MemoryHandle('abc'));
+
+        try {
+            $reader->readFixedSize(5);
+            static::fail('Expected RuntimeException');
+        } catch (IO\Exception\RuntimeException $e) {
+            static::assertSame('Reached end of file before requested size.', $e->getMessage());
+        }
+
+        // EOF has been observed on the inner handle, but "abc" is still buffered.
+        static::assertFalse($reader->reachedEndOfDataSource());
+        static::assertSame('ab', $reader->readFixedSize(2));
+        static::assertSame('c', $reader->read());
+        static::assertTrue($reader->reachedEndOfDataSource());
+        static::assertSame('', $reader->read());
+    }
+
+    public function testBufferedDataIsReturnedByAllReadMethodsAfterEof(): void
+    {
+        $reader = new IO\Reader(new IO\MemoryHandle('line'));
+
+        try {
+            $reader->readFixedSize(10);
+            static::fail('Expected RuntimeException');
+        } catch (IO\Exception\RuntimeException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame('line', $reader->readLine());
+        static::assertNull($reader->readLine());
+
+        $reader = new IO\Reader(new IO\MemoryHandle('data'));
+
+        try {
+            $reader->readFixedSize(10);
+            static::fail('Expected RuntimeException');
+        } catch (IO\Exception\RuntimeException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame('da', $reader->tryRead(2));
+        static::assertSame('ta', $reader->readAll());
+        static::assertSame('', $reader->tryRead());
+    }
+
     public function testReadSome(): void
     {
         $handle = new IO\MemoryHandle('hello, world!');
