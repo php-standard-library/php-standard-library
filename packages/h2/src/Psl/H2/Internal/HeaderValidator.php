@@ -7,7 +7,9 @@ namespace Psl\H2\Internal;
 use Psl\H2\Exception\StreamException;
 use Psl\HPACK\Header;
 
+use function strpbrk;
 use function strtolower;
+use function trim;
 
 /**
  * Validates HTTP/2 header fields per RFC 9113 §8.2–§8.3 and RFC 8441.
@@ -64,6 +66,13 @@ final readonly class HeaderValidator
         $hasProtocol = false;
 
         foreach ($headers as $header) {
+            if (strpbrk($header->value, "\0\r\n") !== false || trim($header->value, " \t") !== $header->value) {
+                throw StreamException::forMalformedMessage(
+                    $streamId,
+                    'Invalid value for header "' . $header->name . '"',
+                );
+            }
+
             if ($header->name[0] === ':') {
                 if ($isTrailing) {
                     throw StreamException::forMalformedMessage(

@@ -136,7 +136,7 @@ final class ContentLengthValidationTest extends TestCase
     public function testMalformedContentLengthWithWhitespaceThrows(): void
     {
         $this->expectException(StreamException::class);
-        $this->expectExceptionMessage('malformed content-length');
+        $this->expectExceptionMessage('Invalid value for header');
 
         $this->createServerWithStream(' 5');
     }
