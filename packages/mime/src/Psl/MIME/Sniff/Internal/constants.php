@@ -19,7 +19,9 @@ const SNIFF_BUFFER_SIZE = 4096;
  * Magic byte signatures mapped to MIME types.
  *
  * Each entry is a tuple of [byte offset, magic bytes, bitmask (or null for exact match), MIME type string].
- * The special sentinel value `__riff__` triggers {@see sniff_riff()} for RIFF sub-format detection.
+ * The special sentinel value `__riff__` triggers {@see sniff_riff()} for RIFF sub-format detection,
+ * and `__bmp__` triggers {@see sniff_bmp()}, which confirms the weak two-byte "BM" magic (matching is
+ * resumed with the next signature when it does not).
  *
  * Covers images (PNG, GIF, JPEG, BMP, ICO, TIFF), audio/video (MP3, OGG, FLAC, WebM),
  * archives (ZIP, GZIP, BZ2, XZ, Zstd, RAR, 7z), documents (PDF, MS Office, OOXML),
@@ -36,7 +38,7 @@ const SIGNATURES = [
     [0, 'GIF87a',                           null,       'image/gif'],
     [0, 'GIF89a',                           null,       'image/gif'],
     [0, "\xff\xd8\xff",                     null,       'image/jpeg'],
-    [0, 'BM',                               null,       'image/bmp'],
+    [0, 'BM',                               null,       '__bmp__'],
     [0, 'RIFF',                             null,       '__riff__'],
     [0, "\x00\x00\x01\x00",                 null,       'image/x-icon'],
     [0, "\x00\x00\x02\x00",                 null,       'image/x-icon'],

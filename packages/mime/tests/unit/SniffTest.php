@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
 use Psl\MIME\Sniff;
 use Psl\Str;
 
 use function json_encode;
+use function pack;
 use function strlen;
 
 use const JSON_THROW_ON_ERROR;
@@ -92,10 +94,47 @@ final class SniffTest extends TestCase
 
     public function testFromStringBmp(): void
     {
-        $bmp = 'BM' . Str\repeat("\x00", 100);
+        // File header (size 70, pixel data at 54) followed by a BITMAPINFOHEADER (size 40).
+        $bmp = "BM\x46\x00\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00\x28\x00\x00\x00" . Str\repeat("\x00", 52);
         $type = Sniff\from_string($bmp);
 
         static::assertSame('image/bmp', $type->essence());
+    }
+
+    #[DataProvider('provideBmpInfoHeaderSizes')]
+    public function testFromStringBmpInfoHeaderVersions(int $size): void
+    {
+        $bmp = "BM\x00\x00\x00\x00\x00\x00\x00\x00\x36\x00\x00\x00" . pack('V', $size) . Str\repeat("\x00", 120);
+
+        static::assertSame('image/bmp', Sniff\from_string($bmp)->essence());
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function provideBmpInfoHeaderSizes(): iterable
+    {
+        yield 'BITMAPCOREHEADER' => [12];
+        yield 'OS/2 BITMAPCOREHEADER2 (short)' => [16];
+        yield 'BITMAPINFOHEADER' => [40];
+        yield 'BITMAPV2INFOHEADER' => [52];
+        yield 'BITMAPV3INFOHEADER' => [56];
+        yield 'OS/2 BITMAPCOREHEADER2' => [64];
+        yield 'BITMAPV4HEADER' => [108];
+        yield 'BITMAPV5HEADER' => [124];
+    }
+
+    public function testFromStringTextStartingWithBmIsNotBmp(): void
+    {
+        static::assertSame('text/plain', Sniff\from_string('BMW is a car manufacturer.')->essence());
+        static::assertSame('text/plain', Sniff\from_string('BM')->essence());
+    }
+
+    public function testFromStringBmMagicWithUnknownInfoHeaderSizeIsNotBmp(): void
+    {
+        $content = 'BM' . Str\repeat("\x00", 100);
+
+        static::assertSame('application/octet-stream', Sniff\from_string($content)->essence());
     }
 
     public function testFromStringWebp(): void

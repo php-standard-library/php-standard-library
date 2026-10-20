@@ -13,7 +13,8 @@ use function substr;
  *
  * Iterates through all registered signatures, comparing bytes at the specified offset
  * either exactly or through a bitmask. When a RIFF signature is matched, delegates
- * to {@see sniff_riff()} for sub-format detection.
+ * to {@see sniff_riff()} for sub-format detection. When the "BM" signature is matched,
+ * {@see sniff_bmp()} must confirm it, otherwise matching continues with the next signature.
  *
  * Returns the matched MIME type string, or null if no signature matches.
  *
@@ -51,6 +52,13 @@ function match_signatures(string $content): null|string
 
         if ($type === '__riff__') {
             return namespace\sniff_riff($content);
+        }
+
+        if ($type === '__bmp__') {
+            $type = namespace\sniff_bmp($content);
+            if ($type === null) {
+                continue;
+            }
         }
 
         return $type;

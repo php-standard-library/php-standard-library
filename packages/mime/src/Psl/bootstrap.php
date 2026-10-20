@@ -12,6 +12,7 @@ declare(strict_types=1);
         'Psl\MIME\Sniff\from_handle' => __DIR__ . '/MIME/Sniff/from_handle.php',
         'Psl\MIME\Sniff\Internal\match_signatures' => __DIR__ . '/MIME/Sniff/Internal/match_signatures.php',
         'Psl\MIME\Sniff\Internal\sniff_riff' => __DIR__ . '/MIME/Sniff/Internal/sniff_riff.php',
+        'Psl\MIME\Sniff\Internal\sniff_bmp' => __DIR__ . '/MIME/Sniff/Internal/sniff_bmp.php',
         'Psl\MIME\Sniff\Internal\sniff_ftyp' => __DIR__ . '/MIME/Sniff/Internal/sniff_ftyp.php',
         'Psl\MIME\Sniff\Internal\sniff_text' => __DIR__ . '/MIME/Sniff/Internal/sniff_text.php',
         'Psl\MIME\Sniff\Internal\is_binary' => __DIR__ . '/MIME/Sniff/Internal/is_binary.php',
