@@ -44,6 +44,7 @@ use Psl\HPACK\Encoder;
 use Psl\HPACK\Exception\ExceptionInterface as HPACKException;
 use Psl\HPACK\Header;
 
+use function array_shift;
 use function ctype_digit;
 use function hrtime;
 use function max;
@@ -131,6 +132,12 @@ final class StateMachine
      */
     private int $localMaxFrameSize;
 
+    /** @var non-negative-int Last acknowledged local frame-size limit. */
+    private int $acknowledgedLocalMaxFrameSize = DEFAULT_MAX_FRAME_SIZE;
+
+    /** @var list<non-negative-int> Effective frame-size limits for SETTINGS awaiting ACK, in send order. */
+    private array $pendingLocalMaxFrameSizes = [];
+
     /**
      * @var int<0, max> Maximum frame payload size the remote peer accepts from us.
      */
@@ -199,6 +206,7 @@ final class StateMachine
      */
     public function initialize(): array
     {
+        $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
         $overrides = $this->settings->localOverrides();
         $frames = [new SettingsFrame($overrides, false)->toRaw()];
 
@@ -690,6 +698,8 @@ final class StateMachine
     public function sendSettings(array $settings): array
     {
         $this->settings->updateLocal($settings);
+        $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
+        $this->localMaxFrameSize = max([$this->acknowledgedLocalMaxFrameSize, ...$this->pendingLocalMaxFrameSizes]);
 
         return [new SettingsFrame($settings, false)->toRaw()];
     }
@@ -985,7 +995,17 @@ final class StateMachine
     private function receiveSettings(SettingsFrame $frame): array
     {
         if ($frame->ack) {
-            $this->settings->markLocalAcknowledged();
+            if ($this->pendingLocalMaxFrameSizes !== []) {
+                $this->acknowledgedLocalMaxFrameSize = array_shift($this->pendingLocalMaxFrameSizes);
+                $this->localMaxFrameSize = max([
+                    $this->acknowledgedLocalMaxFrameSize,
+                    ...$this->pendingLocalMaxFrameSizes,
+                ]);
+            }
+
+            if ($this->pendingLocalMaxFrameSizes === []) {
+                $this->settings->markLocalAcknowledged();
+            }
 
             return [[], [new SettingsReceived([])]];
         }
@@ -1007,7 +1027,6 @@ final class StateMachine
             }
         }
 
-        $this->localMaxFrameSize = $this->settings->localValue(Setting::MaxFrameSize);
         $this->remoteMaxFrameSize = $this->settings->remoteValue(Setting::MaxFrameSize);
 
         $ack = new RawFrame(FrameType::Settings->value, 0x01, 0, '');

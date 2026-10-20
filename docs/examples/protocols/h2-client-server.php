@@ -53,3 +53,6 @@ foreach ($events as $event) {
 
     $server->sendData($event->streamId, 'Hello, World!', endStream: true);
 }
+
+// A lower receive frame-size limit takes effect when the peer acknowledges it.
+$client->sendSettings([H2\Setting::MaxFrameSize->value => 16_384]);
