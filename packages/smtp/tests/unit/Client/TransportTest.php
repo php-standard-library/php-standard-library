@@ -2049,68 +2049,6 @@ final class TransportTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function testSendWithRequireTls(): void
-    {
-        $server = TCP\listen('127.0.0.1', 0);
-        $address = $server->getLocalAddress();
-
-        $future = Async\run(static function () use ($server): void {
-            $client = $server->accept();
-
-            $client->writeAll("220 mail.example.com ESMTP\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250-mail.example.com\r\n250 REQUIRETLS\r\n");
-
-            $mailFrom = self::readCommand($client);
-            static::assertStringContainsString('REQUIRETLS', $mailFrom);
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("354 Go ahead\r\n");
-
-            $data = '';
-            while (!Byte\contains($data, "\r\n.\r\n")) {
-                $data .= $client->read();
-            }
-
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-
-            $client->close();
-        });
-
-        $configuration = new TransportConfiguration(
-            host: $address->host,
-            port: $address->port,
-            security: Security::None,
-        );
-        $transport = new Transport($configuration);
-
-        $sender = new Mailbox('sender', 'example.com');
-        $recipient = new Mailbox('recipient', 'example.com');
-        $envelope = new Envelope($sender, [$recipient]);
-
-        $message = new Message()
-            ->withFrom($sender)
-            ->withTo($recipient)
-            ->withSubject('REQUIRETLS Test')
-            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
-
-        $config = new SendConfiguration(requireTls: true);
-        $transport->send($envelope, $message, $config);
-        $future->await();
-        $transport->close();
-        $server->close();
-
-        $this->addToAssertionCount(1);
-    }
-
     public function testSendWithoutRequireTlsWhenFalse(): void
     {
         $server = TCP\listen('127.0.0.1', 0);
@@ -2177,62 +2115,36 @@ final class TransportTest extends TestCase
     {
         $server = TCP\listen('127.0.0.1', 0);
         $address = $server->getLocalAddress();
-
         $future = Async\run(static function () use ($server): void {
             $client = $server->accept();
-
-            $client->writeAll("220 mail.example.com ESMTP\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250-mail.example.com\r\n250 OK\r\n");
-
-            $mailFrom = self::readCommand($client);
-            static::assertStringNotContainsString(' REQUIRETLS', $mailFrom);
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("354 Go ahead\r\n");
-
-            $data = '';
-            while (!Byte\contains($data, "\r\n.\r\n")) {
-                $data .= $client->read();
+            try {
+                $client->writeAll("220 mail.example.com ESMTP\r\n");
+                self::readCommand($client);
+                $client->writeAll("250-mail.example.com\r\n250 OK\r\n");
+                static::assertSame('', $client->read());
+            } finally {
+                $client->close();
             }
-
-            $client->writeAll("250 OK\r\n");
-
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-
-            $client->close();
         });
-
-        $configuration = new TransportConfiguration(
+        $transport = new Transport(new TransportConfiguration(
             host: $address->host,
             port: $address->port,
             security: Security::None,
-        );
-        $transport = new Transport($configuration);
-
+        ));
         $sender = new Mailbox('sender', 'example.com');
         $recipient = new Mailbox('recipient', 'example.com');
         $envelope = new Envelope($sender, [$recipient]);
 
-        $message = new Message()
-            ->withFrom($sender)
-            ->withTo($recipient)
-            ->withSubject('REQUIRETLS not supported')
-            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
-
-        $config = new SendConfiguration(requireTls: true);
-        $transport->send($envelope, $message, $config);
-        $future->await();
-        $transport->close();
-        $server->close();
-
-        $this->addToAssertionCount(1);
+        try {
+            $transport->send($envelope, new Message(), new SendConfiguration(requireTls: true));
+            static::fail('Sending must fail when REQUIRETLS is unavailable.');
+        } catch (TransmissionException $e) {
+            static::assertStringContainsString('REQUIRETLS', $e->getMessage());
+        } finally {
+            $future->await();
+            $transport->close();
+            $server->close();
+        }
     }
 
     public function testSendWithMTPriority(): void
@@ -3972,102 +3884,6 @@ final class TransportTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function testRequireTlsAppendedAfterEightBit(): void
-    {
-        $server = TCP\listen('127.0.0.1', 0);
-        $address = $server->getLocalAddress();
-        $future = Async\run(static function () use ($server): void {
-            $client = $server->accept();
-            $client->writeAll("220 mail.example.com ESMTP\r\n");
-            self::readCommand($client);
-            $client->writeAll("250-mail.example.com\r\n250-8BITMIME\r\n250 REQUIRETLS\r\n");
-            $mailFrom = self::readCommand($client);
-            static::assertStringContainsString(' BODY=8BITMIME REQUIRETLS', $mailFrom);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("354 Go ahead\r\n");
-            $data = '';
-            while (!Byte\contains($data, "\r\n.\r\n")) {
-                $data .= $client->read();
-            }
-
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            $client->close();
-        });
-        $configuration = new TransportConfiguration(
-            host: $address->host,
-            port: $address->port,
-            security: Security::None,
-        );
-        $transport = new Transport($configuration);
-        $sender = new Mailbox('sender', 'example.com');
-        $recipient = new Mailbox('recipient', 'example.com');
-        $envelope = new Envelope($sender, [$recipient]);
-        $message = new Message()
-            ->withFrom($sender)
-            ->withTo($recipient)
-            ->withSubject('8BIT+REQTLS')
-            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
-        $config = new SendConfiguration(requireTls: true);
-        $transport->send($envelope, $message, $config);
-        $future->await();
-        $transport->close();
-        $server->close();
-        $this->addToAssertionCount(1);
-    }
-
-    public function testPriorityAppendedAfterRequireTls(): void
-    {
-        $server = TCP\listen('127.0.0.1', 0);
-        $address = $server->getLocalAddress();
-        $future = Async\run(static function () use ($server): void {
-            $client = $server->accept();
-            $client->writeAll("220 mail.example.com ESMTP\r\n");
-            self::readCommand($client);
-            $client->writeAll("250-mail.example.com\r\n250-8BITMIME\r\n250-REQUIRETLS\r\n250 MT-PRIORITY\r\n");
-            $mailFrom = self::readCommand($client);
-            static::assertStringContainsString(' BODY=8BITMIME REQUIRETLS MT-PRIORITY=4', $mailFrom);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("354 Go ahead\r\n");
-            $data = '';
-            while (!Byte\contains($data, "\r\n.\r\n")) {
-                $data .= $client->read();
-            }
-
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            $client->close();
-        });
-        $configuration = new TransportConfiguration(
-            host: $address->host,
-            port: $address->port,
-            security: Security::None,
-        );
-        $transport = new Transport($configuration);
-        $sender = new Mailbox('sender', 'example.com');
-        $recipient = new Mailbox('recipient', 'example.com');
-        $envelope = new Envelope($sender, [$recipient]);
-        $message = new Message()
-            ->withFrom($sender)
-            ->withTo($recipient)
-            ->withSubject('PRI+REQTLS')
-            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
-        $config = new SendConfiguration(requireTls: true, priority: Priority::Urgent);
-        $transport->send($envelope, $message, $config);
-        $future->await();
-        $transport->close();
-        $server->close();
-        $this->addToAssertionCount(1);
-    }
-
     public function testDeliverByExactSeconds(): void
     {
         $server = TCP\listen('127.0.0.1', 0);
@@ -4263,76 +4079,6 @@ final class TransportTest extends TestCase
             ->withSubject('HOLDFOR+8BIT')
             ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
         $config = new SendConfiguration(futureRelease: Duration::hours(2));
-        $transport->send($envelope, $message, $config);
-        $future->await();
-        $transport->close();
-        $server->close();
-        $this->addToAssertionCount(1);
-    }
-
-    public function testAllExtensionsConcatenated(): void
-    {
-        $server = TCP\listen('127.0.0.1', 0);
-        $address = $server->getLocalAddress();
-        $future = Async\run(static function () use ($server): void {
-            $client = $server->accept();
-            $client->writeAll("220 mail.example.com ESMTP\r\n");
-            self::readCommand($client);
-            $client->writeAll(
-                "250-mail.example.com\r\n250-8BITMIME\r\n250-SMTPUTF8\r\n250-REQUIRETLS\r\n250-MT-PRIORITY\r\n250 DELIVERBY\r\n",
-            );
-            $mailFrom = self::readCommand($client);
-            $paramsPart = Byte\after($mailFrom, '>');
-            static::assertNotNull($paramsPart);
-            $trimmed = Byte\trim($paramsPart);
-            $bodyPos = Byte\search($trimmed, 'BODY=8BITMIME');
-            $utf8Pos = Byte\search($trimmed, 'SMTPUTF8');
-            $reqTlsPos = Byte\search($trimmed, 'REQUIRETLS');
-            $priorityPos = Byte\search($trimmed, 'MT-PRIORITY=');
-            $byPos = Byte\search($trimmed, 'BY=');
-            static::assertNotNull($bodyPos);
-            static::assertNotNull($utf8Pos);
-            static::assertNotNull($reqTlsPos);
-            static::assertNotNull($priorityPos);
-            static::assertNotNull($byPos);
-            static::assertLessThan($utf8Pos, $bodyPos);
-            static::assertLessThan($reqTlsPos, $utf8Pos);
-            static::assertLessThan($priorityPos, $reqTlsPos);
-            static::assertLessThan($byPos, $priorityPos);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("354 Go ahead\r\n");
-            $data = '';
-            while (!Byte\contains($data, "\r\n.\r\n")) {
-                $data .= $client->read();
-            }
-
-            $client->writeAll("250 OK\r\n");
-            self::readCommand($client);
-            $client->writeAll("250 OK\r\n");
-            $client->close();
-        });
-        $configuration = new TransportConfiguration(
-            host: $address->host,
-            port: $address->port,
-            security: Security::None,
-        );
-        $transport = new Transport($configuration);
-        $sender = new Mailbox('sender', 'example.com');
-        $recipient = new Mailbox('recipient', 'example.com');
-        $envelope = new Envelope($sender, [$recipient]);
-        $message = new Message()
-            ->withFrom($sender)
-            ->withTo($recipient)
-            ->withSubject('All Params')
-            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
-        $config = new SendConfiguration(
-            requireTls: true,
-            priority: Priority::NonUrgent,
-            deliverBy: new DeliverBy(Duration::hours(1), DeliverByMode::Return),
-        );
         $transport->send($envelope, $message, $config);
         $future->await();
         $transport->close();

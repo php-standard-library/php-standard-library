@@ -17,7 +17,8 @@ $config = new SendConfiguration()
     ->withDsnReturn('FULL')
     ->withDsnEnvelopeId('msg-001')
     ->withDsnNotify('SUCCESS,FAILURE')
-    // Require TLS for the entire delivery chain (RFC 8689)
+    // Require TLS for the entire delivery chain (RFC 8689).
+    // Sending requires TLS and throws if the server lacks REQUIRETLS.
     ->withRequireTls(true)
     // Message priority (RFC 6710 / STANAG 4406)
     ->withPriority(Priority::Urgent)

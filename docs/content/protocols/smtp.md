@@ -22,7 +22,7 @@ Five authentication mechanisms are supported. Pass any `AuthenticatorInterface` 
 
 ## Send Configuration
 
-`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery.
+`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery. When `requireTls` is true, the transport throws `TransmissionException` before sending MAIL FROM if the server does not advertise REQUIRETLS or the connection uses `Security::None` (RFC 8689 section 4.2.1). The transport keeps EHLO capabilities when it reuses a pooled connection.
 
 @example('protocols/smtp-send-config.php')
 

@@ -319,7 +319,15 @@ final class Transport implements TransportInterface
             $params .= ' ENVID=' . $config->dsnEnvelopeId;
         }
 
-        if ($config->requireTls && $connection->supportsCapability(Capability::RequireTLS)) {
+        if ($config->requireTls) {
+            if ($this->configuration->security === Security::None) {
+                throw Exception\TransmissionException::forTlsRequired();
+            }
+
+            if (!$connection->supportsCapability(Capability::RequireTLS)) {
+                throw Exception\TransmissionException::forUnsupportedCapability(Capability::RequireTLS);
+            }
+
             $params .= ' REQUIRETLS';
         }
 

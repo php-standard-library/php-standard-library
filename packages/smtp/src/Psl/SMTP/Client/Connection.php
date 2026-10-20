@@ -14,6 +14,7 @@ use Psl\SMTP\Exception;
 use Psl\SMTP\Internal;
 use Psl\SMTP\Reply;
 use Psl\TLS;
+use WeakMap;
 
 use function array_key_exists;
 use function explode;
@@ -38,6 +39,11 @@ final class Connection implements ConnectionInterface
 
     private IO\Reader $reader;
 
+    /** @var null|WeakMap<Network\StreamInterface, array<string, string>> */
+    private static null|WeakMap $pooledCapabilities = null;
+
+    private readonly Network\StreamInterface $capabilityStream;
+
     /**
      * Raw EHLO extension lines (uppercased keyword → rest of the line).
      *
@@ -54,6 +60,11 @@ final class Connection implements ConnectionInterface
         private Network\StreamInterface $stream,
     ) {
         $this->reader = new IO\Reader($stream);
+        $this->capabilityStream = $stream;
+        self::$pooledCapabilities ??= new WeakMap();
+        $this->capabilities = self::$pooledCapabilities[$stream] ?? [];
+        $size = $this->capabilities['SIZE'] ?? '';
+        $this->maxSize = $size !== '' ? (int) $size : null;
     }
 
     /**
@@ -67,6 +78,7 @@ final class Connection implements ConnectionInterface
         if ($response->isPositiveCompletion()) {
             $this->capabilities = [];
             $this->maxSize = null;
+            unset(self::$pooledCapabilities[$this->capabilityStream]);
         }
 
         return $response;
@@ -106,6 +118,8 @@ final class Connection implements ConnectionInterface
                 $this->maxSize = (int) $parts[1];
             }
         }
+
+        self::$pooledCapabilities[$this->capabilityStream] = $this->capabilities;
 
         return $response;
     }
