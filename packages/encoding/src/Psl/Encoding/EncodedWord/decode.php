@@ -18,7 +18,7 @@ use const PREG_SET_ORDER;
  * Decode RFC 2047 encoded-words in a header value.
  *
  * Handles both B-encoding (base64) and Q-encoding. Per RFC 2047 §6.2,
- * whitespace between adjacent encoded-words is removed.
+ * linear whitespace (spaces, tabs and line breaks) between adjacent encoded-words is removed.
  *
  * @throws Exception\ParsingException If an encoded-word is malformed.
  *
@@ -59,7 +59,7 @@ function decode(string $input): string
 
         $between = substr($input, $lastEnd, $matchStart - $lastEnd);
 
-        if (!$lastWasEncoded || trim($between) !== '') {
+        if (!$lastWasEncoded || trim($between, " \t\r\n") !== '') {
             $result .= $between;
         }
 

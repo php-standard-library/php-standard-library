@@ -88,6 +88,33 @@ final class EncodeDecodeTest extends TestCase
         static::assertSame('helXlo', EncodedWord\decode($input));
     }
 
+    public function testDecodeAdjacentEncodedWordsFoldingWhitespaceRemoved(): void
+    {
+        $input = "=?UTF-8?Q?hel?=\r\n \t=?UTF-8?Q?lo?=";
+
+        static::assertSame('hello', EncodedWord\decode($input));
+    }
+
+    #[DataProvider('provideNonWhitespaceControlCharacters')]
+    public function testDecodeAdjacentEncodedWordsControlCharacterPreserved(string $char): void
+    {
+        $input = "=?UTF-8?Q?hel?= {$char} =?UTF-8?Q?lo?=";
+
+        static::assertSame("hel {$char} lo", EncodedWord\decode($input));
+    }
+
+    /**
+     * RFC 2047 Section 6.2 only ignores linear-white-space between adjacent encoded-words.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWhitespaceControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
+    }
+
     public function testDecodeMixedEncodedAndPlainText(): void
     {
         $input = 'Subject: =?UTF-8?Q?caf=C3=A9?= is great';

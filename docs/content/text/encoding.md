@@ -50,7 +50,7 @@ Encoded-word encoding is used in MIME headers (Subject, From, etc.) to represent
 
 @example('text/encoding-encoded-word.php')
 
-`encode()` accepts an optional `$charset` parameter of type `Psl\Str\Encoding` (default `Encoding::Utf8`). `decode()` handles charset conversion automatically, and per RFC 2047 §6.2, whitespace between adjacent encoded-words is removed.
+`encode()` accepts an optional `$charset` parameter of type `Psl\Str\Encoding` (default `Encoding::Utf8`). `decode()` handles charset conversion automatically, and per RFC 2047 §6.2, linear whitespace (spaces, tabs and line breaks) between adjacent encoded-words is removed.
 
 ## Streaming IO Handles
 
