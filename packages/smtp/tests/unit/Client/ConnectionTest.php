@@ -156,6 +156,56 @@ final class ConnectionTest extends TestCase
         $serverStream->close();
     }
 
+    public function testEhloDoesNotStripControlCharactersFromCapabilityLines(): void
+    {
+        [$connection, $serverStream] = $this->createPair();
+
+        Async\run(static function () use ($serverStream): void {
+            self::readCommand($serverStream);
+            $serverStream->writeAll(
+                "250-mail.example.com\r\n"
+                . "250-PIPELINING\r\n"
+                . "250-STARTTLS\x0C\r\n"
+                . "250-DSN\x0B\r\n"
+                . "250-8BITMIME\0\r\n"
+                . "250 SIZE 1000\r\n",
+            );
+        });
+
+        $connection->ehlo('client.example.com');
+
+        static::assertTrue($connection->supportsCapability(Capability::Pipelining));
+        static::assertFalse($connection->supportsCapability(Capability::StartTLS));
+        static::assertFalse($connection->supportsCapability(Capability::DSN));
+        static::assertFalse($connection->supportsCapability(Capability::EightBitMIME));
+        static::assertSame('1000', $connection->getCapabilityValue(Capability::Size));
+
+        $connection->close();
+        $serverStream->close();
+    }
+
+    /**
+     * RFC 5321 does not allow whitespace around an ehlo-line; SP / HTAB are tolerated for leniency.
+     */
+    public function testEhloToleratesSpacesAndTabsAroundCapabilityLines(): void
+    {
+        [$connection, $serverStream] = $this->createPair();
+
+        Async\run(static function () use ($serverStream): void {
+            self::readCommand($serverStream);
+            $serverStream->writeAll("250-mail.example.com\r\n250- \tPIPELINING \t\r\n250 SIZE 1000 \t\r\n");
+        });
+
+        $connection->ehlo('client.example.com');
+
+        static::assertTrue($connection->supportsCapability(Capability::Pipelining));
+        static::assertSame('1000', $connection->getCapabilityValue(Capability::Size));
+        static::assertSame(1000, $connection->maxSize);
+
+        $connection->close();
+        $serverStream->close();
+    }
+
     public function testEhloResetsCapabilities(): void
     {
         [$connection, $serverStream] = $this->createPair();

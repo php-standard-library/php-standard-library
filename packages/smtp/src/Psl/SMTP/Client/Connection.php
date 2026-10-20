@@ -93,7 +93,7 @@ final class Connection implements ConnectionInterface
                 continue;
             }
 
-            $line = trim($line);
+            $line = trim($line, " \t");
             if ($line === '') {
                 continue;
             }
