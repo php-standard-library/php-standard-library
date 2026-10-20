@@ -951,6 +951,26 @@ final class DateTimeTest extends TestCase
         static::assertSame(500_000_000, $dt2->getNanoseconds());
     }
 
+    public function testFromPartsBeforeTheEpochIsNotOffByOneSecond(): void
+    {
+        $dt = DateTime::fromParts(Timezone::UTC, 1969, 12, 31, 23, 59, 59);
+
+        static::assertSame(-1, $dt->getTimestamp()->getSeconds());
+        static::assertSame('1969-12-31T23:59:59+00:00', $dt->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 1900, 6, 15, 12, 30, 15);
+        $roundTrip = DateTime::fromTimestamp($dt->getTimestamp(), Timezone::EuropeLondon);
+
+        static::assertSame([1900, 6, 15, 12, 30, 15, 0], $roundTrip->getParts());
+    }
+
+    public function testPlusMonthsBeforeTheEpochIsNotOffByOneSecond(): void
+    {
+        $dt = DateTime::fromParts(Timezone::UTC, 1960, 1, 15, 10, 0, 0);
+
+        static::assertSame([1960, 2, 15, 10, 0, 0, 0], $dt->plus(Period::months(1))->getParts());
+    }
+
     public function testPlusMonthsWrapsAroundYear(): void
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 10, 15, 12, 0, 0, 0);

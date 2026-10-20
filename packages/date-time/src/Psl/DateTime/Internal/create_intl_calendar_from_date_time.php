@@ -7,8 +7,6 @@ namespace Psl\DateTime\Internal;
 use IntlCalendar;
 use Psl\DateTime\Timezone;
 
-use const PHP_VERSION_ID;
-
 /**
  * @internal
  *
@@ -30,13 +28,10 @@ function create_intl_calendar_from_date_time(
      */
     $calendar = IntlCalendar::createInstance(namespace\to_intl_timezone($timezone));
 
-    if (PHP_VERSION_ID >= 80_300) {
-        $calendar->setDateTime($year, $month - 1, $day, $hours, $minutes, $seconds);
-    } else {
-        // @codeCoverageIgnoreStart
-        $calendar->set($year, $month - 1, $day, $hours, $minutes, $seconds);
-        // @codeCoverageIgnoreEnd
-    }
+    // The calendar starts at the current time; clear it so no field (most notably the milliseconds)
+    // leaks from "now" into the computed time.
+    $calendar->clear();
+    $calendar->setDateTime($year, $month - 1, $day, $hours, $minutes, $seconds);
 
     return $calendar;
 }
