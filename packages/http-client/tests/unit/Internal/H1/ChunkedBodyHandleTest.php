@@ -240,15 +240,12 @@ final class ChunkedBodyHandleTest extends TestCase
         static::assertSame('spaced', $trailers->get('x-value'));
     }
 
-    public function testMalformedTrailerLineSkipped(): void
+    public function testMalformedTrailerLineRejected(): void
     {
         [$handle, $deferred] = self::handle("3\r\nfoo\r\n0\r\nmalformed-no-colon\r\nx-valid: ok\r\n\r\n");
 
+        $this->expectException(ProtocolException::class);
         $handle->readAll();
-
-        $trailers = $deferred->getAwaitable()->await();
-        static::assertNull($trailers->get('malformed-no-colon'));
-        static::assertSame('ok', $trailers->get('x-valid'));
     }
 
     public function testTrailersResolvedForEmptyBody(): void

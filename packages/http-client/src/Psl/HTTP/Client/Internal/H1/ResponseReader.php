@@ -14,13 +14,18 @@ use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Response;
 use Psl\IO;
 
+use function count;
 use function ctype_digit;
+use function ltrim;
+use function preg_match;
 use function str_contains;
 use function strlen;
 use function strpos;
 use function strtolower;
 use function substr;
 use function trim;
+
+use const PHP_INT_MAX;
 
 /**
  * Parses HTTP/1.x response messages from a buffered reader.
@@ -43,6 +48,8 @@ use function trim;
  */
 final class ResponseReader
 {
+    private const int MAX_INFORMATIONAL_RESPONSES = 16;
+
     private function __construct() {}
 
     /**
@@ -110,6 +117,10 @@ final class ResponseReader
         /** @var int<100, 999> $status */
         $status = (int) $statusCode;
 
+        if ($status === 101) {
+            throw ProtocolException::forMalformedResponse('Protocol upgrades are not supported.');
+        }
+
         /** @var list<list{non-empty-string, string}> $headers */
         $headers = [];
         $headerBytes = 0;
@@ -129,7 +140,11 @@ final class ResponseReader
                 throw ProtocolException::forMalformedResponse('Response headers exceed maximum size.');
             }
 
-            if ($line === null || $line === '') {
+            if ($line === null) {
+                throw ProtocolException::forUnexpectedEndOfStream();
+            }
+
+            if ($line === '') {
                 break;
             }
 
@@ -147,21 +162,27 @@ final class ResponseReader
                 throw ProtocolException::forMalformedResponse('Empty header name.');
             }
 
+            if (preg_match("/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/D", $name) !== 1) {
+                throw ProtocolException::forMalformedResponse('Invalid header name or whitespace before the colon.');
+            }
+
             $headers[] = [$name, $value];
 
-            $nameLen = $colonPos;
-            if ($nameLen === 14 && strtolower($name) === 'content-length') {
-                // RFC 9110 §8.6: duplicate content-length fields that disagree make the
-                // message framing invalid. Identical duplicates collapse to one value.
-                if ($contentLength !== null && $contentLength !== $value) {
-                    throw ProtocolException::forMalformedResponse('Conflicting content-length header fields.');
-                }
+            switch (strtolower($name)) {
+                case 'content-length':
+                    // RFC 9110 Section 8.6 permits identical duplicate lengths.
+                    if ($contentLength !== null && $contentLength !== $value) {
+                        throw ProtocolException::forMalformedResponse('Conflicting content-length header fields.');
+                    }
 
-                $contentLength = $value;
-            } elseif ($nameLen === 17 && strtolower($name) === 'transfer-encoding') {
-                $transferEncoding = $transferEncoding === null ? $value : $transferEncoding . ', ' . $value;
-            } elseif ($nameLen === 10 && $connectionHeader === null && strtolower($name) === 'connection') {
-                $connectionHeader = $value;
+                    $contentLength = $value;
+                    break;
+                case 'transfer-encoding':
+                    $transferEncoding = $transferEncoding === null ? $value : $transferEncoding . ', ' . $value;
+                    break;
+                case 'connection':
+                    $connectionHeader ??= $value;
+                    break;
             }
         }
 
@@ -172,9 +193,13 @@ final class ResponseReader
             $status,
             $isHead,
             $maxResponseBodySize,
+            $maxHeaderSize,
         );
 
-        $keepAlive = self::isKeepAlive($connectionHeader, $version);
+        $keepAlive =
+            self::isKeepAlive($connectionHeader, $version)
+            && !($transferEncoding !== null && $contentLength !== null)
+            && !($body !== null && $transferEncoding === null && $contentLength === null);
 
         $response = new Response(
             status: $status,
@@ -238,6 +263,10 @@ final class ResponseReader
                 return [$informational, $response, $keepAlive];
             }
 
+            if (count($informational) >= self::MAX_INFORMATIONAL_RESPONSES) {
+                throw ProtocolException::forMalformedResponse('Too many informational responses.');
+            }
+
             if ($configuration->onInformationalResponse !== null) {
                 ($configuration->onInformationalResponse)($response);
             }
@@ -266,6 +295,8 @@ final class ResponseReader
      * @param bool $isHead Whether this is a HEAD request.
      * @param int $maxResponseBodySize Maximum allowed body size (0 = unlimited).
      *
+     * @param positive-int $maxHeaderSize Maximum chunk size line and total trailer bytes.
+     *
      * @return array{null|IO\ReadHandleInterface, null|Async\Awaitable<FieldMap>} Body handle and trailers awaitable.
      *
      * @throws ProtocolException If the transfer encoding is invalid or unsupported.
@@ -277,6 +308,7 @@ final class ResponseReader
         int $status,
         bool $isHead,
         int $maxResponseBodySize = 0,
+        int $maxHeaderSize = 8192,
     ): array {
         if ($isHead || $status === 204 || $status === 304 || $status >= 100 && $status < 200) {
             return [null, null];
@@ -292,10 +324,10 @@ final class ResponseReader
 
             /** @var Async\Deferred<FieldMap> $deferred */
             $deferred = new Async\Deferred();
-            $handle = new ChunkedBodyHandle($reader, $deferred);
+            $handle = new ChunkedBodyHandle($reader, $deferred, $maxHeaderSize);
             $trailers = $deferred->getAwaitable();
-        } elseif ($contentLength !== null && $contentLength !== '' && ctype_digit($contentLength)) {
-            $length = (int) $contentLength;
+        } elseif ($contentLength !== null) {
+            $length = self::parseContentLength($contentLength);
             if ($length === 0) {
                 return [null, null];
             }
@@ -311,6 +343,23 @@ final class ResponseReader
         }
 
         return [$handle, $trailers];
+    }
+
+    /** @return non-negative-int */
+    private static function parseContentLength(string $value): int
+    {
+        $digits = ltrim($value, '0');
+        $maximum = (string) PHP_INT_MAX;
+        if (
+            !ctype_digit($value)
+            || strlen($digits) > strlen($maximum)
+            || strlen($digits) === strlen($maximum) && $digits > $maximum
+        ) {
+            throw ProtocolException::forMalformedResponse('Invalid Content-Length.');
+        }
+
+        /** @var non-negative-int */
+        return (int) $value;
     }
 
     /**

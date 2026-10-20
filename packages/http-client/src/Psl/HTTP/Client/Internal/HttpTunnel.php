@@ -15,6 +15,7 @@ use Psl\TLS\ClientConfiguration;
 use Psl\TLS\Connector;
 
 use function preg_match;
+use function strlen;
 
 /**
  * Establishes an HTTP CONNECT tunnel through an HTTP proxy.
@@ -74,7 +75,12 @@ final class HttpTunnel
         $stream->writeAll($connectRequest, $cancellation);
 
         $reader = new IO\Reader($stream);
-        $statusLine = $reader->readLine($cancellation);
+        try {
+            $statusLine = $reader->readUntilBounded("\r\n", 8192, $cancellation);
+        } catch (IO\Exception\OverflowException) {
+            throw ProtocolException::forMalformedResponse('CONNECT status line exceeds maximum size.');
+        }
+
         if ($statusLine === null) {
             throw ProtocolException::forUnexpectedEndOfStream();
         }
@@ -89,9 +95,28 @@ final class HttpTunnel
             throw ProtocolException::forMalformedResponse('CONNECT tunnel failed with status ' . $statusCode);
         }
 
+        $remaining = 8192;
         while (true) {
-            $line = $reader->readLine($cancellation);
-            if ($line === null || $line === '') {
+            if ($remaining <= 0) {
+                throw ProtocolException::forMalformedResponse('CONNECT headers exceed maximum size.');
+            }
+
+            try {
+                $line = $reader->readUntilBounded("\r\n", $remaining, $cancellation);
+            } catch (IO\Exception\OverflowException) {
+                throw ProtocolException::forMalformedResponse('CONNECT headers exceed maximum size.');
+            }
+
+            if ($line === null) {
+                throw ProtocolException::forUnexpectedEndOfStream();
+            }
+
+            $remaining -= strlen($line) + 2;
+            if ($remaining < 0) {
+                throw ProtocolException::forMalformedResponse('CONNECT headers exceed maximum size.');
+            }
+
+            if ($line === '') {
                 break;
             }
         }

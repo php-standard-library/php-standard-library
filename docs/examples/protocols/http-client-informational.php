@@ -28,6 +28,7 @@ $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https
 $tx = $client->send($request, new Client\SendConfiguration(onInformationalResponse: static function (Message\Response $response): void {
     // This fires after the client-level callback for each 1xx response
     if ($response->status === 100) {
+        // HTTP/1 limits each exchange to 16 informational responses.
         // Server acknowledged Expect: 100-continue, body will be sent
     }
 }));

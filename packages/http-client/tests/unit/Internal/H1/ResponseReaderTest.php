@@ -127,7 +127,7 @@ final class ResponseReaderTest extends TestCase
             . "\r\nContent-Length: 0\r\n\r\n5\r\nhello\r\n0\r\nx-check: pass\r\n\r\n";
         [$response, $keepAlive] = ResponseReader::read(self::reader($raw), 8192, self::timeout(), false);
 
-        static::assertTrue($keepAlive);
+        static::assertFalse($keepAlive);
         $body = $response->body;
         static::assertNotNull($body);
         static::assertSame('hello', $body->readAll());
@@ -596,7 +596,6 @@ final class ResponseReaderTest extends TestCase
     public static function informationalStatusCodes(): iterable
     {
         yield '100' => [100];
-        yield '101' => [101];
         yield '102' => [102];
         yield '103' => [103];
     }

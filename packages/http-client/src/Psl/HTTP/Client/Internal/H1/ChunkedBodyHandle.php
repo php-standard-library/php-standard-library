@@ -14,11 +14,17 @@ use Psl\HTTP\Message\FieldMap;
 use Psl\IO;
 
 use function ctype_xdigit;
+use function dechex;
 use function intval;
+use function ltrim;
+use function preg_match;
 use function strlen;
 use function strpos;
+use function strtolower;
 use function substr;
 use function trim;
+
+use const PHP_INT_MAX;
 
 /**
  * Reads a chunked transfer-encoded HTTP/1.x response body (RFC 9112 Section 7.1).
@@ -53,10 +59,12 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
     /**
      * @param IO\Reader $reader Buffered reader wrapping the connection stream.
      * @param Async\Deferred<FieldMap> $trailers Resolved with parsed trailing headers when the body is fully consumed.
+     * @param positive-int $maxHeaderSize Maximum chunk size line and total trailer bytes.
      */
     public function __construct(
         private readonly IO\Reader $reader,
         private readonly Async\Deferred $trailers,
+        private readonly int $maxHeaderSize = 8192,
     ) {}
 
     /**
@@ -124,10 +132,17 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
     {
         if ($this->chunkRemaining === 0) {
             if ($this->needsChunkTerminator) {
-                $this->reader->readUntil("\r\n", cancellation: $cancellation);
+                if ($this->reader->readFixedSize(2, $cancellation) !== "\r\n") {
+                    throw ProtocolException::forMalformedResponse('Missing CRLF after chunk data.');
+                }
             }
 
-            $sizeLine = $this->reader->readUntil("\r\n", cancellation: $cancellation);
+            try {
+                $sizeLine = $this->reader->readUntilBounded("\r\n", $this->maxHeaderSize, $cancellation);
+            } catch (IO\Exception\OverflowException) {
+                throw ProtocolException::forMalformedResponse('Chunk size line exceeds maximum size.');
+            }
+
             if ($sizeLine === null) {
                 $this->completed = true;
                 $this->trailers->complete(FieldMap::default());
@@ -146,12 +161,18 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
                 throw ProtocolException::forMalformedResponse('Invalid chunk size in chunked transfer encoding.');
             }
 
+            $digits = strtolower(ltrim($sizeHex, '0'));
+            $maximum = dechex(PHP_INT_MAX);
+            if (strlen($digits) > strlen($maximum) || strlen($digits) === strlen($maximum) && $digits > $maximum) {
+                throw ProtocolException::forMalformedResponse('Chunk size exceeds the integer range.');
+            }
+
             /** @var non-negative-int $chunkSize */
             $chunkSize = intval($sizeHex, 16);
 
             if ($chunkSize === 0) {
-                $this->completed = true;
                 $this->parseTrailers($cancellation);
+                $this->completed = true;
                 return;
             }
 
@@ -191,20 +212,43 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
     {
         /** @var list<list{non-empty-string, string}> $fields */
         $fields = [];
+        $remaining = $this->maxHeaderSize;
 
         while (true) {
-            $line = $this->reader->readUntil("\r\n", cancellation: $cancellation);
-            if ($line === null || $line === '') {
+            if ($remaining <= 0) {
+                throw ProtocolException::forMalformedResponse('Trailers exceed maximum size.');
+            }
+
+            try {
+                $line = $this->reader->readUntilBounded("\r\n", $remaining, $cancellation);
+            } catch (IO\Exception\OverflowException) {
+                throw ProtocolException::forMalformedResponse('Trailers exceed maximum size.');
+            }
+
+            if ($line === null) {
+                throw ProtocolException::forUnexpectedEndOfStream();
+            }
+
+            $remaining -= strlen($line) + 2;
+            if ($remaining < 0) {
+                throw ProtocolException::forMalformedResponse('Trailers exceed maximum size.');
+            }
+
+            if ($line === '') {
                 break;
             }
 
             $colonPos = strpos($line, ':');
             if ($colonPos === false || $colonPos === 0) {
-                continue;
+                throw ProtocolException::forMalformedResponse('Invalid trailer field.');
             }
 
             /** @var non-empty-string $name */
             $name = substr($line, 0, $colonPos);
+            if (preg_match("/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/D", $name) !== 1) {
+                throw ProtocolException::forMalformedResponse('Invalid trailer name or whitespace before the colon.');
+            }
+
             $value = trim(substr($line, $colonPos + 1), " \t");
             $fields[] = [$name, $value];
         }

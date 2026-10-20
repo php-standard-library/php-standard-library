@@ -13,8 +13,7 @@ use Psl\IO;
  *
  * Used as the fallback framing strategy when neither Content-Length nor
  * Transfer-Encoding: chunked is present. The body ends when the underlying
- * stream reaches EOF or an I/O error occurs during reading. I/O errors are
- * treated as EOF since the server may close the connection at any time.
+ * stream reaches EOF. I/O errors propagate to the caller.
  *
  * Connections using this framing cannot be reused (no keep-alive), because
  * there is no way to determine the body boundary without closing the stream.
@@ -22,7 +21,7 @@ use Psl\IO;
  * Read contract:
  * - {@see read()} returns data until the connection closes.
  * - After EOF, {@see read()} returns '' and {@see reachedEndOfDataSource()} returns true.
- * - I/O errors are silently swallowed and treated as EOF.
+ * - I/O errors propagate to the caller.
  *
  * @internal
  *
@@ -61,8 +60,7 @@ final class UntilCloseBodyHandle implements IO\ReadHandleInterface
     /**
      * Read body data from the wire until the connection closes.
      *
-     * I/O errors are caught and treated as EOF, since the server may
-     * legitimately close the connection to signal the end of the body.
+     * I/O errors remain distinct from a clean connection close.
      *
      * @inheritDoc
      */
@@ -74,12 +72,7 @@ final class UntilCloseBodyHandle implements IO\ReadHandleInterface
             return '';
         }
 
-        try {
-            $data = $this->reader->read($maxBytes, $cancellation);
-        } catch (IO\Exception\RuntimeException) {
-            $this->eof = true;
-            return '';
-        }
+        $data = $this->reader->read($maxBytes, $cancellation);
 
         if ($data === '' && $this->reader->reachedEndOfDataSource()) {
             $this->eof = true;
