@@ -54,6 +54,10 @@ In non-CLI SAPIs, `input_handle()` reads from `php://input` and `output_handle()
 
 @example('io/io-reader-bounded.php')
 
+### End of Data
+
+When nothing is buffered and the end has not been seen yet, `Reader::reachedEndOfDataSource()` reads from the underlying handle to find out, waiting for data if necessary. Pass it a cancellation token to bound that wait. It returns `false` if that read brings no data without reaching the end, or fails with an I/O error, which a later read reports. `Reader::readAll()` uses the token it is given for that check too, and if it fails or is cancelled, the bytes it already read stay buffered for the next call.
+
 ## Spool
 
 `IO\spool()` creates a handle that writes to memory until a threshold is reached (default 2MB), then transparently spools to a temporary file on disk. This is useful when buffering data of unknown size without risking excessive memory usage.

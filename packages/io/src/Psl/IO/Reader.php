@@ -34,10 +34,17 @@ final class Reader implements BufferedReadHandleInterface
     /**
      * {@inheritDoc}
      *
+     * When the internal buffer is empty and EOF has not been observed yet, this reads from the
+     * underlying handle to find out, waiting for data if necessary.
+     *
+     * @param CancellationTokenInterface $cancellation Bounds the wait for the underlying handle.
+     *
+     * @throws CancelledException If the cancellation token is cancelled.
+     *
      * @mago-expect lint:no-empty-catch-clause
      */
     #[Override]
-    public function reachedEndOfDataSource(): bool
+    public function reachedEndOfDataSource(CancellationTokenInterface $cancellation = new NullCancellationToken()): bool
     {
         if ('' !== $this->buffer) {
             return false;
@@ -47,9 +54,8 @@ final class Reader implements BufferedReadHandleInterface
             return true;
         }
 
-        // @codeCoverageIgnoreStart
         try {
-            $this->buffer = $this->handle->read();
+            $this->buffer = $this->handle->read(null, $cancellation);
             if ('' === $this->buffer) {
                 return $this->eof = $this->handle->reachedEndOfDataSource();
             }
@@ -57,9 +63,39 @@ final class Reader implements BufferedReadHandleInterface
             // ignore; it'll be thrown again when attempting a real read.
         }
 
-        // @codeCoverageIgnoreEnd
-
         return false;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * If the operation fails or is cancelled, the bytes read so far stay buffered for the next read.
+     *
+     * @param ?positive-int $maxBytes the maximum number of bytes to read
+     */
+    #[Override]
+    public function readAll(
+        null|int $maxBytes = null,
+        CancellationTokenInterface $cancellation = new NullCancellationToken(),
+    ): string {
+        $toRead = $maxBytes;
+        $data = '';
+
+        try {
+            do {
+                $chunk = $this->read($toRead, $cancellation);
+                $data .= $chunk;
+                if (null !== $toRead) {
+                    $toRead -= strlen($chunk);
+                }
+            } while ((null === $toRead || $toRead > 0) && !$this->reachedEndOfDataSource($cancellation));
+        } catch (Exception\ExceptionInterface|CancelledException $e) {
+            $this->buffer = $data . $this->buffer;
+
+            throw $e;
+        }
+
+        return $data;
     }
 
     /**

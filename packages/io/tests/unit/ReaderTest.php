@@ -497,6 +497,60 @@ final class ReaderTest extends TestCase
         $read->close();
     }
 
+    public function testReadAllHonoursCancellation(): void
+    {
+        [$read, $write] = IO\pipe();
+        $reader = new IO\Reader($read);
+
+        $write->writeAll('hello');
+
+        // the writer stays open past the timeout; an uncancellable wait would only return once it is closed.
+        $closer = Async\run(static function () use ($write): void {
+            Async\sleep(Duration::milliseconds(200));
+            $write->close();
+        });
+
+        try {
+            $reader->readAll(null, new Async\TimeoutCancellationToken(Duration::milliseconds(20)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        // nothing that was read before the cancellation is lost.
+        static::assertSame('hello', $reader->readAll());
+        static::assertTrue($reader->reachedEndOfDataSource());
+
+        $closer->await();
+        $read->close();
+    }
+
+    public function testReachedEndOfDataSourceHonoursCancellation(): void
+    {
+        [$read, $write] = IO\pipe();
+        $reader = new IO\Reader($read);
+
+        $closer = Async\run(static function () use ($write): void {
+            Async\sleep(Duration::milliseconds(200));
+            $write->writeAll('x');
+            $write->close();
+        });
+
+        try {
+            $reader->reachedEndOfDataSource(new Async\TimeoutCancellationToken(Duration::milliseconds(20)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertFalse($reader->reachedEndOfDataSource());
+        static::assertSame('x', $reader->readAll());
+        static::assertTrue($reader->reachedEndOfDataSource());
+
+        $closer->await();
+        $read->close();
+    }
+
     public function testReaderDoesNotReadPastTheEndOfDataSource(): void
     {
         $handle = new EofTrackingHandle("line\nrest");
