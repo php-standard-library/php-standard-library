@@ -1179,6 +1179,18 @@ final class StateMachine
      */
     private function receiveHeaders(HeadersFrame $frame): array
     {
+        // RFC 9113 §5.1 permits minimal processing for all closed streams.
+        if ($this->getStreamState($frame->streamId) === StreamState::Closed) {
+            if ($frame->endHeaders) {
+                return $this->completeHeaders($frame->streamId, $frame->headerBlockFragment, $frame->endStream);
+            }
+
+            $this->assembler->startHeaders($frame->streamId, $frame->headerBlockFragment, $frame->endStream);
+            $this->assembling = true;
+
+            return [[], []];
+        }
+
         $error = $frame->streamDependency === $frame->streamId
             ? StreamException::forInvalidState($frame->streamId, 'not self-dependent', 'depends on itself')
             : null;
@@ -1276,6 +1288,13 @@ final class StateMachine
             $headers = $this->hpackDecoder->decode($headerBlock);
         } catch (HPACKException $e) {
             throw ProtocolException::forCompressionError($e);
+        }
+
+        if ($this->getStreamState($streamId) === StreamState::Closed) {
+            $this->pendingHeaderError = null;
+            $this->refusingStream = false;
+
+            return [[], []];
         }
 
         $error = $this->pendingHeaderError;
@@ -1611,6 +1630,10 @@ final class StateMachine
     {
         if (strlen($rawFrame->payload) !== 4) {
             throw FrameDecodingException::forInvalidPayload('WINDOW_UPDATE', 'payload must be exactly 4 bytes');
+        }
+
+        if ($rawFrame->streamId !== 0 && $this->getStreamState($rawFrame->streamId) === StreamState::Closed) {
+            return [[], []];
         }
 
         $increment = unpack('N', $rawFrame->payload, 0)[1] & 0x7FFF_FFFF;

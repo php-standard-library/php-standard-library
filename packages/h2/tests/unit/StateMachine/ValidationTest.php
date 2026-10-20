@@ -225,7 +225,7 @@ final class ValidationTest extends TestCase
         $sm->receive($raw);
     }
 
-    public function testRejectsNonMonotonicStreamId(): void
+    public function testDiscardsHeadersOnSkippedClosedStream(): void
     {
         $sm = new StateMachine(false);
         $sm->initialize();
@@ -240,11 +240,9 @@ final class ValidationTest extends TestCase
         $raw3 = new HeadersFrame(3, $block, true, true)->toRaw();
         $sm->receive($raw3);
 
-        $this->expectException(ProtocolException::class);
-        $this->expectExceptionMessage('greater than');
-
         $raw1 = new HeadersFrame(1, $block, true, true)->toRaw();
-        $sm->receive($raw1);
+        static::assertSame([[], []], $sm->receive($raw1));
+        static::assertSame(1, $sm->activeStreamCount());
     }
 
     public function testAcceptsMonotonicallyIncreasingStreamIds(): void
