@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Psl\IO\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\IO;
 
 use function fopen;
@@ -58,7 +60,9 @@ final class ReaderTest extends TestCase
         static::assertSame('use PHPUnit\\Framework\\TestCase;', $reader->readLine());
 
         static::assertSame('use Psl', $reader->readUntil('\\'));
-        static::assertSame('IO;', $reader->readLine());
+        static::assertSame('Async;', $reader->readLine());
+        static::assertSame('use Psl\\DateTime\\Duration;', $reader->readLine());
+        static::assertSame('use Psl\\IO;', $reader->readLine());
         static::assertSame('', $reader->readLine());
         static::assertSame('use function fopen;', $reader->readLine());
         static::assertSame('use function str_repeat;', $reader->readLine());
@@ -444,6 +448,53 @@ final class ReaderTest extends TestCase
 
         static::assertSame('header', $reader->readUntil("\r\n\r\n"));
         static::assertSame('body', $reader->readAll());
+    }
+
+    public function testReadLineKeepsPartialDataWhenCancelled(): void
+    {
+        [$read, $write] = IO\pipe();
+        $reader = new IO\Reader($read);
+
+        $write->writeAll('hel');
+
+        try {
+            $reader->readLine(new Async\TimeoutCancellationToken(Duration::milliseconds(10)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        $write->writeAll("lo\nworld");
+        $write->close();
+
+        static::assertSame('hello', $reader->readLine());
+        static::assertSame('world', $reader->readLine());
+        static::assertNull($reader->readLine());
+
+        $read->close();
+    }
+
+    public function testReadUntilBoundedKeepsPartialDataWhenCancelled(): void
+    {
+        [$read, $write] = IO\pipe();
+        $reader = new IO\Reader($read);
+
+        $write->writeAll('hel');
+
+        try {
+            $reader->readUntilBounded("\r\n", 100, new Async\TimeoutCancellationToken(Duration::milliseconds(10)));
+            static::fail('Expected CancelledException');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        $write->writeAll("lo\r\nworld");
+        $write->close();
+
+        static::assertSame('hello', $reader->readUntilBounded("\r\n", 100));
+        static::assertSame('world', $reader->readAll());
+
+        $read->close();
     }
 
     public function testReadByteWithDelayedHandle(): void

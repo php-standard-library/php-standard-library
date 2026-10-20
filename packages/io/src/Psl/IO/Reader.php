@@ -159,34 +159,28 @@ final class Reader implements BufferedReadHandleInterface
         string $suffix,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): null|string {
-        $buf = $this->buffer;
-        $idx = strpos($buf, $suffix);
         $suffixLen = strlen($suffix);
-        if (false !== $idx) {
-            $this->buffer = substr($buf, $idx + $suffixLen);
-            return substr($buf, 0, $idx);
-        }
-
-        do {
+        $idx = strpos($this->buffer, $suffix);
+        while (false === $idx) {
             // + 1 as it would have been matched in the previous iteration if it
             // fully fit in the chunk
-            $offset = strlen($buf) - $suffixLen + 1;
+            $offset = strlen($this->buffer) - $suffixLen + 1;
             $offset = $offset > 0 ? $offset : 0;
             $chunk = $this->handle->read(null, $cancellation);
             if ('' === $chunk) {
                 if ($this->handle->reachedEndOfDataSource()) {
-                    $this->buffer = $buf;
                     return null;
                 }
 
                 continue;
             }
 
-            $buf .= $chunk;
-            $idx = strpos($buf, $suffix, $offset);
-        } while (false === $idx);
+            // append as data arrives, so nothing is lost if a later read throws (e.g. is cancelled).
+            $this->buffer .= $chunk;
+            $idx = strpos($this->buffer, $suffix, $offset);
+        }
 
-        /** @var non-negative-int $idx */
+        $buf = $this->buffer;
         $this->buffer = substr($buf, $idx + $suffixLen);
 
         return substr($buf, 0, $idx);
@@ -212,11 +206,10 @@ final class Reader implements BufferedReadHandleInterface
         int $maxBytes,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): null|string {
-        $buf = $this->buffer;
         $suffixLen = strlen($suffix);
-        $idx = strpos($buf, $suffix);
-        if (false !== $idx) {
-            if ($idx > $maxBytes) {
+        $idx = strpos($this->buffer, $suffix);
+        while (false === $idx) {
+            if (strlen($this->buffer) > $maxBytes) {
                 throw new Exception\OverflowException(sprintf(
                     'Exceeded maximum byte limit (%d) before encountering the suffix ("%s").',
                     $maxBytes,
@@ -224,11 +217,23 @@ final class Reader implements BufferedReadHandleInterface
                 ));
             }
 
-            $this->buffer = substr($buf, $idx + $suffixLen);
-            return substr($buf, 0, $idx);
+            $offset = strlen($this->buffer) - $suffixLen + 1;
+            $offset = $offset > 0 ? $offset : 0;
+            $chunk = $this->handle->read(null, $cancellation);
+            if ('' === $chunk) {
+                if ($this->handle->reachedEndOfDataSource()) {
+                    return null;
+                }
+
+                continue;
+            }
+
+            // append as data arrives, so nothing is lost if a later read throws (e.g. is cancelled).
+            $this->buffer .= $chunk;
+            $idx = strpos($this->buffer, $suffix, $offset);
         }
 
-        if (strlen($buf) > $maxBytes) {
+        if ($idx > $maxBytes) {
             throw new Exception\OverflowException(sprintf(
                 'Exceeded maximum byte limit (%d) before encountering the suffix ("%s").',
                 $maxBytes,
@@ -236,46 +241,7 @@ final class Reader implements BufferedReadHandleInterface
             ));
         }
 
-        do {
-            $offset = strlen($buf) - $suffixLen + 1;
-            $offset = $offset > 0 ? $offset : 0;
-            $chunk = $this->handle->read(null, $cancellation);
-            if ('' === $chunk) {
-                if ($this->handle->reachedEndOfDataSource()) {
-                    $this->buffer = $buf;
-                    return null;
-                }
-
-                continue;
-            }
-
-            $buf .= $chunk;
-            $idx = strpos($buf, $suffix, $offset);
-
-            if (false !== $idx) {
-                if ($idx > $maxBytes) {
-                    $this->buffer = $buf;
-                    throw new Exception\OverflowException(sprintf(
-                        'Exceeded maximum byte limit (%d) before encountering the suffix ("%s").',
-                        $maxBytes,
-                        $suffix,
-                    ));
-                }
-
-                break;
-            }
-
-            if (strlen($buf) > $maxBytes) {
-                $this->buffer = $buf;
-                throw new Exception\OverflowException(sprintf(
-                    'Exceeded maximum byte limit (%d) before encountering the suffix ("%s").',
-                    $maxBytes,
-                    $suffix,
-                ));
-            }
-        } while (true);
-
-        /** @var int<0, max> $idx*/
+        $buf = $this->buffer;
         $this->buffer = substr($buf, $idx + $suffixLen);
 
         return substr($buf, 0, $idx);
