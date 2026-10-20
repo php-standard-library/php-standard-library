@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit\DKIM;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\MIME\DKIM\Algorithm;
 use Psl\MIME\DKIM\Canonicalization;
@@ -880,6 +881,38 @@ final class SignerTest extends TestCase
         $result = $method->invoke(null, "hello   \nworld\t\t", Canonicalization::Relaxed);
 
         static::assertSame("hello\r\nworld\r\n", $result);
+    }
+
+    #[DataProvider('provideNonWspControlCharacters')]
+    public function testCanonicalizeBodyRelaxedKeepsTrailingNonWspCharacters(string $char): void
+    {
+        $method = new ReflectionMethod(Signer::class, 'canonicalizeBody');
+
+        $result = $method->invoke(null, "hello {$char} \nworld{$char}", Canonicalization::Relaxed);
+
+        static::assertSame("hello {$char}\r\nworld{$char}\r\n", $result);
+    }
+
+    #[DataProvider('provideNonWspControlCharacters')]
+    public function testCanonicalizeHeaderRelaxedKeepsSurroundingNonWspCharacters(string $char): void
+    {
+        $method = new ReflectionMethod(Signer::class, 'canonicalizeHeader');
+
+        $result = $method->invoke(null, 'Subject', "Subject: {$char}hello{$char} ", Canonicalization::Relaxed);
+
+        static::assertSame("subject:{$char}hello{$char}\r\n", $result);
+    }
+
+    /**
+     * RFC 6376 relaxed canonicalization only reduces and strips WSP (SP / HTAB).
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWspControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testCanonicalizeBodyStripsTrailingEmptyLines(): void

@@ -221,7 +221,7 @@ final readonly class Signer implements SignerInterface
         /** @var string $value */
         $value = preg_replace('/[ \t]+/', ' ', $value);
 
-        return strtolower($name) . ':' . trim($value) . "\r\n";
+        return strtolower($name) . ':' . trim($value, " \t") . "\r\n";
     }
 
     /**
@@ -273,7 +273,7 @@ final readonly class Signer implements SignerInterface
             foreach ($lines as $line) {
                 /** @var string $line */
                 $line = preg_replace('/[ \t]+/', ' ', $line);
-                $canonLines[] = rtrim($line);
+                $canonLines[] = rtrim($line, " \t");
             }
 
             $result = implode("\r\n", $canonLines);
