@@ -27,8 +27,9 @@ function random(iterable $iterable): mixed
 {
     // We convert the iterable to an array before checking if it is empty,
     // this helps us avoids an issue when the iterable is a generator where
-    // would exhaust it when calling `count`
-    $values = is_array($iterable) ? array_values($iterable) : array_values(iterator_to_array($iterable));
+    // would exhaust it when calling `count`. The keys are not used: preserving
+    // them would drop the values of repeated keys.
+    $values = is_array($iterable) ? array_values($iterable) : iterator_to_array($iterable, preserve_keys: false);
     if ([] === $values) {
         throw new Exception\InvalidArgumentException('Expected a non-empty iterable.');
     }
