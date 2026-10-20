@@ -93,6 +93,11 @@ final class UnboundedReceiver implements ReceiverInterface
             $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
                 // The suspension may have already been resumed by a send, or thrown into by close().
                 if ($this->state->removeFromWaitingForMessage($suspension)) {
+                    // A cancelled waiter takes nothing, so later calls must not queue behind it.
+                    if ($this->suspension === $suspension) {
+                        $this->suspension = null;
+                    }
+
                     $suspension->throw($e);
                 }
             });

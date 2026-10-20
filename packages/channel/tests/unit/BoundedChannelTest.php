@@ -694,4 +694,106 @@ final class BoundedChannelTest extends TestCase
 
         $waiting->await();
     }
+
+    public function testReceiveQueuedBehindAWokenReceiverGetsTheMessageLeftOver(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(5);
+
+        $waiting = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // The first message wakes the waiting receiver up, which has not run yet when receive() is
+        // called again, and queues behind it; the second message is left for the queued call.
+        $sender->send('foo');
+        $sender->send('bar');
+
+        static::assertSame('bar', $receiver->receive(new Async\TimeoutCancellationToken(Duration::milliseconds(100))));
+        static::assertSame('foo', $waiting->await());
+        static::assertTrue($receiver->isEmpty());
+    }
+
+    public function testSendQueuedBehindAWokenSenderGetsTheSpaceLeftOver(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(2);
+
+        $sender->send('foo');
+        $sender->send('bar');
+
+        $waiting = Async\run(static fn(): null => $sender->send('baz'));
+
+        Async\later();
+
+        // The first receive wakes the waiting sender up, which has not run yet when send() is called
+        // again, and queues behind it; the space freed by the second receive is left for the queued call.
+        static::assertSame('foo', $receiver->receive());
+        static::assertSame('bar', $receiver->receive());
+
+        $sender->send('qux', new Async\TimeoutCancellationToken(Duration::milliseconds(100)));
+        $waiting->await();
+
+        static::assertSame(2, $sender->count());
+        static::assertSame('baz', $receiver->receive());
+        static::assertSame('qux', $receiver->receive());
+    }
+
+    public function testReceiveDoesNotQueueBehindACancelledReceiver(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(5);
+
+        $token = new Async\SignalCancellationToken();
+        $cancelled = Async\run(static fn(): string => $receiver->receive($token));
+
+        Async\later();
+
+        // The waiting receiver is cancelled, but has not run yet when receive() is called again.
+        $token->cancel();
+        $sender->send('foo');
+
+        static::assertSame('foo', $receiver->receive(new Async\TimeoutCancellationToken(Duration::milliseconds(100))));
+
+        $this->expectException(Async\Exception\CancelledException::class);
+
+        $cancelled->await();
+    }
+
+    public function testSendDoesNotQueueBehindACancelledSender(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $token = new Async\SignalCancellationToken();
+        $cancelled = Async\run(static fn(): null => $sender->send('bar', $token));
+
+        Async\later();
+
+        // The waiting sender is cancelled, but has not run yet when send() is called again.
+        $token->cancel();
+        static::assertSame('foo', $receiver->receive());
+
+        $sender->send('baz', new Async\TimeoutCancellationToken(Duration::milliseconds(100)));
+
+        static::assertSame('baz', $receiver->receive());
+
+        $this->expectException(Async\Exception\CancelledException::class);
+
+        $cancelled->await();
+    }
 }

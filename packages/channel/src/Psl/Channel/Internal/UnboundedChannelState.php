@@ -158,6 +158,15 @@ final class UnboundedChannelState implements ChannelInterface
             throw Exception\EmptyChannelException::create();
         }
 
-        return array_shift($this->messages);
+        $item = array_shift($this->messages);
+
+        // Receivers may have queued behind one that was woken up for a message; if messages
+        // are left, wake the next one up, as no send() is going to.
+        if ($this->messages !== []) {
+            $suspension = array_shift($this->waitingForMessage);
+            $suspension?->resume(null);
+        }
+
+        return $item;
     }
 }

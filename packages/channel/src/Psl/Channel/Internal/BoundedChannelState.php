@@ -207,6 +207,13 @@ final class BoundedChannelState implements ChannelInterface
 
         $suspension = array_shift($this->waitingForMessage);
         $suspension?->resume(null);
+
+        // Senders may have queued behind one that was woken up for space; if space is
+        // left, wake the next one up, as no receive() is going to.
+        if ($this->size < $this->capacity) {
+            $suspension = array_shift($this->waitingForSpace);
+            $suspension?->resume(null);
+        }
     }
 
     /**
@@ -231,6 +238,13 @@ final class BoundedChannelState implements ChannelInterface
 
         $suspension = array_shift($this->waitingForSpace);
         $suspension?->resume(null);
+
+        // Receivers may have queued behind one that was woken up for a message; if messages
+        // are left, wake the next one up, as no send() is going to.
+        if ($this->messages !== []) {
+            $suspension = array_shift($this->waitingForMessage);
+            $suspension?->resume(null);
+        }
 
         return $item;
     }
