@@ -15,4 +15,9 @@ final class ParsingException extends RuntimeException implements ExceptionInterf
     {
         return new self(sprintf('Failed to decode encoded-word payload: "%s".', $text));
     }
+
+    public static function forUnsupportedCharset(string $charset): self
+    {
+        return new self(sprintf('Unsupported encoded-word charset: "%s".', $charset));
+    }
 }

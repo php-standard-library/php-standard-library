@@ -142,6 +142,25 @@ final class EncodeDecodeTest extends TestCase
         static::assertSame("\xC3\xA9", $decoded);
     }
 
+    #[DataProvider('provideUnsupportedCharsets')]
+    public function testDecodeUnsupportedCharsetThrows(string $input): void
+    {
+        $this->expectException(Exception\ParsingException::class);
+        $this->expectExceptionMessage('Unsupported encoded-word charset');
+
+        EncodedWord\decode($input);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideUnsupportedCharsets(): iterable
+    {
+        yield 'Q-encoded' => ['=?X-UNKNOWN?Q?abc?='];
+        yield 'B-encoded' => ['=?X-UNKNOWN?B?YWJj?='];
+        yield 'between plain text' => ['Re: =?x-made-up-charset?Q?caf=E9?= time'];
+    }
+
     public function testDecodeUsAsciiCharset(): void
     {
         static::assertSame('hello', EncodedWord\decode('=?US-ASCII?Q?hello?='));
