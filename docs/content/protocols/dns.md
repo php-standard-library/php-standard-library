@@ -20,6 +20,8 @@ Resolvers can be composed for different strategies: direct UDP/TCP, fallback on 
 
 `UDPResolver` supports IPv4 and IPv6 nameserver addresses. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
 
+`TCPResolver` also checks the response question and closes the connection if the name, type, or class does not match.
+
 @example('protocols/dns-resolvers.php')
 
 ## Record Types

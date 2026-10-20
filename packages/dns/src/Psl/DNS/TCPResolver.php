@@ -84,6 +84,10 @@ final readonly class TCPResolver implements ResolverInterface
                 if ($response->id !== $id) {
                     throw Exception\ProtocolException::forTransactionIDMismatch($id, $response->id);
                 }
+
+                if (!Decoder::matchesQuestion($responseData, $packet)) {
+                    throw Exception\ProtocolException::forQuestionMismatch();
+                }
             } catch (Exception\ProtocolException $e) {
                 $this->pool->clear($stream);
 

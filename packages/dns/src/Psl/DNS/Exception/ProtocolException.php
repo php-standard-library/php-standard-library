@@ -88,6 +88,14 @@ final class ProtocolException extends RuntimeException
     }
 
     /**
+     * Create an exception when the response question does not match the query.
+     */
+    public static function forQuestionMismatch(): self
+    {
+        return new self('DNS response question does not match the query name, type, and class.');
+    }
+
+    /**
      * Create an exception when a DNS response arrives from an unexpected source address.
      */
     public static function forUnexpectedSource(string $expected, string $actual): self
