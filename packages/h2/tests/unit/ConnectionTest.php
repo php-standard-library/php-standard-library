@@ -35,7 +35,6 @@ use Psl\H2\Tests\Fixture\ChunkedHandle;
 use Psl\H2\Tests\Fixture\SlowDripStream;
 use Psl\H2\Tests\Fixture\TimeoutOnReadHandle;
 use Psl\HPACK\Encoder;
-use Psl\HPACK\Exception\ExceptionInterface;
 use Psl\HPACK\Header;
 use Psl\IO;
 use RuntimeException;
@@ -598,7 +597,7 @@ final class ConnectionTest extends TestCase
         $handle = new IO\MemoryHandle($frameData);
         $conn = new ServerConnection($handle);
 
-        $this->expectException(ExceptionInterface::class);
+        $this->expectException(ProtocolException::class);
         $conn->readEvent();
     }
 

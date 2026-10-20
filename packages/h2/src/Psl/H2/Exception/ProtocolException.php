@@ -48,6 +48,14 @@ final class ProtocolException extends RuntimeException
     }
 
     /**
+     * Create a connection error when HPACK cannot decode a field block (RFC 9113 §4.3).
+     */
+    public static function forCompressionError(Throwable $previous): self
+    {
+        return new self('HTTP/2 field block decompression failed.', ErrorCode::CompressionError, $previous);
+    }
+
+    /**
      * Create a protocol exception for an incorrect frame payload size.
      *
      * @param int $expected The expected payload size in bytes.

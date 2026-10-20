@@ -1145,7 +1145,11 @@ final class StateMachine
         bool $endStream,
         bool $isTrailing = false,
     ): array {
-        $headers = $this->hpackDecoder->decode($headerBlock);
+        try {
+            $headers = $this->hpackDecoder->decode($headerBlock);
+        } catch (HPACKException $e) {
+            throw ProtocolException::forCompressionError($e);
+        }
 
         HeaderValidator::validate($headers, $this->isClient, $isTrailing);
 
@@ -1582,7 +1586,11 @@ final class StateMachine
      */
     private function completePushPromise(int $streamId, int $promisedStreamId, string $headerBlock): array
     {
-        $headers = $this->hpackDecoder->decode($headerBlock);
+        try {
+            $headers = $this->hpackDecoder->decode($headerBlock);
+        } catch (HPACKException $e) {
+            throw ProtocolException::forCompressionError($e);
+        }
 
         $promised = $this->streams->getOrCreate($promisedStreamId);
         $promised->state = StreamState::ReservedRemote;
