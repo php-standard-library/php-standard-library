@@ -63,7 +63,7 @@ function parse(
         }
 
         if (($line[0] === ' ' || $line[0] === "\t") && $currentName !== null) {
-            $currentValue .= ' ' . trim($line);
+            $currentValue .= ' ' . trim($line, " \t");
             continue;
         }
 
@@ -78,7 +78,7 @@ function parse(
         }
 
         $currentName = substr($line, 0, $colonPos);
-        $currentValue = trim(substr($line, $colonPos + 1));
+        $currentValue = trim(substr($line, $colonPos + 1), " \t");
     }
 
     if ($currentName !== null) {

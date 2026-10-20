@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\Message;
@@ -85,6 +86,30 @@ final class ParseTest extends TestCase
 
         $received = $message->headers->all('Received');
         self::assertCount(2, $received);
+    }
+
+    #[Test]
+    #[DataProvider('provideNonWspControlCharacters')]
+    public function parseOnlyStripsWspAroundHeaderValues(string $char): void
+    {
+        $raw = "X-Custom: \t{$char}value{$char} \t\r\nX-Folded: first\r\n \t{$char}second{$char}\r\n\r\nbody";
+
+        $message = Message\parse($raw);
+
+        self::assertSame("{$char}value{$char}", $message->headers->get('X-Custom'));
+        self::assertSame("first {$char}second{$char}", $message->headers->get('X-Folded'));
+    }
+
+    /**
+     * Header values are separated and unfolded by WSP (SP / HTAB) only, per RFC 5322.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWspControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     #[Test]
