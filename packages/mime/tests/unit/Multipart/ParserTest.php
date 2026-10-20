@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\MIME\Tests\Unit\Multipart;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Encoding\Base64;
 use Psl\IO;
@@ -532,6 +533,44 @@ final class ParserTest extends TestCase
 
         static::assertCount(1, $parts);
         static::assertSame('Trimmed', $parts[0]->body->readAll());
+    }
+
+    public function testDecodeTransferEncodingValueWithNonWspCharacterIsNotDecoded(): void
+    {
+        $encoded = Base64\encode('Test');
+        $body = "--boundary\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: base64\x0C\r\n\r\n{$encoded}\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', decodeTransferEncoding: true);
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame("base64\x0C", $parts[0]->headers->get('content-transfer-encoding'));
+        static::assertSame($encoded, $parts[0]->body->readAll());
+    }
+
+    #[DataProvider('provideNonWspControlCharacters')]
+    public function testHeaderValueKeepsSurroundingNonWspCharacters(string $char): void
+    {
+        $body = "--boundary\r\nX-Custom: {$char}value{$char} \r\nX-Folded: first\r\n \t{$char}second{$char}\r\n\r\nbody\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary');
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame("{$char}value{$char}", $parts[0]->headers->get('x-custom'));
+        static::assertSame("first {$char}second{$char}", $parts[0]->headers->get('x-folded'));
+    }
+
+    /**
+     * Header fields are separated from their values by WSP (SP / HTAB) only.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonWspControlCharacters(): iterable
+    {
+        yield 'form feed' => ["\x0C"];
+        yield 'vertical tab' => ["\x0B"];
+        yield 'NUL byte' => ["\0"];
     }
 
     public function testDefaultSpoolThresholdIs2MB(): void
@@ -1571,6 +1610,17 @@ final class ParserTest extends TestCase
         $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
 
         static::assertSame($content, $parts[0]->body->readAll());
+    }
+
+    public function testHeaderBlockEndingWithMixedLineEndingsDoesNotLeaveCarriageReturn(): void
+    {
+        $body = "--boundary\r\nContent-Type: text/plain\r\nContent-Transfer-Encoding: base64\r\n\naGVsbG8=\r\n--boundary--\r\n";
+
+        $parser = new Parser('boundary', decodeTransferEncoding: true);
+        $parts = iterator_to_array($parser->parse(new IO\MemoryHandle($body)));
+
+        static::assertCount(1, $parts);
+        static::assertSame('hello', $parts[0]->body->readAll());
     }
 
     public function testPreambleSkippedBeforeBoundary(): void

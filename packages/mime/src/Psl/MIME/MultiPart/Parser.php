@@ -17,6 +17,7 @@ use Psl\MIME\TransferEncoding;
 
 use function explode;
 use function mb_strtolower;
+use function rtrim;
 use function str_ends_with;
 use function str_replace;
 use function str_starts_with;
@@ -197,12 +198,14 @@ final class Parser implements ParserInterface
         $currentValue = '';
 
         foreach ($lines as $line) {
+            $line = rtrim($line, "\r");
+
             if ($line === '') {
                 continue;
             }
 
             if (($line[0] === ' ' || $line[0] === "\t") && $currentName !== null) {
-                $currentValue .= ' ' . trim($line);
+                $currentValue .= ' ' . trim($line, " \t");
                 continue;
             }
 
@@ -216,8 +219,8 @@ final class Parser implements ParserInterface
                 continue;
             }
 
-            $currentName = trim(substr($line, 0, $colonPos));
-            $currentValue = trim(substr($line, $colonPos + 1));
+            $currentName = trim(substr($line, 0, $colonPos), " \t");
+            $currentValue = trim(substr($line, $colonPos + 1), " \t");
         }
 
         if ($currentName !== null) {
@@ -263,7 +266,7 @@ final class Parser implements ParserInterface
         $filteredHeaders = [];
         foreach ($part->headers->pairs() as [$name, $value]) {
             if (mb_strtolower($name) === 'content-transfer-encoding') {
-                $encoding = TransferEncoding::tryFrom(mb_strtolower(trim($value)));
+                $encoding = TransferEncoding::tryFrom(mb_strtolower(trim($value, " \t")));
             } else {
                 $filteredHeaders[] = [$name, $value];
             }
