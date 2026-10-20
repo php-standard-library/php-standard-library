@@ -644,4 +644,135 @@ final class KeyedSemaphoreTest extends TestCase
 
         static::assertSame(['done:inner', 'waited'], $spy->value);
     }
+
+    public function testCompletedReentrantCallHandsItsSlotOverToThePendingOperation(): void
+    {
+        $spy = new Psl\Ref([]);
+        $gates = [
+            'reenter' => new Async\Deferred(),
+            'inner' => new Async\Deferred(),
+            'outer' => new Async\Deferred(),
+            'other' => new Async\Deferred(),
+            'pending' => new Async\Deferred(),
+        ];
+
+        /** @var Async\KeyedSemaphore<string, string, string> */
+        $ks = new Async\KeyedSemaphore(2, static function (string $key, string $input) use (
+            &$ks,
+            $spy,
+            $gates,
+        ): string {
+            $spy->value[] = 'start:' . $input;
+            if ('outer' === $input) {
+                $gates['reenter']->getAwaitable()->await();
+                $ks->waitFor($key, 'inner');
+            }
+
+            $gates[$input]->getAwaitable()->await();
+            $spy->value[] = 'end:' . $input;
+
+            return $input;
+        });
+
+        $outer = Async\run(static fn(): string => $ks->waitFor('k', 'outer'));
+        $other = Async\run(static fn(): string => $ks->waitFor('k', 'other'));
+        Async\later();
+
+        // "outer" re-enters while "other" holds the second slot, taking the count above the limit.
+        $gates['reenter']->complete(null);
+        Async\later();
+        static::assertSame(3, $ks->getOngoingOperations('k'));
+
+        // "other" completes: "outer" and "inner" are left, so "pending" has to wait.
+        $gates['other']->complete(null);
+        $other->await();
+        static::assertSame(2, $ks->getOngoingOperations('k'));
+
+        $pending = Async\run(static fn(): string => $ks->waitFor('k', 'pending'));
+        Async\later();
+        static::assertTrue($ks->hasPendingOperations('k'));
+
+        // "inner" completes while "outer" keeps running: a slot is free, "pending" must start.
+        $gates['inner']->complete(null);
+        Async\later();
+        Async\later();
+
+        static::assertContains('start:pending', $spy->value);
+        static::assertNotContains('end:outer', $spy->value);
+        static::assertFalse($ks->hasPendingOperations('k'));
+        static::assertSame(2, $ks->getOngoingOperations('k'));
+
+        $gates['outer']->complete(null);
+        $gates['pending']->complete(null);
+
+        static::assertSame('outer', $outer->await());
+        static::assertSame('pending', $pending->await());
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
+
+    public function testCompletedOperationDoesNotHandItsSlotOverWhileReentrantCallsKeepTheCountAtTheLimit(): void
+    {
+        $spy = new Psl\Ref([]);
+        $gates = [
+            'reenter' => new Async\Deferred(),
+            'inner' => new Async\Deferred(),
+            'outer' => new Async\Deferred(),
+            'other' => new Async\Deferred(),
+            'pending' => new Async\Deferred(),
+        ];
+
+        /** @var Async\KeyedSemaphore<string, string, string> */
+        $ks = new Async\KeyedSemaphore(2, static function (string $key, string $input) use (
+            &$ks,
+            $spy,
+            $gates,
+        ): string {
+            $spy->value[] = 'start:' . $input;
+            if ('outer' === $input) {
+                $gates['reenter']->getAwaitable()->await();
+                $ks->waitFor($key, 'inner');
+            }
+
+            $gates[$input]->getAwaitable()->await();
+            $spy->value[] = 'end:' . $input;
+
+            return $input;
+        });
+
+        $outer = Async\run(static fn(): string => $ks->waitFor('k', 'outer'));
+        $other = Async\run(static fn(): string => $ks->waitFor('k', 'other'));
+        Async\later();
+
+        // "outer" re-enters while "other" holds the second slot, taking the count above the limit.
+        $gates['reenter']->complete(null);
+        Async\later();
+
+        $pending = Async\run(static fn(): string => $ks->waitFor('k', 'pending'));
+        Async\later();
+        static::assertTrue($ks->hasPendingOperations('k'));
+
+        // "other" completes: "outer" and "inner" are left, so "pending" still has to wait.
+        $gates['other']->complete(null);
+        $other->await();
+        Async\later();
+
+        static::assertNotContains('start:pending', $spy->value);
+        static::assertTrue($ks->hasPendingOperations('k'));
+        static::assertSame(2, $ks->getOngoingOperations('k'));
+
+        // "inner" completes: "pending" takes its slot.
+        $gates['inner']->complete(null);
+        Async\later();
+        Async\later();
+
+        static::assertContains('start:pending', $spy->value);
+        static::assertSame(2, $ks->getOngoingOperations('k'));
+
+        $gates['outer']->complete(null);
+        $gates['pending']->complete(null);
+
+        static::assertSame('outer', $outer->await());
+        static::assertSame('pending', $pending->await());
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
 }

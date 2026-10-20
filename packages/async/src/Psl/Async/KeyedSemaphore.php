@@ -101,15 +101,18 @@ final class KeyedSemaphore
                 try {
                     return $this->invoke($key, $input);
                 } finally {
-                    // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
-                    $this->ongoing[$key]--;
                     $index = array_search($currentContext, $this->holders[$key], true);
                     if (false !== $index) {
                         array_splice($this->holders[$key], $index, 1);
                     }
 
-                    if (0 === $this->ongoing[$key]) {
-                        unset($this->ongoing[$key], $this->holders[$key]);
+                    // The re-entrant call may have been all that kept the count at the limit.
+                    if (!$this->handOver($key)) {
+                        // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
+                        $this->ongoing[$key]--;
+                        if (0 === $this->ongoing[$key]) {
+                            unset($this->ongoing[$key], $this->holders[$key]);
+                        }
                     }
                 }
             }
@@ -160,23 +163,15 @@ final class KeyedSemaphore
                 array_splice($this->holders[$key], $index, 1);
             }
 
-            if (($this->pending[$key] ?? []) !== []) {
-                $suspension = array_shift($this->pending[$key]);
-                if ([] === $this->pending[$key]) {
-                    unset($this->pending[$key]);
-                }
+            if (!$this->handOver($key)) {
+                // Operations may still be pending, if re-entrant calls keep the count at the limit.
+                if (($this->pending[$key] ?? []) === []) {
+                    foreach ($this->waits[$key] ?? [] as $suspension) {
+                        $suspension->resume();
+                    }
 
-                // Hand the slot over to the next pending operation without releasing it; the resumed
-                // operation runs later, and releasing the slot now would let a new caller take it in between.
-                if (null !== $suspension) {
-                    $suspension->resume();
+                    unset($this->waits[$key]);
                 }
-            } else {
-                foreach ($this->waits[$key] ?? [] as $suspension) {
-                    $suspension->resume();
-                }
-
-                unset($this->waits[$key]);
 
                 // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
                 $this->ongoing[$key]--;
@@ -283,7 +278,9 @@ final class KeyedSemaphore
     /**
      * Get the number of ongoing operations for the given key.
      *
-     * The returned number will always be lower, or equal to the concurrency limit.
+     * The returned number is lower than, or equal to the concurrency limit, unless operations call
+     * {@see waitFor()} again for the same key: such re-entrant calls run right away, and can take
+     * the number above the limit.
      *
      * @param Tk $key
      *
@@ -374,6 +371,38 @@ final class KeyedSemaphore
                 $cancellation->unsubscribe($id);
             }
         }
+    }
+
+    /**
+     * Hand the slot of a completing operation over to the next pending operation for the given key.
+     *
+     * The slot is handed over without being released: the resumed operation runs later, and releasing
+     * the slot now would let a new caller take it in between. Re-entrant calls can take the count above
+     * the limit, in which case the slot is not handed over until the count, without the completing
+     * operation, is below the limit.
+     *
+     * Returns `false` if the slot was not handed over, and must be released by the caller.
+     *
+     * @param Tk $key
+     */
+    private function handOver(string|int $key): bool
+    {
+        if (($this->ongoing[$key] ?? 0) > $this->concurrencyLimit || ($this->pending[$key] ?? []) === []) {
+            return false;
+        }
+
+        $suspension = array_shift($this->pending[$key]);
+        if ([] === $this->pending[$key]) {
+            unset($this->pending[$key]);
+        }
+
+        if (null === $suspension) {
+            return false;
+        }
+
+        $suspension->resume();
+
+        return true;
     }
 
     /**
