@@ -20,6 +20,7 @@ use Psl\HTTP\Client\Internal\H2\H2Session;
 use Psl\HTTP\Client\Internal\HttpTunnel;
 use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Request;
+use Psl\IO;
 use Psl\Network;
 use Psl\Network\Exception\RuntimeException;
 use Psl\Socks;
@@ -196,13 +197,18 @@ final class PooledConnector implements ConnectorInterface
      *
      * Called when the connector is garbage-collected or explicitly destroyed.
      * All pooled HTTP/1.x streams are closed, and all active HTTP/2 sessions
-     * are marked as closed to prevent further stream creation.
+     * are marked as closed to prevent further stream creation. An I/O failure
+     * while closing one stream does not prevent closing the remaining streams.
      */
     public function __destruct()
     {
         foreach ($this->h1Idle as $streams) {
             foreach ($streams as [$stream, $_]) {
-                $stream->close();
+                try {
+                    $stream->close();
+                } catch (IO\Exception\RuntimeException) {
+                    continue;
+                }
             }
         }
 
