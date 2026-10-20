@@ -199,4 +199,27 @@ final class UndirectedGraphTest extends TestCase
 
         static::assertFalse($linear->hasCycle());
     }
+
+    public function testNullNode(): void
+    {
+        $graph = Graph\undirected();
+        static::assertFalse($graph->hasNode(null));
+
+        $graph = Graph\add_node($graph, null);
+        static::assertTrue($graph->hasNode(null));
+        static::assertSame([null], $graph->getNodes());
+    }
+
+    public function testAddingANullNodeAgainKeepsItsEdges(): void
+    {
+        $graph = Graph\undirected();
+        $graph = Graph\add_edge($graph, null, 'A');
+        $graph = Graph\add_edge($graph, null, 'B');
+        $graph = Graph\add_node($graph, null);
+
+        static::assertTrue($graph->hasEdge(null, 'A'));
+        static::assertTrue($graph->hasEdge(null, 'B'));
+        static::assertSame(['A', 'B'], Graph\neighbors($graph, null));
+        static::assertSame([null, 'A', 'B'], Graph\bfs($graph, null));
+    }
 }

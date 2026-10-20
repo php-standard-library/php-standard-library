@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Graph;
 
+use function array_key_exists;
 use function array_values;
 
 /**
@@ -70,7 +71,8 @@ final readonly class UndirectedGraph implements GraphInterface
     public function hasNode(mixed $node): bool
     {
         $key = Internal\get_node_key($node);
-        return isset($this->nodes[$key]);
+        // `isset()` would report a `null` node as missing.
+        return array_key_exists($key, $this->nodes);
     }
 
     /**
