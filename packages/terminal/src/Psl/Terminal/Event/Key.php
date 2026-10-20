@@ -9,6 +9,9 @@ use Psl\Str;
 /**
  * Represents a keyboard event.
  *
+ * Key events are key presses (and auto-repeats); key releases reported by
+ * the kitty keyboard protocol are not turned into events.
+ *
  * @immutable
  *
  * @api
@@ -27,9 +30,16 @@ final readonly class Key
     /**
      * Check if this key event matches the given key name.
      *
-     * Supports: named keys (enter, backspace, tab, escape, space, delete),
-     * arrow keys (up, down, left, right), modifier combos (ctrl+c, ctrl+up),
-     * function keys (f1-f12), and page keys (page_up, page_down, home, end).
+     * Supports: named keys (enter, backspace, tab, escape, delete), arrow
+     * keys (up, down, left, right), modifier combos (ctrl+c, ctrl+up,
+     * ctrl+space), function keys (f1-f12, and f13-f35 with the kitty keyboard
+     * protocol), and page keys (page_up, page_down, home, end).
+     *
+     * Modifiers are named in the order ctrl, shift, alt, super, hyper, meta
+     * (e.g. "ctrl+shift+up"); super, hyper and meta are only reported by
+     * terminals that send them, such as with the kitty keyboard protocol.
+     * A plain space is the printable character " ", and space combined with
+     * modifiers other than ctrl keeps that character (e.g. "alt+ ").
      */
     public function is(string $key): bool
     {

@@ -406,11 +406,13 @@ final class CsiKeyMapTest extends TestCase
         static::assertNull($key);
     }
 
-    public function testMapKittyKeyHighCodepointReturnsNull(): void
+    public function testMapKittyKeyNonAsciiCodepoint(): void
     {
         $key = CsiKeyMap::map('200', 'u');
 
-        static::assertNull($key);
+        static::assertNotNull($key);
+        static::assertSame('È', $key->char);
+        static::assertSame('È', $key->name);
     }
 
     public function testMapModifiedArrowUp(): void
@@ -515,9 +517,9 @@ final class CsiKeyMapTest extends TestCase
         static::assertTrue($key->is('up'));
     }
 
-    public function testMapModifierPrefixUnknownValueIsEmpty(): void
+    public function testMapModifierPrefixIgnoresUndefinedBits(): void
     {
-        $key = CsiKeyMap::map('1;99', 'A');
+        $key = CsiKeyMap::map('1;257', 'A');
 
         static::assertNotNull($key);
         static::assertTrue($key->is('up'));
@@ -561,5 +563,128 @@ final class CsiKeyMapTest extends TestCase
 
         static::assertNotNull($key);
         static::assertTrue($key->is('ctrl+shift+alt+a'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function provideKittyNamedKeys(): iterable
+    {
+        yield 'F1' => ['', 'P', 'f1'];
+        yield 'F2' => ['', 'Q', 'f2'];
+        yield 'F3 (CSI R)' => ['', 'R', 'f3'];
+        yield 'F4' => ['', 'S', 'f4'];
+        yield 'F1 tilde' => ['11', '~', 'f1'];
+        yield 'F3 tilde' => ['13', '~', 'f3'];
+        yield 'home tilde' => ['7', '~', 'home'];
+        yield 'end tilde' => ['8', '~', 'end'];
+        yield 'ctrl+F5' => ['15;5', '~', 'ctrl+f5'];
+        yield 'shift+F12' => ['24;2', '~', 'shift+f12'];
+        yield 'alt+F3 tilde' => ['13;3', '~', 'alt+f3'];
+        yield 'F13' => ['57376', 'u', 'f13'];
+        yield 'F35' => ['57398', 'u', 'f35'];
+        yield 'ctrl+F13' => ['57376;5', 'u', 'ctrl+f13'];
+        yield 'keypad enter' => ['57414', 'u', 'enter'];
+        yield 'keypad left' => ['57417', 'u', 'left'];
+        yield 'keypad right' => ['57418', 'u', 'right'];
+        yield 'keypad up' => ['57419', 'u', 'up'];
+        yield 'keypad down' => ['57420', 'u', 'down'];
+        yield 'keypad page up' => ['57421', 'u', 'page_up'];
+        yield 'keypad page down' => ['57422', 'u', 'page_down'];
+        yield 'keypad home' => ['57423', 'u', 'home'];
+        yield 'keypad end' => ['57424', 'u', 'end'];
+        yield 'keypad insert' => ['57425', 'u', 'insert'];
+        yield 'keypad delete' => ['57426', 'u', 'delete'];
+        yield 'shift+keypad up' => ['57419;2', 'u', 'shift+up'];
+        yield 'ctrl+space' => ['32;5', 'u', 'ctrl+space'];
+        yield 'alt+non-ASCII' => ['233;3', 'u', 'alt+é'];
+        yield 'alternate key sub-parameters' => ['97:65;6', 'u', 'ctrl+shift+a'];
+        yield 'associated text field' => ['97;5;97', 'u', 'ctrl+a'];
+        yield 'press event type' => ['97;5:1', 'u', 'ctrl+a'];
+        yield 'repeat event type' => ['97;5:2', 'u', 'ctrl+a'];
+        yield 'repeat of a legacy key' => ['1;1:2', 'A', 'up'];
+        yield 'ctrl with caps lock' => ['97;69', 'u', 'ctrl+a'];
+        yield 'ctrl with num lock' => ['1;133', 'A', 'ctrl+up'];
+        yield 'ctrl+shift with caps and num lock' => ['5;198', '~', 'ctrl+shift+page_up'];
+        yield 'ctrl+shift+space' => ['32;6', 'u', 'ctrl+shift+space'];
+        yield 'alt+space keeps the space character' => ['32;3', 'u', 'alt+ '];
+        yield 'shift+space keeps the space character' => ['32;2', 'u', 'shift+ '];
+        yield 'super+F5' => ['15;9', '~', 'super+f5'];
+        yield 'super+a' => ['97;9', 'u', 'super+a'];
+        yield 'hyper+a' => ['97;17', 'u', 'hyper+a'];
+        yield 'meta+a' => ['97;33', 'u', 'meta+a'];
+        yield 'shift+super+up' => ['1;10', 'A', 'shift+super+up'];
+        yield 'ctrl+super+F1' => ['1;13', 'P', 'ctrl+super+f1'];
+        yield 'alt+meta+up with caps lock' => ['1;99', 'A', 'alt+meta+up'];
+        yield 'every modifier' => ['1;64', 'A', 'ctrl+shift+alt+super+hyper+meta+up'];
+        yield 'super+keypad 5' => ['57404;9', 'u', 'super+5'];
+    }
+
+    #[DataProvider('provideKittyNamedKeys')]
+    public function testMapKittyNamedKey(string $params, string $final, string $expected): void
+    {
+        $key = CsiKeyMap::map($params, $final);
+
+        static::assertNotNull($key);
+        static::assertNull($key->char);
+        static::assertSame($expected, $key->name);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideKittyTextKeys(): iterable
+    {
+        yield 'latin small letter e with acute' => ['233', 'é'];
+        yield 'cyrillic' => ['1078', 'ж'];
+        yield 'CJK' => ['20013', '中'];
+        yield 'astral' => ['128512', "\u{1F600}"];
+        yield 'keypad 0' => ['57399', '0'];
+        yield 'keypad 9' => ['57408', '9'];
+        yield 'keypad decimal' => ['57409', '.'];
+        yield 'keypad divide' => ['57410', '/'];
+        yield 'keypad multiply' => ['57411', '*'];
+        yield 'keypad subtract' => ['57412', '-'];
+        yield 'keypad add' => ['57413', '+'];
+        yield 'keypad equal' => ['57415', '='];
+        yield 'keypad separator' => ['57416', ','];
+        yield 'num lock only' => ['233;129', 'é'];
+    }
+
+    #[DataProvider('provideKittyTextKeys')]
+    public function testMapKittyTextKey(string $params, string $expected): void
+    {
+        $key = CsiKeyMap::map($params, 'u');
+
+        static::assertNotNull($key);
+        static::assertSame($expected, $key->char);
+        static::assertSame($expected, $key->name);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideKittyIgnoredSequences(): iterable
+    {
+        yield 'release of a text key' => ['97;1:3', 'u'];
+        yield 'release of a modified key' => ['97;5:3', 'u'];
+        yield 'release of enter' => ['13;1:3', 'u'];
+        yield 'release of an arrow key' => ['1;1:3', 'A'];
+        yield 'release of a tilde key' => ['5;5:3', '~'];
+        yield 'release of F1' => ['1;1:3', 'P'];
+        yield 'caps lock key' => ['57358', 'u'];
+        yield 'media play key' => ['57428', 'u'];
+        yield 'left shift key' => ['57441', 'u'];
+        yield 'keypad begin' => ['57427', 'u'];
+        yield 'surrogate' => ['55296', 'u'];
+        yield 'above U+10FFFF' => ['1114112', 'u'];
+        yield 'C1 control' => ['133', 'u'];
+        yield 'keyboard flags reply' => ['?1', 'u'];
+    }
+
+    #[DataProvider('provideKittyIgnoredSequences')]
+    public function testMapKittyIgnoredSequence(string $params, string $final): void
+    {
+        static::assertNull(CsiKeyMap::map($params, $final));
     }
 }

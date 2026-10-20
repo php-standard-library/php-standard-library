@@ -659,6 +659,117 @@ final class EventParserAdditionalTest extends TestCase
         static::assertTrue($events[0]->is('ctrl+a'));
     }
 
+    public function testKittyKeyboardF1(): void
+    {
+        $events = $this->parser->feed("\e[P\e[Q\e[13~\e[S");
+
+        static::assertCount(4, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('f1'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('f2'));
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('f3'));
+        static::assertInstanceOf(Event\Key::class, $events[3]);
+        static::assertTrue($events[3]->is('f4'));
+    }
+
+    public function testKittyKeyboardNonAsciiCodepoint(): void
+    {
+        $events = $this->parser->feed("\e[233u\e[233;3u");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('é', $events[0]->char);
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('alt+é'));
+    }
+
+    public function testKittyKeyboardReleaseIsNotReportedAsPress(): void
+    {
+        $events = $this->parser->feed("\e[97;5u\e[97;5:3u\e[1;1:3A\e[13;1:3u");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('ctrl+a'));
+    }
+
+    public function testKittyKeyboardRepeatIsReportedAsPress(): void
+    {
+        $events = $this->parser->feed("\e[97;5:2u");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('ctrl+a'));
+    }
+
+    public function testKittyKeyboardKeypadAndExtendedFunctionKeys(): void
+    {
+        $events = $this->parser->feed("\e[57419u\e[57399u\e[57376u");
+
+        static::assertCount(3, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('up'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('0', $events[1]->char);
+        static::assertInstanceOf(Event\Key::class, $events[2]);
+        static::assertTrue($events[2]->is('f13'));
+    }
+
+    public function testKittyKeyboardCtrlSpaceMatchesLegacyEncoding(): void
+    {
+        $events = $this->parser->feed("\e[32;5u\x00");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('ctrl+space'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('ctrl+space'));
+    }
+
+    public function testKittyKeyboardAltSpaceMatchesLegacyEncoding(): void
+    {
+        $events = $this->parser->feed("\e[32;3u\e ");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertSame('alt+ ', $events[0]->name);
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertSame('alt+ ', $events[1]->name);
+    }
+
+    public function testKittyKeyboardSuperIsReported(): void
+    {
+        $events = $this->parser->feed("\e[15;9~\e[97;9u");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('super+f5'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('super+a'));
+    }
+
+    public function testKittyKeyboardLockModifiersDoNotHideCtrl(): void
+    {
+        $events = $this->parser->feed("\e[97;69u");
+
+        static::assertCount(1, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertNull($events[0]->char);
+        static::assertTrue($events[0]->is('ctrl+a'));
+    }
+
+    public function testModifiedTildeFunctionKeys(): void
+    {
+        $events = $this->parser->feed("\e[15;5~\e[24;2~");
+
+        static::assertCount(2, $events);
+        static::assertInstanceOf(Event\Key::class, $events[0]);
+        static::assertTrue($events[0]->is('ctrl+f5'));
+        static::assertInstanceOf(Event\Key::class, $events[1]);
+        static::assertTrue($events[1]->is('shift+f12'));
+    }
+
     public function testFlushPendingDoesNotFlushBufferWithMoreThanEsc(): void
     {
         $this->parser->feed("\e[");
