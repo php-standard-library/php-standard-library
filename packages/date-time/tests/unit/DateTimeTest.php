@@ -785,6 +785,49 @@ final class DateTimeTest extends TestCase
         static::assertSame($original->getTimezone(), $roundTripped->getTimezone());
     }
 
+    /**
+     * 2024-10-27 01:30 happens twice in Europe/London: at 00:30 UTC (BST) and at 01:30 UTC (GMT).
+     *
+     * @return iterable<array{int}>
+     */
+    public static function provideAmbiguousLondonInstants(): iterable
+    {
+        yield [1_729_989_000];
+        yield [1_729_992_600];
+    }
+
+    #[DataProvider('provideAmbiguousLondonInstants')]
+    public function testToStdlibAndToIntlKeepTheInstantOfAnAmbiguousLocalTime(int $seconds): void
+    {
+        $dt = DateTime::fromTimestamp(Timestamp::fromParts($seconds, 250_000_000), Timezone::EuropeLondon);
+
+        static::assertSame([2024, 10, 27, 1, 30, 0, 250_000_000], $dt->getParts());
+
+        $stdlib = $dt->toStdlib();
+        static::assertSame($seconds, $stdlib->getTimestamp());
+        static::assertSame('250000', $stdlib->format('u'));
+        static::assertSame('Europe/London', $stdlib->getTimezone()->getName());
+
+        $calendar = $dt->toIntl();
+        static::assertSame(($seconds * 1000) + 250, (int) $calendar->getTime());
+        static::assertSame(250, $calendar->get(IntlCalendar::FIELD_MILLISECOND));
+
+        static::assertTrue($dt->equalsIncludingTimezone(DateTime::fromStdlib($stdlib)));
+        static::assertTrue($dt->equalsIncludingTimezone(DateTime::fromIntl($calendar)));
+    }
+
+    public function testToStdlibKeepsTheInstantOfBeforeChristAndJulianDates(): void
+    {
+        foreach ([[-5, 1, 1], [0, 2, 29], [1000, 1, 1], [1582, 10, 4]] as [$year, $month, $day]) {
+            $dt = DateTime::fromParts(Timezone::UTC, $year, $month, $day, 12, 0, 0, 1_000);
+            $stdlib = $dt->toStdlib();
+
+            static::assertSame($dt->getTimestamp()->getSeconds(), $stdlib->getTimestamp());
+            static::assertSame('000001', $stdlib->format('u'));
+            static::assertSame([$year, $month, $day, 12, 0, 0, 1_000], DateTime::fromStdlib($stdlib)->getParts());
+        }
+    }
+
     public function testNanosecondsBoundaryMaxValid(): void
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 15, 12, 30, 45, 999_999_999);

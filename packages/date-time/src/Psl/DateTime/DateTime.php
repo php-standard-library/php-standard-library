@@ -12,6 +12,7 @@ use Override;
 use Psl\Interoperability;
 use Psl\Locale\Locale;
 
+use function intdiv;
 use function sprintf;
 
 /**
@@ -565,9 +566,13 @@ final readonly class DateTime implements
     }
 
     /**
-     * Converts this {@see DateTime} to a PHP {@see DateTimeImmutable}.
+     * Converts this {@see DateTime} to a PHP {@see DateTimeImmutable} representing the same instant
+     * in the same timezone.
      *
      * Note: nanosecond precision is truncated to microseconds.
+     *
+     * Note: PHP uses the proleptic Gregorian calendar, while this class follows ICU and uses the Julian
+     * calendar before 1582-10-15, so the date fields of instants before that day differ between the two.
      *
      * @return DateTimeImmutable
      *
@@ -576,19 +581,22 @@ final readonly class DateTime implements
     #[Override]
     public function toStdlib(): mixed
     {
-        $microseconds = (int) ($this->nanoseconds / namespace\NANOSECONDS_PER_MICROSECOND);
-        $formatted = sprintf(
-            '%04d-%02d-%02d %02d:%02d:%02d.%06d',
-            $this->year,
-            $this->month,
-            $this->day,
-            $this->hours,
-            $this->minutes,
-            $this->seconds,
-            $microseconds,
-        );
+        // Convert the instant, not the wall-clock fields: re-parsing the fields picks one occurrence of an
+        // ambiguous local time, and cannot express negative years or Julian dates.
+        $value = DateTimeImmutable::createFromFormat('U.u', sprintf(
+            '%d.%06d',
+            $this->timestamp->getSeconds(),
+            intdiv($this->nanoseconds, namespace\NANOSECONDS_PER_MICROSECOND),
+        ));
 
-        return new DateTimeImmutable($formatted, new DateTimeZone($this->timezone->value));
+        // @codeCoverageIgnoreStart
+        if (false === $value) {
+            throw new Exception\RuntimeException('Failed to convert the date-time to a DateTimeImmutable instance.');
+        }
+
+        // @codeCoverageIgnoreEnd
+
+        return $value->setTimezone(new DateTimeZone($this->timezone->value));
     }
 
     /**
@@ -626,15 +634,14 @@ final readonly class DateTime implements
     #[Override]
     public function toIntl(): mixed
     {
-        return Internal\create_intl_calendar_from_date_time(
-            $this->timezone,
-            $this->year,
-            $this->month,
-            $this->day,
-            $this->hours,
-            $this->minutes,
-            $this->seconds,
+        // Convert the instant, not the wall-clock fields, which are ambiguous during a DST overlap.
+        $calendar = Internal\create_intl_calendar($this->timezone);
+        $calendar->setTime(
+            ($this->timestamp->getSeconds() * namespace\MILLISECONDS_PER_SECOND)
+            + intdiv($this->nanoseconds, namespace\NANOSECONDS_PER_MILLISECOND),
         );
+
+        return $calendar;
     }
 
     /**
