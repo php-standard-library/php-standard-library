@@ -11,6 +11,12 @@ use Psl\Cache\Exception\InvalidArgumentException;
 use Psl\Cache\Exception\UnavailableItemException;
 use Psl\Cache\LocalStore;
 use Psl\DateTime\Duration;
+use Revolt\EventLoop;
+use WeakReference;
+
+use function array_diff;
+use function array_values;
+use function gc_collect_cycles;
 
 use const PHP_INT_MIN;
 
@@ -960,5 +966,24 @@ final class LocalStoreTest extends TestCase
 
         $this->expectException(UnavailableItemException::class);
         $store->get('key');
+    }
+
+    public function testStoreIsGarbageCollectedAndCancelsItsCleanupTimer(): void
+    {
+        $before = EventLoop::getIdentifiers();
+
+        $store = new LocalStore(cleanupInterval: Duration::milliseconds(10));
+        // A TTL entry enables the cleanup timer.
+        $store->compute('key', static fn(): string => 'value', Duration::seconds(10));
+
+        $created = array_values(array_diff(EventLoop::getIdentifiers(), $before));
+        static::assertCount(1, $created);
+
+        $reference = WeakReference::create($store);
+        unset($store);
+        gc_collect_cycles();
+
+        static::assertNull($reference->get());
+        static::assertNotContains($created[0], EventLoop::getIdentifiers());
     }
 }

@@ -10,6 +10,7 @@ use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\DateTime\Timestamp;
 use Revolt\EventLoop;
+use WeakReference;
 
 use function array_key_first;
 use function sprintf;
@@ -145,13 +146,25 @@ final class LocalStore implements StoreInterface
         );
 
         $cleanupInterval ??= Duration::seconds(3);
-        $this->cleanupCallbackId = EventLoop::repeat($cleanupInterval->getTotalSeconds(), function (): void {
-            $this->sweep();
+        // The event loop holds on to the callback, so it must not hold on to the store: otherwise the
+        // store could never be garbage collected, and its destructor would never cancel the callback.
+        $self = WeakReference::create($this);
+        $cleanup = static function (string $callbackId) use ($self): void {
+            $store = $self->get();
+            if (null === $store) {
+                EventLoop::cancel($callbackId);
 
-            if (!$this->hasTtlEntries) {
-                EventLoop::disable($this->cleanupCallbackId);
+                return;
             }
-        });
+
+            $store->sweep();
+
+            if (!$store->hasTtlEntries) {
+                EventLoop::disable($callbackId);
+            }
+        };
+
+        $this->cleanupCallbackId = EventLoop::repeat($cleanupInterval->getTotalSeconds(), $cleanup);
 
         EventLoop::disable($this->cleanupCallbackId);
     }
