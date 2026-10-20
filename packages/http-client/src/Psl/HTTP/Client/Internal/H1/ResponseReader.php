@@ -111,7 +111,7 @@ final class ResponseReader
         $sp2 = strpos($remaining, ' ');
         $statusCode = $sp2 !== false ? substr($remaining, 0, $sp2) : $remaining;
 
-        if (!ctype_digit($statusCode) || strlen($statusCode) !== 3) {
+        if (preg_match('/^[1-9][0-9]{2}$/D', $statusCode) !== 1) {
             throw ProtocolException::forMalformedResponse('Invalid status code.');
         }
 

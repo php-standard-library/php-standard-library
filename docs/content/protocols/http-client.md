@@ -214,6 +214,8 @@ The client throws a structured exception hierarchy. Transport-level exceptions f
 
 @example('protocols/http-client-errors.php')
 
+HTTP/1 status codes must contain exactly three digits and fall within 100-999; codes 600-999 remain accepted.
+
 ## Exception Hierarchy
 
 | Exception | When Thrown |

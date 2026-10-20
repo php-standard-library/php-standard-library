@@ -242,6 +242,48 @@ final class ResponseReaderTest extends TestCase
         ResponseReader::read(self::reader("HTTP/1.1 2000 OK\r\n\r\n"), 8192, self::timeout(), false);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function statusCodesBelow100(): iterable
+    {
+        yield 'zero' => ['000'];
+        yield 'one' => ['001'];
+        yield 'ninety-nine' => ['099'];
+    }
+
+    #[DataProvider('statusCodesBelow100')]
+    public function testStatusCodesBelow100AreRejected(string $status): void
+    {
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('Invalid status code');
+
+        ResponseReader::read(self::reader("HTTP/1.1 {$status} Invalid\r\n\r\n"), 8192, self::timeout(), false);
+    }
+
+    /** @return iterable<string, array{int<100, 999>}> */
+    public static function acceptedStatusCodes(): iterable
+    {
+        yield 'continue' => [100];
+        yield 'informational extension' => [199];
+        yield 'success' => [200];
+        yield 'server error extension' => [599];
+        yield 'six hundred' => [600];
+        yield 'nine hundred ninety-nine' => [999];
+    }
+
+    /** @param int<100, 999> $status */
+    #[DataProvider('acceptedStatusCodes')]
+    public function testAcceptsThreeDigitStatusCodes(int $status): void
+    {
+        [$response] = ResponseReader::read(
+            self::reader("HTTP/1.1 {$status} Status\r\nContent-Length: 0\r\n\r\n"),
+            8192,
+            self::timeout(),
+            false,
+        );
+
+        static::assertSame($status, $response->status);
+    }
+
     public function testInvalidHeaderLineNoColon(): void
     {
         $this->expectException(ProtocolException::class);

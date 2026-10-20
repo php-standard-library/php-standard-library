@@ -20,6 +20,7 @@ try {
 } catch (Client\Exception\RequestException $e) {
     IO\write_line('Invalid request: %s', $e->getMessage());
 } catch (Client\Exception\ProtocolException $e) {
+    // HTTP/1 status codes must have exactly three digits in the range 100-999.
     IO\write_line('Bad response: %s', $e->getMessage());
 } catch (Client\Exception\TooManyRedirectsException $e) {
     IO\write_line('Redirect loop: %s', $e->getMessage());
