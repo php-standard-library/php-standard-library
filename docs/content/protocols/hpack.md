@@ -26,4 +26,8 @@ The dynamic table size can be adjusted at runtime via `resize()`. This is typica
 
 The maximum decompressed header list size is configurable via the constructor or `setMaxHeaderListSize()`. Headers that exceed this limit throw `HeaderListSizeException`.
 
+If `encode()` or `encodeWithStatus()` rejects an oversized header list, it leaves the dynamic table and pending size updates unchanged. You can retry with a smaller list on the same encoder. A rejected call may consume its input iterator, so pass a fresh iterator when retrying.
+
+@example('protocols/hpack-retry.php')
+
 See `src/Psl/HPACK/` for the full API.

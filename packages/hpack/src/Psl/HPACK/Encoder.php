@@ -127,17 +127,12 @@ final class Encoder
      */
     public function encode(iterable $headers): string
     {
+        $headers = $this->prepareHeaders($headers);
         $result = $this->encodePendingTableSize();
 
-        $totalSize = 0;
         foreach ($headers as $header) {
             $nameLen = strlen($header->name);
             $valueLen = strlen($header->value);
-            $totalSize += $nameLen + $valueLen + 32;
-            if ($totalSize > $this->maxHeaderListSize) {
-                throw HeaderListSizeException::forExceededLimit($totalSize, $this->maxHeaderListSize);
-            }
-
             $result .= $this->encodeHeaderEntry($header->name, $nameLen, $header->value, $valueLen, $header->sensitive);
         }
 
@@ -145,10 +140,9 @@ final class Encoder
     }
 
     /**
-     * Encode a :status pseudo-header followed by response headers in one pass.
+     * Encode a :status pseudo-header followed by response headers.
      *
-     * Convenience method for HTTP/2 response encoding that avoids constructing
-     * an intermediate array. The :status pseudo-header is prepended automatically
+     * Convenience method for HTTP/2 response encoding. The :status pseudo-header is prepended automatically
      * and benefits from static table indexing (common status codes like "200",
      * "204", "304", "404", "500" are pre-indexed).
      *
@@ -161,25 +155,39 @@ final class Encoder
      */
     public function encodeWithStatus(string $status, iterable $headers): string
     {
-        $result = $this->encodePendingTableSize();
-
         $statusLen = strlen($status);
-        $totalSize = 7 + $statusLen + 32;
-        if ($totalSize > $this->maxHeaderListSize) {
-            throw HeaderListSizeException::forExceededLimit($totalSize, $this->maxHeaderListSize);
-        }
-
+        $headers = $this->prepareHeaders($headers, 7 + $statusLen + 32);
+        $result = $this->encodePendingTableSize();
         $result .= $this->encodeHeaderEntry(':status', 7, $status, $statusLen, false);
 
         foreach ($headers as $header) {
             $nameLen = strlen($header->name);
             $valueLen = strlen($header->value);
-            $totalSize += $nameLen + $valueLen + 32;
+            $result .= $this->encodeHeaderEntry($header->name, $nameLen, $header->value, $valueLen, $header->sensitive);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param iterable<Header> $headers
+     *
+     * @return list<Header>
+     */
+    private function prepareHeaders(iterable $headers, int $totalSize = 0): array
+    {
+        if ($totalSize > $this->maxHeaderListSize) {
+            throw HeaderListSizeException::forExceededLimit($totalSize, $this->maxHeaderListSize);
+        }
+
+        $result = [];
+        foreach ($headers as $header) {
+            $totalSize += strlen($header->name) + strlen($header->value) + 32;
             if ($totalSize > $this->maxHeaderListSize) {
                 throw HeaderListSizeException::forExceededLimit($totalSize, $this->maxHeaderListSize);
             }
 
-            $result .= $this->encodeHeaderEntry($header->name, $nameLen, $header->value, $valueLen, $header->sensitive);
+            $result[] = $header;
         }
 
         return $result;
