@@ -13,6 +13,8 @@ use Psl\DateTime\Timestamp;
 use Psl\DateTime\Timezone;
 
 use function date_default_timezone_set;
+use function in_array;
+use function sprintf;
 
 final class TimezoneTest extends TestCase
 {
@@ -24,6 +26,49 @@ final class TimezoneTest extends TestCase
          * @see DateTimeTestTrait::setUp() for the default timezone set to Europe/London
          */
         static::assertSame(Timezone::EuropeLondon, Timezone::default());
+    }
+
+    /**
+     * @return iterable<array{string, Timezone, int}>
+     */
+    public static function provideCurrentIanaIdentifiers(): iterable
+    {
+        yield ['Europe/Kyiv', Timezone::EuropeKyiv, 7_200];
+        yield ['America/Ciudad_Juarez', Timezone::AmericaCiudadJuarez, -25_200];
+        yield ['Pacific/Kanton', Timezone::PacificKanton, 46_800];
+        yield ['America/Coyhaique', Timezone::AmericaCoyhaique, -10_800];
+    }
+
+    #[DataProvider('provideCurrentIanaIdentifiers')]
+    public function testCurrentIanaIdentifiersAreSupported(string $identifier, Timezone $expected, int $rawOffset): void
+    {
+        static::assertSame($expected, Timezone::from($identifier));
+
+        if (!in_array($identifier, DateTimeZone::listIdentifiers(), true)) {
+            static::markTestSkipped('The timezone database of this build does not know "' . $identifier . '" yet.');
+        }
+
+        if ('Etc/Unknown' === IntlTimeZone::createTimeZone($identifier)->getID()) {
+            static::markTestSkipped('The ICU data of this build does not know "' . $identifier . '" yet.');
+        }
+
+        static::assertSame($expected, Timezone::fromStdlib(new DateTimeZone($identifier)));
+        static::assertSame($expected, Timezone::fromIntl(IntlTimeZone::createTimeZone($identifier)));
+        static::assertSame($rawOffset, (int) $expected->getRawOffset()->getTotalSeconds());
+    }
+
+    public function testEveryCanonicalIdentifierIsACase(): void
+    {
+        foreach (DateTimeZone::listIdentifiers() as $identifier) {
+            static::assertNotNull(Timezone::tryFrom($identifier), sprintf('"%s" is not a Timezone case.', $identifier));
+        }
+    }
+
+    public function testRenamedZonesHaveTheRulesOfTheirPreviousNames(): void
+    {
+        // Older ICU data only knows the previous names; the renamed zones fall back to them there.
+        static::assertTrue(Timezone::EuropeKyiv->hasTheSameRulesAs(Timezone::EuropeKiev));
+        static::assertTrue(Timezone::PacificKanton->hasTheSameRulesAs(Timezone::PacificEnderbury));
     }
 
     public function testGetOffset(): void

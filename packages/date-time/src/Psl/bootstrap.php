@@ -14,6 +14,7 @@ declare(strict_types=1);
             __DIR__ . '/DateTime/Internal/create_intl_calendar_from_date_time.php',
         'Psl\DateTime\Internal\create_intl_date_formatter' =>
             __DIR__ . '/DateTime/Internal/create_intl_date_formatter.php',
+        'Psl\DateTime\Internal\create_intl_timezone' => __DIR__ . '/DateTime/Internal/create_intl_timezone.php',
         'Psl\DateTime\Internal\default_timezone' => __DIR__ . '/DateTime/Internal/default_timezone.php',
         'Psl\DateTime\Internal\format' => __DIR__ . '/DateTime/Internal/format.php',
         'Psl\DateTime\Internal\format_iso8601_duration' => __DIR__ . '/DateTime/Internal/format_iso8601_duration.php',

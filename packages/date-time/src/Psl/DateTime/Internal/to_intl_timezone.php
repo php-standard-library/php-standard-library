@@ -8,7 +8,7 @@ use IntlTimeZone;
 use Psl;
 use Psl\DateTime\Timezone;
 
-use function str_starts_with;
+use const INTL_ICU_VERSION;
 
 /**
  * @pure
@@ -17,27 +17,13 @@ use function str_starts_with;
  */
 function to_intl_timezone(Timezone $timezone): IntlTimeZone
 {
-    $value = $timezone->value;
-    if (str_starts_with($value, '+') || str_starts_with($value, '-')) {
-        $value = 'GMT' . $value;
-    }
-
-    $tz = IntlTimeZone::createTimeZone($value);
+    $tz = namespace\create_intl_timezone($timezone);
 
     Psl\invariant(
         null !== $tz,
-        'Failed to create intl timezone from timezone "%s" ( "%s" / "%s" ).',
-        $timezone->name,
+        'The ICU data of this build (ICU %s) does not know the timezone "%s".',
+        INTL_ICU_VERSION,
         $timezone->value,
-        $value,
-    );
-
-    Psl\invariant(
-        $tz->getID() !== 'Etc/Unknown' || $tz->getRawOffset() !== 0,
-        'Failed to create a valid intl timezone, unknown timezone "%s" ( "%s" / "%s" ) given.',
-        $timezone->name,
-        $timezone->value,
-        $value,
     );
 
     return $tz;

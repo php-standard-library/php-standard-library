@@ -166,7 +166,17 @@ enum Timezone: string implements
     case AmericaCayman = 'America/Cayman';
     case AmericaChicago = 'America/Chicago';
     case AmericaChihuahua = 'America/Chihuahua';
+    /**
+     * Requires ICU time zone data from tzdata 2022g or later (bundled since ICU 73); with older ICU data,
+     * using this zone throws an invariant violation.
+     */
+    case AmericaCiudadJuarez = 'America/Ciudad_Juarez';
     case AmericaCostaRica = 'America/Costa_Rica';
+    /**
+     * Requires ICU time zone data from tzdata 2025b or later (bundled since ICU 78); with older ICU data,
+     * using this zone throws an invariant violation.
+     */
+    case AmericaCoyhaique = 'America/Coyhaique';
     case AmericaCreston = 'America/Creston';
     case AmericaCuiaba = 'America/Cuiaba';
     case AmericaCuracao = 'America/Curacao';
@@ -415,6 +425,10 @@ enum Timezone: string implements
     case EuropeKaliningrad = 'Europe/Kaliningrad';
     case EuropeKiev = 'Europe/Kiev';
     case EuropeKirov = 'Europe/Kirov';
+    /**
+     * ICU data older than tzdata 2022b (ICU 72) knows this zone as "Europe/Kiev", which is used there instead.
+     */
+    case EuropeKyiv = 'Europe/Kyiv';
     case EuropeLisbon = 'Europe/Lisbon';
     case EuropeLjubljana = 'Europe/Ljubljana';
     case EuropeLondon = 'Europe/London';
@@ -479,6 +493,10 @@ enum Timezone: string implements
     case PacificGuadalcanal = 'Pacific/Guadalcanal';
     case PacificGuam = 'Pacific/Guam';
     case PacificHonolulu = 'Pacific/Honolulu';
+    /**
+     * ICU data older than tzdata 2021b knows this zone as "Pacific/Enderbury", which is used there instead.
+     */
+    case PacificKanton = 'Pacific/Kanton';
     case PacificKiritimati = 'Pacific/Kiritimati';
     case PacificKosrae = 'Pacific/Kosrae';
     case PacificKwajalein = 'Pacific/Kwajalein';
