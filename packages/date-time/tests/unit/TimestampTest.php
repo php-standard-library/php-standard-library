@@ -111,7 +111,7 @@ final class TimestampTest extends TestCase
 
     public function testParsingFromPattern(): void
     {
-        $timestamp = Timestamp::parse(rawString: '2024 091', pattern: FormatPattern::JulianDay);
+        $timestamp = Timestamp::parse(rawString: '2024 091', pattern: 'yyyy DDD');
 
         $datetime = DateTime::fromTimestamp($timestamp, Timezone::UTC);
 
@@ -125,7 +125,7 @@ final class TimestampTest extends TestCase
         $this->expectException(ParserException::class);
         $this->expectExceptionMessage('Unable to interpret \'2\' as a valid date/time using pattern \'yyyy DDD\'.');
 
-        Timestamp::parse('2', pattern: FormatPattern::JulianDay);
+        Timestamp::parse('2', pattern: 'yyyy DDD');
     }
 
     public function testParseFormat(): void

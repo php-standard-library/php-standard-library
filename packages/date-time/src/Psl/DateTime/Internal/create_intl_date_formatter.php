@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\DateTime\Internal;
 
+use IntlCalendar;
 use IntlDateFormatter;
 use Psl\DateTime\DateStyle;
 use Psl\DateTime\FormatPattern;
@@ -23,6 +24,7 @@ function create_intl_date_formatter(
     null|Timezone $timezone = null,
     null|Locale $locale = null,
 ): IntlDateFormatter {
+    $isoWeekDate = FormatPattern::IsoWeekDate === $pattern;
     if ($pattern instanceof FormatPattern) {
         $pattern = $pattern->value;
     }
@@ -32,7 +34,7 @@ function create_intl_date_formatter(
     $locale ??= Locale::default();
     $timezone ??= Timezone::default();
 
-    return new IntlDateFormatter(
+    $formatter = new IntlDateFormatter(
         $locale->value,
         match ($dateStyle) {
             DateStyle::None => IntlDateFormatter::NONE,
@@ -54,4 +56,16 @@ function create_intl_date_formatter(
         IntlDateFormatter::GREGORIAN,
         $pattern,
     );
+
+    if ($isoWeekDate) {
+        // Week numbering depends on the locale (e.g. en_US weeks start on Sunday); ISO 8601 weeks start on
+        // Monday, and the first week of the year is the one with at least four days in that year.
+        /** @var IntlCalendar $calendar */
+        $calendar = $formatter->getCalendarObject();
+        $calendar->setFirstDayOfWeek(IntlCalendar::DOW_MONDAY);
+        $calendar->setMinimalDaysInFirstWeek(4);
+        $formatter->setCalendar($calendar);
+    }
+
+    return $formatter;
 }

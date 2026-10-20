@@ -760,15 +760,7 @@ trait DateTimeConvenienceMethodsTrait
         null|Timezone $timezone = null,
         null|Locale $locale = null,
     ): string {
-        $timestamp = $this->getTimestamp();
-
-        return Internal\create_intl_date_formatter(
-            null,
-            null,
-            $pattern,
-            $timezone ?? $this->getTimezone(),
-            $locale,
-        )->format($timestamp->getSeconds() + ($timestamp->getNanoseconds() / namespace\NANOSECONDS_PER_SECOND));
+        return Internal\format($this->getTimestamp(), $pattern, $timezone ?? $this->getTimezone(), $locale);
     }
 
     /**

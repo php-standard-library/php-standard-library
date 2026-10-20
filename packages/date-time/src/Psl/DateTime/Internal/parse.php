@@ -11,7 +11,11 @@ use Psl\DateTime\TimeStyle;
 use Psl\DateTime\Timezone;
 use Psl\Locale\Locale;
 
+use function filter_var;
+use function preg_match;
 use function sprintf;
+
+use const FILTER_VALIDATE_INT;
 
 /**
  * @internal
@@ -28,6 +32,20 @@ function parse(
     null|Timezone $timezone = null,
     null|Locale $locale = null,
 ): int {
+    // ICU has no "seconds since the epoch" field.
+    if (FormatPattern::UnixTimestamp === $pattern) {
+        // Leading zeros are dropped first, as `FILTER_VALIDATE_INT` rejects them (e.g. "007").
+        $matches = [];
+        $seconds = 1 === preg_match('/^([+-]?)0*(\d+)$/D', $rawString, $matches)
+            ? filter_var($matches[1] . $matches[2], FILTER_VALIDATE_INT)
+            : false;
+        if (false === $seconds) {
+            throw new ParserException("Unable to interpret '{$rawString}' as a Unix timestamp.");
+        }
+
+        return $seconds;
+    }
+
     $formatter = namespace\create_intl_date_formatter($dateStyle, $timeStyle, $pattern, $timezone, $locale);
 
     $timestamp = $formatter->parse($rawString);

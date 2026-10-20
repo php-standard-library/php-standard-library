@@ -13,6 +13,7 @@ declare(strict_types=1);
         'Psl\DateTime\Internal\create_intl_date_formatter' =>
             __DIR__ . '/DateTime/Internal/create_intl_date_formatter.php',
         'Psl\DateTime\Internal\default_timezone' => __DIR__ . '/DateTime/Internal/default_timezone.php',
+        'Psl\DateTime\Internal\format' => __DIR__ . '/DateTime/Internal/format.php',
         'Psl\DateTime\Internal\format_iso8601_duration' => __DIR__ . '/DateTime/Internal/format_iso8601_duration.php',
         'Psl\DateTime\Internal\format_iso8601_period' => __DIR__ . '/DateTime/Internal/format_iso8601_period.php',
         'Psl\DateTime\Internal\format_rfc3339' => __DIR__ . '/DateTime/Internal/format_rfc3339.php',
