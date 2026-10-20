@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\CIDR\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\CIDR\Block;
 use Psl\CIDR\Exception\InvalidArgumentException;
@@ -77,8 +78,46 @@ final class BlockTest extends TestCase
     {
         $block = new Block('::ffff:1.2.3.4/128');
 
-        static::assertTrue($block->contains('1.2.3.4'));
+        static::assertFalse($block->contains('1.2.3.4'));
         static::assertTrue($block->contains('::ffff:1.2.3.4'));
+    }
+
+    #[DataProvider('differentAddressFamilies')]
+    public function testDoesNotContainDifferentAddressFamily(string $cidr, string $address): void
+    {
+        $block = new Block($cidr);
+
+        static::assertFalse($block->contains($address));
+        static::assertFalse($block->contains(Address::parse($address)));
+    }
+
+    /** @return iterable<array{non-empty-string, non-empty-string}> */
+    public static function differentAddressFamilies(): iterable
+    {
+        yield ['::/0', '10.0.0.1'];
+        yield ['::ffff:0:0/96', '10.0.0.1'];
+        yield ['0.0.0.0/0', '::ffff:10.0.0.1'];
+        yield ['10.0.0.0/8', '::ffff:10.0.0.1'];
+        yield ['0.0.0.0/0', '::1'];
+    }
+
+    #[DataProvider('blocksWithHostBits')]
+    public function testMasksHostBits(string $cidr, string $first, string $last, string $outside): void
+    {
+        $block = new Block($cidr);
+
+        static::assertTrue($block->contains($first));
+        static::assertTrue($block->contains($last));
+        static::assertFalse($block->contains($outside));
+    }
+
+    /** @return iterable<array{non-empty-string, non-empty-string, non-empty-string, non-empty-string}> */
+    public static function blocksWithHostBits(): iterable
+    {
+        yield ['192.168.1.5/24', '192.168.1.0', '192.168.1.255', '192.168.2.0'];
+        yield ['192.168.1.200/25', '192.168.1.128', '192.168.1.255', '192.168.1.127'];
+        yield ['2001:db8::1234/120', '2001:db8::1200', '2001:db8::12ff', '2001:db8::1300'];
+        yield ['::ffff:192.168.1.5/120', '::ffff:192.168.1.0', '::ffff:192.168.1.255', '::ffff:192.168.2.0'];
     }
 
     public function testGitHubCidr(): void
@@ -145,20 +184,20 @@ final class BlockTest extends TestCase
         static::assertTrue($block->contains('2001:db8::1'));
         static::assertTrue($block->contains('fe80::1'));
         static::assertTrue($block->contains('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'));
-        static::assertTrue($block->contains('192.168.1.1'));
-        static::assertTrue($block->contains('255.255.255.255'));
+        static::assertFalse($block->contains('192.168.1.1'));
+        static::assertFalse($block->contains('255.255.255.255'));
     }
 
     public function testByteAlignedPrefixProducesCorrectMask(): void
     {
-        // /8 for IPv4 (prefix 104 internally): 13 full 0xFF bytes, 0 remaining bits
+        // /8 for IPv4: 1 full 0xFF byte, 0 remaining bits
         $block = new Block('10.0.0.0/8');
 
         static::assertTrue($block->contains('10.0.0.1'));
         static::assertTrue($block->contains('10.255.255.255'));
         static::assertFalse($block->contains('11.0.0.0'));
 
-        // /16 for IPv4 (prefix 112 internally): 14 full 0xFF bytes, 0 remaining bits
+        // /16 for IPv4: 2 full 0xFF bytes, 0 remaining bits
         $block16 = new Block('172.16.0.0/16');
 
         static::assertTrue($block16->contains('172.16.0.1'));

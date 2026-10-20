@@ -18,8 +18,8 @@ use function strlen;
 /**
  * Represents a CIDR (Classless Inter-Domain Routing) block.
  *
- * Supports both IPv4 and IPv6 addresses. IPv4 addresses are internally
- * converted to IPv4-mapped IPv6 for unified comparison.
+ * Supports IPv4 and IPv6 addresses, with containment restricted to the same family.
+ * Host bits in the supplied address are masked to form the network address.
  *
  * Usage:
  *   $block = new Block('192.168.1.0/24');
@@ -62,14 +62,9 @@ final readonly class Block
             throw new Exception\InvalidArgumentException("Invalid IP address in CIDR notation: '{$address}'.");
         }
 
-        // Normalize IPv4 to IPv4-mapped IPv6
         $prefix = (int) $prefixStr;
-        if (strlen($networkBytes) === 4) {
-            $networkBytes = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff" . $networkBytes;
-            $prefix += 96;
-        }
-
-        if ($prefix < 0 || $prefix > 128) {
+        $length = strlen($networkBytes);
+        if ($prefix < 0 || $prefix > ($length * 8)) {
             throw new Exception\InvalidArgumentException(
                 "Invalid prefix length: {$prefixStr}. Must be 0-32 for IPv4 or 0-128 for IPv6.",
             );
@@ -88,14 +83,14 @@ final readonly class Block
             $mask .= chr((0xFF << (8 - $remainingBits)) & 0xFF);
         }
 
-        $mask = str_pad($mask, 16, "\x00");
+        $mask = str_pad($mask, $length, "\x00");
 
-        $this->networkBytes = $networkBytes;
+        $this->networkBytes = $networkBytes & $mask;
         $this->maskBytes = $mask;
     }
 
     /**
-     * Check whether the given IP address falls within this CIDR block.
+     * Check whether the given IP address falls within this CIDR block and has the same address family.
      *
      * @param non-empty-string|Address $ip IPv4 or IPv6 address to check.
      */
@@ -110,12 +105,9 @@ final readonly class Block
             }
         }
 
-        // Normalize IPv4 to IPv4-mapped IPv6
-        if (strlen($ipBytes) === 4) {
-            $ipBytes = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff" . $ipBytes;
-        }
-
-        // Compare: (ip & mask) === (network & mask)
-        return ($ipBytes & $this->maskBytes) === ($this->networkBytes & $this->maskBytes);
+        return (
+            strlen($ipBytes) === strlen($this->networkBytes)
+            && ($ipBytes & $this->maskBytes) === $this->networkBytes
+        );
     }
 }

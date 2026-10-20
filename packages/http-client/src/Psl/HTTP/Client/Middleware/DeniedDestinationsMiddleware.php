@@ -41,7 +41,8 @@ use function substr;
  *   containment within the CIDR range.
  *
  * Both IPv4 and IPv6 addresses are supported, including IPv4-mapped IPv6 addresses
- * (e.g., `::ffff:127.0.0.1`).
+ * (e.g., `::ffff:127.0.0.1`). IPv4 peers match CIDR entries in both their IPv4 and
+ * IPv4-mapped IPv6 forms.
  *
  * ## Why connection-level middleware
  *
@@ -173,9 +174,12 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
             }
 
             $address = self::normalize(IP\Address::parse($host));
+            $mappedAddress = $address->family === IP\Family::V4
+                ? IP\Address::fromBytes("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff" . $address->toBytes())
+                : $address;
             foreach ($this->denied as $denied) {
                 if ($denied instanceof CIDR\Block) {
-                    if ($denied->contains($address)) {
+                    if ($denied->contains($address) || $denied->contains($mappedAddress)) {
                         throw new RuntimeException(
                             'Connection to ' . $peerHost . ' is denied by client configuration.',
                         );

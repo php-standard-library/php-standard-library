@@ -93,6 +93,32 @@ final class DeniedDestinationsMiddlewareTest extends TestCase
         yield 'mapped deny entry' => ['::ffff:169.254.169.254', '169.254.169.254'];
     }
 
+    #[DataProvider('equivalentCIDRDestinations')]
+    public function testCIDRMatchesMappedIPv6(string $denied, string $peerHost): void
+    {
+        $middleware = new DeniedDestinationsMiddleware([new CIDR\Block($denied)]);
+        $this->expectException(RuntimeException::class);
+
+        $middleware->process(
+            self::createConnection($peerHost),
+            new Request(method: 'GET', url: URL\parse('http://example.com/')),
+            new ClientConfiguration(),
+            self::createHandler(),
+        );
+    }
+
+    /** @return iterable<string, array{non-empty-string, non-empty-string}> */
+    public static function equivalentCIDRDestinations(): iterable
+    {
+        yield 'IPv4 block, mapped peer' => ['169.254.0.0/16', '::ffff:169.254.169.254'];
+        yield 'mapped block, IPv4 peer' => ['::ffff:169.254.0.0/112', '169.254.169.254'];
+        yield 'mapped block, mapped peer' => ['::ffff:169.254.0.0/112', '::ffff:169.254.169.254'];
+        yield 'mapped prefix, IPv4 peer' => ['::ffff:0:0/96', '8.8.8.8'];
+        yield 'mapped prefix, mapped peer' => ['::ffff:0:0/96', '::ffff:8.8.8.8'];
+        yield 'mapped prefix, hex peer' => ['::ffff:0:0/96', '::ffff:808:808'];
+        yield 'mapped prefix, bracketed peer' => ['::ffff:0:0/96', '[::ffff:8.8.8.8]'];
+    }
+
     #[DataProvider('publicDestinations')]
     public function testAllowsPublicDestinations(string $peerHost): void
     {
