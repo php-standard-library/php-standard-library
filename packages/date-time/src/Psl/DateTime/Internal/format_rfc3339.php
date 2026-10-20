@@ -49,7 +49,8 @@ function format_rfc3339(
         false => 'uuuu-MM-dd\'T\'HH:mm:ss@xxx',
     };
 
-    $formatter = namespace\create_intl_date_formatter(pattern: $pattern, timezone: $timezone);
+    // Pin the locale: the default one may use other digits (e.g. Arabic-Indic for "ar_EG").
+    $formatter = namespace\create_intl_date_formatter(pattern: $pattern, timezone: $timezone, locale: 'en_US_POSIX');
     $rfcString = $formatter->format($seconds);
 
     /** @var string */

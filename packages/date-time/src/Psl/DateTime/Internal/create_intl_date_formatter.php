@@ -13,6 +13,8 @@ use Psl\DateTime\Timezone;
 use Psl\Locale\Locale;
 
 /**
+ * @param null|Locale|string $locale The locale; a string is used as an ICU locale identifier as-is.
+ *
  * @internal
  *
  * @psalm-mutation-free
@@ -22,9 +24,22 @@ function create_intl_date_formatter(
     null|TimeStyle $timeStyle = null,
     null|FormatPattern|string $pattern = null,
     null|Timezone $timezone = null,
-    null|Locale $locale = null,
+    null|Locale|string $locale = null,
 ): IntlDateFormatter {
     $isoWeekDate = FormatPattern::IsoWeekDate === $pattern;
+    if (null === $locale && $pattern instanceof FormatPattern) {
+        // Machine-readable formats must not depend on the default locale, which may use other digits
+        // (e.g. Arabic-Indic for "ar_EG") or other month and weekday names.
+        $locale = match ($pattern) {
+            FormatPattern::SimpleDate,
+            FormatPattern::American,
+            FormatPattern::WeekdayMonthDayYear,
+            FormatPattern::FullDateTime,
+                => null,
+            default => 'en_US_POSIX',
+        };
+    }
+
     if ($pattern instanceof FormatPattern) {
         $pattern = $pattern->value;
     }
@@ -35,7 +50,7 @@ function create_intl_date_formatter(
     $timezone ??= Timezone::default();
 
     $formatter = new IntlDateFormatter(
-        $locale->value,
+        $locale instanceof Locale ? $locale->value : $locale,
         match ($dateStyle) {
             DateStyle::None => IntlDateFormatter::NONE,
             DateStyle::Short => IntlDateFormatter::SHORT,

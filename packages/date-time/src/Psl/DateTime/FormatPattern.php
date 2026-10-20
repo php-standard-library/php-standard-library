@@ -13,6 +13,11 @@ use Psl\Default\DefaultInterface;
  * This enum provides a collection of standardized date pattern strings for various protocols
  * and standards, such as RFC 2822, ISO 8601, HTTP headers, and more.
  *
+ * When no locale is given, the machine-readable patterns (every case except {@see FormatPattern::SimpleDate},
+ * {@see FormatPattern::American}, {@see FormatPattern::WeekdayMonthDayYear}, and
+ * {@see FormatPattern::FullDateTime}) are formatted and parsed with the "en_US_POSIX" locale instead of the
+ * default locale, so they always use ASCII digits and English month and weekday names.
+ *
  * @api
  */
 enum FormatPattern: string implements DefaultInterface

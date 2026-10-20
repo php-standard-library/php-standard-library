@@ -654,6 +654,21 @@ final class DateTimeTest extends TestCase
         static::assertStringNotContainsString('Z', $result);
     }
 
+    public function testToRfc3339DoesNotDependOnTheDefaultLocale(): void
+    {
+        $timestamp = Timestamp::fromParts(1_705_320_000, 5_000_000);
+
+        foreach (['ar_EG', 'fa_IR', 'hi_IN@numbers=deva'] as $defaultLocale) {
+            locale_set_default($defaultLocale);
+
+            static::assertSame('2024-01-15T12:00:00.005+00:00', $timestamp->toRfc3339());
+            static::assertSame(
+                '2024-01-15T13:00:00.005+01:00',
+                DateTime::fromTimestamp($timestamp, Timezone::EuropeParis)->toRfc3339(),
+            );
+        }
+    }
+
     public function testEqualIncludingTimezone(): void
     {
         $datetime1 = DateTime::fromParts(Timezone::UTC, 2024, Month::February, 4, 14, 0, 0, 0);

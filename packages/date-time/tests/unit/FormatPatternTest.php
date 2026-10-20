@@ -13,6 +13,8 @@ use Psl\DateTime\Timestamp;
 use Psl\DateTime\Timezone;
 use Psl\Locale\Locale;
 
+use function locale_set_default;
+
 final class FormatPatternTest extends TestCase
 {
     use DateTimeTestTrait;
@@ -20,6 +22,43 @@ final class FormatPatternTest extends TestCase
     public function testDefault(): void
     {
         static::assertSame(FormatPattern::Iso8601, FormatPattern::default());
+    }
+
+    public function testMachineReadablePatternsDoNotDependOnTheDefaultLocale(): void
+    {
+        $timestamp = Timestamp::fromParts(1_705_320_000, 123_000_000);
+
+        foreach (['ar_EG', 'fa_IR', 'fr_FR', 'de_DE'] as $defaultLocale) {
+            locale_set_default($defaultLocale);
+
+            static::assertSame('Mon, 15 Jan 2024 12:00:00 +0000', $timestamp->format(
+                FormatPattern::Rfc2822,
+                Timezone::UTC,
+            ));
+            static::assertSame('2024-01-15T12:00:00.123Z', $timestamp->format(FormatPattern::Iso8601, Timezone::UTC));
+            static::assertSame('2024-01-15 12:00:00', $timestamp->format(FormatPattern::SqlDateTime, Timezone::UTC));
+            static::assertSame(
+                '2024-01-15 13:00:00,123',
+                DateTime::fromTimestamp($timestamp, Timezone::EuropeParis)->format(FormatPattern::LogTimestamp),
+            );
+
+            $parsed = Timestamp::parse('Mon, 15 Jan 2024 12:00:00 +0000', FormatPattern::Rfc2822, Timezone::UTC);
+            static::assertSame(1_705_320_000, $parsed->getSeconds());
+
+            // An explicit locale is still honoured.
+            static::assertSame('lun., 15 janv. 2024 12:00:00 +0000', $timestamp->format(
+                FormatPattern::Rfc2822,
+                Timezone::UTC,
+                Locale::FrenchFrance,
+            ));
+        }
+
+        // Display patterns keep following the default locale.
+        locale_set_default('fr_FR');
+        static::assertSame('lundi, janvier 15, 2024 12:00:00', $timestamp->format(
+            FormatPattern::FullDateTime,
+            Timezone::UTC,
+        ));
     }
 
     /**
