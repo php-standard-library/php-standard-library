@@ -153,7 +153,7 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
      *
      * ```php
      * $rawString = '2023-03-15 12:00:00';
-     * $parsed_timestamp = DateTime\Timestamp::parse($rawString, 'yyyy-MM-dd HH:mm:ss', DateTime\Timezone::Utc, Locale\Locale::English);
+     * $parsed_timestamp = DateTime\Timestamp::parse($rawString, 'yyyy-MM-dd HH:mm:ss', DateTime\Timezone::UTC, Locale\Locale::English);
      * ```
      *
      * @param string $rawString The date and time string to parse.
@@ -199,9 +199,9 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
      * Example usage:
      *
      * ```php
-     * $rawString = "March 15, 2023, 12:00 PM";
+     * $rawString = "March 15, 2023 at 12:00 PM";
      *
-     * $timestamp = DateTime\Timestamp::fromString($rawString, FormatDateStyle::Long, FormatTimeStyle::Short, DateTime\Timezone::Utc, Locale\Locale::English);
+     * $timestamp = DateTime\Timestamp::fromString($rawString, DateTime\DateStyle::Long, DateTime\TimeStyle::Short, DateTime\Timezone::UTC, Locale\Locale::English);
      * ```
      *
      * @param string $rawString The date and time string to parse.

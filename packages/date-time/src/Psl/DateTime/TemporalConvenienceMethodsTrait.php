@@ -349,7 +349,7 @@ trait TemporalConvenienceMethodsTrait
      * Example usage:
      *
      * ```php
-     * $stringRepresentation = $temporal->toString(FormatDateStyle::Long, FormatTimeStyle::Short, $timezone, $locale);
+     * $stringRepresentation = $temporal->toString(DateStyle::Long, TimeStyle::Short, $timezone, $locale);
      * ```
      *
      * @param null|DateStyle $dateStyle Optional style for the date portion of the output. If null, a default style is used.

@@ -299,7 +299,7 @@ final readonly class DateTime implements
      *
      * ```php
      * $rawString = '2023-03-15 12:00:00';
-     * $parsed_datetime = DateTime\DateTime::parse($rawString, 'yyyy-MM-dd HH:mm:ss', DateTime\Timezone::Utc, Locale\Locale::English);
+     * $parsed_datetime = DateTime\DateTime::parse($rawString, 'yyyy-MM-dd HH:mm:ss', DateTime\Timezone::UTC, Locale\Locale::English);
      * ```
      *
      * @param string $rawString The date and time string to parse.
@@ -340,9 +340,9 @@ final readonly class DateTime implements
      * Example usage:
      *
      * ```php
-     * $rawString = "March 15, 2023, 12:00 PM";
+     * $rawString = "March 15, 2023 at 12:00 PM";
      *
-     * $datetime = DateTime\DateTime::fromString($rawString, FormatDateStyle::Long, FormatTimeStyle::Short, DateTime\Timezone::Utc, Locale\Locale::English);
+     * $datetime = DateTime\DateTime::fromString($rawString, DateTime\DateStyle::Long, DateTime\TimeStyle::Short, DateTime\Timezone::UTC, Locale\Locale::English);
      * ```
      *
      * @param string $rawString The date and time string to parse.
