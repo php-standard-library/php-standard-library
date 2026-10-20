@@ -28,7 +28,7 @@ Multipart types compose multiple parts into a single body, delimited by a bounda
 
 ### Form Data
 
-`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads.
+`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads. Parts added with `addPart()` get a `form-data` disposition that keeps the part's filename, and are sent as raw bytes: RFC 7578 deprecates Content-Transfer-Encoding, so the base64 or quoted-printable encoding of `Part\Data` and `Part\Text` is undone.
 
 @example('protocols/mime-form.php')
 

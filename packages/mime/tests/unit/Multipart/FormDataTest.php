@@ -6,10 +6,15 @@ namespace Psl\MIME\Tests\Unit\Multipart;
 
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
+use Psl\MIME\ContentDisposition;
 use Psl\MIME\Headers;
+use Psl\MIME\MediaType;
 use Psl\MIME\MultiPart\Form;
 use Psl\MIME\MultiPart\Parser;
+use Psl\MIME\Part\Data;
 use Psl\MIME\Part\Part;
+use Psl\MIME\Part\PartInterface;
+use Psl\MIME\Part\Text;
 use Psl\Str\Byte;
 
 use function iterator_to_array;
@@ -127,27 +132,179 @@ final class FormDataTest extends TestCase
         static::assertStringContainsString('form-boundary', $contentType);
     }
 
-    public function testAddPartReplacesContentDisposition(): void
+    public function testAddPartReplacesDispositionTypeAndKeepsFilename(): void
     {
         $form = new Form('disp-boundary');
         $part = new Part(Headers::fromPairs([
-            ['Content-Disposition', 'attachment; filename="old.txt"'],
+            ['Content-Disposition', 'attachment; filename="old file.txt"'],
             ['Content-Type',        'text/plain'],
         ]), new IO\MemoryHandle('content'));
         $form->addPart('myfield', $part);
 
-        $output = new IO\MemoryHandle();
-        IO\copy($form->body(), $output);
-
-        $parser = new Parser('disp-boundary');
-        $output->seek(0);
-        $parts = iterator_to_array($parser->parse($output));
+        $parts = self::roundTrip($form);
 
         static::assertCount(1, $parts);
         $dispositionValue = $parts[0]->headers->get('content-disposition');
         static::assertNotNull($dispositionValue);
-        static::assertStringContainsString('name=myfield', $dispositionValue);
+        static::assertSame('form-data; name=myfield; filename="old file.txt"', $dispositionValue);
         static::assertSame('text/plain', $parts[0]->headers->get('content-type'));
+        static::assertSame('content', $parts[0]->body()->readAll());
+    }
+
+    public function testAddDataPartSendsRawBytesWithFilename(): void
+    {
+        $bytes = "\x89PNG\r\n\x1a\n\x00\x01\x02\xFE\xFF binary payload \r\n--not-a-boundary";
+        $form = new Form('data-boundary');
+        $form->addPart(
+            'avatar',
+            new Data(new IO\MemoryHandle($bytes), filename: 'avatar.png', mediaType: MediaType::parse('image/png')),
+        );
+
+        $parts = self::roundTrip($form);
+
+        static::assertCount(1, $parts);
+        $disposition = ContentDisposition::parse((string) $parts[0]->headers->get('content-disposition'));
+        static::assertSame('form-data', $disposition->type);
+        static::assertSame('avatar', $disposition->parameters->get('name'));
+        static::assertSame('avatar.png', $disposition->filename());
+        static::assertSame('image/png', $parts[0]->headers->get('content-type'));
+        static::assertFalse($parts[0]->headers->has('content-transfer-encoding'));
+        static::assertSame($bytes, $parts[0]->body()->readAll());
+    }
+
+    public function testAddDataPartWithoutFilenameHasNoFilenameParameter(): void
+    {
+        $form = new Form('nofile-boundary');
+        $form->addPart('blob', new Data(new IO\MemoryHandle("\x00\x01\x02")));
+
+        $parts = self::roundTrip($form);
+
+        static::assertSame('form-data; name=blob', $parts[0]->headers->get('content-disposition'));
+        static::assertFalse($parts[0]->headers->has('content-transfer-encoding'));
+        static::assertSame("\x00\x01\x02", $parts[0]->body()->readAll());
+    }
+
+    public function testAddPartPercentEncodesLineBreaksAndQuotesInFilename(): void
+    {
+        $form = new Form('inject-boundary');
+        $form->addPart(
+            'upload',
+            new Data(new IO\MemoryHandle('real body'), filename: "a.txt\"\r\nX-Injected: yes\r\n\r\nfake\r\"\n"),
+        );
+
+        $body = $form->body()->readAll();
+
+        static::assertStringNotContainsString("\r\nX-Injected", $body);
+        static::assertStringContainsString(
+            'Content-Disposition: form-data; name=upload; filename="a.txt%22%0D%0AX-Injected: yes%0D%0A%0D%0Afake%0D%22%0A"'
+            . "\r\n",
+            $body,
+        );
+
+        $parts = iterator_to_array(new Parser('inject-boundary')->parse(new IO\MemoryHandle($body)), false);
+
+        static::assertCount(1, $parts);
+        static::assertFalse($parts[0]->headers->has('x-injected'));
+        $disposition = ContentDisposition::parse((string) $parts[0]->headers->get('content-disposition'));
+        static::assertSame('a.txt%22%0D%0AX-Injected: yes%0D%0A%0D%0Afake%0D%22%0A', $disposition->unsafeFilename());
+        static::assertSame('real body', $parts[0]->body()->readAll());
+    }
+
+    public function testAddTextPartSendsDecodedText(): void
+    {
+        $text = "caf\u{e9} = cr\u{e8}me br\u{fb}l\u{e9}e, a line that is long enough to need a soft line break in QP";
+        $form = new Form('text-boundary');
+        $form->addPart('note', new Text(new IO\MemoryHandle($text)));
+
+        $parts = self::roundTrip($form);
+
+        static::assertSame('form-data; name=note', $parts[0]->headers->get('content-disposition'));
+        static::assertSame('text/plain; charset=utf-8', $parts[0]->headers->get('content-type'));
+        static::assertFalse($parts[0]->headers->has('content-transfer-encoding'));
+        static::assertSame($text, $parts[0]->body()->readAll());
+    }
+
+    public function testAddTextPartKeepsTrailingLineBreaks(): void
+    {
+        $form = new Form('text-boundary');
+        $form->addPart('crlf', new Text(new IO\MemoryHandle("a\r\n\r\n")));
+        $form->addPart('lf', new Text(new IO\MemoryHandle("b\n\n\n")));
+
+        $parts = self::roundTrip($form);
+
+        static::assertSame("a\r\n\r\n", $parts[0]->body()->readAll());
+        static::assertSame("b\r\n\r\n\r\n", $parts[1]->body()->readAll());
+    }
+
+    public function testAddPartDropsIdentityTransferEncoding(): void
+    {
+        $form = new Form('identity-boundary');
+        $form->addPart('raw', new Part(Headers::fromPairs([
+            ['Content-Type',              'application/octet-stream'],
+            ['Content-Transfer-Encoding', ' Binary '],
+        ]), new IO\MemoryHandle("\x00raw")));
+
+        $parts = self::roundTrip($form);
+
+        static::assertFalse($parts[0]->headers->has('content-transfer-encoding'));
+        static::assertSame("\x00raw", $parts[0]->body()->readAll());
+    }
+
+    public function testAddPartKeepsUnknownTransferEncoding(): void
+    {
+        $form = new Form('unknown-boundary');
+        $form->addPart('legacy', new Part(Headers::fromPairs([
+            ['Content-Type',              'application/octet-stream'],
+            ['Content-Transfer-Encoding', 'x-uuencode'],
+        ]), new IO\MemoryHandle('begin 644 file')));
+
+        $parts = self::roundTrip($form);
+
+        static::assertSame('x-uuencode', $parts[0]->headers->get('content-transfer-encoding'));
+        static::assertSame('begin 644 file', $parts[0]->body()->readAll());
+    }
+
+    public function testAddPartFollowsTheLastOfSeveralTransferEncodings(): void
+    {
+        $form = new Form('repeated-boundary');
+        $form->addPart('known-last', new Part(Headers::fromPairs([
+            ['Content-Transfer-Encoding', 'x-uuencode'],
+            ['Content-Transfer-Encoding', 'base64'],
+        ]), new IO\MemoryHandle('aGVsbG8=')));
+        $form->addPart('unknown-last', new Part(Headers::fromPairs([
+            ['Content-Transfer-Encoding', 'base64'],
+            ['Content-Transfer-Encoding', 'x-uuencode'],
+        ]), new IO\MemoryHandle('aGVsbG8=')));
+
+        $parts = self::roundTrip($form);
+
+        static::assertFalse($parts[0]->headers->has('content-transfer-encoding'));
+        static::assertSame('hello', $parts[0]->body()->readAll());
+
+        static::assertSame(
+            [
+                ['Content-Transfer-Encoding', 'base64'],
+                ['Content-Transfer-Encoding', 'x-uuencode'],
+            ],
+            self::transferEncodingHeaders($parts[1]),
+        );
+        static::assertSame('aGVsbG8=', $parts[1]->body()->readAll());
+    }
+
+    public function testAddPartIgnoresMalformedContentDisposition(): void
+    {
+        $form = new Form('malformed-boundary');
+        $form->addPart(
+            'field',
+            new Part(Headers::fromPairs([
+                ['Content-Disposition', 'attachment; filename="unterminated'],
+            ]), new IO\MemoryHandle('value')),
+        );
+
+        $parts = self::roundTrip($form);
+
+        static::assertSame('form-data; name=field', $parts[0]->headers->get('content-disposition'));
+        static::assertSame('value', $parts[0]->body()->readAll());
     }
 
     public function testAddPartSkipsContentDispositionCaseInsensitive(): void
@@ -249,5 +406,34 @@ final class FormDataTest extends TestCase
         static::assertCount(1, $parts);
         $allDispositions = $parts[0]->headers->all('content-disposition');
         static::assertCount(1, $allDispositions);
+    }
+
+    /**
+     * @return list<array{string, string}>
+     */
+    private static function transferEncodingHeaders(PartInterface $part): array
+    {
+        $headers = [];
+        foreach ($part->headers->pairs() as [$name, $value]) {
+            if (Byte\lowercase($name) !== 'content-transfer-encoding') {
+                continue;
+            }
+
+            $headers[] = [$name, $value];
+        }
+
+        return $headers;
+    }
+
+    /**
+     * @return list<PartInterface>
+     */
+    private static function roundTrip(Form $form): array
+    {
+        $output = new IO\MemoryHandle();
+        IO\copy($form->body(), $output);
+        $output->seek(0);
+
+        return iterator_to_array(new Parser($form->boundary)->parse($output), false);
     }
 }
