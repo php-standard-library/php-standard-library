@@ -528,7 +528,7 @@ final class Message implements MessageInterface
         }
 
         try {
-            return DateTime\DateTime::parse(trim($value), FormatPattern::Rfc2822);
+            return DateTime\DateTime::parse(trim($value, " \t\r\n"), FormatPattern::Rfc2822);
         } catch (DateTime\Exception\RuntimeException) {
             return null;
         }

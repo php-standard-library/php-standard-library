@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Message\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
@@ -461,6 +462,37 @@ final class MessageTest extends TestCase
         ]));
 
         static::assertNotNull($message->date);
+    }
+
+    #[Test]
+    public function dateWithFoldingWhitespaceIsTrimmed(): void
+    {
+        $message = new Message(Headers::fromPairs([
+            ['Date', "\r\n Mon, 01 Jan 2024 12:00:00 +0000\r\n"],
+        ]));
+
+        static::assertNotNull($message->date);
+    }
+
+    #[Test]
+    #[DataProvider('provideLeadingControlCharacters')]
+    public function dateWithLeadingControlCharactersIsNotTrimmed(string $prefix): void
+    {
+        $message = new Message(Headers::fromPairs([
+            ['Date', "{$prefix}Mon, 01 Jan 2024 12:00:00 +0000"],
+        ]));
+
+        static::assertNull($message->date);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideLeadingControlCharacters(): iterable
+    {
+        yield 'NUL byte' => ["\0"];
+        yield 'form feed then NUL byte' => ["\x0C\0"];
+        yield 'vertical tab then NUL byte' => ["\x0B\0"];
     }
 
     #[Test]
