@@ -78,8 +78,10 @@ $public = new DNSSEC\SecureResolver(
     new DNSSEC\CachedTrustChainResolver(new DNSSEC\TrustChainResolver($public), $cache),
 );
 
-// 5. Static overrides first, then DNSSEC-validated public DNS
-$base = new DNS\FallbackResolver([$static, $public]);
+// 5. Route static names locally and other names to validated public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 6. Route corporate domains to internal DNS (unvalidated),
 //    everything else to static + DNSSEC-validated public

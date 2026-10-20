@@ -7,6 +7,7 @@ namespace Psl\DNS\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
+use Psl\DNS\Exception\InvalidArgumentException;
 use Psl\DNS\Exception\NetworkException;
 use Psl\DNS\Exception\ProtocolException;
 use Psl\DNS\Exception\RuntimeException as DnsRuntimeException;
@@ -108,17 +109,28 @@ final class FallbackResolverTest extends TestCase
         static::assertSame($successResponse, $result);
     }
 
-    public function testFallsBackOnNonExistentDomainResponseCode(): void
+    public function testReturnsNonExistentDomainWithoutFallback(): void
     {
         $nxResponse = new Response(9, ResponseCode::NonExistentDomain, [], [], []);
-        $successResponse = new Response(10, ResponseCode::NoError, [], [], []);
         $first = $this->createMockResolver($nxResponse);
-        $second = $this->createMockResolver($successResponse);
+        $second = $this->createMock(ResolverInterface::class);
+        $second->expects(static::never())->method('query');
 
         $resolver = new FallbackResolver([$first, $second]);
         $result = $resolver->query('internal.database', RecordType::A);
 
-        static::assertSame($successResponse, $result);
+        static::assertSame($nxResponse, $result);
+    }
+
+    public function testDoesNotRetryInvalidInput(): void
+    {
+        $error = InvalidArgumentException::forLabelContainsNull();
+        $second = $this->createMock(ResolverInterface::class);
+        $second->expects(static::never())->method('query');
+        $resolver = new FallbackResolver([$this->createThrowingResolver($error), $second]);
+
+        $this->expectExceptionObject($error);
+        $resolver->query("bad\0.example", RecordType::A);
     }
 
     public function testReturnsFormatErrorWithoutFallback(): void

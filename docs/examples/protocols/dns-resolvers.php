@@ -24,7 +24,8 @@ $dot = new DNS\TCPResolver(
 // DNS-over-HTTPS (RFC 8484)
 $doh = new DNS\HTTPSResolver('https://1.1.1.1/dns-query');
 
-// UDP with automatic TCP fallback on truncated responses
+// Retry TCP after truncation, transport errors, SERVFAIL, or REFUSED.
+// NXDOMAIN ends the query without a TCP retry.
 $fallback = new DNS\FallbackResolver([$udp, $tcp]);
 
 // Race multiple nameservers, return the fastest response

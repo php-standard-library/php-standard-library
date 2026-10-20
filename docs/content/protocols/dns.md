@@ -16,6 +16,8 @@ By default, `SystemResolver` uses plain UDP with TCP fallback for each nameserve
 
 Resolvers can be composed for different strategies: direct UDP/TCP, fallback on truncation, racing multiple nameservers, DNS-over-TLS, or DNS-over-HTTPS.
 
+`FallbackResolver` tries the next resolver after a transport or protocol failure, SERVFAIL, or REFUSED. It returns NXDOMAIN at once because the response answers the query. It returns other response codes, including FORMERR, and propagates invalid input and cancellation. Use `SplitHorizonResolver` to route static names separately from public DNS.
+
 @example('protocols/dns-resolvers.php')
 
 ## Record Types
@@ -64,7 +66,7 @@ Pass EDNS0 options to any query for features like DNS cookies, client subnet hin
 
 ## Blocking System Resolver
 
-`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Useful as a lightweight fallback behind a `StaticResolver`, or in environments where async DNS is unnecessary.
+`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Use it where async DNS is unnecessary. `SplitHorizonResolver` can route known names to a `StaticResolver` and all other names to this resolver.
 
 Supports A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT, CAA, and NAPTR record types. EDNS0 options are ignored. Queries for unsupported types return NXDOMAIN.
 

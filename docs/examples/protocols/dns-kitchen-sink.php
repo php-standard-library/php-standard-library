@@ -71,8 +71,10 @@ $public = new DNS\RacingResolver([
     ]),
 ]);
 
-// 4. Static overrides first, then public nameservers
-$base = new DNS\FallbackResolver([$static, $public]);
+// 4. Route static names locally and other names to public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 5. Route corporate domains to internal DNS, everything else to public
 $routed = new DNS\SplitHorizonResolver(routes: [

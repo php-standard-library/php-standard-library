@@ -10,7 +10,8 @@ use Psl\DNS\Record\RecordType;
 
 /**
  * A resolver that tries multiple resolvers in order, falling back to the next
- * one when the current resolver fails or returns a server-side error.
+ * one when the current resolver fails or returns SERVFAIL or REFUSED.
+ * NXDOMAIN is a final answer. Invalid input is not retried.
  *
  * @api
  */
@@ -35,16 +36,10 @@ final readonly class FallbackResolver implements ResolverInterface
         array $ednsOptions = [],
     ): Response {
         $lastError = null;
-        $lastNxdomainResponse = null;
 
         foreach ($this->resolvers as $resolver) {
             try {
                 $response = $resolver->query($name, $type, $cancellation, $ednsOptions);
-
-                if ($response->code === ResponseCode::NonExistentDomain) {
-                    $lastNxdomainResponse = $response;
-                    continue;
-                }
 
                 if (
                     $response->code === ResponseCode::ServerFailure
@@ -55,14 +50,10 @@ final readonly class FallbackResolver implements ResolverInterface
                 }
 
                 return $response;
-            } catch (Exception\ExceptionInterface $e) {
+            } catch (Exception\RuntimeException $e) {
                 $lastError = $e;
                 continue;
             }
-        }
-
-        if ($lastNxdomainResponse !== null) {
-            return $lastNxdomainResponse;
         }
 
         throw Exception\RuntimeException::forAllResolversFailed('fallback', $lastError);
