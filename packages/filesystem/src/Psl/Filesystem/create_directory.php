@@ -6,6 +6,7 @@ namespace Psl\Filesystem;
 
 use function mkdir;
 use function sprintf;
+use function str_contains;
 
 /**
  * Create the directory specified by $directory.
@@ -13,11 +14,16 @@ use function sprintf;
  * @param non-empty-string $directory
  *
  * @throws Exception\RuntimeException If unable to create the directory.
+ * @throws Exception\InvalidArgumentException If $directory contains a NUL byte.
  *
  * @api
  */
 function create_directory(string $directory, int $permissions = 0o777): void
 {
+    if (str_contains($directory, "\0")) {
+        throw new Exception\InvalidArgumentException('$directory should not contain a NUL byte.');
+    }
+
     if (namespace\is_directory($directory)) {
         return;
     }

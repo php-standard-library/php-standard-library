@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\Filesystem;
 
 use function sprintf;
+use function str_contains;
 use function symlink;
 
 /**
@@ -15,6 +16,7 @@ use function symlink;
  *
  * @throws Exception\RuntimeException If unable to create the symbolic link.
  * @throws Exception\NotFoundException If $source is not found.
+ * @throws Exception\InvalidArgumentException If $destination contains a NUL byte.
  * @throws Exception\NotReadableException If $destination is a non-empty directory, and is non-readable {@see delete_directory()}.
  *
  * @mago-expect lint:no-empty-catch-clause
@@ -25,6 +27,10 @@ function create_symbolic_link(string $source, string $destination): void
 {
     if (!namespace\exists($source)) {
         throw Exception\NotFoundException::forNode($source);
+    }
+
+    if (str_contains($destination, "\0")) {
+        throw new Exception\InvalidArgumentException('$destination should not contain a NUL byte.');
     }
 
     namespace\create_directory_for_file($destination);

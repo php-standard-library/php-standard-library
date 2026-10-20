@@ -6,6 +6,7 @@ namespace Psl\Filesystem;
 
 use function link;
 use function sprintf;
+use function str_contains;
 
 /**
  * Create a hard link for $source.
@@ -16,6 +17,7 @@ use function sprintf;
  * @throws Exception\RuntimeException If unable to create the hard link.
  * @throws Exception\NotFoundException If $source does not exist.
  * @throws Exception\NotFileException If $source is not a file.
+ * @throws Exception\InvalidArgumentException If $destination contains a NUL byte.
  * @throws Exception\NotReadableException If $destination is a non-empty directory, and is non-readable {@see delete_directory()}.
  *
  * @api
@@ -28,6 +30,10 @@ function create_hard_link(string $source, string $destination): void
 
     if (!namespace\is_file($source)) {
         throw Exception\NotFileException::for($source);
+    }
+
+    if (str_contains($destination, "\0")) {
+        throw new Exception\InvalidArgumentException('$destination should not contain a NUL byte.');
     }
 
     if (namespace\exists($destination)) {

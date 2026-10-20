@@ -21,7 +21,7 @@ use function sys_get_temp_dir;
  * @throws Exception\RuntimeException If unable to create the file.
  * @throws Exception\NotFoundException If $directory is not found.
  * @throws Exception\NotDirectoryException If $directory is not a directory.
- * @throws Exception\InvalidArgumentException If $prefix contains a directory separator.
+ * @throws Exception\InvalidArgumentException If $prefix contains a directory separator or a NUL byte.
  *
  * @return non-empty-string The absolute path to the temporary file.
  *
@@ -50,6 +50,10 @@ function create_temporary_file(null|string $directory = null, null|string $prefi
                 '$prefix should not contain a directory separator ( "%s" ).',
                 $separator,
             ));
+        }
+
+        if (str_contains($prefix, "\0")) {
+            throw new Exception\InvalidArgumentException('$prefix should not contain a NUL byte.');
         }
     } else {
         $prefix = '';

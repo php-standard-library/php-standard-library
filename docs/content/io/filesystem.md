@@ -38,4 +38,6 @@ All operations throw specific exceptions on failure:
 
 @example('io/filesystem-error-handling.php')
 
+A path containing a NUL byte can never exist. Predicates such as `exists()` and `is_file()` return `false` for it, and `canonicalize()` returns `null`. Passing such a path where an existing node is expected, such as to `file_size()` or as the directory of `create_temporary_file()`, throws `NotFoundException`. Passing it as a node to create, such as the destination of `copy()` or the path given to `create_file()`, throws `InvalidArgumentException`.
+
 See `src/Psl/Filesystem/` for the full API.
