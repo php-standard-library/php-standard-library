@@ -32,7 +32,7 @@ final class DerEncoder
      * - N bytes: exponent
      * - Remaining bytes: modulus
      *
-     * @throws SignatureFailedException If the key is too short.
+     * @throws SignatureFailedException If the key is too short, or its exponent or modulus is empty.
      */
     public static function rsaPublicKeyToPem(string $rawKey): string
     {
@@ -55,6 +55,10 @@ final class DerEncoder
 
         if (($offset + $expLen) > $keyLength) {
             throw SignatureFailedException::forRSAExponentOverflow();
+        }
+
+        if (0 === $expLen || ($offset + $expLen) === $keyLength) {
+            throw SignatureFailedException::forEmptyRSAKeyComponent();
         }
 
         $exponent = substr($rawKey, $offset, $expLen);

@@ -48,6 +48,14 @@ final class SignatureFailedException extends RuntimeException
     }
 
     /**
+     * Create an exception when an RSA public key has an empty exponent or modulus.
+     */
+    public static function forEmptyRSAKeyComponent(): self
+    {
+        return new self('RSA public key must have a non-empty exponent and modulus.');
+    }
+
+    /**
      * Create an exception for an unsupported ECDSA coordinate size.
      */
     public static function forUnsupportedCoordinateSize(int $size): self

@@ -175,6 +175,24 @@ final class DerEncoderTest extends TestCase
         DerEncoder::rsaPublicKeyToPem("\x01\x02");
     }
 
+    public function testRsaPublicKeyToPemRejectsEmptyModulus(): void
+    {
+        $this->expectException(SignatureFailedException::class);
+        $this->expectExceptionMessage('RSA public key must have a non-empty exponent and modulus.');
+
+        // The 2-byte exponent consumes the rest of the key, leaving no modulus.
+        DerEncoder::rsaPublicKeyToPem("\x02\x01\x00");
+    }
+
+    public function testRsaPublicKeyToPemRejectsEmptyExponent(): void
+    {
+        $this->expectException(SignatureFailedException::class);
+        $this->expectExceptionMessage('RSA public key must have a non-empty exponent and modulus.');
+
+        // A 0x00 length byte introduces a 2-byte exponent length, here zero.
+        DerEncoder::rsaPublicKeyToPem("\x00\x00\x00" . Str\repeat("\xAB", 128));
+    }
+
     public function testEcdsaSignatureToDerTooShort(): void
     {
         $this->expectException(SignatureFailedException::class);
