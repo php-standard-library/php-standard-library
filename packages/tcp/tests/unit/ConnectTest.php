@@ -11,6 +11,8 @@ use Psl\Network;
 use Psl\Str;
 use Psl\TCP;
 
+use function error_reporting;
+
 final class ConnectTest extends TestCase
 {
     public function testClosedPortThrows(): void
@@ -34,6 +36,26 @@ final class ConnectTest extends TestCase
         new TCP\RetryConnector(new TCP\Connector(), 2, Duration::milliseconds(1))
             ->connect('127.0.0.1', $port)
             ->close();
+    }
+
+    public function testConcurrentConnectsPreserveErrorReporting(): void
+    {
+        $listener = TCP\listen('127.0.0.1');
+        $port = $listener->getLocalAddress()->port;
+        $level = error_reporting();
+
+        try {
+            $connect = static function () use ($port, $level): void {
+                TCP\connect('127.0.0.1', $port)->close();
+                static::assertSame($level, error_reporting());
+            };
+            Async\concurrently([$connect, $connect]);
+
+            static::assertSame($level, error_reporting());
+        } finally {
+            error_reporting($level);
+            $listener->close();
+        }
     }
 
     public function testConnect(): void
