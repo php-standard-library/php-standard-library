@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Async\Tests\Unit;
 
+use Generator;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime;
@@ -48,5 +49,19 @@ final class FirstTest extends TestCase
         $this->expectExceptionMessage('$awaitables must be a non-empty-iterable.');
 
         Async\first([]);
+    }
+
+    public function testFirstWithGenerator(): void
+    {
+        $awaitables = (static function (): Generator {
+            yield Async\run(static function (): string {
+                Async\sleep(DateTime\Duration::milliseconds(2));
+
+                return 'a';
+            });
+            yield Async\run(static fn(): string => 'b');
+        })();
+
+        static::assertSame('b', Async\first($awaitables));
     }
 }

@@ -7,6 +7,9 @@ namespace Psl\Async;
 use Psl\Async\Exception\CompositeException;
 use Throwable;
 
+use function is_array;
+use function iterator_to_array;
+
 /**
  * Unwraps the first successfully completed awaitable.
  *
@@ -25,6 +28,11 @@ use Throwable;
  */
 function any(iterable $awaitables): mixed
 {
+    // `$awaitables` is traversed more than once, which a generator does not support.
+    if (!is_array($awaitables)) {
+        $awaitables = iterator_to_array($awaitables, preserve_keys: false);
+    }
+
     $errors = [];
     foreach (Awaitable::iterate($awaitables) as $first) {
         try {

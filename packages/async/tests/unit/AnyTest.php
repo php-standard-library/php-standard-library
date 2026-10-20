@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Async\Tests\Unit;
 
+use Generator;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime;
@@ -59,5 +60,20 @@ final class AnyTest extends TestCase
             Async\Awaitable::error(new InvariantViolationException('foo')),
             Async\Awaitable::error(new InvariantViolationException('bar')),
         ]);
+    }
+
+    public function testAnyWithGenerator(): void
+    {
+        $awaitables = (static function (): Generator {
+            yield Async\Awaitable::error(new InvariantViolationException('a'));
+            yield Async\run(static function (): string {
+                Async\sleep(DateTime\Duration::milliseconds(2));
+
+                return 'b';
+            });
+            yield Async\run(static fn(): string => 'c');
+        })();
+
+        static::assertSame('c', Async\any($awaitables));
     }
 }

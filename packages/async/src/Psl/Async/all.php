@@ -22,15 +22,24 @@ use Throwable;
  */
 function all(iterable $awaitables): array
 {
+    // `$awaitables` is traversed more than once, which a generator does not support, and may repeat
+    // keys, which an array does not support: work on a list, and key the results at the end.
+    $keys = [];
+    $list = [];
+    foreach ($awaitables as $key => $awaitable) {
+        $keys[] = $key;
+        $list[] = $awaitable;
+    }
+
     $values = [];
 
     // Awaitable::iterate() to throw the first error based on completion order instead of argument order
-    foreach (Awaitable::iterate($awaitables) as $index => $awaitable) {
+    foreach (Awaitable::iterate($list) as $index => $awaitable) {
         try {
             $values[$index] = $awaitable->await();
         } catch (Throwable $exception) {
             $errors = [];
-            foreach ($awaitables as $original) {
+            foreach ($list as $original) {
                 if ($original === $awaitable) {
                     continue;
                 }
@@ -60,8 +69,8 @@ function all(iterable $awaitables): array
     }
 
     $result = [];
-    foreach ($awaitables as $k => $_) {
-        $result[$k] = $values[$k];
+    foreach ($keys as $index => $key) {
+        $result[$key] = $values[$index];
     }
 
     return $result;

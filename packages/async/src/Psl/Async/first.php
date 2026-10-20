@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Psl\Async;
 
+use function is_array;
+use function iterator_to_array;
+
 /**
  * Unwraps the first completed awaitable.
  *
@@ -21,6 +24,11 @@ namespace Psl\Async;
  */
 function first(iterable $awaitables): mixed
 {
+    // `$awaitables` is traversed more than once, which a generator does not support.
+    if (!is_array($awaitables)) {
+        $awaitables = iterator_to_array($awaitables, preserve_keys: false);
+    }
+
     foreach (Awaitable::iterate($awaitables) as $first) {
         foreach ($awaitables as $awaitable) {
             if ($awaitable === $first) {
