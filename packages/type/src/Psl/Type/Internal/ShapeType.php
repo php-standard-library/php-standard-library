@@ -124,7 +124,7 @@ final readonly class ShapeType extends Type\Type
             }
         } catch (CoercionException) {
             // Fallback to slow implementation - unhappy path. Prevents having to eagerly compute traces.
-            $this->coerceIterable($value);
+            return $this->coerceIterable($value);
         }
 
         foreach ($this->elements_types as $key => $type) {

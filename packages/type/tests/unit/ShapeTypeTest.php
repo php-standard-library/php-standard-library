@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\Type\Tests\Unit;
 
 use ArrayIterator;
+use ArrayObject;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psl\Collection;
@@ -442,6 +443,29 @@ final class ShapeTypeTest extends TypeTestCase
         $result = $type->coerce(['name' => 'test']);
         static::assertSame('test', $result['name']);
         static::assertNull($result['age']);
+    }
+
+    public function testCoercionUsesTheSlowPathResultWhenTheFastPathFails(): void
+    {
+        $calls = new ArrayObject();
+        // Fails the first time it is used (on the fast path), succeeds afterwards (on the slow path).
+        $flaky = Type\converted(Type\mixed(), Type\int(), static function (mixed $_) use ($calls): int {
+            $calls->append(true);
+            if (1 === $calls->count()) {
+                throw new RuntimeException('transient failure');
+            }
+
+            return 42;
+        });
+
+        $type = Type\shape([
+            'a' => Type\int(),
+            'b' => $flaky,
+            'c' => Type\int(),
+        ]);
+
+        static::assertSame(['a' => 1, 'b' => 42, 'c' => 3], $type->coerce(['a' => 1, 'b' => 'x', 'c' => 3]));
+        static::assertCount(2, $calls);
     }
 
     public function testNullishToString(): void
