@@ -45,7 +45,7 @@ final class Listener implements TCP\ListenerInterface
     /**
      * Raw sockets waiting to be consumed by accept().
      *
-     * @var list<resource>
+     * @var list<array{resource, Network\Address}>
      */
     private array $backlog = [];
 
@@ -57,7 +57,7 @@ final class Listener implements TCP\ListenerInterface
     /**
      * Suspensions waiting for the next accepted stream.
      *
-     * @var list<Suspension<resource>>
+     * @var list<Suspension<array{resource, Network\Address}>>
      */
     private array $acceptors = [];
 
@@ -88,7 +88,7 @@ final class Listener implements TCP\ListenerInterface
 
         $this->watcher = EventLoop::onReadable($impl, function (string $watcher, mixed $resource): void {
             while (true) {
-                $sock = @stream_socket_accept($resource, timeout: 0.0);
+                $sock = self::acceptSocket($resource);
                 if ($sock !== false) {
                     if ($this->acceptors !== []) {
                         $acceptor = array_shift($this->acceptors);
@@ -153,17 +153,17 @@ final class Listener implements TCP\ListenerInterface
         }
 
         if ($this->backlog !== []) {
-            $socket = array_shift($this->backlog);
+            [$socket, $peerAddress] = array_shift($this->backlog);
             $this->backlogSize--;
 
-            return new Stream($socket, $this->localAddress);
+            return new Stream($socket, $this->localAddress, $peerAddress);
         }
 
         if ($cancellation->cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        /** @var Suspension<resource> $suspension */
+        /** @var Suspension<array{resource, Network\Address}> $suspension */
         $suspension = EventLoop::getSuspension();
         $this->acceptors[] = $suspension;
 
@@ -178,17 +178,17 @@ final class Listener implements TCP\ListenerInterface
             });
 
             try {
-                $socket = $suspension->suspend();
+                [$socket, $peerAddress] = $suspension->suspend();
 
-                return new Stream($socket, $this->localAddress);
+                return new Stream($socket, $this->localAddress, $peerAddress);
             } finally {
                 $cancellation->unsubscribe($id);
             }
         }
 
-        $socket = $suspension->suspend();
+        [$socket, $peerAddress] = $suspension->suspend();
 
-        return new Stream($socket, $this->localAddress);
+        return new Stream($socket, $this->localAddress, $peerAddress);
     }
 
     /**
@@ -221,7 +221,7 @@ final class Listener implements TCP\ListenerInterface
         }
 
         while ($this->acceptors !== [] && is_resource($this->impl)) {
-            $sock = @stream_socket_accept($this->impl, timeout: 0.0);
+            $sock = self::acceptSocket($this->impl);
             if ($sock === false) {
                 break;
             }
@@ -246,7 +246,7 @@ final class Listener implements TCP\ListenerInterface
             $acceptor->throw($exception);
         }
 
-        foreach ($this->backlog as $sock) {
+        foreach ($this->backlog as [$sock]) {
             if (!is_resource($sock)) {
                 continue;
             }
@@ -262,6 +262,25 @@ final class Listener implements TCP\ListenerInterface
         if (is_resource($resource)) {
             fclose($resource);
         }
+    }
+
+    /**
+     * @param resource $resource
+     *
+     * @return false|array{resource, Network\Address}
+     */
+    private static function acceptSocket(mixed $resource): false|array
+    {
+        $peerName = null;
+        while (false !== ($socket = @stream_socket_accept($resource, 0.0, $peerName))) {
+            try {
+                return [$socket, Network\Internal\get_peer_name($socket, $peerName !== '' ? $peerName : null)];
+            } catch (Network\Exception\RuntimeException) {
+                fclose($socket);
+            }
+        }
+
+        return false;
     }
 
     public function __destruct()

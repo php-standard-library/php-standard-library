@@ -6,12 +6,59 @@ namespace Psl\TCP\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\Network\Exception\AlreadyStoppedException;
 use Psl\TCP;
 
+use function extension_loaded;
+use function fclose;
+use function socket_import_stream;
+use function socket_set_option;
+use function stream_socket_client;
+
+use const SO_LINGER;
+use const SOL_SOCKET;
+
 final class ServerTest extends TestCase
 {
+    public function testResetBufferedConnectionKeepsCapturedPeer(): void
+    {
+        if (!extension_loaded('sockets')) {
+            static::markTestSkipped('The sockets extension is required.');
+        }
+
+        $listener = TCP\listen('127.0.0.1');
+        $port = $listener->getLocalAddress()->port;
+
+        try {
+            $warmup = TCP\connect('127.0.0.1', $port);
+            $listener->accept()->close();
+            $warmup->close();
+
+            $client = stream_socket_client("tcp://127.0.0.1:{$port}");
+            static::assertIsResource($client);
+            $socket = socket_import_stream($client);
+            static::assertNotFalse($socket);
+            static::assertTrue(socket_set_option($socket, SOL_SOCKET, SO_LINGER, ['l_onoff' => 1, 'l_linger' => 0]));
+            Async\sleep(Duration::milliseconds(50));
+            fclose($client);
+            unset($socket);
+            Async\sleep(Duration::milliseconds(50));
+
+            $connection = $listener->accept(new Async\TimeoutCancellationToken(Duration::seconds(1)));
+            static::assertSame('127.0.0.1', $connection->getPeerAddress()->host);
+            $connection->close();
+            static::assertFalse($listener->isClosed());
+
+            $next = TCP\connect('127.0.0.1', $port);
+            $listener->accept()->close();
+            $next->close();
+        } finally {
+            $listener->close();
+        }
+    }
+
     public function testAcceptOnStoppedListener(): void
     {
         $listener = TCP\listen(

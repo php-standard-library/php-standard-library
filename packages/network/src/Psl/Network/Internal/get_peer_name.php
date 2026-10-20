@@ -7,12 +7,14 @@ namespace Psl\Network\Internal;
 use Psl\Network;
 
 use function error_clear_last;
+use function error_get_last;
 use function stream_socket_get_name;
 use function strrpos;
 use function substr;
 
 /**
  * @param resource $socket
+ * @param null|non-empty-string $peerName
  *
  * @throws Network\Exception\RuntimeException If unable to retrieve peer address.
  *
@@ -20,12 +22,13 @@ use function substr;
  *
  * @codeCoverageIgnore
  */
-function get_peer_name(mixed $socket): Network\Address
+function get_peer_name(mixed $socket, null|string $peerName = null): Network\Address
 {
     error_clear_last();
     /** @var non-empty-string|false $result */
-    $result = stream_socket_get_name($socket, true);
-    if (false !== $result && "\0" !== $result) {
+    $result = $peerName ?? stream_socket_get_name($socket, true);
+
+    if (false !== $result) {
         $separatorPosition = strrpos($result, ':');
         if (false === $separatorPosition) {
             return Network\Address::unix($result);
@@ -39,5 +42,9 @@ function get_peer_name(mixed $socket): Network\Address
         return Network\Address::tcp($host, $port);
     }
 
-    return namespace\get_sock_name($socket);
+    $error = error_get_last();
+    throw new Network\Exception\RuntimeException(
+        'Error retrieving peer address: ' . ($error['message'] ?? 'the socket has no peer address.'),
+        $error['type'] ?? 0,
+    );
 }

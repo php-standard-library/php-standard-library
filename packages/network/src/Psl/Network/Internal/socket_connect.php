@@ -13,8 +13,10 @@ use Revolt\EventLoop\Suspension;
 
 use function fclose;
 use function is_resource;
+use function str_starts_with;
 use function stream_context_create;
 use function stream_socket_client;
+use function stream_socket_get_name;
 
 use const STREAM_CLIENT_ASYNC_CONNECT;
 use const STREAM_CLIENT_CONNECT;
@@ -87,11 +89,21 @@ function socket_connect(
             $writeWatcher = EventLoop::onWritable($socket, static function () use (
                 $suspension,
                 $socket,
+                $uri,
                 $cancellation,
                 &$cancellationId,
             ): void {
                 if (null !== $cancellationId) {
                     $cancellation->unsubscribe($cancellationId);
+                }
+
+                // A Unix-domain connect has completed by the time the socket exists, and PHP reports no peer name
+                // for a socket in the Linux abstract namespace, so only a TCP connect is checked for its peer.
+                if (!str_starts_with($uri, 'unix://') && false === @stream_socket_get_name($socket, true)) {
+                    fclose($socket);
+                    $suspension->throw(new Exception\RuntimeException('Failed to connect to client "' . $uri . '".'));
+
+                    return;
                 }
 
                 $suspension->resume($socket);

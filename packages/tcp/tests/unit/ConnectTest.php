@@ -6,11 +6,36 @@ namespace Psl\TCP\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\DateTime\Duration;
+use Psl\Network;
 use Psl\Str;
 use Psl\TCP;
 
 final class ConnectTest extends TestCase
 {
+    public function testClosedPortThrows(): void
+    {
+        $listener = TCP\listen('127.0.0.1');
+        $port = $listener->getLocalAddress()->port;
+        $listener->close();
+
+        $this->expectException(Network\Exception\RuntimeException::class);
+        TCP\connect('127.0.0.1', $port)->close();
+    }
+
+    public function testRetryConnectorRetriesClosedPort(): void
+    {
+        $listener = TCP\listen('127.0.0.1');
+        $port = $listener->getLocalAddress()->port;
+        $listener->close();
+
+        $this->expectException(Network\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('after 2 attempts. Attempt 1:');
+        new TCP\RetryConnector(new TCP\Connector(), 2, Duration::milliseconds(1))
+            ->connect('127.0.0.1', $port)
+            ->close();
+    }
+
     public function testConnect(): void
     {
         Async\concurrently([
