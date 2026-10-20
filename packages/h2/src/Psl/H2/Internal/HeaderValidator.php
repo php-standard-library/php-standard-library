@@ -66,6 +66,12 @@ final readonly class HeaderValidator
         $hasProtocol = false;
 
         foreach ($headers as $header) {
+            /** @var string $name */
+            $name = $header->name;
+            if ($name === '') {
+                throw StreamException::forMalformedMessage($streamId, 'Header name must not be empty');
+            }
+
             if (strpbrk($header->value, "\0\r\n") !== false || trim($header->value, " \t") !== $header->value) {
                 throw StreamException::forMalformedMessage(
                     $streamId,
