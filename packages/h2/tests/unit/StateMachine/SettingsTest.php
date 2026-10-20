@@ -202,15 +202,14 @@ final class SettingsTest extends TestCase
         static::assertInstanceOf(SettingsReceived::class, $events[0]);
     }
 
-    public function testInvalidHeaderTableSizeThrows(): void
+    public function testLargeHeaderTableSizeIsAccepted(): void
     {
         $sm = new StateMachine(true);
         $sm->initialize();
 
-        $this->expectException(ProtocolException::class);
-
         $frame = new SettingsFrame([Setting::HeaderTableSize->value => 2_000_000], false)->toRaw();
-        $sm->receive($frame);
+        [$frames] = $sm->receive($frame);
+        static::assertTrue(SettingsFrame::fromRaw($frames[0])->ack);
     }
 
     public function testMaxConcurrentStreamsEnforcedOnReceivedHeaders(): void

@@ -648,7 +648,7 @@ final class ConnectionTest extends TestCase
         $conn->readEvent();
     }
 
-    public function testHeaderTableSizeExceedingLimitThrowsProtocolError(): void
+    public function testHeaderTableSizeExceedingEncoderLimitIsAccepted(): void
     {
         $settingsPayload = pack('nN', Setting::HeaderTableSize->value, 2_000_000);
         $settingsFrame = new Frame\RawFrame(FrameType::Settings->value, 0, 0, $settingsPayload);
@@ -657,8 +657,8 @@ final class ConnectionTest extends TestCase
         $handle = new IO\MemoryHandle($settingsData);
         $conn = new ServerConnection($handle);
 
-        $this->expectException(ProtocolException::class);
-        $conn->readEvent();
+        $events = $conn->readEvent();
+        static::assertInstanceOf(SettingsReceived::class, $events[0]);
     }
 
     public function testHeaderTableSizeWithinLimitAccepted(): void

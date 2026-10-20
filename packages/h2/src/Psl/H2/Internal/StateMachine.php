@@ -42,7 +42,6 @@ use Psl\H2\StreamState;
 use Psl\HPACK\Decoder;
 use Psl\HPACK\Encoder;
 use Psl\HPACK\Exception\ExceptionInterface as HPACKException;
-use Psl\HPACK\Exception\InvalidSizeException;
 use Psl\HPACK\Header;
 
 use function ctype_digit;
@@ -996,14 +995,7 @@ final class StateMachine
         }
 
         if (isset($frame->settings[Setting::HeaderTableSize->value])) {
-            try {
-                $this->hpackEncoder->resize($frame->settings[Setting::HeaderTableSize->value]);
-            } catch (InvalidSizeException $e) {
-                throw ProtocolException::forSettingsValueOutOfRange(
-                    'HEADER_TABLE_SIZE',
-                    $frame->settings[Setting::HeaderTableSize->value],
-                );
-            }
+            $this->hpackEncoder->resize(min($frame->settings[Setting::HeaderTableSize->value], 1_048_576));
         }
 
         if (isset($frame->settings[Setting::MaxHeaderListSize->value])) {
@@ -1037,9 +1029,6 @@ final class StateMachine
                 : null,
             Setting::MaxFrameSize => $value < DEFAULT_MAX_FRAME_SIZE || $value > MAX_FRAME_SIZE_UPPER_BOUND
                 ? throw ProtocolException::forSettingsValueOutOfRange('MAX_FRAME_SIZE', $value)
-                : null,
-            Setting::HeaderTableSize => $value > 1_048_576
-                ? throw ProtocolException::forSettingsValueOutOfRange('HEADER_TABLE_SIZE', $value)
                 : null,
             Setting::EnableConnectProtocol => $value !== 0 && $value !== 1
                 ? throw ProtocolException::forSettingsValueOutOfRange('ENABLE_CONNECT_PROTOCOL', $value)
