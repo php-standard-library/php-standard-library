@@ -9,7 +9,8 @@ use Psl\MIME\SMIME;
 // Signing requires a certificate and private key in PEM format.
 // Verification can optionally check the certificate chain against trusted CAs.
 // Encryption requires the recipient's certificate; decryption requires their private key.
-// All operations are in-memory -- no temporary files or openssl_pkcs7_* calls.
+// Verification uses temporary certificate and signer metadata files, then removes them.
+// Plaintext stays in memory. Chain verification needs explicit trust anchors.
 
 /** @var string $certPem */
 /** @var string $keyPem */

@@ -1,6 +1,6 @@
 # MIME
 
-The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing - all without filesystem coupling or temporary files.
+The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing.
 
 ## Media Types
 
@@ -40,7 +40,9 @@ The streaming parser yields parts lazily from a read handle, with configurable l
 
 ## S/MIME Cryptography
 
-Sign, verify, encrypt, and decrypt using CMS (RFC 5652) - entirely in-memory without temporary files or `openssl_pkcs7_*` functions.
+Sign, verify, encrypt, and decrypt using CMS (RFC 5652). Chain verification requires explicit trust anchors and uses OpenSSL to check certificate validity, purpose, and chains through embedded intermediates. An empty trust list rejects every certificate, including self-signed certificates. Pass `verifyCertificateChain: false` only to check the signature without establishing trust.
+
+Verification uses OpenSSL to select the signer certificate using X.509 name comparison rules. It writes certificates and signer metadata to private temporary directories and removes them after each check. Plaintext stays in memory. Signing, encryption, and decryption need no temporary files.
 
 @example('protocols/mime-smime.php')
 

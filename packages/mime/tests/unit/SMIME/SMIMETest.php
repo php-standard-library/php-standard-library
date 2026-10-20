@@ -436,16 +436,14 @@ final class SMIMETest extends TestCase
         static::assertSame('Skip chain check', $result->content);
     }
 
-    public function testVerifySelfSignedWithEmptyTrustedCerts(): void
+    public function testVerifySelfSignedWithEmptyTrustedCertsThrows(): void
     {
         $signer = new Signer(Certificates::PRIMARY_CERT, Certificates::PRIMARY_KEY);
         $signed = $signer->sign('Self-signed message');
 
         $verifier = new Verifier();
-        $result = $verifier->verify($signed, verifyCertificateChain: true);
-
-        static::assertTrue($result->valid);
-        static::assertSame('Self-signed message', $result->content);
+        $this->expectException(CMSException::class);
+        $verifier->verify($signed, verifyCertificateChain: true);
     }
 
     public function testVerifyNonSelfSignedWithEmptyTrustedCertsThrows(): void

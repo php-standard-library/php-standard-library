@@ -11,17 +11,33 @@ use Psl\MIME\Exception\SMIMEException;
 use Psl\MIME\SMIME\DigestAlgorithm;
 use Psl\MIME\SMIME\VerificationResult;
 
+use function bin2hex;
 use function count;
+use function file_get_contents;
+use function file_put_contents;
+use function implode;
+use function mkdir;
+use function openssl_cms_verify;
 use function openssl_digest;
 use function openssl_verify;
+use function openssl_x509_checkpurpose;
+use function openssl_x509_export;
 use function openssl_x509_parse;
-use function openssl_x509_verify;
+use function random_bytes;
+use function rmdir;
+use function strlen;
+use function sys_get_temp_dir;
 use function time;
+use function unlink;
 
 use const OPENSSL_ALGO_SHA1;
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
+use const OPENSSL_CMS_NOSIGS;
+use const OPENSSL_CMS_NOVERIFY;
+use const OPENSSL_ENCODING_DER;
+use const X509_PURPOSE_SMIME_SIGN;
 
 /**
  * Parses and verifies CMS SignedData structures per RFC 5652 section 5.
@@ -223,16 +239,22 @@ final class SignedDataParser
             $signingTime = self::extractSigningTime($signedAttrsContent);
         }
 
-        $certPem = self::extractCertificateFromDer($certificatesDer);
+        $certificates = self::extractCertificatesFromDer($certificatesDer);
+        $certPem = self::findSignerCertificate(
+            $certificatesDer,
+            DEREncoder::sequence($signerInfoContent),
+            DEREncoder::sequence($siElements[2][1]),
+            $siElements[1][0] === 0x80 ? "\x03" : "\x01",
+        );
         if ($certPem === null) {
-            throw CMSException::forMalformedStructure('no certificate found in SignedData');
+            throw CMSException::forMalformedStructure('no certificate matches the SignerInfo identifier');
         }
 
         $result = openssl_verify($signedAttrsDer, $signatureValue, $certPem, $opensslAlgo);
 
         if ($result === 1 && !$noverify) {
             self::verifyCertificateValidity($certPem);
-            self::verifyCertificateChain($certPem, $trustedCertificatesPem);
+            self::verifyCertificateChain($certPem, $trustedCertificatesPem, $certificates);
         }
 
         return [
@@ -401,59 +423,151 @@ final class SignedDataParser
     }
 
     /**
-     * Verify the signer certificate is trusted.
-     *
-     * When trusted CAs are provided, the signer cert must be issued by one of them.
-     * When no CAs are provided, the signer cert must be self-signed.
+     * Validate the signing certificate and its chain against the given trust anchors.
      *
      * @param list<string> $trustedCertificatesPem
+     * @param list<string> $certificatesPem Untrusted certificates embedded in SignedData.
      *
-     * @throws CMSException If the certificate is not trusted.
+     * @throws CMSException If the chain is not trusted or its files cannot be written.
      */
-    private static function verifyCertificateChain(string $certPem, array $trustedCertificatesPem): void
-    {
+    private static function verifyCertificateChain(
+        string $certPem,
+        array $trustedCertificatesPem,
+        array $certificatesPem,
+    ): void {
         if ($trustedCertificatesPem === []) {
-            // No CAs provided: accept only self-signed certificates
-            $selfSigned = openssl_x509_verify($certPem, $certPem);
-            if ($selfSigned === 1) {
-                return;
-            }
-
             throw CMSException::forUntrustedCertificate();
         }
 
-        foreach ($trustedCertificatesPem as $caPem) {
-            $verified = openssl_x509_verify($certPem, $caPem);
-            if ($verified === 1) {
-                return;
+        foreach ($trustedCertificatesPem as $index => $trustedCertificate) {
+            $normalized = '';
+            if (!@openssl_x509_export($trustedCertificate, $normalized)) {
+                throw CMSException::forInvalidCertificate('failed to parse trust anchor');
             }
+
+            // Explicit S/MIME trust lets OpenSSL stop at an intermediate CA.
+            $trust = DEREncoder::sequence(DEREncoder::sequence(DEREncoder::objectIdentifier(
+                "\x2B\x06\x01\x05\x05\x07\x03\x04",
+            )));
+            $trustedCertificatesPem[$index] = DEREncoder::pemEncode(
+                DEREncoder::pemDecode($normalized) . $trust,
+                'TRUSTED CERTIFICATE',
+            );
         }
 
-        throw CMSException::forUntrustedCertificate();
+        // OpenSSL's PHP chain verifier requires files. A private directory also
+        // prevents PHP from adding the system CA directory to the trust store.
+        $directory = self::createCertificateDirectory();
+
+        $trustedPath = $directory . '/trusted.pem';
+        $untrustedPath = $directory . '/untrusted.pem';
+        try {
+            $trusted = implode("\n", $trustedCertificatesPem);
+            $untrusted = implode("\n", $certificatesPem);
+            if (
+                @file_put_contents($trustedPath, $trusted) !== strlen($trusted)
+                || @file_put_contents($untrustedPath, $untrusted) !== strlen($untrusted)
+            ) {
+                throw CMSException::forInvalidCertificate('cannot write certificate chain');
+            }
+
+            if (
+                @openssl_x509_checkpurpose(
+                    $certPem,
+                    X509_PURPOSE_SMIME_SIGN,
+                    [$trustedPath, $directory],
+                    $untrustedPath,
+                ) !== true
+            ) {
+                throw CMSException::forUntrustedCertificate();
+            }
+        } finally {
+            @unlink($trustedPath);
+            @unlink($untrustedPath);
+            @rmdir($directory);
+        }
     }
 
     /**
-     * Extract the first X.509 certificate from the certificates field and PEM-encode it.
-     *
-     * @param string $certificatesDer The raw DER bytes from the certificates [0] IMPLICIT field.
-     *
-     * @throws CMSException If the DER structure is malformed.
-     *
-     * @return null|string The PEM-encoded certificate, or null if the field is empty.
+     * @return list<string> Embedded X.509 certificates in PEM format.
      */
-    private static function extractCertificateFromDer(string $certificatesDer): null|string
+    private static function extractCertificatesFromDer(string $certificatesDer): array
     {
-        if ($certificatesDer === '') {
-            return null;
+        $certificates = [];
+        foreach (DERDecoder::parseAll($certificatesDer) as [$tag, $content]) {
+            if ($tag !== 0x30) {
+                continue;
+            }
+
+            $certificates[] = DEREncoder::pemEncode(DEREncoder::sequence($content), 'CERTIFICATE');
         }
 
-        [$tag, $certContent] = DERDecoder::parse($certificatesDer);
-        if ($tag !== 0x30) {
-            return null;
+        return $certificates;
+    }
+
+    /**
+     * Let OpenSSL match the first signer using X.509 name comparison rules.
+     *
+     * The temporary CMS holds no plaintext. Signature and trust checks use the
+     * original data after OpenSSL selects the certificate.
+     */
+    private static function findSignerCertificate(
+        string $certificatesDer,
+        string $signerInfoDer,
+        string $digestAlgorithmDer,
+        string $version,
+    ): null|string {
+        $signedData = DEREncoder::sequence(
+            DEREncoder::integer($version)
+                . DEREncoder::set($digestAlgorithmDer)
+                . DEREncoder::sequence(
+                    DEREncoder::objectIdentifier(OID::DATA) . DEREncoder::contextTag(0, DEREncoder::octetString('')),
+                )
+                . DEREncoder::contextTag(0, $certificatesDer)
+                . DEREncoder::set($signerInfoDer),
+        );
+        $metadata = DEREncoder::sequence(
+            DEREncoder::objectIdentifier(OID::SIGNED_DATA) . DEREncoder::contextTag(0, $signedData),
+        );
+        $directory = self::createCertificateDirectory();
+        $inputPath = $directory . '/signer.der';
+        $outputPath = $directory . '/signer.pem';
+
+        try {
+            if (@file_put_contents($inputPath, $metadata) !== strlen($metadata)) {
+                throw CMSException::forInvalidCertificate('cannot write signer metadata');
+            }
+
+            if (!@openssl_cms_verify(
+                $inputPath,
+                OPENSSL_CMS_NOVERIFY | OPENSSL_CMS_NOSIGS,
+                $outputPath,
+                encoding: OPENSSL_ENCODING_DER,
+            )) {
+                return null;
+            }
+
+            $certificate = @file_get_contents($outputPath);
+            if ($certificate === false) {
+                throw CMSException::forInvalidCertificate('cannot read signer certificate');
+            }
+
+            return $certificate;
+        } finally {
+            @unlink($inputPath);
+            @unlink($outputPath);
+            @rmdir($directory);
+        }
+    }
+
+    /** @return non-empty-string */
+    private static function createCertificateDirectory(): string
+    {
+        $directory = sys_get_temp_dir() . '/psl-cms-' . bin2hex(random_bytes(16));
+        if (!@mkdir($directory, 0o700)) {
+            throw CMSException::forInvalidCertificate('cannot create certificate directory');
         }
 
-        $certDer = DEREncoder::sequence($certContent);
-
-        return DEREncoder::pemEncode($certDer, 'CERTIFICATE');
+        return $directory;
     }
 }
