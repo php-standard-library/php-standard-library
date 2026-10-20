@@ -1208,6 +1208,178 @@ final class DateTimeTest extends TestCase
         static::assertSame(1, $result->getDay());
     }
 
+    public function testDayArithmeticKeepsTheWallClockTimeAcrossDaylightSavingTime(): void
+    {
+        // Europe/London springs forward on 2024-03-31: that day has 23 hours.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 3, 30, 12, 0, 0, 42);
+
+        static::assertSame('2024-03-31T12:00:00.000000042+01:00', $dt->plusDays(1)->toRfc3339());
+        static::assertSame('2024-03-31T12:00:00.000000042+01:00', $dt->plus(Period::days(1))->toRfc3339());
+        static::assertSame('2024-04-06T12:00:00.000000042+01:00', $dt->plusWeeks(1)->toRfc3339());
+        static::assertSame('2024-04-06T12:00:00.000000042+01:00', $dt->plus(Period::weeks(1))->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 4, 1, 12);
+
+        static::assertSame('2024-03-30T12:00:00+00:00', $dt->minusDays(2)->toRfc3339());
+        static::assertSame('2024-03-30T12:00:00+00:00', $dt->minus(Period::days(2))->toRfc3339());
+        static::assertSame('2024-03-25T12:00:00+00:00', $dt->minusWeeks(1)->toRfc3339());
+        static::assertSame('2024-03-25T12:00:00+00:00', $dt->minus(Period::weeks(1))->toRfc3339());
+
+        // Europe/London falls back on 2024-10-27: that day has 25 hours.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 28, 12);
+
+        static::assertSame('2024-10-26T12:00:00+01:00', $dt->minusDays(2)->toRfc3339());
+        static::assertSame('2024-10-29T12:00:00+00:00', $dt->minusDays(2)->plusDays(3)->toRfc3339());
+        static::assertSame('2024-10-21T12:00:00+01:00', $dt->minusWeeks(1)->toRfc3339());
+
+        // The start and end of the week are computed with day arithmetic as well.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 30, 12);
+
+        static::assertSame('2024-10-28T00:00:00+00:00', $dt->atStartOfWeek()->toRfc3339());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 22, 12);
+
+        static::assertSame('2024-10-27T23:59:59.999999999+00:00', $dt->atEndOfWeek()->toRfc3339());
+    }
+
+    public function testDayArithmeticIntoASkippedOrRepeatedWallClockTime(): void
+    {
+        // 01:30 does not exist on 2024-03-31 in Europe/London; it moves forward by the one-hour gap.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 3, 30, 1, 30);
+
+        static::assertSame('2024-03-31T02:30:00+01:00', $dt->plusDays(1)->toRfc3339());
+        static::assertSame('2024-04-01T01:30:00+01:00', $dt->plusDays(2)->toRfc3339());
+
+        // 01:30 happens twice on 2024-10-27; the occurrence with the current offset is kept.
+        $bst = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 26, 1, 30);
+        $gmt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 28, 1, 30);
+
+        static::assertSame('2024-10-27T01:30:00+01:00', $bst->plusDays(1)->toRfc3339());
+        static::assertSame('2024-10-27T01:30:00+00:00', $gmt->minusDays(1)->toRfc3339());
+
+        // Pacific/Apia skipped 2011-12-30 entirely.
+        $dt = DateTime::fromParts(Timezone::PacificApia, 2011, 12, 29, 12);
+
+        static::assertSame('2011-12-31T12:00:00+14:00', $dt->plusDays(1)->toRfc3339());
+        static::assertSame('2011-12-31T12:00:00+14:00', $dt->plusDays(2)->toRfc3339());
+    }
+
+    public function testPeriodAddsMonthsThenDaysOnTheWallClock(): void
+    {
+        // 2024-03-31 01:30 does not exist in Europe/London, but 2024-04-01 01:30 does.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2023, 3, 31, 1, 30);
+
+        static::assertSame('2024-04-01T01:30:00+01:00', $dt->plus(Period::fromParts(1, 0, 1))->toRfc3339());
+        static::assertSame(
+            '2023-03-31T01:30:00+01:00',
+            $dt
+                ->plus(Period::fromParts(1, 0, 1))
+                ->minus(Period::fromParts(1, 0, 1))
+                ->toRfc3339(),
+        );
+    }
+
+    public function testDayArithmeticOverflow(): void
+    {
+        $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);
+
+        foreach ([
+            [static fn(): DateTime => $dt->plusDays(PHP_INT_MAX), OverflowException::class],
+            [static fn(): DateTime => $dt->minusDays(PHP_INT_MIN), OverflowException::class],
+            [static fn(): DateTime => $dt->plusWeeks(PHP_INT_MAX), OverflowException::class],
+            [static fn(): DateTime => $dt->minusDays(PHP_INT_MAX), UnderflowException::class],
+            [static fn(): DateTime => $dt->plusWeeks(PHP_INT_MIN), UnderflowException::class],
+            [static fn(): DateTime => $dt->minus(Period::days(PHP_INT_MAX)), UnderflowException::class],
+        ] as [$operation, $exception]) {
+            try {
+                $operation();
+                static::fail('Expected ' . $exception);
+            } catch (OverflowException|UnderflowException $e) {
+                static::assertInstanceOf($exception, $e);
+            }
+        }
+    }
+
+    public function testOutOfRangeMonthArithmeticDoesNotReportAClampedYear(): void
+    {
+        $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);
+
+        try {
+            $dt->plus(Period::years(PHP_INT_MAX));
+            static::fail('Expected an OverflowException.');
+        } catch (OverflowException $e) {
+            static::assertSame(
+                'The resulting date is after 5368709-12-31, the latest supported date.',
+                $e->getMessage(),
+            );
+        }
+
+        try {
+            $dt->minus(Period::years(PHP_INT_MAX));
+            static::fail('Expected an UnderflowException.');
+        } catch (UnderflowException $e) {
+            static::assertSame(
+                'The resulting date is before -5838268-01-01, the earliest supported date.',
+                $e->getMessage(),
+            );
+        }
+    }
+
+    public function testDayArithmeticCoversTheSupportedRange(): void
+    {
+        // More days than the 32 bits `IntlCalendar::add()` takes, with a result within the supported range.
+        $dt = DateTime::fromParts(Timezone::UTC, -5_000_000, 1, 1, 12);
+        $later = $dt->plusDays(3_000_000_000);
+
+        static::assertSame('3213618-05-06T12:00:00+00:00', $later->toRfc3339());
+        static::assertSame($dt->toRfc3339(), $later->minusDays(3_000_000_000)->toRfc3339());
+
+        // The edges of the supported range.
+        static::assertSame(
+            '5368709-12-31T12:00:00+00:00',
+            DateTime::fromParts(Timezone::UTC, 5_368_709, 12, 30, 12)->plusDays(1)->toRfc3339(),
+        );
+        static::assertSame(
+            '-5838268-01-01T12:00:00+00:00',
+            DateTime::fromParts(Timezone::UTC, -5_838_268, 1, 2, 12)->minusDays(1)->toRfc3339(),
+        );
+
+        $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 1);
+
+        foreach ([
+            [
+                static fn(): DateTime => DateTime::fromParts(Timezone::UTC, 5_368_709, 12, 31)->plusDays(1),
+                OverflowException::class,
+            ],
+            [
+                static fn(): DateTime => DateTime::fromParts(Timezone::UTC, -5_838_268, 1, 1)->minusDays(1),
+                UnderflowException::class,
+            ],
+            [static fn(): DateTime => $dt->plusDays(2_100_000_000), OverflowException::class],
+            [static fn(): DateTime => $dt->plusWeeks(300_000_000), OverflowException::class],
+            [static fn(): DateTime => $dt->minusDays(2_140_000_000), UnderflowException::class],
+            [static fn(): DateTime => $dt->plus(Period::days(2_100_000_000)), OverflowException::class],
+            [static fn(): DateTime => $dt->plus(Period::years(6_000_000)), OverflowException::class],
+            [static fn(): DateTime => $dt->minus(Period::years(6_000_000)), UnderflowException::class],
+        ] as [$operation, $exception]) {
+            try {
+                $operation();
+                static::fail('Expected ' . $exception);
+            } catch (OverflowException|UnderflowException $e) {
+                static::assertInstanceOf($exception, $e);
+            }
+        }
+    }
+
+    public function testFromPartsResolvesARepeatedTimeToItsLaterOccurrence(): void
+    {
+        // 01:30 happens twice on 2024-10-27 in Europe/London.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 27, 1, 30);
+
+        static::assertSame('2024-10-27T01:30:00+00:00', $dt->toRfc3339());
+        static::assertSame('2024-10-27T01:30:00+01:00', $dt->minusHours(1)->toRfc3339());
+    }
+
     public function testGetDayOfYear(): void
     {
         $jan1 = DateTime::fromParts(Timezone::UTC, 2025, 1, 1);

@@ -10,6 +10,7 @@ use Psl\Locale\Locale;
 use function abs;
 use function ceil;
 use function intdiv;
+use function max;
 use function min;
 
 /**
@@ -575,6 +576,9 @@ trait DateTimeConvenienceMethodsTrait
     /**
      * Adds the specified weeks to this date-time object, returning a new instance with the added weeks.
      *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeConvenienceMethodsTrait::plusDays()}.
+     *
      * @throws Exception\UnderflowException If adding the weeks results in an arithmetic underflow.
      * @throws Exception\OverflowException If adding the weeks results in an arithmetic overflow.
      *
@@ -582,11 +586,14 @@ trait DateTimeConvenienceMethodsTrait
      */
     public function plusWeeks(int $weeks): static
     {
-        return $this->plusDays($weeks * namespace\DAYS_PER_WEEK);
+        return $this->shiftLocalDateTime(1, 0, 0, $weeks, 0);
     }
 
     /**
      * Subtracts the specified weeks from this date-time object, returning a new instance with the subtracted weeks.
+     *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeConvenienceMethodsTrait::plusDays()}.
      *
      * @throws Exception\UnderflowException If subtracting the weeks results in an arithmetic underflow.
      * @throws Exception\OverflowException If subtracting the weeks results in an arithmetic overflow.
@@ -595,11 +602,21 @@ trait DateTimeConvenienceMethodsTrait
      */
     public function minusWeeks(int $weeks): static
     {
-        return $this->minusDays($weeks * namespace\DAYS_PER_WEEK);
+        return $this->shiftLocalDateTime(-1, 0, 0, $weeks, 0);
     }
 
     /**
      * Adds the specified days to this date-time object, returning a new instance with the added days.
+     *
+     * This is calendar arithmetic, not a multiple of 24 hours: the date moves by the given number of days
+     * and the wall-clock time is kept, even across daylight saving time transitions. For example, in
+     * Europe/London, 2024-03-30 12:00 plus one day is 2024-03-31 12:00, which is only 23 hours later.
+     *
+     * If the wall-clock time does not exist on the resulting day (it falls in a forward transition), it is
+     * moved forward by the length of the transition. If it exists twice, the occurrence with the current
+     * UTC offset is used when possible, otherwise the later one.
+     *
+     * Use {@see DateTimeConvenienceMethodsTrait::plus()} with a {@see Duration} for exact elapsed time.
      *
      * @throws Exception\UnderflowException If adding the days results in an arithmetic underflow.
      * @throws Exception\OverflowException If adding the days results in an arithmetic overflow.
@@ -608,14 +625,14 @@ trait DateTimeConvenienceMethodsTrait
      */
     public function plusDays(int $days): static
     {
-        return static::fromTimestamp(
-            $this->getTimestamp()->plusSeconds($days * namespace\SECONDS_PER_DAY),
-            $this->getTimezone(),
-        );
+        return $this->shiftLocalDateTime(1, 0, 0, 0, $days);
     }
 
     /**
      * Subtracts the specified days from this date-time object, returning a new instance with the subtracted days.
+     *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeConvenienceMethodsTrait::plusDays()}.
      *
      * @throws Exception\UnderflowException If subtracting the days results in an arithmetic underflow.
      * @throws Exception\OverflowException If subtracting the days results in an arithmetic overflow.
@@ -624,10 +641,7 @@ trait DateTimeConvenienceMethodsTrait
      */
     public function minusDays(int $days): static
     {
-        return static::fromTimestamp(
-            $this->getTimestamp()->minusSeconds($days * namespace\SECONDS_PER_DAY),
-            $this->getTimezone(),
-        );
+        return $this->shiftLocalDateTime(-1, 0, 0, 0, $days);
     }
 
     /**
@@ -674,25 +688,51 @@ trait DateTimeConvenienceMethodsTrait
      *
      * @param 1|-1 $sign 1 for addition, -1 for subtraction.
      *
+     * @throws Exception\UnderflowException If the operation results in an arithmetic underflow.
+     * @throws Exception\OverflowException If the operation results in an arithmetic overflow.
+     *
      * @psalm-mutation-free
      */
     private function applyCalendarOffset(Period $period, int $sign): static
     {
-        $monthsToAdd = $sign * (($period->getYears() * namespace\MONTHS_PER_YEAR) + $period->getMonths());
-        $extraSeconds = $sign * ($period->getDays() * namespace\SECONDS_PER_DAY);
+        return $this->shiftLocalDateTime($sign, $period->getYears(), $period->getMonths(), 0, $period->getDays());
+    }
 
-        $hasMonths = 0 !== $monthsToAdd;
-        $hasOffset = 0 !== $extraSeconds;
+    /**
+     * Moves the local (wall-clock) date by `$sign` times the given years, months, weeks, and days, keeping
+     * the wall-clock time, and resolves the result in this instance's timezone.
+     *
+     * Years and months are added first, clamping the day to the length of the resulting month (January 31
+     * plus one month is the last day of February); weeks and days are added after that.
+     *
+     * @param 1|-1 $sign 1 for addition, -1 for subtraction.
+     *
+     * @throws Exception\UnderflowException If the resulting date is before -5838268-01-01, the earliest supported date.
+     * @throws Exception\OverflowException If the resulting date is after 5368709-12-31, the latest supported date.
+     *
+     * @psalm-mutation-free
+     */
+    private function shiftLocalDateTime(int $sign, int $years, int $months, int $weeks, int $days): static
+    {
+        // Each of these limits is beyond the supported range (about 11.2 million years) on its own, so a
+        // clamped amount still produces an out-of-range date, which is rejected; clamping keeps the
+        // arithmetic below within the integer range.
+        $years = max(-12_000_000, min(12_000_000, $years));
+        $months = max(-144_000_000, min(144_000_000, $months));
+        $weeks = max(-600_000_000, min(600_000_000, $weeks));
+        $days = max(-4_200_000_000, min(4_200_000_000, $days));
 
-        if (!$hasMonths && !$hasOffset) {
+        $months = $sign * (($years * namespace\MONTHS_PER_YEAR) + $months);
+        $days = $sign * (($weeks * namespace\DAYS_PER_WEEK) + $days);
+        if (0 === $months && 0 === $days) {
             return $this;
         }
 
         $year = $this->getYear();
         $month = $this->getMonth();
         $day = $this->getDay();
-        if ($hasMonths) {
-            $totalMonths = ($year * namespace\MONTHS_PER_YEAR) + $month - 1 + $monthsToAdd;
+        if (0 !== $months) {
+            $totalMonths = ($year * namespace\MONTHS_PER_YEAR) + $month - 1 + $months;
             $year = intdiv($totalMonths, namespace\MONTHS_PER_YEAR);
             $month = $totalMonths % namespace\MONTHS_PER_YEAR;
             // @codeCoverageIgnoreStart
@@ -703,32 +743,43 @@ trait DateTimeConvenienceMethodsTrait
 
             // @codeCoverageIgnoreEnd
 
+            // Reject an out-of-range year here: the amounts may have been clamped above, so the year itself
+            // would be misleading in the error message.
+            if ($year > 5_368_709) {
+                throw new Exception\OverflowException(
+                    'The resulting date is after 5368709-12-31, the latest supported date.',
+                );
+            }
+
+            if ($year < -5_838_268) {
+                throw new Exception\UnderflowException(
+                    'The resulting date is before -5838268-01-01, the earliest supported date.',
+                );
+            }
+
             $month += 1;
             $day = min($day, Month::from($month)->getDaysForYear($year));
         }
 
-        if ($hasMonths) {
-            $calendar = Internal\create_intl_calendar_from_date_time(
-                $this->getTimezone(),
-                $year,
-                $month,
-                $day,
-                $this->getHours(),
-                $this->getMinutes(),
-                $this->getSeconds(),
-            );
-            $baseSeconds = (int) ($calendar->getTime() / namespace\MILLISECONDS_PER_SECOND);
-            $baseNanoseconds = $this->getNanoseconds();
-        } else {
-            $ts = $this->getTimestamp();
-            $baseSeconds = $ts->getSeconds();
-            $baseNanoseconds = $ts->getNanoseconds();
+        if (0 !== $days) {
+            [$year, $month, $day] = Internal\add_days_to_date($year, $month, $day, $days);
         }
 
-        return static::fromTimestamp(
-            Timestamp::fromParts($baseSeconds + $extraSeconds, $baseNanoseconds),
-            $this->getTimezone(),
+        // Prefer the UTC offset currently in effect when the wall-clock time happens twice on the new date.
+        $timezone = $this->getTimezone();
+        $timestamp = $this->getTimestamp();
+        $seconds = Internal\resolve_local_date_time(
+            $timezone,
+            $year,
+            $month,
+            $day,
+            $this->getHours(),
+            $this->getMinutes(),
+            $this->getSeconds(),
+            $timestamp->getSeconds(),
         );
+
+        return static::fromTimestamp(Timestamp::fromParts($seconds, $timestamp->getNanoseconds()), $timezone);
     }
 
     /**

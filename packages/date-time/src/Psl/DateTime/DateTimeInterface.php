@@ -469,6 +469,9 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Adds the specified weeks to this date-time object, returning a new instance with the added weeks.
      *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeInterface::plusDays()}.
+     *
      * @throws Exception\UnderflowException If adding the weeks results in an arithmetic underflow.
      * @throws Exception\OverflowException If adding the weeks results in an arithmetic overflow.
      *
@@ -478,6 +481,13 @@ interface DateTimeInterface extends TemporalInterface
 
     /**
      * Adds the specified days to this date-time object, returning a new instance with the added days.
+     *
+     * This is calendar arithmetic, not a multiple of 24 hours: the date moves by the given number of days
+     * and the wall-clock time is kept, even across daylight saving time transitions. If that wall-clock
+     * time does not exist on the resulting day, it is moved forward by the length of the transition; if it
+     * exists twice, the occurrence with the current UTC offset is used when possible, otherwise the later one.
+     *
+     * Use {@see TemporalInterface::plus()} with a {@see Duration} for exact elapsed time.
      *
      * @throws Exception\UnderflowException If adding the days results in an arithmetic underflow.
      * @throws Exception\OverflowException If adding the days results in an arithmetic overflow.
@@ -507,6 +517,9 @@ interface DateTimeInterface extends TemporalInterface
     /**
      * Subtracts the specified weeks from this date-time object, returning a new instance with the subtracted weeks.
      *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeInterface::plusDays()}.
+     *
      * @throws Exception\UnderflowException If subtracting the weeks results in an arithmetic underflow.
      * @throws Exception\OverflowException If subtracting the weeks results in an arithmetic overflow.
      *
@@ -516,6 +529,9 @@ interface DateTimeInterface extends TemporalInterface
 
     /**
      * Subtracts the specified days from this date-time object, returning a new instance with the subtracted days.
+     *
+     * This is calendar arithmetic: the wall-clock time is kept, even across daylight saving time
+     * transitions. See {@see DateTimeInterface::plusDays()}.
      *
      * @throws Exception\UnderflowException If subtracting the days results in an arithmetic underflow.
      * @throws Exception\OverflowException If subtracting the days results in an arithmetic overflow.

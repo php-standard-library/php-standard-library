@@ -187,8 +187,8 @@ final readonly class DateTime implements
      * to ensure the date and time are possible. For example, it checks for the correct range of months (1-12),
      * days in a month (considering leap years), hours (0-23), minutes (0-59), and seconds (0-59).
      *
-     * Note: In cases where the specified time occurs twice (such as during the end of daylight saving time), the earlier occurrence
-     * is returned. To obtain the later occurrence, you can adjust the returned instance using `->plusHours(1)`.
+     * Note: In cases where the specified time occurs twice (such as during the end of daylight saving time), the later occurrence
+     * is returned. To obtain the earlier occurrence, you can adjust the returned instance using `->minusHours(1)`.
      *
      * @param Month|int<1, 12> $month
      * @param int<1, 31> $day
