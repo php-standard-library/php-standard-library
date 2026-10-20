@@ -146,7 +146,7 @@ final class StreamHandleTest extends TestCase
         $handle->flush();
 
         $inner->seek(0);
-        static::assertSame('Hello World', $inner->readAll());
+        static::assertSame("Hello World\r\n", $inner->readAll());
     }
 
     public function testDecodingWriteHandleSoftBreak(): void
@@ -158,7 +158,7 @@ final class StreamHandleTest extends TestCase
         $handle->flush();
 
         $inner->seek(0);
-        static::assertSame('HelloWorld', $inner->readAll());
+        static::assertSame("HelloWorld\r\n", $inner->readAll());
     }
 
     public function testRoundTripReadHandles(): void
@@ -624,7 +624,7 @@ final class StreamHandleTest extends TestCase
         $handle->write("World\r\n");
         $handle->flush();
         $inner->seek(0);
-        static::assertSame('HelloWorld', $inner->readAll());
+        static::assertSame("HelloWorld\r\n", $inner->readAll());
     }
 
     public function testDecodingWriteFlushWithRemainder(): void

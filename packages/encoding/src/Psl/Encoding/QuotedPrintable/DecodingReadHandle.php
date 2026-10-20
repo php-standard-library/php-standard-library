@@ -8,9 +8,7 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
-use function quoted_printable_decode;
 use function sprintf;
-use function str_ends_with;
 use function strlen;
 use function strpos;
 use function substr;
@@ -18,8 +16,9 @@ use function substr;
 /**
  * A read handle that decodes quoted-printable data from an inner readable handle.
  *
- * Reads lines from the inner handle, joins soft-break continuations (lines ending with `=`),
- * and decodes complete logical lines via {@see quoted_printable_decode()}.
+ * Reads from the inner handle and decodes complete lines. The bytes read from this handle are
+ * identical to {@see decode()} applied to all the data of the inner handle: soft line breaks
+ * are removed and hard line breaks are kept as they appear in the input.
  *
  * @api
  */
@@ -27,15 +26,14 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
 {
     use IO\ReadHandleConvenienceMethodsTrait;
 
-    private IO\Reader $reader;
     private string $buffer = '';
-    private string $accumulated = '';
     private bool $eof = false;
-    private bool $hardBreakPending = false;
+    private readonly Internal\StreamDecoder $decoder;
 
-    public function __construct(IO\ReadHandleInterface $handle)
-    {
-        $this->reader = new IO\Reader($handle);
+    public function __construct(
+        private readonly IO\ReadHandleInterface $handle,
+    ) {
+        $this->decoder = new Internal\StreamDecoder();
     }
 
     public function reachedEndOfDataSource(): bool
@@ -232,55 +230,19 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
 
     private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        if ($this->eof) {
-            // @codeCoverageIgnoreStart
-            return;
-            // @codeCoverageIgnoreEnd
-        }
-
-        while (true) {
-            $line = $this->reader->readUntil("\n", $cancellation);
-            if ($line === null) {
-                $remaining = $this->reader->read(null, $cancellation);
-                if ($remaining !== '') {
-                    $this->accumulated .= str_ends_with($remaining, "\r") ? substr($remaining, 0, -1) : $remaining;
-                }
-
-                if ($this->accumulated !== '') {
-                    if ($this->hardBreakPending) {
-                        $this->buffer .= "\r\n";
-                    }
-
-                    $this->buffer .= quoted_printable_decode($this->accumulated);
-                    $this->accumulated = '';
-                }
-
+        while (!$this->eof) {
+            $chunk = $this->handle->read(4096, $cancellation);
+            if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
                 $this->eof = true;
+                $this->buffer .= $this->decoder->finalize();
 
                 return;
             }
 
-            $line = str_ends_with($line, "\r") ? substr($line, 0, -1) : $line;
-
-            if (str_ends_with($line, '=')) {
-                /** @var non-negative-int $len */
-                $len = strlen($line) - 1;
-                $this->accumulated .= substr($line, 0, $len);
-
-                continue;
+            $this->buffer .= $this->decoder->update($chunk);
+            if ($this->buffer !== '' || $chunk === '') {
+                return;
             }
-
-            $this->accumulated .= $line;
-
-            if ($this->hardBreakPending) {
-                $this->buffer .= "\r\n";
-            }
-
-            $this->buffer .= quoted_printable_decode($this->accumulated);
-            $this->accumulated = '';
-            $this->hardBreakPending = true;
-
-            return;
         }
     }
 }

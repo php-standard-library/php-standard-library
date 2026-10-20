@@ -8,17 +8,14 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
-use function quoted_printable_decode;
-use function str_ends_with;
 use function strlen;
-use function strpos;
-use function substr;
 
 /**
  * A write handle that accepts quoted-printable encoded bytes and writes decoded output to an inner handle.
  *
- * Buffers input until complete lines (terminated by \n) are available,
- * handles soft-break continuations, then decodes and writes to the inner handle.
+ * Buffers input until complete lines are available, then decodes them. Once {@see flush()} has been
+ * called, the bytes written to the inner handle are identical to {@see decode()} applied to all the
+ * data written: soft line breaks are removed and hard line breaks are kept as they appear in the input.
  *
  * @api
  */
@@ -26,20 +23,22 @@ final class DecodingWriteHandle implements IO\WriteHandleInterface
 {
     use IO\WriteHandleConvenienceMethodsTrait;
 
-    private string $buffer = '';
-    private string $accumulated = '';
-    private bool $hardBreakPending = false;
+    private readonly Internal\StreamDecoder $decoder;
 
     public function __construct(
         private readonly IO\WriteHandleInterface $handle,
-    ) {}
+    ) {
+        $this->decoder = new Internal\StreamDecoder();
+    }
 
     public function tryWrite(string $bytes): int
     {
-        $length = strlen($bytes);
-        $this->buffer .= $bytes;
-        $this->drainCompleteLines();
-        return $length;
+        $decoded = $this->decoder->update($bytes);
+        if ($decoded !== '') {
+            $this->handle->writeAll($decoded);
+        }
+
+        return strlen($bytes);
     }
 
     public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
@@ -48,51 +47,15 @@ final class DecodingWriteHandle implements IO\WriteHandleInterface
     }
 
     /**
-     * Flush any remaining buffered data through the decoder to the inner handle.
+     * Decode any remaining buffered data and write it to the inner handle.
+     *
+     * Call this once all data has been written.
      */
     public function flush(): void
     {
-        $this->accumulated .= str_ends_with($this->buffer, "\r") ? substr($this->buffer, 0, -1) : $this->buffer;
-        $this->buffer = '';
-
-        if ($this->accumulated !== '') {
-            if ($this->hardBreakPending) {
-                $this->handle->writeAll("\r\n");
-            }
-
-            $this->handle->writeAll(quoted_printable_decode($this->accumulated));
-            $this->accumulated = '';
-            $this->hardBreakPending = false;
-        }
-    }
-
-    private function drainCompleteLines(): void
-    {
-        while (false !== ($pos = strpos($this->buffer, "\n"))) {
-            $line = substr($this->buffer, 0, $pos);
-            $line = str_ends_with($line, "\r") ? substr($line, 0, -1) : $line;
-            $this->buffer = substr($this->buffer, $pos + 1);
-
-            if (str_ends_with($line, '=')) {
-                /** @var non-negative-int $len */
-                $len = strlen($line) - 1;
-                $this->accumulated .= substr($line, 0, $len);
-
-                continue;
-            }
-
-            $this->accumulated .= $line;
-
-            // @codeCoverageIgnoreStart
-            if ($this->hardBreakPending) {
-                $this->handle->writeAll("\r\n");
-            }
-
-            // @codeCoverageIgnoreEnd
-
-            $this->handle->writeAll(quoted_printable_decode($this->accumulated));
-            $this->accumulated = '';
-            $this->hardBreakPending = true;
+        $decoded = $this->decoder->finalize();
+        if ($decoded !== '') {
+            $this->handle->writeAll($decoded);
         }
     }
 }

@@ -298,7 +298,7 @@ final class EncodingReadHandleTest extends TestCase
         $handle->write("Hello=\r\nWorld\r\n");
         $handle->flush();
         $inner->seek(0);
-        static::assertSame('HelloWorld', $inner->readAll());
+        static::assertSame("HelloWorld\r\n", $inner->readAll());
     }
 
     public function testDecodingWriteFlushEmpty(): void
@@ -329,7 +329,7 @@ final class EncodingReadHandleTest extends TestCase
         $handle->write("World\r\n");
         $handle->flush();
         $inner->seek(0);
-        static::assertSame('HelloWorld', $inner->readAll());
+        static::assertSame("HelloWorld\r\n", $inner->readAll());
     }
 
     public function testDecodingWriteAccumulatedBuffer(): void
@@ -339,7 +339,7 @@ final class EncodingReadHandleTest extends TestCase
         $handle->writeAll("Hello=20World\r\n");
         $handle->flush();
         $inner->seek(0);
-        static::assertSame('Hello World', $inner->readAll());
+        static::assertSame("Hello World\r\n", $inner->readAll());
     }
 
     public function testEncodingWriteLineBoundaries(): void
