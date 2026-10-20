@@ -986,4 +986,18 @@ final class LocalStoreTest extends TestCase
         static::assertNull($reference->get());
         static::assertNotContains($created[0], EventLoop::getIdentifiers());
     }
+
+    public function testCleanupTimerDoesNotKeepTheEventLoopAlive(): void
+    {
+        $before = EventLoop::getIdentifiers();
+
+        $store = new LocalStore(cleanupInterval: Duration::milliseconds(10));
+        $store->compute('key', static fn(): string => 'value', Duration::hours(1));
+
+        $created = array_values(array_diff(EventLoop::getIdentifiers(), $before));
+        static::assertCount(1, $created);
+        static::assertTrue(EventLoop::isEnabled($created[0]));
+        static::assertFalse(EventLoop::isReferenced($created[0]));
+        static::assertSame('value', $store->get('key'));
+    }
 }

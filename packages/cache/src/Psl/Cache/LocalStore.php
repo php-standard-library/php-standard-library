@@ -166,6 +166,8 @@ final class LocalStore implements StoreInterface
 
         $this->cleanupCallbackId = EventLoop::repeat($cleanupInterval->getTotalSeconds(), $cleanup);
 
+        // Sweeping expired entries is housekeeping, it must not keep the event loop (and so the program) running.
+        EventLoop::unreference($this->cleanupCallbackId);
         EventLoop::disable($this->cleanupCallbackId);
     }
 
