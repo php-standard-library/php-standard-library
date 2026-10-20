@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Psl\DateTime\Tests\Unit;
 
+use DateTimeImmutable;
 use DateTimeZone;
+use IntlCalendar;
 use IntlTimeZone;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\DateTime\DateTime;
+use Psl\DateTime\Exception\InvalidArgumentException;
+use Psl\DateTime\Exception\RuntimeException;
 use Psl\DateTime\Timestamp;
 use Psl\DateTime\Timezone;
 
+use function date;
 use function date_default_timezone_set;
 use function in_array;
 use function sprintf;
@@ -26,6 +31,158 @@ final class TimezoneTest extends TestCase
          * @see DateTimeTestTrait::setUp() for the default timezone set to Europe/London
          */
         static::assertSame(Timezone::EuropeLondon, Timezone::default());
+    }
+
+    /**
+     * @return iterable<array{string, Timezone}>
+     */
+    public static function provideAliases(): iterable
+    {
+        yield ['US/Eastern', Timezone::AmericaNewYork];
+        yield ['Asia/Calcutta', Timezone::AsiaKolkata];
+        yield ['America/Buenos_Aires', Timezone::AmericaArgentinaBuenosAires];
+        yield ['Europe/Kiev', Timezone::EuropeKiev];
+        yield ['Etc/UTC', Timezone::UTC];
+        yield ['Universal', Timezone::UTC];
+        yield ['GMT', Timezone::UTC];
+        yield ['Etc/GMT+5', Timezone::Minus0500];
+        yield ['Etc/GMT-14', Timezone::Plus1400];
+    }
+
+    public function testDefaultResolvesLegacyFixedOffsetZones(): void
+    {
+        // "EST" is a link to America/Panama since tzdata 2024b, and its own -05:00 zone before that.
+        date_default_timezone_set('EST');
+
+        $timezone = Timezone::default();
+
+        static::assertSame(-18_000, (int) $timezone->getRawOffset()->getTotalSeconds());
+        static::assertFalse($timezone->usesDaylightSavingTime());
+    }
+
+    #[DataProvider('provideAliases')]
+    public function testDefaultResolvesAliases(string $identifier, Timezone $expected): void
+    {
+        date_default_timezone_set($identifier);
+
+        static::assertSame($expected, Timezone::default());
+        static::assertSame($expected, DateTime::now()->getTimezone());
+    }
+
+    public function testDefaultResolvesEveryIdentifierOfTheTimezoneDatabase(): void
+    {
+        foreach (DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC) as $identifier) {
+            if ('Etc/Unknown' === IntlTimeZone::createTimeZone($identifier)->getID()) {
+                // Newer than the ICU data of this build; see testDefaultRejectsAZoneUnknownToIcu().
+                continue;
+            }
+
+            date_default_timezone_set($identifier);
+            $timezone = Timezone::default();
+
+            // The resolved zone has PHP's offsets, in winter and in summer (2021-01-15 and 2021-07-15).
+            foreach ([1_610_712_000, 1_626_350_400] as $seconds) {
+                static::assertSame(
+                    (int) date('Z', $seconds),
+                    (int) $timezone->getOffset(Timestamp::fromParts($seconds))->getTotalSeconds(),
+                    sprintf('"%s" resolved to "%s".', $identifier, $timezone->value),
+                );
+            }
+        }
+    }
+
+    public function testDefaultRejectsAZoneUnknownToIcu(): void
+    {
+        if (!in_array('America/Coyhaique', DateTimeZone::listIdentifiers(), true)) {
+            static::markTestSkipped('The timezone database of this build does not know "America/Coyhaique".');
+        }
+
+        date_default_timezone_set('America/Coyhaique');
+
+        if ('Etc/Unknown' !== IntlTimeZone::createTimeZone('America/Coyhaique')->getID()) {
+            static::assertSame(Timezone::AmericaCoyhaique, Timezone::default());
+
+            return;
+        }
+
+        // The ICU data of this build (before ICU 78) cannot compute anything in this zone.
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The default timezone "America/Coyhaique" is not supported.');
+
+        Timezone::default();
+    }
+
+    #[DataProvider('provideAliases')]
+    public function testFromStdlibAndFromIntlResolveAliases(string $identifier, Timezone $expected): void
+    {
+        static::assertSame($expected, Timezone::fromStdlib(new DateTimeZone($identifier)));
+        static::assertSame($expected, Timezone::fromIntl(IntlTimeZone::createTimeZone($identifier)));
+
+        $datetime = DateTime::fromStdlib(new DateTimeImmutable('2024-01-15 12:00:00', new DateTimeZone($identifier)));
+        static::assertSame($expected, $datetime->getTimezone());
+        static::assertSame(12, $datetime->getHours());
+
+        $calendar = IntlCalendar::createInstance($identifier);
+        $calendar->setTime(1_705_320_000_000.0);
+        static::assertSame($expected, DateTime::fromIntl($calendar)->getTimezone());
+    }
+
+    public function testFromStdlibResolvesOffsetsAndAbbreviations(): void
+    {
+        static::assertSame(Timezone::UTC, Timezone::fromStdlib(new DateTimeZone('+00:00')));
+        static::assertSame(Timezone::UTC, Timezone::fromStdlib(new DateTimeZone('Z')));
+        static::assertSame(Timezone::Plus0530, Timezone::fromStdlib(new DateTimeZone('+05:30')));
+        static::assertSame(Timezone::Plus0200, Timezone::fromStdlib(new DateTimeZone('CEST')));
+    }
+
+    /**
+     * @return iterable<array{string, Timezone}>
+     */
+    public static function provideAbbreviations(): iterable
+    {
+        // ICU reads most of these as region zones, with other offsets or daylight saving time.
+        yield ['CET', Timezone::Plus0100];
+        yield ['CEST', Timezone::Plus0200];
+        yield ['PST', Timezone::Minus0800];
+        yield ['IST', Timezone::Plus0200]; // PHP reads "IST" as Israel Standard Time.
+        yield ['AST', Timezone::Minus0400];
+        yield ['BST', Timezone::Plus0100];
+        yield ['EST', Timezone::Minus0500];
+        yield ['WET', Timezone::UTC];
+    }
+
+    #[DataProvider('provideAbbreviations')]
+    public function testFromStdlibUsesTheFixedOffsetOfAnAbbreviation(string $abbreviation, Timezone $expected): void
+    {
+        $timezone = new DateTimeZone($abbreviation);
+
+        static::assertSame($expected, Timezone::fromStdlib($timezone));
+
+        $value = new DateTimeImmutable('2024-07-01 12:00:00', $timezone);
+        $datetime = DateTime::fromStdlib($value);
+
+        static::assertSame($expected, $datetime->getTimezone());
+        static::assertSame([2024, 7, 1, 12, 0, 0, 0], $datetime->getParts());
+        static::assertSame($value->getTimestamp(), $datetime->getTimestamp()->getSeconds());
+    }
+
+    public function testUnsupportedTimezonesThrowAPslException(): void
+    {
+        foreach (['+05:17', '+05:30:30'] as $offset) {
+            try {
+                Timezone::fromStdlib(new DateTimeZone($offset));
+                static::fail('Expected an InvalidArgumentException.');
+            } catch (InvalidArgumentException $e) {
+                static::assertSame('The timezone "' . $offset . '" is not supported.', $e->getMessage());
+            }
+        }
+
+        try {
+            Timezone::fromIntl(IntlTimeZone::createTimeZone('GMT+05:17'));
+            static::fail('Expected an InvalidArgumentException.');
+        } catch (InvalidArgumentException $e) {
+            static::assertSame('The timezone "GMT+05:17" is not supported.', $e->getMessage());
+        }
     }
 
     /**

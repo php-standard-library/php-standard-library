@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Psl\DateTime;
 
+use DateTimeImmutable;
 use DateTimeZone;
 use IntlTimeZone;
 use Override;
 use Psl\Interoperability;
+
+use function abs;
+use function intdiv;
+use function sprintf;
 
 /**
  * Enumerates all supported time zones, including UTC, all tzdata time zones, and all unique UTC offsets.
@@ -39,6 +44,7 @@ enum Timezone: string implements
     Interoperability\FromIntl
 {
     case UTC = 'UTC';
+    case Minus1200 = '-12:00';
     case Minus1100 = '-11:00';
     case Minus1000 = '-10:00';
     case Minus0930 = '-09:30';
@@ -523,6 +529,11 @@ enum Timezone: string implements
     /**
      * Retrieves the default timezone set in the PHP environment.
      *
+     * Backward-compatible links (e.g. "US/Eastern") resolve to the zone they point to, and fixed-offset
+     * zones (e.g. "Etc/GMT+5") to the matching offset case.
+     *
+     * @throws Exception\RuntimeException If the default timezone has no equivalent case.
+     *
      * @return self The default timezone as an enum instance.
      *
      * @psalm-mutation-free
@@ -627,14 +638,44 @@ enum Timezone: string implements
     /**
      * Creates a {@see Timezone} from a PHP {@see DateTimeZone}.
      *
+     * Backward-compatible links (e.g. "US/Eastern") resolve to the zone they point to; offset and
+     * abbreviation timezones (e.g. "+00:00", "CET", or "CEST") resolve to the case of the fixed offset
+     * PHP gives them.
+     *
      * @param DateTimeZone $value
+     *
+     * @throws Exception\InvalidArgumentException If the timezone has no equivalent case.
      *
      * @psalm-mutation-free
      */
     #[Override]
     public static function fromStdlib(mixed $value): static
     {
-        return self::from($value->getName());
+        $name = $value->getName();
+        if (false !== $value->getLocation()) {
+            $timezone = Internal\resolve_timezone($name);
+        } else {
+            // An offset ("+05:00") or abbreviation ("CET", "CEST") timezone has a fixed offset, and only that
+            // offset counts: ICU reads some abbreviations as region zones with other offsets or daylight
+            // saving time (e.g. "CET" as Europe/Brussels, "IST" as Asia/Kolkata).
+            $offset = $value->getOffset(new DateTimeImmutable('@0'));
+            $minutes = intdiv(abs($offset), namespace\SECONDS_PER_MINUTE);
+            $timezone = match (true) {
+                0 === $offset => self::UTC,
+                0 !== ($offset % namespace\SECONDS_PER_MINUTE) => null,
+                default => self::tryFrom(sprintf(
+                    '%s%02d:%02d',
+                    $offset < 0 ? '-' : '+',
+                    intdiv($minutes, 60),
+                    $minutes % 60,
+                )),
+            };
+        }
+
+        return $timezone ?? throw new Exception\InvalidArgumentException(sprintf(
+            'The timezone "%s" is not supported.',
+            $name,
+        ));
     }
 
     /**
@@ -653,7 +694,12 @@ enum Timezone: string implements
     /**
      * Creates a {@see Timezone} from an {@see IntlTimeZone}.
      *
+     * Aliases (e.g. "Asia/Calcutta") resolve to the zone they stand for, and fixed-offset zones
+     * (e.g. "GMT+05:00") to the matching offset case.
+     *
      * @param IntlTimeZone $value
+     *
+     * @throws Exception\InvalidArgumentException If the timezone has no equivalent case.
      *
      * @psalm-mutation-free
      */
@@ -663,7 +709,12 @@ enum Timezone: string implements
         /** @var string $id */
         $id = $value->getID();
 
-        return self::from($id);
+        return (
+            Internal\resolve_timezone($id) ?? throw new Exception\InvalidArgumentException(sprintf(
+                'The timezone "%s" is not supported.',
+                $id,
+            ))
+        );
     }
 
     /**

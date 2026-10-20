@@ -555,13 +555,16 @@ final readonly class DateTime implements
      *
      * @param DateTimeImmutable $value
      *
+     * @throws Exception\InvalidArgumentException If the timezone has no {@see Timezone} equivalent.
+     *
      * @psalm-mutation-free
+     *
+     * @see Timezone::fromStdlib()
      */
     #[Override]
     public static function fromStdlib(mixed $value): static
     {
-        $tz = $value->getTimezone();
-        $timezone = Timezone::from($tz->getName());
+        $timezone = Timezone::fromStdlib($value->getTimezone());
         $seconds = $value->getTimestamp();
         $microseconds = (int) $value->format('u');
         $nanoseconds = $microseconds * namespace\NANOSECONDS_PER_MICROSECOND;
@@ -608,16 +611,18 @@ final readonly class DateTime implements
      *
      * @param IntlCalendar $value
      *
+     * @throws Exception\InvalidArgumentException If the timezone has no {@see Timezone} equivalent.
+     *
      * @psalm-mutation-free
+     *
+     * @see Timezone::fromIntl()
      */
     #[Override]
     public static function fromIntl(mixed $value): static
     {
         /** @var IntlTimeZone $intlTz */
         $intlTz = $value->getTimeZone();
-        /** @var string $timezoneId */
-        $timezoneId = $intlTz->getID();
-        $timezone = Timezone::from($timezoneId);
+        $timezone = Timezone::fromIntl($intlTz);
         $millis = $value->getTime();
         $seconds = (int) ($millis / namespace\MILLISECONDS_PER_SECOND);
         $remainingMillis = $millis % namespace\MILLISECONDS_PER_SECOND;
