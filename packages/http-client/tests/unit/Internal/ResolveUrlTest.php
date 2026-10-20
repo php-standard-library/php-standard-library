@@ -4,12 +4,75 @@ declare(strict_types=1);
 
 namespace Psl\HTTP\Client\Tests\Unit\Internal;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\HTTP\Client\Internal;
 use Psl\URL;
 
 final class ResolveUrlTest extends TestCase
 {
+    public function testSchemeDelimiterInQueryIsNotAnAbsoluteReference(): void
+    {
+        $result = Internal\resolve_url('/login?next=https://x', URL\parse('https://example.com/old'));
+
+        static::assertSame('https://example.com/login?next=https://x', $result->toString());
+    }
+
+    public function testSchemeDelimiterInFragmentIsNotAnAbsoluteReference(): void
+    {
+        $result = Internal\resolve_url('#https://x', URL\parse('https://example.com/old'));
+
+        static::assertSame('https://example.com/old#https://x', $result->toString());
+    }
+
+    #[DataProvider('referencesWithoutAuthority')]
+    public function testSchemeWithoutAuthorityDoesNotInheritBaseAuthority(string $reference): void
+    {
+        $this->expectException(URL\Exception\InvalidURLException::class);
+
+        Internal\resolve_url($reference, URL\parse('https://example.com/old'));
+    }
+
+    /** @return iterable<string, array{non-empty-string}> */
+    public static function referencesWithoutAuthority(): iterable
+    {
+        yield 'scheme only' => ['https:'];
+        yield 'scheme and absolute path' => ['https:/login'];
+        yield 'scheme and rootless path' => ['https:login'];
+    }
+
+    #[DataProvider('referencesStartingWithColon')]
+    public function testRelativeReferenceCannotStartWithColon(string $reference): void
+    {
+        $this->expectException(URL\Exception\InvalidURLException::class);
+
+        Internal\resolve_url($reference, URL\parse('https://example.com/dir/old'));
+    }
+
+    /** @return iterable<string, array{non-empty-string}> */
+    public static function referencesStartingWithColon(): iterable
+    {
+        yield 'colon only' => [':'];
+        yield 'empty scheme' => ['://'];
+        yield 'colon and path' => [':foo'];
+    }
+
+    #[DataProvider('pathsContainingColon')]
+    public function testColonInLaterPathSegmentIsAllowed(string $reference, string $expected): void
+    {
+        $result = Internal\resolve_url($reference, URL\parse('https://example.com/dir/old'));
+
+        static::assertSame('https://example.com' . $expected, $result->toString());
+    }
+
+    /** @return iterable<string, array{non-empty-string, non-empty-string}> */
+    public static function pathsContainingColon(): iterable
+    {
+        yield 'dot prefix' => ['./:foo', '/dir/:foo'];
+        yield 'absolute path' => ['/:foo', '/:foo'];
+        yield 'later segment' => ['child/:foo', '/dir/child/:foo'];
+    }
+
     public function testAbsoluteReferenceReturnsAsIs(): void
     {
         $base = URL\parse('https://example.com/old/path?q=1#f');

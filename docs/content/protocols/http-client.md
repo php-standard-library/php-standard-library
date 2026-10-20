@@ -28,6 +28,8 @@ Use `Async\concurrently()` to send multiple requests in parallel over the same c
 
 Redirects that preserve the request body, including 307 and 308, resend it. A seekable body is restored to its original position before each resend. A non-seekable body is resent only if it was never read, as when an `Expect: 100-continue` upload is pre-empted by the redirect; once read, it throws `Exception\RequestException`. A failure reading the body's position is also reported as `Exception\RequestException`.
 
+Location values follow RFC 3986 resolution. A URL inside a query or fragment does not make the reference absolute. A scheme without an authority, such as `https:login`, is rejected as an invalid URL.
+
 @example('protocols/http-client-redirects.php')
 
 For 301 and 302, only POST changes to GET. Other methods keep their body and method. For 303, all methods except GET and HEAD change to GET. A body that survives a redirect must be seekable so the client can return to its original position.

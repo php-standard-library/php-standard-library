@@ -6,8 +6,6 @@ declare(strict_types=1);
     $functions = [
         'Psl\\HTTP\\Client\\Internal\\consume_buffer' => __DIR__ . '/HTTP/Client/Internal/consume_buffer.php',
         'Psl\\HTTP\\Client\\Internal\\resolve_url' => __DIR__ . '/HTTP/Client/Internal/resolve_url.php',
-        'Psl\\HTTP\\Client\\Internal\\remove_dot_segments' => __DIR__ . '/HTTP/Client/Internal/remove_dot_segments.php',
-        'Psl\\HTTP\\Client\\Internal\\merge_paths' => __DIR__ . '/HTTP/Client/Internal/merge_paths.php',
         'Psl\\HTTP\\Client\\Internal\\resolve_protocol_versions' =>
             __DIR__ . '/HTTP/Client/Internal/resolve_protocol_versions.php',
         'Psl\\HTTP\\Client\\Internal\\should_tunnel' => __DIR__ . '/HTTP/Client/Internal/should_tunnel.php',

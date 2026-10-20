@@ -9,6 +9,7 @@ use Psl\HTTP\Message;
 use Psl\IO;
 use Psl\URL;
 
+// Location values such as /login?next=https://x resolve against the current URL.
 $client = new Client\RedirectClient(new Client\Client(), maxRedirects: 5, autoReferrer: true);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://httpbin.org/redirect/3'));

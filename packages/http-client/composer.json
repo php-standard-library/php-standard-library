@@ -36,6 +36,7 @@
         "php-standard-library/tcp": "^6.2",
         "php-standard-library/tls": "^6.0",
         "php-standard-library/unix": "^6.0",
+        "php-standard-library/uri": "^6.2",
         "php-standard-library/url": "^6.2"
     },
     "require-dev": {
