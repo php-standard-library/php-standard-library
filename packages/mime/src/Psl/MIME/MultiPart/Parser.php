@@ -16,14 +16,16 @@ use Psl\MIME\Part\PartInterface;
 use Psl\MIME\TransferEncoding;
 
 use function explode;
+use function is_array;
+use function max;
 use function mb_strtolower;
 use function preg_match;
 use function rtrim;
-use function str_ends_with;
 use function str_replace;
 use function str_starts_with;
 use function strlen;
 use function strpos;
+use function strspn;
 use function substr;
 use function trim;
 
@@ -53,6 +55,14 @@ final class Parser implements ParserInterface
      * Size in bytes of each chunk read from the input stream.
      */
     private const int CHUNK_SIZE = 8192;
+
+    /**
+     * Maximum transport padding (spaces and tabs) accepted after a boundary delimiter.
+     *
+     * A boundary followed by more whitespace than this is treated as content, so deciding
+     * whether a line is a delimiter line never needs to buffer more than this.
+     */
+    private const int MAX_TRANSPORT_PADDING = 1024;
 
     /**
      * The full boundary delimiter including the leading "--" prefix.
@@ -144,7 +154,7 @@ final class Parser implements ParserInterface
     ): Generator {
         $buffer = '';
 
-        if (!self::bufferSkipUntil($handle, $buffer, $this->delimiter, $cancellation)) {
+        if (!self::bufferSkipPreamble($handle, $buffer, $this->delimiter, $cancellation)) {
             throw MultiPartException::forMalformedMultipartBody('boundary not found');
         }
 
@@ -248,29 +258,6 @@ final class Parser implements ParserInterface
     }
 
     /**
-     * Remove a single trailing CRLF or LF line ending from the content.
-     *
-     * Used to strip the line ending that precedes a boundary delimiter,
-     * which is not part of the body content per RFC 2046.
-     */
-    private static function trimTrailingLineEnding(string $content): string
-    {
-        if (str_ends_with($content, "\r\n")) {
-            /** @var non-negative-int $len */
-            $len = strlen($content) - 2;
-            return substr($content, 0, $len);
-        }
-
-        if (str_ends_with($content, "\n")) {
-            /** @var non-negative-int $len */
-            $len = strlen($content) - 1;
-            return substr($content, 0, $len);
-        }
-
-        return $content;
-    }
-
-    /**
      * Decode the Content-Transfer-Encoding of a parsed part.
      *
      * For base64 and quoted-printable encodings, wraps the part body in the
@@ -331,42 +318,166 @@ final class Parser implements ParserInterface
     }
 
     /**
-     * Discard input up to and including the needle, reading more chunks as needed.
+     * Discard the preamble: all input up to and including the first boundary delimiter.
      *
-     * Only the last strlen($needle) - 1 bytes are kept between reads, enough to match a needle
-     * split across chunks, so skipping input of any size (such as a preamble) uses constant memory.
+     * Only the input that may still be part of a delimiter line is kept between reads, so
+     * skipping a preamble of any size uses constant memory.
      *
-     * @param non-empty-string $needle
+     * @param non-empty-string $delimiter
      *
-     * @return bool True if the needle was found (and consumed from the buffer), false on EOF.
+     * @return bool True if a delimiter was found (and consumed from the buffer), false on EOF.
      */
-    private static function bufferSkipUntil(
+    private static function bufferSkipPreamble(
         IO\ReadHandleInterface $handle,
         string &$buffer,
-        string $needle,
+        string $delimiter,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): bool {
-        $needleLength = strlen($needle);
+        // The body starts at the start of a line.
+        $lineStart = true;
+        $eof = false;
         while (true) {
-            $pos = strpos($buffer, $needle);
-            if ($pos !== false) {
-                $buffer = substr($buffer, $pos + $needleLength);
+            $found = self::findDelimiter($buffer, $delimiter, $lineStart, $eof);
+            if (is_array($found)) {
+                $buffer = substr($buffer, $found[1]);
                 return true;
             }
 
-            $buffer = $needleLength > 1 ? substr($buffer, 1 - $needleLength) : '';
-
-            $chunk = $handle->read(maxBytes: self::CHUNK_SIZE, cancellation: $cancellation);
-            if ($chunk === '') {
-                if ($handle->reachedEndOfDataSource()) {
-                    return false;
-                }
-
-                continue;
+            if ($found > 0) {
+                $buffer = substr($buffer, $found);
+                $lineStart = false;
             }
 
-            $buffer .= $chunk;
+            if ($eof) {
+                return false;
+            }
+
+            $eof = self::bufferRead($handle, $buffer, $cancellation);
         }
+    }
+
+    /**
+     * Append the next chunk of input to the buffer.
+     *
+     * @return bool True once the end of the input has been reached.
+     */
+    private static function bufferRead(
+        IO\ReadHandleInterface $handle,
+        string &$buffer,
+        CancellationTokenInterface $cancellation,
+    ): bool {
+        $chunk = $handle->read(maxBytes: self::CHUNK_SIZE, cancellation: $cancellation);
+        if ($chunk === '') {
+            return $handle->reachedEndOfDataSource();
+        }
+
+        $buffer .= $chunk;
+
+        return false;
+    }
+
+    /**
+     * Find the first boundary delimiter line in the buffer.
+     *
+     * Per RFC 2046 §5.1.1, a delimiter only counts at the start of a line - right after a line
+     * feed, or at the start of the buffer when $lineStart is true - and only when it is followed
+     * by "--" (the close delimiter) or by optional transport padding and a line break. Any other
+     * occurrence of the delimiter (inside a line, or as the prefix of a longer word such as
+     * "--boundary-and-more") is content.
+     *
+     * @param non-empty-string $delimiter
+     * @param bool $lineStart Whether the buffer starts at the start of a line.
+     * @param bool $eof Whether the end of the input has been reached, so the buffer will not grow.
+     *
+     * @return array{int<0, max>, int<0, max>}|int<0, max> When found, the offset where the content
+     *                                                     before the delimiter ends (the line break
+     *                                                     preceding the delimiter belongs to it) and
+     *                                                     the offset right after the delimiter.
+     *                                                     Otherwise, the number of leading bytes
+     *                                                     that are content for certain.
+     */
+    private static function findDelimiter(string $buffer, string $delimiter, bool $lineStart, bool $eof): array|int
+    {
+        $delimiterLength = strlen($delimiter);
+        $position = $lineStart && str_starts_with($buffer, $delimiter)
+            ? 0
+            : self::findLineStartingWith($buffer, $delimiter, 0);
+
+        while ($position !== null) {
+            // The line break before the delimiter (LF or CRLF) belongs to the delimiter.
+            $contentEnd = 0;
+            if ($position >= 2 && $buffer[$position - 2] === "\r") {
+                $contentEnd = $position - 2;
+            } elseif ($position >= 1) {
+                $contentEnd = $position - 1;
+            }
+
+            $end = $position + $delimiterLength;
+            $isDelimiterLine = self::isDelimiterLine($buffer, $end, $eof);
+            if ($isDelimiterLine === null) {
+                // Undecided until more input arrives: keep the candidate and its line break.
+                return $contentEnd;
+            }
+
+            if ($isDelimiterLine) {
+                return [$contentEnd, $end];
+            }
+
+            $position = self::findLineStartingWith($buffer, $delimiter, $position);
+        }
+
+        // The tail may still hold the start of a line break and a delimiter.
+        return max(0, strlen($buffer) - ($delimiterLength + 2));
+    }
+
+    /**
+     * Return the offset of the first line, after a line feed at or after $offset, that starts
+     * with the given prefix, or null if there is none.
+     *
+     * @param non-empty-string $prefix
+     *
+     * @return null|positive-int
+     */
+    private static function findLineStartingWith(string $buffer, string $prefix, int $offset): null|int
+    {
+        $lineFeed = strpos($buffer, "\n" . $prefix, $offset);
+
+        return $lineFeed === false ? null : $lineFeed + 1;
+    }
+
+    /**
+     * Whether the input at $offset, right after a boundary delimiter, completes a delimiter line:
+     * "--" (the close delimiter), or transport padding (spaces and tabs) and a line break.
+     *
+     * @return null|bool Null when the buffer ends before this can be decided.
+     */
+    private static function isDelimiterLine(string $buffer, int $offset, bool $eof): null|bool
+    {
+        $length = strlen($buffer);
+        if ($offset < $length && $buffer[$offset] === '-') {
+            if (($offset + 1) < $length) {
+                return $buffer[$offset + 1] === '-';
+            }
+
+            return $eof ? false : null;
+        }
+
+        $lineBreak = $offset + strspn($buffer, " \t", $offset);
+        if (($lineBreak - $offset) > self::MAX_TRANSPORT_PADDING) {
+            return false;
+        }
+
+        if ($lineBreak < $length && $buffer[$lineBreak] === "\r") {
+            $lineBreak++;
+        }
+
+        if ($lineBreak >= $length) {
+            // A delimiter cut off by the end of the input is still taken as one; the part that
+            // should follow it is then reported as malformed.
+            return $eof ? true : null;
+        }
+
+        return $buffer[$lineBreak] === "\n";
     }
 
     /**
@@ -425,11 +536,12 @@ final class Parser implements ParserInterface
     }
 
     /**
-     * Stream body content to spool until the next boundary delimiter is found.
+     * Stream body content to spool until the next boundary delimiter line is found.
      *
-     * Reads fixed-size chunks, writing safe prefixes directly to spool while
-     * keeping a small overlap tail to handle boundaries spanning chunk edges.
+     * Reads fixed-size chunks, writing the content that cannot be part of a delimiter line
+     * directly to spool while keeping a small tail to handle delimiters spanning chunk edges.
      *
+     * @param non-empty-string $delimiter
      * @param int<0, max> $maxPartSize Maximum bytes per part body (0 = unlimited).
      *
      * @return bool True if close delimiter follows (last part), false otherwise.
@@ -442,62 +554,47 @@ final class Parser implements ParserInterface
         int $maxPartSize,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): bool {
-        $delimLen = strlen($delimiter);
-        $tailSize = $delimLen + 2;
         $written = 0;
+        // The body starts right after the blank line that ends the part headers.
+        $lineStart = true;
+        $eof = false;
 
         while (true) {
-            $pos = strpos($buffer, $delimiter);
-            if ($pos !== false) {
-                $bodyEnd = substr($buffer, 0, $pos);
-                $bodyEnd = self::trimTrailingLineEnding($bodyEnd);
-                if ($bodyEnd !== '') {
-                    $written += strlen($bodyEnd);
-                    if ($maxPartSize > 0 && $written > $maxPartSize) {
-                        throw MultiPartException::forMalformedMultipartBody(
-                            'part body exceeds maximum size of ' . $maxPartSize . ' bytes',
-                        );
-                    }
-
-                    $spool->writeAll($bodyEnd, $cancellation);
-                }
-
-                $buffer = substr($buffer, $pos + $delimLen);
-
-                self::bufferFill($handle, $buffer, 2, $cancellation);
-                return str_starts_with($buffer, '--');
-            }
-
-            $bufLen = strlen($buffer);
-            $safeLen = $bufLen - $tailSize;
-            if ($safeLen > 0) {
-                $written += $safeLen;
+            $found = self::findDelimiter($buffer, $delimiter, $lineStart, $eof);
+            $contentLength = is_array($found) ? $found[0] : $found;
+            if ($contentLength > 0) {
+                $written += $contentLength;
                 if ($maxPartSize > 0 && $written > $maxPartSize) {
                     throw MultiPartException::forMalformedMultipartBody(
                         'part body exceeds maximum size of ' . $maxPartSize . ' bytes',
                     );
                 }
 
-                /** @var non-negative-int $safeLen */
-                $spool->writeAll(substr($buffer, 0, $safeLen), $cancellation);
-                $buffer = substr($buffer, $safeLen);
+                $spool->writeAll(substr($buffer, 0, $contentLength), $cancellation);
             }
 
-            $chunk = $handle->read(maxBytes: self::CHUNK_SIZE, cancellation: $cancellation);
-            if ($chunk === '') {
-                if ($handle->reachedEndOfDataSource()) {
-                    if ($buffer !== '') {
-                        $spool->writeAll($buffer, $cancellation);
-                        $buffer = '';
-                    }
+            if (is_array($found)) {
+                $buffer = substr($buffer, $found[1]);
 
-                    throw MultiPartException::forMalformedMultipartBody('missing closing delimiter');
+                self::bufferFill($handle, $buffer, 2, $cancellation);
+                return str_starts_with($buffer, '--');
+            }
+
+            if ($contentLength > 0) {
+                $buffer = substr($buffer, $contentLength);
+                $lineStart = false;
+            }
+
+            if ($eof) {
+                if ($buffer !== '') {
+                    $spool->writeAll($buffer, $cancellation);
+                    $buffer = '';
                 }
 
-                continue;
+                throw MultiPartException::forMalformedMultipartBody('missing closing delimiter');
             }
 
-            $buffer .= $chunk;
+            $eof = self::bufferRead($handle, $buffer, $cancellation);
         }
     }
 }

@@ -1759,8 +1759,8 @@ final class ParserTest extends TestCase
 
     public function testDelimiterSplitAcrossReadsAfterLargePreamble(): void
     {
-        // Place the delimiter across the 8192-byte read boundary.
-        $preamble = Str\repeat('x', 8192 - 5);
+        // Place the delimiter, at the start of a line, across the 8192-byte read boundary.
+        $preamble = Str\repeat('x', 8192 - 7) . "\r\n";
         $body = $preamble . "--boundary\r\n\r\nvalue\r\n--boundary--\r\n";
 
         $parts = iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($body)));
@@ -1788,5 +1788,91 @@ final class ParserTest extends TestCase
         static::assertCount(1, $parts);
         static::assertSame('text/plain', $parts[0]->headers->get('content-type'));
         static::assertSame("line1\r\n\r\nline2", $parts[0]->body->readAll());
+    }
+
+    /**
+     * @return iterable<string, array{string, list<string>}>
+     */
+    public static function provideBodiesWithBoundaryLookalikes(): iterable
+    {
+        yield 'boundary as the prefix of a longer line' => [
+            "--abc\r\n\r\nline 1\r\n--abcdef\r\nline 2\r\n--abc--\r\n",
+            ["line 1\r\n--abcdef\r\nline 2"],
+        ];
+        yield 'boundary inside a line' => [
+            "--abc\r\n\r\nfoo--abc bar\r\nx --abc--\r\n--abc--\r\n",
+            ["foo--abc bar\r\nx --abc--"],
+        ];
+        yield 'close delimiter lookalike as a line prefix' => [
+            "--abc\r\n\r\n--abc-\r\n--abc-x\r\n--abc--\r\n",
+            ["--abc-\r\n--abc-x"],
+        ];
+        yield 'boundary as the prefix of the first body line' => [
+            "--abc\r\n\r\n--abcdef\r\n--abc--\r\n",
+            ['--abcdef'],
+        ];
+        yield 'boundary inside a preamble line' => [
+            "preamble with --abc inside\r\n--abc\r\n\r\nvalue\r\n--abc--\r\n",
+            ['value'],
+        ];
+        yield 'boundary as the prefix of a preamble line' => [
+            "--abcdef\r\n--abc\r\n\r\nvalue\r\n--abc--\r\n",
+            ['value'],
+        ];
+        yield 'transport padding after the delimiters' => [
+            "--abc \t\r\n\r\none\r\n--abc\t\r\n\r\ntwo\r\n--abc-- \r\n",
+            ['one', 'two'],
+        ];
+        yield 'lf line endings' => [
+            "--abc\n\nline 1\n--abcdef\nline 2\n--abc\n\nsecond\n--abc--\n",
+            ["line 1\n--abcdef\nline 2", 'second'],
+        ];
+        yield 'empty body' => [
+            "--abc\r\nContent-Type: text/plain\r\n\r\n--abc\r\n\r\n--abc--",
+            ['', ''],
+        ];
+    }
+
+    /**
+     * @param list<string> $expectedBodies
+     */
+    #[DataProvider('provideBodiesWithBoundaryLookalikes')]
+    public function testDelimiterMustStartALineAndEndWithPaddingAndALineBreak(string $body, array $expectedBodies): void
+    {
+        $parts = iterator_to_array(new Parser('abc')->parse(new IO\MemoryHandle($body)), false);
+
+        $bodies = [];
+        foreach ($parts as $part) {
+            $bodies[] = $part->body->readAll();
+        }
+
+        static::assertSame($expectedBodies, $bodies);
+    }
+
+    public function testBoundaryLookalikeSplitAcrossReads(): void
+    {
+        // "\r\n--boundary" ends exactly at the 8192-byte read boundary, and the next read shows it
+        // is only the prefix of a longer line, then a real delimiter with padding split the same way.
+        $headers = "--boundary\r\n\r\n";
+        $first = Str\repeat('a', 8192 - Str\length($headers) - 12) . "\r\n--boundary";
+        $second = 'X-not-a-delimiter' . Str\repeat('b', 8192 - 17 - 14) . "\r\n--boundary  ";
+        $body = $headers . $first . $second . "\r\n\r\nlast\r\n--boundary--\r\n";
+
+        $parts = iterator_to_array(new Parser('boundary')->parse(new IO\MemoryHandle($body)), false);
+
+        static::assertCount(2, $parts);
+        static::assertSame($first . Str\slice($second, 0, Str\length($second) - 14), $parts[0]->body->readAll());
+        static::assertSame('last', $parts[1]->body->readAll());
+    }
+
+    public function testExcessiveTransportPaddingIsContent(): void
+    {
+        $padding = Str\repeat(' ', 100_000);
+        $body = "--abc\r\n\r\nline\r\n--abc" . $padding . "\r\nmore\r\n--abc--\r\n";
+
+        $parts = iterator_to_array(new Parser('abc')->parse(new IO\MemoryHandle($body)), false);
+
+        static::assertCount(1, $parts);
+        static::assertSame("line\r\n--abc" . $padding . "\r\nmore", $parts[0]->body->readAll());
     }
 }
