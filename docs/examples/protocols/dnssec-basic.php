@@ -13,7 +13,7 @@ $inner = new DNS\SystemResolver(dnssec: true);
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 $resolver = new DNSSEC\SecureResolver($inner, $trustChain);
 
-// Queries are validated: signatures, trust chain, NSEC proofs
+// Verify each answer and CNAME/DNAME link; strip unrelated answer records.
 $response = $resolver->query('example.com', RecordType::A);
 
 // Throws SignatureFailedException, BrokenTrustChainException,

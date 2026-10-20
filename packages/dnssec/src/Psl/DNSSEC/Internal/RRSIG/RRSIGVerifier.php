@@ -13,6 +13,7 @@ use Psl\DNS\Record\AAAARecord;
 use Psl\DNS\Record\ARecord;
 use Psl\DNS\Record\CAARecord;
 use Psl\DNS\Record\CNAMERecord;
+use Psl\DNS\Record\DNAMERecord;
 use Psl\DNS\Record\DNSKEYRecord;
 use Psl\DNS\Record\DSRecord;
 use Psl\DNS\Record\HTTPSRecord;
@@ -48,6 +49,7 @@ use function sort;
 use function str_ends_with;
 use function strlen;
 use function strtolower;
+use function substr_count;
 
 /**
  * Verifies an RRSIG signature over an RRset per RFC 4034 Section 3.1.8.
@@ -91,7 +93,11 @@ final class RRSIGVerifier
         }
 
         foreach ($rrset as $record) {
-            if (!self::isSignerForName($rrsig->signer, $record->name)) {
+            if (
+                !self::isSignerForName($rrsig->signer, $record->name)
+                || $record instanceof DNAMERecord
+                && $rrsig->labels !== (substr_count(rtrim($record->name, '.'), '.') + 1)
+            ) {
                 return false;
             }
         }
@@ -219,7 +225,7 @@ final class RRSIGVerifier
             return Encoder::encodeName(strtolower($record->host));
         }
 
-        if ($record instanceof CNAMERecord) {
+        if ($record instanceof CNAMERecord || $record instanceof DNAMERecord) {
             return Encoder::encodeName(strtolower($record->target));
         }
 

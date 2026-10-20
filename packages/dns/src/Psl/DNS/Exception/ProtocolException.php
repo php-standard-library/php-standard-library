@@ -226,4 +226,12 @@ final class ProtocolException extends RuntimeException
     {
         return new self('DNS response contains ' . $count . ' records, exceeding the limit of ' . $limit . '.');
     }
+
+    /**
+     * Create an exception for a record outside the Internet class.
+     */
+    public static function forUnsupportedClass(int $class): self
+    {
+        return new self('Unsupported DNS record class: ' . $class . '.', expected: 1, actual: $class);
+    }
 }

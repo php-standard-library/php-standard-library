@@ -8,7 +8,10 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\DNS\Record\DNSKEYRecord;
 
+use function rtrim;
+use function strpos;
 use function strtolower;
+use function substr;
 
 /**
  * Trust chain resolver backed by an in-memory map of pre-validated DNSKEY records.
@@ -42,14 +45,14 @@ final readonly class StaticTrustChainResolver implements TrustChainResolverInter
     {
         $normalized = [];
         foreach ($keys as $zone => $dnskeys) {
-            $normalized[strtolower($zone)] = $dnskeys;
+            $normalized[rtrim(strtolower($zone), '.')] = $dnskeys;
         }
 
         $this->keys = $normalized;
 
         $normalizedInsecure = [];
         foreach ($insecureZones as $zone) {
-            $normalizedInsecure[strtolower($zone)] = true;
+            $normalizedInsecure[rtrim(strtolower($zone), '.')] = true;
         }
 
         $this->insecureZones = $normalizedInsecure;
@@ -62,16 +65,23 @@ final readonly class StaticTrustChainResolver implements TrustChainResolverInter
         string $zone,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): TrustChainResult {
-        $normalizedZone = strtolower($zone);
+        $normalizedZone = rtrim(strtolower($zone), '.');
 
-        if (isset($this->insecureZones[$normalizedZone])) {
-            return new TrustChainResult(TrustChainStatus::Insecure, []);
+        while (true) {
+            if (isset($this->insecureZones[$normalizedZone])) {
+                return new TrustChainResult(TrustChainStatus::Insecure, []);
+            }
+
+            if (isset($this->keys[$normalizedZone])) {
+                return new TrustChainResult(TrustChainStatus::Secure, $this->keys[$normalizedZone]);
+            }
+
+            if ($normalizedZone === '') {
+                return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
+            }
+
+            $dot = strpos($normalizedZone, '.');
+            $normalizedZone = $dot === false ? '' : substr($normalizedZone, $dot + 1);
         }
-
-        if (!isset($this->keys[$normalizedZone])) {
-            return new TrustChainResult(TrustChainStatus::Bogus, [], ChainFailure::ChainBroken);
-        }
-
-        return new TrustChainResult(TrustChainStatus::Secure, $this->keys[$normalizedZone]);
     }
 }

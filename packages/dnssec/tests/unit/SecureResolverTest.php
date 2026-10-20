@@ -15,6 +15,7 @@ use Psl\DateTime\Timestamp;
 use Psl\DNS\DNSSEC\Algorithm;
 use Psl\DNS\DNSSEC\DigestAlgorithm;
 use Psl\DNS\Internal\Encoder;
+use Psl\DNS\Record\AAAARecord;
 use Psl\DNS\Record\ARecord;
 use Psl\DNS\Record\DNSKEYRecord;
 use Psl\DNS\Record\NSECRecord;
@@ -274,7 +275,7 @@ final class SecureResolverTest extends TestCase
         $resolver->query('example.com', RecordType::AAAA);
     }
 
-    public function testValidateResponseCollectsMultipleSigners(): void
+    public function testValidateResponseIgnoresUnrelatedSigners(): void
     {
         $rawKey = self::generateRsaRfc3110Key();
 
@@ -354,8 +355,7 @@ final class SecureResolverTest extends TestCase
         }
 
         $zones = $resolvedZones->getArrayCopy();
-        static::assertContains('zone1.com', $zones);
-        static::assertContains('zone2.com', $zones);
+        static::assertSame(['example.com'], $zones);
     }
 
     public function testQueryThrowsWhenRrsigsButNoNsecInNegativeResponse(): void
@@ -417,6 +417,7 @@ final class SecureResolverTest extends TestCase
         );
 
         $aRecord = new ARecord('example.com', Duration::seconds(300), Address::v4('1.2.3.4'));
+        $aaaaRecord = new AAAARecord('example.com', Duration::seconds(300), Address::v6('2001:db8::1'));
 
         $now = Timestamp::now()->getSeconds();
         $expiration = $now + 86_400;
@@ -439,7 +440,7 @@ final class SecureResolverTest extends TestCase
             $signature,
         );
 
-        $inner = self::createMockResolver([$aRecord, $rrsig]);
+        $inner = self::createMockResolver([$aRecord, $aaaaRecord, $rrsig]);
         $trustChain = self::createMockTrustChainResolver(['example.com' => [$nonMatchingDnskey, $dnskey]]);
         $resolver = new SecureResolver($inner, $trustChain);
 
@@ -749,7 +750,7 @@ final class SecureResolverTest extends TestCase
         $resolver->query('unsigned.example.com', RecordType::AAAA);
     }
 
-    public function testQueryCollectsSignersPastDuplicateEntries(): void
+    public function testQueryIgnoresDuplicateUnrelatedSigners(): void
     {
         $rawKey = self::generateRsaRfc3110Key();
 
@@ -844,8 +845,7 @@ final class SecureResolverTest extends TestCase
         }
 
         $zones = $resolvedZones->getArrayCopy();
-        static::assertContains('zone1.com', $zones);
-        static::assertContains('zone2.com', $zones);
+        static::assertSame(['example.com'], $zones);
     }
 
     public function testInsecureZonePositiveResponseReturnsAdFalse(): void

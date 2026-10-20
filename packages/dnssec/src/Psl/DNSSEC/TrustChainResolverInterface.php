@@ -22,7 +22,8 @@ use Psl\DNS\Exception;
 interface TrustChainResolverInterface
 {
     /**
-     * Get validated DNSKEY records for a zone by walking the chain of trust.
+     * Get validated DNSKEY records for a zone or a name within it.
+     * Walk the chain of trust to find the zone that owns the name.
      *
      * Returns a {@see TrustChainResult} with one of three statuses:
      * - Secure: validated keys available via {@see TrustChainResult::$keys}

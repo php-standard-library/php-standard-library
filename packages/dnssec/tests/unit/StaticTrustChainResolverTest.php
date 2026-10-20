@@ -14,6 +14,21 @@ use Psl\DNSSEC\TrustChainStatus;
 
 final class StaticTrustChainResolverTest extends TestCase
 {
+    public function testResolveUsesNearestConfiguredAncestor(): void
+    {
+        $parent = new DNSKEYRecord('example.com', Duration::zero(), 257, 3, Algorithm::RSASHA256, 'parent');
+        $child = new DNSKEYRecord('child.example.com', Duration::zero(), 257, 3, Algorithm::RSASHA256, 'child');
+        $resolver = new StaticTrustChainResolver([
+            'example.com.' => [$parent],
+            'child.example.com' => [$child],
+        ], ['unsigned.example.com']);
+
+        static::assertSame([$parent], $resolver->resolve('WWW.EXAMPLE.COM.')->keys);
+        static::assertSame([$child], $resolver->resolve('www.child.example.com')->keys);
+        static::assertSame(TrustChainStatus::Insecure, $resolver->resolve('www.unsigned.example.com')->status);
+        static::assertSame(TrustChainStatus::Bogus, $resolver->resolve('notexample.com')->status);
+    }
+
     public function testResolveReturnsKeysForConfiguredZone(): void
     {
         $key = new DNSKEYRecord('.', Duration::zero(), 257, 3, Algorithm::RSASHA256, 'publickey');

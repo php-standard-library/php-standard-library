@@ -67,6 +67,11 @@ enum RecordType: int
     case NAPTR = 35;
 
     /**
+     * Subtree redirection record (RFC 6672).
+     */
+    case DNAME = 39;
+
+    /**
      * EDNS0 pseudo-record for extension mechanisms (RFC 6891).
      */
     case OPT = 41;

@@ -348,10 +348,19 @@ final class Decoder
             return null;
         }
 
+        if ($kind !== Record\RecordType::OPT && $class !== 1) {
+            throw ProtocolException::forUnsupportedClass($class);
+        }
+
         return match ($kind) {
             Record\RecordType::A => self::readARecord($data, $offset, $length, $name, $duration),
             Record\RecordType::AAAA => self::readAaaaRecord($data, $offset, $length, $name, $duration),
             Record\RecordType::CNAME => self::readCnameRecord($data, $offset, $length, $name, $duration),
+            Record\RecordType::DNAME => new Record\DNAMERecord(
+                $name,
+                $duration,
+                self::readName($data, $offset, $length),
+            ),
             Record\RecordType::MX => self::readMxRecord($data, $offset, $length, $name, $duration),
             Record\RecordType::TXT => self::readTxtRecord($data, $offset, $length, $name, $duration, $rd_length),
             Record\RecordType::SRV => self::readSrvRecord($data, $offset, $length, $name, $duration),

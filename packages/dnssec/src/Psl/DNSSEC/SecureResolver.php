@@ -22,19 +22,20 @@ use Psl\DNSSEC\Exception\BrokenTrustChainException;
 use Psl\DNSSEC\Exception\InvalidProofException;
 use Psl\DNSSEC\Exception\SignatureFailedException;
 use Psl\DNSSEC\Exception\UnsignedResponseException;
+use Psl\DNSSEC\Internal\AnswerRrsets;
 use Psl\DNSSEC\Internal\DNSSECVerification;
 use Psl\DNSSEC\Internal\KeyTag;
 use Psl\DNSSEC\Internal\NSEC\NSECProofValidator;
 use Psl\DNSSEC\Internal\RRSIG\RRSIGVerifier;
 use Psl\Exception\LogicException;
 
-use function array_all;
-use function array_any;
 use function array_filter;
 use function array_values;
 use function count;
 use function rtrim;
+use function strpos;
 use function strtolower;
+use function substr;
 
 /**
  * A DNSSEC-validating resolver that wraps an inner resolver and verifies
@@ -84,7 +85,7 @@ final readonly class SecureResolver implements ResolverInterface
             return $this->validateNegativeResponse($response, $name, $type, $cancellation);
         }
 
-        return $this->validateResponse($response, $name, $cancellation);
+        return $this->validateResponse($response, $name, $type, $cancellation);
     }
 
     /**
@@ -100,94 +101,94 @@ final readonly class SecureResolver implements ResolverInterface
     private function validateResponse(
         Response $response,
         string $queryName,
+        RecordType $queryType,
         CancellationTokenInterface $cancellation,
     ): Response {
         $rrsigs = DNSSECVerification::filterRecords($response->answers, RecordType::RRSIG);
-        if ($rrsigs === []) {
-            $result = $this->trustChainResolver->resolve($queryName, $cancellation);
-            if ($result->status === TrustChainStatus::Insecure) {
-                return self::withoutAuthenticatedData($response);
-            }
-
-            if ($result->status === TrustChainStatus::Bogus) {
-                throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
-            }
-
-            throw InvalidProofException::forRRSIG($queryName);
-        }
-
-        $signers = [];
-        foreach ($rrsigs as $rrsig) {
-            if (!$rrsig instanceof RRSIGRecord) {
-                continue;
-            }
-
-            if (!RRSIGVerifier::isSignerForName($rrsig->signer, $rrsig->name)) {
-                throw SignatureFailedException::forRRSIG($rrsig->typeCovered->name);
-            }
-
-            $signers[$rrsig->signer] = true;
-        }
-
-        if ($signers === []) {
-            throw InvalidProofException::forRRSIG($queryName);
-        }
-
-        $dnskeys = [];
-        $insecureSigners = [];
-        foreach ($signers as $signer => $_) {
-            $result = $this->trustChainResolver->resolve($signer, $cancellation);
-            if ($result->status === TrustChainStatus::Insecure) {
-                if (RRSIGVerifier::isSignerForName($signer, $queryName)) {
-                    return self::withoutAuthenticatedData($response);
-                }
-
-                $insecureSigners[$signer] = true;
-                continue;
-            }
-
-            if ($result->status === TrustChainStatus::Bogus) {
-                throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
-            }
-
-            foreach ($result->keys as $key) {
-                $dnskeys[] = $key;
-            }
-        }
-
-        if (count($dnskeys) > 8) {
-            throw InvalidProofException::forExcessiveDNSKEYCount(count($dnskeys));
-        }
-
         if (count($rrsigs) > 8) {
             throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
         }
 
-        $rrsigs = array_values(array_filter(
-            $rrsigs,
-            static fn(RecordInterface $r): bool => $r instanceof RRSIGRecord && !isset($insecureSigners[$r->signer]),
-        ));
-        $queryRecords = array_filter(
-            $response->answers,
-            static fn(RecordInterface $r): bool => (
-                !$r instanceof RRSIGRecord
-                && rtrim(strtolower($r->name), '.') === rtrim(strtolower($queryName), '.')
-            ),
-        );
-        if (!array_all($queryRecords, static fn(RecordInterface $record): bool => array_any(
-            $rrsigs,
-            static fn(RecordInterface $r): bool => (
-                $r instanceof RRSIGRecord
-                && $r->typeCovered === $record->kind
-                && rtrim(strtolower($r->name), '.') === rtrim(strtolower($record->name), '.')
-            ),
-        ))) {
-            throw InvalidProofException::forRRSIG($queryName);
+        [$rrsets, $synthesized] = AnswerRrsets::select($response->answers, $queryName, $queryType);
+        $secure = true;
+        /** @var array<string, TrustChainResult> $results */
+        $results = [];
+        foreach ($rrsets as $id => $rrset) {
+            if (isset($synthesized[$id])) {
+                continue;
+            }
+
+            $record = $rrset[0];
+            $signatures = array_values(array_filter(
+                $rrsigs,
+                static fn(RecordInterface $r): bool => (
+                    $r instanceof RRSIGRecord
+                    && AnswerRrsets::id($r->name, $r->typeCovered) === $id
+                ),
+            ));
+            foreach ($signatures as $signature) {
+                if (
+                    $signature instanceof RRSIGRecord
+                    && !RRSIGVerifier::isSignerForName($signature->signer, $record->name)
+                ) {
+                    throw SignatureFailedException::forRRSIG($record->kind->name);
+                }
+            }
+
+            // DS records belong to the parent zone, even at a signed delegation.
+            $owner = self::normalizeName($record->name);
+            $zone = $owner;
+            if ($record->kind === RecordType::DS) {
+                $dot = strpos($owner, '.');
+                $zone = $dot === false ? '.' : substr($owner, $dot + 1);
+            }
+
+            $results[$zone] ??= $this->trustChainResolver->resolve($zone === '' ? '.' : $zone, $cancellation);
+            $result = $results[$zone];
+            if ($result->status === TrustChainStatus::Bogus) {
+                throw BrokenTrustChainException::forValidationFailure($result->failure->name ?? 'unknown');
+            }
+
+            if ($result->status === TrustChainStatus::Insecure) {
+                $secure = false;
+                continue;
+            }
+
+            if ($signatures === []) {
+                throw InvalidProofException::forRRSIG($record->name);
+            }
+
+            if (count($result->keys) > 8) {
+                throw InvalidProofException::forExcessiveDNSKEYCount(count($result->keys));
+            }
+
+            self::verifyRrsigs($rrset, $signatures, $result->keys);
         }
 
-        self::verifyRrsigs($response->answers, $rrsigs, $dnskeys);
+        $answers = array_values(array_filter(
+            $response->answers,
+            static fn(RecordInterface $r): bool => isset(
+                $rrsets[AnswerRrsets::id($r->name, $r instanceof RRSIGRecord ? $r->typeCovered : $r->kind)],
+            ),
+        ));
 
-        return $insecureSigners === [] ? $response : self::withoutAuthenticatedData($response);
+        return new Response(
+            $response->id,
+            $response->code,
+            $answers,
+            $response->authority,
+            $response->additional,
+            $response->authoritativeAnswer,
+            $response->recursionDesired,
+            $response->recursionAvailable,
+            $secure && $response->authenticatedData,
+            $response->checkingDisabled,
+        );
+    }
+
+    private static function normalizeName(string $name): string
+    {
+        return rtrim(strtolower($name), '.');
     }
 
     /**
@@ -292,8 +293,17 @@ final readonly class SecureResolver implements ResolverInterface
      */
     private static function verifyRrsigs(array $answers, array $rrsigs, array $dnskeys): void
     {
-        if (count($rrsigs) > 8) {
-            throw InvalidProofException::forExcessiveRRSIGCount(count($rrsigs));
+        $rrsigCount = 0;
+        foreach ($rrsigs as $r) {
+            if (!$r instanceof RRSIGRecord) {
+                continue;
+            }
+
+            $rrsigCount++;
+        }
+
+        if ($rrsigCount > 8) {
+            throw InvalidProofException::forExcessiveRRSIGCount($rrsigCount);
         }
 
         foreach ($rrsigs as $rrsig) {
@@ -306,7 +316,7 @@ final readonly class SecureResolver implements ResolverInterface
                 static fn(RecordInterface $r): bool => (
                     $r->kind === $rrsig->typeCovered
                     && !$r instanceof RRSIGRecord
-                    && rtrim(strtolower($r->name), '.') === rtrim(strtolower($rrsig->name), '.')
+                    && self::normalizeName($r->name) === self::normalizeName($rrsig->name)
                 ),
             ));
 

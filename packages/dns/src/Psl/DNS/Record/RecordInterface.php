@@ -11,7 +11,7 @@ use Psl\DateTime\Duration;
  *
  * @api
  *
- * @inheritors ARecord|AaaaRecord|CnameRecord|MxRecord|TxtRecord|SrvRecord|NsRecord|PtrRecord|SoaRecord|CaaRecord|NaptrRecord|SshfpRecord|TlsaRecord|OptRecord|DsRecord|DnskeyRecord|RrsigRecord|NsecRecord|Nsec3Record|Nsec3paramRecord|LocRecord|SvcbRecord|HttpsRecord
+ * @inheritors ARecord|AaaaRecord|CnameRecord|DnameRecord|MxRecord|TxtRecord|SrvRecord|NsRecord|PtrRecord|SoaRecord|CaaRecord|NaptrRecord|SshfpRecord|TlsaRecord|OptRecord|DsRecord|DnskeyRecord|RrsigRecord|NsecRecord|Nsec3Record|Nsec3paramRecord|LocRecord|SvcbRecord|HttpsRecord
  */
 interface RecordInterface
 {

@@ -14,9 +14,11 @@ To use DNSSEC, you need two things: a DNS resolver that requests DNSSEC records 
 
 Every DNSSEC-signed response includes RRSIG records alongside the answer records. Each RRSIG contains a cryptographic signature over a set of records, the signer's identity, and the key tag to locate the corresponding DNSKEY.
 
-When `SecureResolver` receives a response, it verifies that the RRSIG signatures are valid using the zone's public keys (DNSKEY records). If any signature is invalid or expired, `SignatureFailedException` is thrown.
+`SecureResolver` requires signature coverage for each answer RRset in a signed zone, including every CNAME or DNAME in the query's alias chain. It checks each RRset with the keys of the zone that owns it. A parent zone's key cannot sign data below a signed child delegation. Missing signatures raise `InvalidProofException`; invalid or expired signatures raise `SignatureFailedException`.
 
-The signing key must belong to the RRSIG signer, and each signed name must be at or below that zone.
+A signed DNAME also proves an unsigned CNAME when the CNAME matches the DNAME substitution. The resolver rejects wildcard-expanded DNAMEs, alias loops, and substitutions longer than the DNS name limit. The resolver strips unrelated answer RRsets and their signatures so callers receive only the queried data and its alias chain. Each RRset uses class IN; the DNS wire decoder rejects other record classes except the EDNS OPT pseudo-record.
+
+`StaticTrustChainResolver` uses the nearest configured ancestor zone for names below a zone apex. A more specific entry takes precedence, including an unsigned delegation.
 
 ## DS/DNSKEY: Trust Chain
 
