@@ -54,6 +54,9 @@ final class EncodingReadHandleTest extends TestCase
         static::assertSame(4, strlen($part1));
         $rest = $handle->tryRead();
         static::assertGreaterThan(0, strlen($rest));
+        // The trailing partial group is only encoded once the end of the inner handle is reached.
+        $rest .= $handle->readAll();
+        static::assertSame(Base64\encode('Hello, World!'), $part1 . $rest);
         $decoder = new Base64\DecodingReadHandle(new IO\MemoryHandle($part1 . $rest));
         static::assertSame('Hello, World!', $decoder->readAll());
     }
@@ -162,11 +165,21 @@ final class EncodingReadHandleTest extends TestCase
     public function testReadLineMultipleChunks(): void
     {
         $data = str_repeat('A', 60);
-        $handle = new Base64\EncodingReadHandle(new IO\MemoryHandle($data));
+        $handle = new Base64\EncodingReadHandle(new IO\MemoryHandle($data), Base64\Variant::Mime);
         $line1 = $handle->readLine();
         static::assertNotNull($line1);
+        static::assertSame(76, strlen($line1));
         $line2 = $handle->readLine();
-        static::assertNotNull($line2);
+        static::assertSame('QUFB', $line2);
+        static::assertNull($handle->readLine());
+    }
+
+    public function testNonMimeVariantsDoNotEmitLineEndings(): void
+    {
+        $data = str_repeat('A', 60);
+        $handle = new Base64\EncodingReadHandle(new IO\MemoryHandle($data));
+        static::assertSame(Base64\encode($data), $handle->readLine());
+        static::assertNull($handle->readLine());
     }
 
     public function testReadUntilSuffixFound(): void
@@ -187,9 +200,9 @@ final class EncodingReadHandleTest extends TestCase
     {
         $handle = new Base64\EncodingReadHandle(new IO\MemoryHandle('Hello'));
         $before = $handle->readUntil('=');
-        static::assertNotNull($before);
-        $rest = $handle->readAll();
-        static::assertGreaterThan(0, strlen($rest));
+        static::assertSame('SGVsbG8', $before);
+        // Like `Base64\encode()`, nothing follows the padding.
+        static::assertSame('', $handle->readAll());
     }
 
     public function testReadUntilBoundedSuffixFoundWithinLimit(): void

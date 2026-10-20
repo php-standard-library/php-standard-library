@@ -61,7 +61,9 @@ Each encoding namespace (Base64, Hex, QuotedPrintable) provides four IO handle d
 - **`EncodingWriteHandle`** accepts raw data via write(); encodes and writes to the inner handle
 - **`DecodingWriteHandle`** accepts encoded data via write(); decodes and writes to the inner handle
 
-Write handles have a `flush()` method to encode/decode any remaining buffered data.
+Write handles have a `flush()` method to encode/decode any remaining buffered data; call it once all data has been written.
+
+The Base64 encoding handles produce exactly the same output as `Base64\encode()` with the same variant and padding: only the `Mime` variant wraps lines (with CRLF between lines, not after the last one), and padding is only emitted at the end of the stream.
 
 This bridges `Psl\IO` with `Psl\Encoding`, allowing you to compose encoding into any IO pipeline:
 

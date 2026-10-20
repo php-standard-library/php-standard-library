@@ -9,11 +9,14 @@ use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
 use function strlen;
-use function substr;
 
 /**
- * A write handle that accepts raw binary data, buffers until {@see CHUNK_SIZE} (57) byte chunks
- * are available, base64-encodes each chunk, and writes to the inner handle with {@see LINE_ENDING}.
+ * A write handle that accepts raw binary data, base64-encodes it, and writes it to the inner handle.
+ *
+ * Once {@see flush()} has been called, the bytes written to the inner handle are identical to
+ * {@see encode()} applied to all the data written, with the same variant and padding: raw bytes are
+ * buffered until complete 3-byte groups are available (or complete {@see CHUNK_SIZE} byte lines for
+ * {@see Variant::Mime}, which is the only variant that emits {@see LINE_ENDING}, between lines).
  *
  * @api
  */
@@ -21,34 +24,27 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
 {
     use IO\WriteHandleConvenienceMethodsTrait;
 
-    private string $remainder = '';
+    private readonly Internal\StreamEncoder $encoder;
 
     public function __construct(
         private readonly IO\WriteHandleInterface $handle,
-        private readonly Variant $variant = Variant::Standard,
-        private readonly bool $padding = true,
-    ) {}
+        Variant $variant = Variant::Standard,
+        bool $padding = true,
+    ) {
+        $this->encoder = new Internal\StreamEncoder($variant, $padding);
+    }
 
     /**
      * {@inheritDoc}
      */
     public function tryWrite(string $bytes): int
     {
-        $length = strlen($bytes);
-        $data = $this->remainder . $bytes;
-
-        $dataLength = strlen($data);
-        while ($dataLength >= namespace\CHUNK_SIZE) {
-            $chunk = substr($data, 0, namespace\CHUNK_SIZE);
-            $data = substr($data, namespace\CHUNK_SIZE);
-            $dataLength -= namespace\CHUNK_SIZE;
-
-            $encoded = namespace\encode($chunk, $this->variant, $this->padding) . namespace\LINE_ENDING;
+        $encoded = $this->encoder->update($bytes);
+        if ($encoded !== '') {
             $this->handle->writeAll($encoded);
         }
 
-        $this->remainder = $data;
-        return $length;
+        return strlen($bytes);
     }
 
     /**
@@ -60,13 +56,14 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
     }
 
     /**
-     * Flush any remaining buffered raw data through the encoder to the inner handle.
+     * Encode any remaining buffered raw data (with padding, if enabled) and write it to the inner handle.
+     *
+     * Call this once all data has been written; data written afterwards starts a new encoded stream.
      */
     public function flush(): void
     {
-        if ($this->remainder !== '') {
-            $encoded = namespace\encode($this->remainder, $this->variant, $this->padding) . namespace\LINE_ENDING;
-            $this->remainder = '';
+        $encoded = $this->encoder->finalize();
+        if ($encoded !== '') {
             $this->handle->writeAll($encoded);
         }
     }

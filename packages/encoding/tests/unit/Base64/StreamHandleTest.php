@@ -23,7 +23,7 @@ final class StreamHandleTest extends TestCase
 
         $result = $handle->readAll();
 
-        static::assertSame("SGVsbG8sIFdvcmxkIQ==\r\n", $result);
+        static::assertSame('SGVsbG8sIFdvcmxkIQ==', $result);
     }
 
     public function testDecodingReadHandle(): void
@@ -45,7 +45,7 @@ final class StreamHandleTest extends TestCase
         $handle->flush();
 
         $inner->seek(0);
-        static::assertSame("SGVsbG8sIFdvcmxkIQ==\r\n", $inner->readAll());
+        static::assertSame('SGVsbG8sIFdvcmxkIQ==', $inner->readAll());
     }
 
     public function testDecodingWriteHandle(): void
@@ -866,6 +866,10 @@ final class StreamHandleTest extends TestCase
 
         $rest = $handle->tryRead();
         static::assertGreaterThan(0, strlen($rest));
+
+        // The trailing partial group is only encoded once the end of the inner handle is reached.
+        $rest .= $handle->readAll();
+        static::assertSame(Base64\encode('Hello, World!'), $part1 . $rest);
 
         $decodingHandle = new IO\MemoryHandle($part1 . $rest);
         $decoder = new Base64\DecodingReadHandle($decodingHandle);

@@ -16,8 +16,10 @@ use function substr;
 /**
  * A read handle that base64-encodes raw binary data from an inner readable handle.
  *
- * Reads {@see CHUNK_SIZE} (57) byte chunks from the inner handle, encodes each to base64,
- * and appends {@see LINE_ENDING} after each encoded chunk.
+ * The bytes read from this handle are identical to {@see encode()} applied to all the data of the
+ * inner handle, with the same variant and padding: raw bytes are encoded in complete 3-byte groups
+ * (or complete {@see CHUNK_SIZE} byte lines for {@see Variant::Mime}, which is the only variant that
+ * emits {@see LINE_ENDING}, between lines), and padding is only emitted at the end.
  *
  * @api
  */
@@ -27,12 +29,15 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
 
     private string $buffer = '';
     private bool $eof = false;
+    private readonly Internal\StreamEncoder $encoder;
 
     public function __construct(
         private readonly IO\ReadHandleInterface $handle,
-        private readonly Variant $variant = Variant::Standard,
-        private readonly bool $padding = true,
-    ) {}
+        Variant $variant = Variant::Standard,
+        bool $padding = true,
+    ) {
+        $this->encoder = new Internal\StreamEncoder($variant, $padding);
+    }
 
     /**
      * {@inheritDoc}
@@ -254,20 +259,20 @@ final class EncodingReadHandle implements IO\BufferedReadHandleInterface
 
     private function fillBuffer(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        if ($this->eof) {
-            // @codeCoverageIgnoreStart
-            return;
-            // @codeCoverageIgnoreEnd
-        }
+        while (!$this->eof) {
+            // The encoder groups the bytes itself: read 72 MIME lines worth of bytes (4104) at a time.
+            $chunk = $this->handle->read(namespace\CHUNK_SIZE * 72, $cancellation);
+            if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
+                $this->eof = true;
+                $this->buffer .= $this->encoder->finalize();
 
-        $chunk = $this->handle->read(namespace\CHUNK_SIZE, $cancellation);
-        if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
-            $this->eof = true;
-            return;
-        }
+                return;
+            }
 
-        if ($chunk !== '') {
-            $this->buffer .= namespace\encode($chunk, $this->variant, $this->padding) . namespace\LINE_ENDING;
+            $this->buffer .= $this->encoder->update($chunk);
+            if ($this->buffer !== '' || $chunk === '') {
+                return;
+            }
         }
     }
 }

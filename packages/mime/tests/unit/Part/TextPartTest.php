@@ -50,7 +50,7 @@ final class TextPartTest extends TestCase
     {
         $part = new Text(new IO\MemoryHandle('Hello'), encoding: TransferEncoding::Base64);
 
-        static::assertSame("SGVsbG8=\r\n", $part->body()->readAll());
+        static::assertSame('SGVsbG8=', $part->body()->readAll());
     }
 
     public function testEncodedBodySevenBitPassthrough(): void
@@ -77,7 +77,7 @@ final class TextPartTest extends TestCase
     {
         $part = new Text(new IO\MemoryHandle('Hello'), encoding: TransferEncoding::Base64);
 
-        static::assertSame("SGVsbG8=\r\n", $part->body()->readAll());
+        static::assertSame('SGVsbG8=', $part->body()->readAll());
     }
 
     public function testEightBitEncodingPassthrough(): void
