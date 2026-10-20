@@ -183,6 +183,22 @@ final class Decoder
     }
 
     /**
+     * Read a length-prefixed <character-string> (RFC 1035 section 3.3).
+     *
+     * @throws OutOfBoundsException
+     */
+    private static function readCharacterString(string $data, int &$offset, int $length): string
+    {
+        if ($offset >= $length) {
+            throw new OutOfBoundsException('Read beyond end of data at offset ' . $offset);
+        }
+
+        $stringLength = ord($data[$offset++]);
+
+        return $stringLength > 0 ? self::readBytes($data, $offset, $length, $stringLength) : '';
+    }
+
+    /**
      * @param non-negative-int $count
      *
      * @throws OutOfBoundsException
@@ -618,12 +634,9 @@ final class Decoder
         $order = $naptr[1];
         $preference = $naptr[2];
         $offset += 4;
-        $flagsLength = ord($data[$offset++]);
-        $flags = $flagsLength > 0 ? self::readBytes($data, $offset, $length, $flagsLength) : '';
-        $servicesLength = ord($data[$offset++]);
-        $services = $servicesLength > 0 ? self::readBytes($data, $offset, $length, $servicesLength) : '';
-        $regexpLength = ord($data[$offset++]);
-        $regexp = $regexpLength > 0 ? self::readBytes($data, $offset, $length, $regexpLength) : '';
+        $flags = self::readCharacterString($data, $offset, $length);
+        $services = self::readCharacterString($data, $offset, $length);
+        $regexp = self::readCharacterString($data, $offset, $length);
         $replacement = self::readName($data, $offset, $length);
 
         return new Record\NAPTRRecord($name, $duration, $order, $preference, $flags, $services, $regexp, $replacement);

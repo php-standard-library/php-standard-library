@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\DNS\Tests\Unit\Internal;
 
+use ErrorException;
 use PHPUnit\Framework\TestCase;
 use Psl\Binary\Writer;
 use Psl\DateTime\Duration;
@@ -44,6 +45,9 @@ use Psl\DNS\Record\TXTRecord;
 use Psl\DNS\ResponseCode;
 use Psl\Iter;
 use Psl\Str\Byte;
+
+use function restore_error_handler;
+use function set_error_handler;
 
 final class DecoderTest extends TestCase
 {
@@ -379,6 +383,58 @@ final class DecoderTest extends TestCase
         static::assertSame('SIP+D2U', $record->services);
         static::assertSame('', $record->regexp);
         static::assertSame('_sip._udp.example.com', $record->replacement);
+    }
+
+    public function testDecodeTruncatedNaptrRecordThrowsWithoutWarnings(): void
+    {
+        $rdata = new Writer()
+            ->u16(100)
+            ->u16(10)
+            ->u8(1)
+            ->bytes('s')
+            ->u8(7)
+            ->bytes('SIP+D2U')
+            ->u8(0)
+            ->bytes($this->encodeName('_sip._udp.example.com'))
+            ->toString();
+
+        $packet = $this->buildResponsePacket(
+            id: 0x0010,
+            rcode: 0,
+            questions: [['example.com', 35, 1]],
+            answers: [
+                [
+                    'name' => 'example.com',
+                    'type' => 35,
+                    'ttl' => 3600,
+                    'rdata' => $rdata,
+                ],
+            ],
+        );
+
+        $packetLength = Byte\length($packet);
+        $rdataOffset = $packetLength - Byte\length($rdata);
+
+        // Reading a length byte past the end of the packet must not emit an
+        // "Uninitialized string offset" warning or the PHP 8.5 ord('') deprecation.
+        set_error_handler(static function (int $level, string $message): never {
+            throw new ErrorException($message, 0, $level);
+        });
+
+        $rejected = 0;
+        try {
+            for ($length = $rdataOffset; $length < $packetLength; $length++) {
+                try {
+                    Decoder::decode(Byte\slice($packet, 0, $length));
+                } catch (ProtocolException) {
+                    $rejected++;
+                }
+            }
+        } finally {
+            restore_error_handler();
+        }
+
+        static::assertSame($packetLength - $rdataOffset, $rejected);
     }
 
     public function testDecodeSshfpRecord(): void
