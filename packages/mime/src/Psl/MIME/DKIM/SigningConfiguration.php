@@ -33,9 +33,11 @@ final readonly class SigningConfiguration
      * @param Canonicalization $bodyCanonicalization Canonicalization mode applied to the message body before signing.
      * @param int<0, max> $signatureExpirationDelay Number of seconds after signing until the signature
      *                                              expires (recorded in the "x=" tag). 0 means no expiry.
-     * @param int<0, max> $bodyMaxLength Maximum number of body bytes to include in the hash
-     *                                   (used with the "l=" tag). 0 means no limit.
-     * @param bool $includeBodyLength Whether to include the "l=" (body length) tag in the signature.
+     * @param int<0, max> $bodyMaxLength Maximum number of body bytes to include in the hash. 0 means
+     *                                   no limit. When the body is truncated, the "l=" tag is always
+     *                                   included, since verifiers would otherwise hash the whole body.
+     * @param bool $includeBodyLength Whether to include the "l=" (body length) tag in the signature
+     *                                even when the body is not truncated.
      * @param list<non-empty-lowercase-string> $headersToIgnore Lowercase header names to exclude from
      *                                                          signing. The "From" header is always signed
      *                                                          regardless of this list.
@@ -129,6 +131,9 @@ final readonly class SigningConfiguration
     /**
      * Return a new configuration with the given maximum body length for hashing.
      *
+     * When a body is longer than this, the signature covers only its first $maxLength bytes and
+     * carries an "l=" tag, even without {@see withIncludeBodyLength()}.
+     *
      * @param int<0, max> $maxLength Maximum body bytes to hash. 0 means no limit.
      */
     public function withBodyMaxLength(int $maxLength): self
@@ -148,6 +153,8 @@ final readonly class SigningConfiguration
 
     /**
      * Return a new configuration that includes or excludes the "l=" (body length) tag.
+     *
+     * The tag is always included when the body is truncated to the maximum body length.
      */
     public function withIncludeBodyLength(bool $include = true): self
     {

@@ -109,7 +109,7 @@ final readonly class Signer implements SignerInterface
             $headerCanonData .= (string) array_pop($canonicalizedInstances[$lowerName]);
         }
 
-        [$bodyHash, $bodyLength] = self::hashBody(
+        [$bodyHash, $bodyLength, $truncated] = self::hashBody(
             $body,
             $this->configuration->bodyCanonicalization,
             $this->configuration->bodyMaxLength,
@@ -132,7 +132,9 @@ final readonly class Signer implements SignerInterface
                 . $this->configuration->bodyCanonicalization->value,
         ];
 
-        if ($this->configuration->includeBodyLength) {
+        // RFC 6376 §3.4.5: a verifier hashes the whole body unless "l=" says otherwise, so a
+        // signature over a truncated body must carry "l=" to be verifiable at all.
+        if ($this->configuration->includeBodyLength || $truncated) {
             $params[] = 'l=' . $bodyLength;
         }
 
@@ -252,19 +254,20 @@ final readonly class Signer implements SignerInterface
      *
      * @param int<0, max> $maxLength 0 = no limit.
      *
-     * @return array{string, int<0, max>} [binaryHash, bodyLength]
+     * @return array{string, int<0, max>, bool} [binaryHash, bodyLength, truncated]
      */
     private static function hashBody(string $body, Canonicalization $mode, int $maxLength): array
     {
         $canon = self::canonicalizeBody($body, $mode);
 
-        if ($maxLength > 0 && strlen($canon) > $maxLength) {
+        $truncated = $maxLength > 0 && strlen($canon) > $maxLength;
+        if ($truncated) {
             $canon = substr($canon, 0, $maxLength);
         }
 
         $length = strlen($canon);
 
-        return [hash('sha256', $canon, true), $length];
+        return [hash('sha256', $canon, true), $length, $truncated];
     }
 
     /**

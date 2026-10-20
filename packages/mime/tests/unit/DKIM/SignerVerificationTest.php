@@ -161,6 +161,30 @@ final class SignerVerificationTest extends TestCase
         static::assertTrue(self::verify($signed, 0, self::publicKey($algorithm)));
     }
 
+    #[DataProvider('provideAlgorithms')]
+    public function testSignatureWithBodyMaxLengthAloneVerifies(Algorithm $algorithm): void
+    {
+        $configuration = new SigningConfiguration('football.example.com', 'test', $algorithm)->withBodyMaxLength(10);
+
+        $signed = self::createSigner($configuration)->sign(self::RFC8463_UNSIGNED_MESSAGE);
+
+        static::assertStringContainsString('; l=10;', str_replace("\r\n", '', $signed));
+        static::assertTrue(self::verify($signed, 0, self::publicKey($algorithm)));
+    }
+
+    #[DataProvider('provideAlgorithms')]
+    public function testSignatureWithBodyMaxLengthAboveTheBodyLengthHasNoLengthTag(Algorithm $algorithm): void
+    {
+        $configuration = new SigningConfiguration('football.example.com', 'test', $algorithm)->withBodyMaxLength(
+            10_000,
+        );
+
+        $signed = self::createSigner($configuration)->sign(self::RFC8463_UNSIGNED_MESSAGE);
+
+        static::assertStringNotContainsString('l=', $signed);
+        static::assertTrue(self::verify($signed, 0, self::publicKey($algorithm)));
+    }
+
     /**
      * @return iterable<string, array{Algorithm}>
      */
