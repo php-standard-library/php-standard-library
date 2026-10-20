@@ -137,9 +137,9 @@ interface ConnectionInterface
     ): void;
 
     /**
-     * Send a DATA frame on a stream.
+     * Send DATA frames on a stream.
      *
-     * Sends the data in a single frame. The caller is responsible for ensuring
+     * Splits data at the peer frame-size limit. The caller must ensure
      * the data fits within the available flow control window. Use
      * {@see sendAllData()} for automatic flow control handling.
      *

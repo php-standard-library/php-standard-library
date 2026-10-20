@@ -19,6 +19,7 @@ $client->sendHeaders($streamId, [
     new Header(':authority', 'example.com'),
 ]);
 
-// sendAllData handles flow control - no manual window management needed
+// sendData splits frames but requires enough window for the whole payload.
+// sendAllData also waits for flow-control window updates.
 $largePayload = Str\repeat('data', 10_000);
 $client->sendAllData($streamId, $largePayload, endStream: true);

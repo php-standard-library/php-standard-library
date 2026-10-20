@@ -48,6 +48,7 @@ use Psl\HPACK\Header;
 use function ctype_digit;
 use function hrtime;
 use function max;
+use function min;
 use function ord;
 use function pack;
 use function str_repeat;
@@ -458,7 +459,19 @@ final class StateMachine
             $this->flowController->consumeSendWindow($stream, $size);
         }
 
-        $frames = [new RawFrame(FrameType::Data->value, $endStream ? 0x01 : 0x00, $streamId, $data)];
+        $frames = [];
+        $offset = 0;
+        do {
+            $length = min($size - $offset, $this->remoteMaxFrameSize);
+            $last = ($offset + $length) === $size;
+            $frames[] = new RawFrame(
+                FrameType::Data->value,
+                $endStream && $last ? 0x01 : 0x00,
+                $streamId,
+                substr($data, $offset, $length),
+            );
+            $offset += $length;
+        } while ($offset < $size);
 
         if ($endStream) {
             if ($stream->state === StreamState::Open) {
@@ -472,7 +485,7 @@ final class StateMachine
     }
 
     /**
-     * Encode a DATA frame directly to wire bytes.
+     * Encode DATA frames directly to wire bytes.
      *
      * Functionally identical to {@see sendData()} but returns the binary
      * frame representation directly, avoiding RawFrame allocation.
@@ -516,7 +529,18 @@ final class StateMachine
             }
         }
 
-        return pack('NCN', $size << 8, $endStream ? 0x01 : 0x00, $streamId & 0x7FFF_FFFF) . $data;
+        $encoded = '';
+        $offset = 0;
+        do {
+            $length = min($size - $offset, $this->remoteMaxFrameSize);
+            $last = ($offset + $length) === $size;
+            $encoded .=
+                pack('NCN', $length << 8, $endStream && $last ? 0x01 : 0x00, $streamId & 0x7FFF_FFFF)
+                . substr($data, $offset, $length);
+            $offset += $length;
+        } while ($offset < $size);
+
+        return $encoded;
     }
 
     /**
