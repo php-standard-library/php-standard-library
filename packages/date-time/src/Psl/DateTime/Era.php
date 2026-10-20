@@ -21,9 +21,9 @@ enum Era: string
     /**
      * Creates an Era instance based on the given year.
      *
-     * @param int $year The year, positive for AD and negative for BC.
+     * @param int $year The astronomical (ISO 8601) year: 1 is AD 1, 0 is 1 BC, -1 is 2 BC, and so on.
      *
-     * @return Era Returns AnnoDomini for positive years and BeforeChrist for negative years.
+     * @return Era Returns AnnoDomini for positive years and BeforeChrist for zero and negative years.
      *
      * @pure
      */

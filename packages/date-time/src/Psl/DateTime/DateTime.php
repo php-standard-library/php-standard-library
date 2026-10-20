@@ -244,8 +244,8 @@ final readonly class DateTime implements
             throw Exception\UnexpectedValueException::forMonth($month, $calendar->get(IntlCalendar::FIELD_MONTH) + 1);
         }
 
-        if ($year !== $calendar->get(IntlCalendar::FIELD_YEAR)) {
-            throw Exception\UnexpectedValueException::forYear($year, $calendar->get(IntlCalendar::FIELD_YEAR));
+        if ($year !== $calendar->get(IntlCalendar::FIELD_EXTENDED_YEAR)) {
+            throw Exception\UnexpectedValueException::forYear($year, $calendar->get(IntlCalendar::FIELD_EXTENDED_YEAR));
         }
 
         $timestampInSeconds = (int) ($calendar->getTime() / (float) namespace\MILLISECONDS_PER_SECOND);
@@ -275,7 +275,7 @@ final readonly class DateTime implements
 
         $calendar->setTime($timestamp->getSeconds() * namespace\MILLISECONDS_PER_SECOND);
 
-        $year = $calendar->get(IntlCalendar::FIELD_YEAR);
+        $year = $calendar->get(IntlCalendar::FIELD_EXTENDED_YEAR);
         $month = $calendar->get(IntlCalendar::FIELD_MONTH) + 1;
         $day = $calendar->get(IntlCalendar::FIELD_DAY_OF_MONTH);
         $hour = $calendar->get(IntlCalendar::FIELD_HOUR_OF_DAY);
@@ -390,7 +390,7 @@ final readonly class DateTime implements
      *
      * This method returns the year part of the date. For years in the Anno Domini (AD) era, the returned value matches
      * the Gregorian calendar year directly (e.g., 1 for AD 1, 2021 for AD 2021, etc.). For years before AD 1, the method
-     * adheres to the ISO-8601 standard, which does not use a year zero: 1 BC is represented as 0, 2 BC as -1, 3 BC as -2,
+     * adheres to the ISO-8601 standard, which uses astronomical year numbering: 1 BC is represented as 0, 2 BC as -1, 3 BC as -2,
      * and so forth. This ISO-8601 numbering facilitates straightforward mathematical operations on years across the AD/BC
      * divide but may require conversion for user-friendly display or when interfacing with systems that use the traditional
      * AD/BC notation.

@@ -339,9 +339,9 @@ trait DateTimeConvenienceMethodsTrait
      * Retrieves the era of the date represented by this DateTime instance.
      *
      * This method returns an instance of the `Era` enum, which indicates whether the date
-     * falls in the Anno Domini (AD) or Before Christ (BC) era. The era is determined based on the year
-     * of the date this object represents, with years designated as BC being negative
-     * and years in AD being positive.
+     * falls in the Anno Domini (AD) or Before Christ (BC) era. The era is determined based on the
+     * astronomical year returned by {@see DateTimeInterface::getYear()}: years greater than zero are AD,
+     * while zero (1 BC) and negative years (2 BC, 3 BC, ...) are BC.
      *
      * @psalm-mutation-free
      */
@@ -369,8 +369,7 @@ trait DateTimeConvenienceMethodsTrait
      */
     public function getYearShort(): int
     {
-        /** @var int<-99, 99> */
-        return (int) $this->format(pattern: 'yy', locale: Locale::EnglishUnitedKingdom);
+        return $this->getYear() % 100;
     }
 
     /**

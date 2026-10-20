@@ -276,9 +276,9 @@ interface DateTimeInterface extends TemporalInterface
      * Retrieves the era of the date represented by this DateTime instance.
      *
      * This method returns an instance of the `Era` enum, which indicates whether the date
-     * falls in the Anno Domini (AD) or Before Christ (BC) era. The era is determined based on the year
-     * of the date this object represents, with years designated as BC being negative
-     * and years in AD being positive.
+     * falls in the Anno Domini (AD) or Before Christ (BC) era. The era is determined based on the
+     * astronomical year returned by {@see DateTimeInterface::getYear()}: years greater than zero are AD,
+     * while zero (1 BC) and negative years (2 BC, 3 BC, ...) are BC.
      *
      * @psalm-mutation-free
      */
@@ -296,7 +296,7 @@ interface DateTimeInterface extends TemporalInterface
      *
      * This method returns the year part of the date. For years in the Anno Domini (AD) era, the returned value matches
      * the Gregorian calendar year directly (e.g., 1 for AD 1, 2021 for AD 2021, etc.). For years before AD 1, the method
-     * adheres to the ISO-8601 standard, which does not use a year zero: 1 BC is represented as 0, 2 BC as -1, 3 BC as -2,
+     * adheres to the ISO-8601 standard, which uses astronomical year numbering: 1 BC is represented as 0, 2 BC as -1, 3 BC as -2,
      * and so forth. This ISO-8601 numbering facilitates straightforward mathematical operations on years across the AD/BC
      * divide but may require conversion for user-friendly display or when interfacing with systems that use the traditional
      * AD/BC notation.

@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\DateTime\DateStyle;
 use Psl\DateTime\DateTime;
+use Psl\DateTime\Era;
 use Psl\DateTime\Exception\InvalidArgumentException;
 use Psl\DateTime\Exception\UnexpectedValueException;
 use Psl\DateTime\FormatPattern;
@@ -116,16 +117,6 @@ final class DateTimeTest extends TestCase
     public static function provideInvalidComponentParts(): array
     {
         return [
-            [
-                'Unexpected year value encountered. Provided "0", but the calendar expects "1". Check the year for accuracy and ensure it\'s within the supported range.',
-                0,
-                1,
-                1,
-                0,
-                0,
-                0,
-                0,
-            ],
             [
                 'Unexpected month value encountered. Provided "0", but the calendar expects "12". Ensure the month is within the 1-12 range and matches the specific year context.',
                 2024,
@@ -293,6 +284,47 @@ final class DateTimeTest extends TestCase
         $datetime = DateTime::fromParts(Timezone::default(), 2024, Month::February, 4, 14, 0, 0, 0);
 
         static::assertSame('AD', $datetime->getEra()->value);
+    }
+
+    /**
+     * @return iterable<array{int, string, string}>
+     */
+    public static function provideAstronomicalYears(): iterable
+    {
+        yield [0, 'BC 1', '0000-06-15T10:30:00+00:00'];
+        yield [-1, 'BC 2', '-0001-06-15T10:30:00+00:00'];
+        yield [-5, 'BC 6', '-0005-06-15T10:30:00+00:00'];
+        yield [-4712, 'BC 4713', '-4712-06-15T10:30:00+00:00'];
+        yield [1, 'AD 1', '0001-06-15T10:30:00+00:00'];
+    }
+
+    #[DataProvider('provideAstronomicalYears')]
+    public function testYearsUseAstronomicalNumbering(int $year, string $eraYear, string $rfc3339): void
+    {
+        $datetime = DateTime::fromParts(Timezone::UTC, $year, 6, 15, 10, 30);
+
+        static::assertSame($year, $datetime->getYear());
+        static::assertSame($year > 0 ? Era::AnnoDomini : Era::BeforeChrist, $datetime->getEra());
+        static::assertSame($year % 100, $datetime->getYearShort());
+        static::assertSame($eraYear, $datetime->format('G y', locale: Locale::English));
+        static::assertSame($rfc3339, $datetime->toRfc3339());
+
+        $fromTimestamp = DateTime::fromTimestamp($datetime->getTimestamp(), Timezone::UTC);
+
+        static::assertSame([$year, 6, 15, 10, 30, 0, 0], $fromTimestamp->getParts());
+        static::assertSame($datetime->getEra(), $fromTimestamp->getEra());
+    }
+
+    public function testYearArithmeticCrossesIntoBeforeChrist(): void
+    {
+        $datetime = DateTime::fromParts(Timezone::UTC, 2024, 3, 1, 12);
+
+        $result = $datetime->minusYears(2025);
+        static::assertSame([-1, 3, 1, 12, 0, 0, 0], $result->getParts());
+        static::assertSame(Era::BeforeChrist, $result->getEra());
+
+        static::assertSame([-5, 3, 1, 12, 0, 0, 0], $datetime->withYear(-5)->getParts());
+        static::assertSame([1, 3, 1, 12, 0, 0, 0], $result->plusYears(2)->getParts());
     }
 
     public function testGetCentury(): void

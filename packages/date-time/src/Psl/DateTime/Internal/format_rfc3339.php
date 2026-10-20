@@ -42,9 +42,11 @@ function format_rfc3339(
         $fraction = '.' . $fraction;
     }
 
+    // `uuuu` is the astronomical (extended) year; `yyyy` would print the era-relative year,
+    // turning 1 BC (year 0) into "0001".
     $pattern = match ($useZ) {
-        true => 'yyyy-MM-dd\'T\'HH:mm:ss@ZZZZZ',
-        false => 'yyyy-MM-dd\'T\'HH:mm:ss@xxx',
+        true => 'uuuu-MM-dd\'T\'HH:mm:ss@ZZZZZ',
+        false => 'uuuu-MM-dd\'T\'HH:mm:ss@xxx',
     };
 
     $formatter = namespace\create_intl_date_formatter(pattern: $pattern, timezone: $timezone);
