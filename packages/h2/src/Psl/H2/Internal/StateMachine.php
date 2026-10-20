@@ -1021,7 +1021,7 @@ final class StateMachine
         }
 
         match ($setting) {
-            Setting::EnablePush => $value !== 0 && $value !== 1
+            Setting::EnablePush => $value !== 0 && ($this->isClient || $value !== 1)
                 ? throw ProtocolException::forSettingsValueOutOfRange('ENABLE_PUSH', $value)
                 : null,
             Setting::InitialWindowSize => $value > MAX_WINDOW_SIZE
