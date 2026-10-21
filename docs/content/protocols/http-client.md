@@ -28,7 +28,7 @@ Use `Async\concurrently()` to send multiple requests in parallel over the same c
 
 Redirects that preserve the request body, including 307 and 308, resend it. A seekable body is restored to its original position before each resend. A non-seekable body is resent only if it was never read, as when an `Expect: 100-continue` upload is pre-empted by the redirect; once read, it throws `Exception\RequestException`. A failure reading the body's position is also reported as `Exception\RequestException`.
 
-Location values follow RFC 3986 resolution. A URL inside a query or fragment does not make the reference absolute. A scheme without an authority, such as `https:login`, is rejected as an invalid URL.
+Location values follow RFC 3986 resolution. A URL inside a query or fragment does not make the reference absolute. A scheme without an authority, such as `https:login`, is rejected as an invalid URL. Only `http` and `https` targets are followed; a redirect to any other scheme, such as `ftp://`, throws `Exception\ProtocolException`.
 
 @example('protocols/http-client-redirects.php')
 
@@ -80,7 +80,7 @@ Use `$proxyConfiguration` to route requests through an HTTP proxy. Configure the
 
 @example('protocols/http-client-tunnel.php')
 
-CONNECT reads stop at the end of the proxy headers, leaving any following tunnel bytes on the stream.
+CONNECT reads stop at the end of the proxy headers, leaving any following tunnel bytes on the stream. The CONNECT status code must be exactly three digits followed by a space or the line end, so a value such as `2000` is rejected rather than read as `200`.
 
 ## HTTP/2 over Plaintext (h2c)
 

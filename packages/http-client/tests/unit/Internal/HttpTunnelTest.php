@@ -43,6 +43,28 @@ final class HttpTunnelTest extends TestCase
         static::assertSame('tunnel data', $tunnel->read());
     }
 
+    public function testConnectRejectsStatusWithoutBoundary(): void
+    {
+        $input = new FakeStream("HTTP/1.1 2000 Invalid\r\n\r\n");
+        $stream = static::createStub(TCP\StreamInterface::class);
+        $stream->method('read')->willReturnCallback($input->read(...));
+        $stream->method('reachedEndOfDataSource')->willReturnCallback($input->reachedEndOfDataSource(...));
+        $connector = static::createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($stream);
+
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('Invalid CONNECT response');
+
+        HttpTunnel::connect(
+            $connector,
+            new ProxyConfiguration(URL\parse('http://proxy.example/')),
+            'example.com',
+            443,
+            new Async\NullCancellationToken(),
+            new TLS\ClientConfiguration(),
+        );
+    }
+
     public function testConnectTunnelSuccess(): void
     {
         $listener = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));

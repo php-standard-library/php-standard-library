@@ -86,8 +86,10 @@ final class HttpTunnel
             throw ProtocolException::forUnexpectedEndOfStream();
         }
 
+        // The status code is exactly three digits, then a space or the line end;
+        // without the boundary "HTTP/1.1 2000 Invalid" would be read as 200.
         $matches = null;
-        if (!preg_match('#^HTTP/1\.[01] (\d{3})#', $statusLine, $matches)) {
+        if (preg_match('#^HTTP/1\.[01] (\d{3})(?:[ \t].*)?$#D', $statusLine, $matches) !== 1) {
             throw ProtocolException::forMalformedResponse('Invalid CONNECT response: ' . $statusLine);
         }
 

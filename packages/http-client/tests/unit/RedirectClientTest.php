@@ -394,6 +394,16 @@ final class RedirectClientTest extends TestCase
         }
     }
 
+    public function testRefusesNonHttpRedirectScheme(): void
+    {
+        $inner = self::fakeClient(self::redirect(302, 'ftp://example.com:21/'), self::ok());
+        $client = new RedirectClient($inner);
+
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('non-HTTP scheme');
+        $client->send(self::request());
+    }
+
     public function testBodyHeadersStrippedOnMethodRewrite(): void
     {
         $inner = self::fakeClient(self::redirect(301, 'http://example.com/new'), self::ok());

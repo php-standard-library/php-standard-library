@@ -170,6 +170,14 @@ final readonly class RedirectClient implements ClientInterface
 
             $originalUrl = $request->url;
             $targetUrl = self::resolveLocation($location, $originalUrl);
+
+            // Follow only http and https: another scheme (e.g. ftp://host:21) would be
+            // dialed as plaintext HTTP to an unrelated service.
+            $scheme = strtolower($targetUrl->scheme);
+            if ($scheme !== 'http' && $scheme !== 'https') {
+                throw ProtocolException::forMalformedResponse('Refusing to redirect to a non-HTTP scheme: ' . $scheme);
+            }
+
             $request = $request->withUrl($targetUrl);
 
             if (
