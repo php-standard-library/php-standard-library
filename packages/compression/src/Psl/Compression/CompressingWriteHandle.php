@@ -10,6 +10,7 @@ use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 
+use function sprintf;
 use function strlen;
 use function substr;
 
@@ -47,6 +48,14 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
      */
     private int $offset = 0;
 
+    /**
+     * Whether {@see flush()} already finished the compressor's stream, and only has to drain its output.
+     *
+     * A flush that fails while draining keeps that state, so that its retry neither finishes the stream again
+     * (which would add another trailer) nor writes again what the failed attempt already wrote.
+     */
+    private bool $finished = false;
+
     public function __construct(
         private readonly IO\WriteHandleInterface $inner,
         private readonly CompressorInterface $compressor,
@@ -68,7 +77,7 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
     #[Override]
     public function tryWrite(string $bytes): int
     {
-        $this->buffer .= $this->compressor->push($bytes);
+        $this->push($bytes);
         $this->drainTry();
 
         return strlen($bytes);
@@ -92,7 +101,7 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
     #[Override]
     public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
     {
-        $this->buffer .= $this->compressor->push($bytes);
+        $this->push($bytes);
         $this->drain($cancellation);
 
         return strlen($bytes);
@@ -104,6 +113,14 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
      * Calls {@see CompressorInterface::finish()} to produce the final compressed
      * output, then writes all buffered data to the inner handle.
      *
+     * If draining fails, the finished stream and the output the inner handle
+     * has not reported accepting are kept: calling flush() again writes that
+     * output, without finishing the stream a second time. That output includes
+     * whatever the failed write wrote without reporting it: a write to a PSL
+     * pipe or socket handle that is cancelled, or fails, after part of its
+     * bytes went out reports none of them, so a flush retried after a timeout
+     * on such a handle writes those bytes again.
+     *
      * @throws Exception\RuntimeException If compression finalization fails.
      * @throws IO\Exception\AlreadyClosedException If the inner handle has been closed.
      * @throws IO\Exception\RuntimeException If the write to the inner handle fails.
@@ -112,8 +129,27 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
     #[Override]
     public function flush(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
-        $this->buffer .= $this->compressor->finish();
+        if (!$this->finished) {
+            $this->buffer .= $this->compressor->finish();
+            $this->finished = true;
+        }
+
         $this->drainAll($cancellation);
+        $this->finished = false;
+    }
+
+    /**
+     * Pass `$bytes` to the compressor and keep its output.
+     */
+    private function push(string $bytes): void
+    {
+        $output = $this->compressor->push($bytes);
+        if ('' !== $bytes || '' !== $output) {
+            // The compressor started a new stream, which the next flush must finish.
+            $this->finished = false;
+        }
+
+        $this->buffer .= $output;
     }
 
     /**
@@ -145,16 +181,18 @@ final class CompressingWriteHandle implements IO\BufferedWriteHandleInterface
      */
     private function drainAll(CancellationTokenInterface $cancellation): void
     {
-        if ($this->buffer === '') {
-            return;
-        }
+        // One counted write at a time, so that what the inner handle accepted stays known if a write fails.
+        while ($this->buffer !== '') {
+            $written = $this->inner->write($this->pending(), $cancellation);
+            if (0 === $written) {
+                throw new IO\Exception\RuntimeException(sprintf(
+                    'The inner handle accepted no data; %d bytes of output are still pending.',
+                    strlen($this->buffer) - $this->offset,
+                ));
+            }
 
-        $this->inner->writeAll(
-            0 === $this->offset ? $this->buffer : substr($this->buffer, $this->offset),
-            $cancellation,
-        );
-        $this->buffer = '';
-        $this->offset = 0;
+            $this->advance($written);
+        }
     }
 
     /**

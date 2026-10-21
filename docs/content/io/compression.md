@@ -27,6 +27,6 @@ Both accept an optional `$chunkSize` parameter (default 8192) controlling how ma
 
 @example('io/compression-writer.php')
 
-`flush()` accepts an optional `CancellationTokenInterface` parameter, so you can set a timeout on the finalization when writing to network handles.
+`flush()` accepts an optional `CancellationTokenInterface` parameter, so you can set a timeout on the finalization when writing to network handles. If it is cancelled or the inner handle fails, calling `flush()` again does not finalize the stream a second time, and does not write again the output the inner handle reported accepting. It does write again what the interrupted write wrote without reporting it: a write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes.
 
 See `src/Psl/Compression/` for the full API.

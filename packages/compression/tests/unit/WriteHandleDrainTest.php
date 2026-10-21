@@ -5,23 +5,29 @@ declare(strict_types=1);
 namespace Psl\Compression\Tests\Unit;
 
 use Closure;
+use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\Async;
 use Psl\Compression\CompressingWriteHandle;
 use Psl\Compression\DecompressingWriteHandle;
 use Psl\Compression\Tests\Fixture\InterruptibleWriteHandle;
 use Psl\Compression\Tests\Fixture\NullCompressor;
 use Psl\Compression\Tests\Fixture\NullDecompressor;
+use Psl\Compression\Tests\Fixture\TrailingCompressor;
+use Psl\Compression\Tests\Fixture\TrailingDecompressor;
 use Psl\IO;
 
 use function hrtime;
 use function intdiv;
 use function str_repeat;
+use function strlen;
 use function substr;
 
 /**
  * The compressing and decompressing write handles drain their pending output with an offset, so that draining N
- * bytes copies O(N) bytes.
+ * bytes copies O(N) bytes, and they keep what a drain already wrote and the stream they already finished when
+ * a flush fails, so that retrying it writes neither twice.
  */
 final class WriteHandleDrainTest extends TestCase
 {
@@ -44,6 +50,28 @@ final class WriteHandleDrainTest extends TestCase
                 $inner,
                 new NullDecompressor(),
             ),
+        ];
+    }
+
+    /**
+     * @return iterable<string, array{Closure(IO\WriteHandleInterface, TrailingCompressor|TrailingDecompressor): IO\BufferedWriteHandleInterface, TrailingCompressor|TrailingDecompressor}>
+     */
+    public static function provideTrailingHandles(): iterable
+    {
+        yield 'compressing' => [
+            static fn(
+                IO\WriteHandleInterface $inner,
+                TrailingCompressor|TrailingDecompressor $codec,
+            ): IO\BufferedWriteHandleInterface => new CompressingWriteHandle($inner, $codec),
+            new TrailingCompressor(),
+        ];
+
+        yield 'decompressing' => [
+            static fn(
+                IO\WriteHandleInterface $inner,
+                TrailingCompressor|TrailingDecompressor $codec,
+            ): IO\BufferedWriteHandleInterface => new DecompressingWriteHandle($inner, $codec),
+            new TrailingDecompressor(),
         ];
     }
 
@@ -94,6 +122,133 @@ final class WriteHandleDrainTest extends TestCase
         static::assertSame($payload, $inner->buffer);
         static::assertLessThan(16 * self::PAYLOAD_SIZE, $inner->given);
         static::assertLessThan(1.0, $elapsed);
+    }
+
+    /**
+     * @param Closure(IO\WriteHandleInterface, TrailingCompressor|TrailingDecompressor): IO\BufferedWriteHandleInterface $factory
+     */
+    #[DataProvider('provideTrailingHandles')]
+    public function testRetriedFlushWritesNothingTwice(
+        Closure $factory,
+        TrailingCompressor|TrailingDecompressor $codec,
+    ): void {
+        $inner = new InterruptibleWriteHandle(2);
+        $handle = $factory($inner, $codec);
+        $handle->tryWrite('abcdef');
+        static::assertSame('ab', $inner->buffer);
+
+        // The flush writes "cd", then the next write fails.
+        $failure = new Async\Exception\CancelledException(new Async\SignalCancellationToken());
+        $inner->failAfter(1, $failure);
+
+        try {
+            $handle->flush();
+            static::fail('The flush did not fail.');
+        } catch (Async\Exception\CancelledException $e) {
+            static::assertSame($failure, $e);
+        }
+
+        static::assertSame('abcd', $inner->buffer);
+
+        // Writing nothing does not start a new stream; the retry finishes the drain.
+        $handle->write('');
+        $handle->flush();
+
+        static::assertSame('abcdef!!', $inner->buffer);
+        static::assertSame(1, $codec->finished);
+
+        // Data written after the flush starts a new stream, which the next flush finishes.
+        $handle->write('gh');
+        $handle->flush();
+
+        static::assertSame('abcdef!!gh!!', $inner->buffer);
+        static::assertSame(2, $codec->finished);
+    }
+
+    /**
+     * @param Closure(IO\WriteHandleInterface, TrailingCompressor|TrailingDecompressor): IO\BufferedWriteHandleInterface $factory
+     */
+    #[DataProvider('provideTrailingHandles')]
+    public function testWriteAfterFailedFlushStartsNewStream(
+        Closure $factory,
+        TrailingCompressor|TrailingDecompressor $codec,
+    ): void {
+        $inner = new InterruptibleWriteHandle(2);
+        $handle = $factory($inner, $codec);
+        $handle->tryWrite('abcd');
+
+        $failure = new IO\Exception\RuntimeException('The connection was reset.');
+        $inner->failAfter(0, $failure);
+
+        try {
+            $handle->flush();
+            static::fail('The flush did not fail.');
+        } catch (IO\Exception\RuntimeException $e) {
+            static::assertSame($failure, $e);
+        }
+
+        // The finished stream's output is still pending; the new data follows it, in a new stream.
+        $handle->write('ef');
+        $handle->flush();
+
+        static::assertSame('abcd!!ef!!', $inner->buffer);
+        static::assertSame(2, $codec->finished);
+    }
+
+    /**
+     * @param Closure(IO\WriteHandleInterface, TrailingCompressor|TrailingDecompressor): IO\BufferedWriteHandleInterface $factory
+     */
+    #[DataProvider('provideTrailingHandles')]
+    public function testFlushFailsWhenTheInnerHandleAcceptsNothing(
+        Closure $factory,
+        TrailingCompressor|TrailingDecompressor $codec,
+    ): void {
+        $inner = new class() implements IO\WriteHandleInterface {
+            use IO\WriteHandleConvenienceMethodsTrait;
+
+            public bool $accepting = false;
+
+            public string $buffer = '';
+
+            #[Override]
+            public function tryWrite(string $bytes): int
+            {
+                if (!$this->accepting) {
+                    return 0;
+                }
+
+                $this->buffer .= $bytes;
+
+                return strlen($bytes);
+            }
+
+            #[Override]
+            public function write(
+                string $bytes,
+                Async\CancellationTokenInterface $cancellation = new Async\NullCancellationToken(),
+            ): int {
+                return $this->tryWrite($bytes);
+            }
+        };
+
+        $handle = $factory($inner, $codec);
+        $handle->write('abc');
+
+        try {
+            $handle->flush();
+            static::fail('The flush did not fail.');
+        } catch (IO\Exception\RuntimeException $e) {
+            static::assertSame(
+                'The inner handle accepted no data; 5 bytes of output are still pending.',
+                $e->getMessage(),
+            );
+        }
+
+        $inner->accepting = true;
+        $handle->flush();
+
+        static::assertSame('abc!!', $inner->buffer);
+        static::assertSame(1, $codec->finished);
     }
 
     private static function payload(): string
