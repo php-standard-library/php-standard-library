@@ -61,7 +61,7 @@ Each encoding namespace (Base64, Hex, QuotedPrintable) provides four IO handle d
 - **`EncodingWriteHandle`** accepts raw data via write(); encodes and writes to the inner handle
 - **`DecodingWriteHandle`** accepts encoded data via write(); decodes and writes to the inner handle
 
-Write handles have a `flush()` method to encode/decode any remaining buffered data; call it once all data has been written.
+Write handles accept all the data passed to `write()` and `tryWrite()`. `write()` waits until the inner handle has accepted the output, and passes its cancellation token on; `tryWrite()` never waits, and output that the inner handle does not accept right away stays pending, in order, until the next `write()` delivers it (`write('')` delivers it without new data). Writes made concurrently from several fibers never lose or repeat output, but they are not serialized: when the inner handle takes one write's output in several parts, another write's output can come between them. Write handles other than `Hex\EncodingWriteHandle` have a `flush()` method to encode/decode any remaining buffered data; call it once all data has been written.
 
 The Base64 encoding handles produce exactly the same output as `Base64\encode()` with the same variant and padding: only the `Mime` variant wraps lines (with CRLF between lines, not after the last one), and padding is only emitted at the end of the stream. Likewise, the Base64 decoding handles accept and reject exactly what `Base64\decode()` does: only the `Mime` variant ignores whitespace.
 

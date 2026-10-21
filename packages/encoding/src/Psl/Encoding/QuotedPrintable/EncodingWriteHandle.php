@@ -6,6 +6,7 @@ namespace Psl\Encoding\QuotedPrintable;
 
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
+use Psl\Encoding\Internal\PendingOutput;
 use Psl\IO;
 
 use function str_ends_with;
@@ -38,21 +39,59 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
      */
     private bool $skipLineFeed = false;
 
+    private readonly PendingOutput $output;
+
     /**
      * @param positive-int $maxLineLength Maximum encoded line length (default 76 per RFC 2045).
      * @param non-empty-string $lineEnding Line ending sequence (default "\r\n" per RFC 2045).
      */
-    public function __construct(
-        private readonly IO\WriteHandleInterface $handle,
-        int $maxLineLength = 76,
-        string $lineEnding = "\r\n",
-    ) {
+    public function __construct(IO\WriteHandleInterface $handle, int $maxLineLength = 76, string $lineEnding = "\r\n")
+    {
         $this->encoder = new Internal\StreamEncoder($maxLineLength, $lineEnding);
+        $this->output = new PendingOutput($handle);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * Accepts all of `$bytes` without waiting: the output the inner handle does not accept right away, or all of
+     * it while a {@see write()} waits, stays pending, in order, until a later write delivers it; call
+     * {@see write()}, with an empty string if there is nothing more to write, to wait until it is delivered.
+     */
     public function tryWrite(string $bytes): int
     {
-        $length = strlen($bytes);
+        $this->output->tryWrite($this->encode($bytes));
+
+        return strlen($bytes);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Accepts all of `$bytes` and writes the output that is ready, together with any output earlier calls to
+     * {@see tryWrite()} left pending, waiting until the inner handle has accepted all of it.
+     *
+     * That pending output is written before `$bytes` is used. If the wait is cancelled after that, `$bytes` counts
+     * as written: the part of its output the inner handle has not reported accepting stays pending and the next
+     * write delivers it first, so do not write it again. A write to a PSL pipe or socket handle that is cancelled
+     * after part of its bytes went out reports none of them, so the next write delivers those bytes again.
+     *
+     * Calls made concurrently from several fibers never lose or repeat output, but when the inner handle takes the
+     * output of one call in several parts, the output of another call can come between them.
+     */
+    public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
+    {
+        $this->output->writeAll('', $cancellation);
+        $this->output->writeAll($this->encode($bytes), $cancellation);
+
+        return strlen($bytes);
+    }
+
+    /**
+     * Pass `$bytes` to the encoder and return the output it produced.
+     */
+    private function encode(string $bytes): string
+    {
         if ($this->skipLineFeed && $bytes !== '') {
             $this->skipLineFeed = false;
             if ($bytes[0] === "\n") {
@@ -64,21 +103,13 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
             $this->endsWithCarriageReturn = str_ends_with($bytes, "\r");
         }
 
-        $encoded = $this->encoder->update($bytes);
-        if ($encoded !== '') {
-            $this->handle->writeAll($encoded);
-        }
-
-        return $length;
-    }
-
-    public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
-    {
-        return $this->tryWrite($bytes);
+        return $this->encoder->update($bytes);
     }
 
     /**
      * Encode the last line and write it to the inner handle.
+     *
+     * Output that earlier writes left pending is written first.
      *
      * Call this once all data has been written; data written afterwards starts a new encoded stream.
      * When the data ends with a CR, that CR is written as a line break, and an LF written right after
@@ -91,9 +122,8 @@ final class EncodingWriteHandle implements IO\WriteHandleInterface
             $this->skipLineFeed = true;
         }
 
-        $encoded = $this->encoder->finalize();
-        if ($encoded !== '') {
-            $this->handle->writeAll($encoded);
-        }
+        $cancellation = new NullCancellationToken();
+        $this->output->writeAll('', $cancellation);
+        $this->output->writeAll($this->encoder->finalize(), $cancellation);
     }
 }
