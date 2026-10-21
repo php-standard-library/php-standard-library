@@ -20,6 +20,7 @@ use function date;
 use function date_default_timezone_set;
 use function in_array;
 use function sprintf;
+use function str_starts_with;
 
 final class TimezoneTest extends TestCase
 {
@@ -110,6 +111,45 @@ final class TimezoneTest extends TestCase
         $this->expectExceptionMessage('The default timezone "America/Coyhaique" is not supported.');
 
         Timezone::default();
+    }
+
+    public function testUsingAZoneUnknownToIcuThrowsARuntimeException(): void
+    {
+        $unknown = null;
+        foreach (Timezone::cases() as $timezone) {
+            // Offsets are always known; Kyiv and Kanton fall back to their previous names on older ICU data.
+            if (
+                str_starts_with($timezone->value, '+')
+                || str_starts_with($timezone->value, '-')
+                || Timezone::EuropeKyiv === $timezone
+                || Timezone::PacificKanton === $timezone
+            ) {
+                continue;
+            }
+
+            if ('Etc/Unknown' === IntlTimeZone::createTimeZone($timezone->value)?->getID()) {
+                $unknown = $timezone;
+                break;
+            }
+        }
+
+        if (null === $unknown) {
+            static::markTestSkipped('The ICU data of this build knows every zone.');
+        }
+
+        try {
+            $unknown->getRawOffset();
+
+            static::fail(sprintf('Expected "%s" to be unknown to the ICU data of this build.', $unknown->value));
+        } catch (RuntimeException $exception) {
+            static::assertStringContainsString(
+                sprintf('does not know the timezone "%s"', $unknown->value),
+                $exception->getMessage(),
+            );
+        }
+
+        $this->expectException(RuntimeException::class);
+        $unknown->toIntl();
     }
 
     #[DataProvider('provideAliases')]

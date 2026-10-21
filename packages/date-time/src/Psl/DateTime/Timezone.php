@@ -174,13 +174,13 @@ enum Timezone: string implements
     case AmericaChihuahua = 'America/Chihuahua';
     /**
      * Requires ICU time zone data from tzdata 2022g or later (bundled since ICU 73); with older ICU data,
-     * using this zone throws an invariant violation.
+     * using this zone throws an {@see Exception\RuntimeException}.
      */
     case AmericaCiudadJuarez = 'America/Ciudad_Juarez';
     case AmericaCostaRica = 'America/Costa_Rica';
     /**
      * Requires ICU time zone data from tzdata 2025b or later (bundled since ICU 78); with older ICU data,
-     * using this zone throws an invariant violation.
+     * using this zone throws an {@see Exception\RuntimeException}.
      */
     case AmericaCoyhaique = 'America/Coyhaique';
     case AmericaCreston = 'America/Creston';
@@ -552,6 +552,8 @@ enum Timezone: string implements
      *
      * @return Duration The total offset from UTC as a Duration instance, including any DST adjustments.
      *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
+     *
      * @psalm-mutation-free
      */
     public function getOffset(TemporalInterface $temporal, bool $local = false): Duration
@@ -569,6 +571,8 @@ enum Timezone: string implements
      * This method retrieves the fixed offset from UTC for the timezone without considering any seasonal adjustments
      * that might apply due to DST. It's particularly useful for understanding the base offset of a timezone.
      *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
+     *
      * @psalm-mutation-free
      */
     public function getRawOffset(): Duration
@@ -584,6 +588,8 @@ enum Timezone: string implements
      * @param bool $local Indicates whether the temporal object's time should be treated as local time (`true`) or as UTC time (`false`).
      *
      * @return Duration The DST offset as a Duration instance. If DST is not in effect, the offset will be zero.
+     *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
      *
      * @psalm-mutation-free
      */
@@ -603,6 +609,8 @@ enum Timezone: string implements
      *
      * @return bool True if the timezone uses Daylight Saving Time at any point in the year, false otherwise.
      *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
+     *
      * @psalm-mutation-free
      */
     public function usesDaylightSavingTime(): bool
@@ -618,6 +626,8 @@ enum Timezone: string implements
      * If the timezone does not observe DST or if there is no current DST adjustment (e.g., outside of DST periods),
      * the method will return a Duration of zero.
      *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
+     *
      * @psalm-mutation-free
      */
     public function getDaylightSavingTimeSavings(): Duration
@@ -627,6 +637,8 @@ enum Timezone: string implements
 
     /**
      * Determines whether the current timezone has the same rules as another specified timezone.
+     *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone or $other.
      *
      * @psalm-mutation-free
      */
@@ -721,6 +733,8 @@ enum Timezone: string implements
      * Converts this {@see Timezone} to an {@see IntlTimeZone}.
      *
      * @return IntlTimeZone
+     *
+     * @throws Exception\RuntimeException If the ICU data of this build does not know this zone.
      *
      * @psalm-mutation-free
      */

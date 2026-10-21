@@ -6,7 +6,6 @@ namespace Psl\DateTime;
 
 use DateTimeImmutable;
 use Override;
-use Psl\Exception\InvariantViolationException;
 use Psl\Interoperability;
 use Psl\Locale\Locale;
 
@@ -93,7 +92,7 @@ final readonly class Timestamp implements TemporalInterface, Interoperability\Fr
      * This method ensures that the time is always moving forward, unaffected by adjustments in the system clock,
      * making it suitable for measuring durations or intervals accurately.
      *
-     * @throws InvariantViolationException If the system does not provide a monotonic timer.
+     * @throws Exception\RuntimeException If the system does not provide a monotonic timer.
      */
     public static function monotonic(): self
     {

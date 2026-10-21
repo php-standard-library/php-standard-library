@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Psl\DateTime\Internal;
 
-use Psl;
+use Psl\DateTime\Exception;
 
 use function hrtime;
 
 use const Psl\DateTime\NANOSECONDS_PER_SECOND;
 
 /**
- * @throws Psl\Exception\InvariantViolationException
+ * @throws Exception\RuntimeException If the system does not provide a monotonic timer.
  *
  * @return array{int, int}
  *
@@ -28,8 +28,12 @@ function high_resolution_time(): array
 
     if (null === $offset) {
         $offset = hrtime() ?: null;
+        // @codeCoverageIgnoreStart
+        if (null === $offset) {
+            throw new Exception\RuntimeException('The system does not provide a monotonic timer.');
+        }
 
-        Psl\invariant(null !== $offset, 'The system does not provide a monotonic timer.');
+        // @codeCoverageIgnoreEnd
 
         $time = namespace\system_time();
 
@@ -43,7 +47,7 @@ function high_resolution_time(): array
     $highResolutionTime = hrtime();
     // @codeCoverageIgnoreStart
     if (false === $highResolutionTime) {
-        throw new Psl\Exception\InvariantViolationException('The system does not provide a monotonic timer.');
+        throw new Exception\RuntimeException('The system does not provide a monotonic timer.');
     }
 
     [$seconds, $nanoseconds] = $highResolutionTime;
