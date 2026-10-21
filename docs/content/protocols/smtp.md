@@ -34,6 +34,10 @@ By default, the transport throws on the first rejected recipient. Enable `allowP
 
 @example('protocols/smtp-partial.php')
 
+## Errors
+
+Every failure of the exchange is an `SMTP\Exception\RuntimeException`. A connection that fails during the exchange, for example because the server resets it, throws `ConnectionException`, with the IO or Network exception as its previous exception. A failure to read the message content is not a failure of the connection: the IO exception passes through unchanged. After a failure, the transport closes the pooled connection, and the next send opens a new one.
+
 ## Async and Cancellation
 
 The transport is fully async-capable. Use `Async\concurrently` to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts.

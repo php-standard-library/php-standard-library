@@ -4,24 +4,31 @@ declare(strict_types=1);
 
 namespace Psl\SMTP\Tests\Unit\Client;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\DateTime\Duration;
 use Psl\IO;
 use Psl\Message\Address\Mailbox;
 use Psl\Message\Envelope;
 use Psl\Message\Message;
+use Psl\MIME\Headers;
+use Psl\MIME\Part;
+use Psl\SMTP\Client\Authentication\AuthenticatorInterface;
+use Psl\SMTP\Client\Authentication\PlainAuthenticator;
 use Psl\SMTP\Client\Connection;
 use Psl\SMTP\Client\SendConfiguration;
 use Psl\SMTP\Client\Transport;
 use Psl\SMTP\Client\TransportConfiguration;
 use Psl\SMTP\DeliverBy;
 use Psl\SMTP\DeliverByMode;
+use Psl\SMTP\Exception\ConnectionException;
 use Psl\SMTP\Exception\TransmissionException;
 use Psl\SMTP\Priority;
 use Psl\SMTP\Security;
 use Psl\TCP;
 use ReflectionClass;
 use ReflectionProperty;
+use Throwable;
 use WeakMap;
 use WeakReference;
 
@@ -134,6 +141,93 @@ final class TransportPoolTest extends TestCase
         static::assertNull($reference->get());
     }
 
+    #[DataProvider('exchangeStages')]
+    public function testLostConnectionIsReportedAndClearsThePooledStream(string $replies, bool $authenticate): void
+    {
+        $reset = new IO\Exception\RuntimeException(
+            'Failed to read from the stream; the connection may have been reset.',
+        );
+        [$transport, $pool] = $this->pooledTransport(
+            $replies,
+            $reset,
+            $authenticate ? new PlainAuthenticator('user', 'password') : null,
+        );
+        $mailbox = new Mailbox('sender', 'example.com');
+
+        try {
+            $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+            static::fail('send() succeeded although the connection failed.');
+        } catch (ConnectionException $e) {
+            static::assertSame('Lost the connection to the SMTP server.', $e->getMessage());
+            static::assertSame($reset, $e->getPrevious());
+        }
+
+        static::assertPoolIsClean($transport, $pool);
+    }
+
+    /**
+     * The replies the server sends before the exchange is interrupted, and whether the transport authenticates.
+     *
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function exchangeStages(): iterable
+    {
+        $greeting = "220 mail.example.com ESMTP\r\n";
+        yield 'before the greeting' => ['', false];
+        yield 'after EHLO' => [$greeting, false];
+        yield 'after AUTH' => [$greeting . "250-mail.example.com\r\n250 AUTH PLAIN\r\n", true];
+        yield 'after MAIL FROM' => [$greeting . "250 mail.example.com\r\n", false];
+        yield 'after the message data' => [
+            $greeting . "250 mail.example.com\r\n250 OK\r\n250 OK\r\n354 Go ahead\r\n",
+            false,
+        ];
+    }
+
+    public function testMessageContentFailurePassesThroughAndClearsThePooledStream(): void
+    {
+        $failure = new IO\Exception\RuntimeException('The message content cannot be read.');
+        $body = $this->createStub(IO\ReadHandleInterface::class);
+        $body->method('read')->willThrowException($failure);
+        $body->method('tryRead')->willThrowException($failure);
+        [$transport, $pool] = $this->pooledTransport(
+            "220 mail.example.com ESMTP\r\n250 mail.example.com\r\n250 OK\r\n250 OK\r\n354 Go ahead\r\n",
+        );
+        $mailbox = new Mailbox('sender', 'example.com');
+
+        try {
+            $transport->send(
+                new Envelope($mailbox, [$mailbox]),
+                new Message()->withContent(new Part\Part(Headers::fromPairs([['Content-Type', 'text/plain']]), $body)),
+            );
+            static::fail('send() succeeded although the message content could not be read.');
+        } catch (IO\Exception\RuntimeException $e) {
+            static::assertSame($failure, $e);
+        }
+
+        static::assertPoolIsClean($transport, $pool);
+    }
+
+    public function testBufferedMessageContentFailurePassesThroughAndClearsThePooledStream(): void
+    {
+        $failure = new IO\Exception\RuntimeException('The message content cannot be read.');
+        $body = $this->createStub(IO\ReadHandleInterface::class);
+        $body->method('read')->willThrowException($failure);
+        $body->method('tryRead')->willThrowException($failure);
+        [$transport, $pool] = $this->pooledTransport("220 mail.example.com ESMTP\r\n250 mail.example.com\r\n");
+        $mailbox = new Mailbox('sender', 'example.com');
+        // Without SMTPUTF8, a multipart body is buffered before MAIL FROM, so the read fails before the transaction.
+        $part = new Part\Part(Headers::fromPairs([['Content-Type', 'multipart/mixed; boundary=outer']]), $body);
+
+        try {
+            $transport->send(new Envelope($mailbox, [$mailbox]), new Message()->withContent($part));
+            static::fail('send() succeeded although the message content could not be read.');
+        } catch (IO\Exception\RuntimeException $e) {
+            static::assertSame($failure, $e);
+        }
+
+        static::assertPoolIsClean($transport, $pool);
+    }
+
     /** @return array{Transport, IO\MemoryHandle} */
     private function transport(string $capability, Security $security = Security::None): array
     {
@@ -163,5 +257,58 @@ final class TransportPoolTest extends TestCase
         new ReflectionProperty(Transport::class, 'initialized')->setValue($transport, new WeakMap());
 
         return [$transport, $output];
+    }
+
+    /**
+     * A transport whose pool is a real socket pool over a stream that replies with `$replies`, then throws `$failure`.
+     *
+     * The transport authenticates with `$authenticator`, if given. The stream must be closed exactly once.
+     *
+     * @return array{Transport, TCP\SocketPool}
+     */
+    private function pooledTransport(
+        string $replies,
+        null|Throwable $failure = null,
+        null|AuthenticatorInterface $authenticator = null,
+    ): array {
+        $input = new IO\MemoryHandle($replies);
+        $failure ??= new IO\Exception\RuntimeException('The test server sent no further replies.');
+        $stream = $this->createMock(TCP\StreamInterface::class);
+        $stream
+            ->method('read')
+            ->willReturnCallback(static function (null|int $maxBytes = null) use ($input, $failure): string {
+                $data = $input->read($maxBytes);
+                if ($data === '') {
+                    throw $failure;
+                }
+
+                return $data;
+            });
+        $stream->expects(static::once())->method('close');
+        $connector = $this->createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($stream);
+        $pool = new TCP\SocketPool($connector);
+        $transport = new ReflectionClass(Transport::class)->newInstanceWithoutConstructor();
+        new ReflectionProperty(Transport::class, 'configuration')->setValue(
+            $transport,
+            new TransportConfiguration(security: Security::None),
+        );
+        new ReflectionProperty(Transport::class, 'authenticator')->setValue($transport, $authenticator);
+        new ReflectionProperty(Transport::class, 'pool')->setValue($transport, $pool);
+        new ReflectionProperty(Transport::class, 'initialized')->setValue($transport, new WeakMap());
+
+        return [$transport, $pool];
+    }
+
+    /**
+     * The failed send() left no stream checked out or idle in the pool, and none marked as initialized.
+     */
+    private static function assertPoolIsClean(Transport $transport, TCP\SocketPool $pool): void
+    {
+        static::assertSame([], new ReflectionProperty(TCP\SocketPool::class, 'checkedOut')->getValue($pool));
+        static::assertSame([], new ReflectionProperty(TCP\SocketPool::class, 'idle')->getValue($pool));
+        $initialized = new ReflectionProperty(Transport::class, 'initialized')->getValue($transport);
+        static::assertInstanceOf(WeakMap::class, $initialized);
+        static::assertCount(0, $initialized);
     }
 }

@@ -82,11 +82,12 @@ final class Transport implements TransportInterface
      * {@inheritDoc}
      *
      * @throws Exception\PossibleAttackException If the envelope, message, DSN, or configuration contain CRLF or null bytes that could be used for SMTP command injection.
-     * @throws Exception\ConnectionException If the connection cannot be established or TLS upgrade fails.
+     * @throws Exception\ConnectionException If the connection cannot be established, the TLS upgrade fails, or the connection fails during the exchange, for example because the server reset it.
      * @throws Exception\TimeoutException If the connection times out.
-     * @throws Exception\ProtocolException If the server sends an unexpected or malformed response.
+     * @throws Exception\ProtocolException If the server sends an unexpected or malformed response, or closes the connection.
      * @throws Exception\AuthenticationException If authentication fails or the mechanism is unsupported.
      * @throws Exception\TransmissionException If the server rejects the sender, a recipient, or the message data.
+     * @throws IO\Exception\RuntimeException If reading the message content fails.
      * @throws CancelledException If the operation is cancelled.
      */
     public function send(
@@ -101,52 +102,138 @@ final class Transport implements TransportInterface
 
         try {
             if (!$this->isInitialized($stream)) {
-                $connection->readGreeting($cancellation);
-
-                $this->doEhlo($connection, $cancellation);
-                if ($this->configuration->security === Security::StartTLS) {
-                    $connection->startTls($this->tlsConnector, $cancellation);
-                    $this->doEhlo($connection, $cancellation);
-                }
-
-                if ($this->authenticator !== null) {
-                    $this->authenticator->authenticate($connection, $cancellation);
-                }
-
+                $this->initialize($connection, $cancellation);
                 $this->markInitialized($stream);
             }
 
-            $data = Message\serialize($message);
-            if (!$connection->supportsCapability(Capability::SMTPUTF8)) {
-                $reader = new IO\Reader($data);
-                $headers = $reader->readUntil("\r\n\r\n", $cancellation) ?? '';
-                if (preg_match('/[\x80-\xff]/', $headers) === 1) {
-                    throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
-                }
+            $content = $this->prepare($connection, $envelope, $message, $cancellation);
+            $rejectedRecipients = $this->transmit($connection, $envelope, $content, $sendConfiguration, $cancellation);
+        } catch (Exception\RuntimeException|IO\Exception\RuntimeException|Network\Exception\RuntimeException $e) {
+            $this->pool->clear($stream);
+            $this->forgetInitialized($stream);
 
-                $body = $reader;
-                $mediaType = $message->content->mediaType;
-                if ($mediaType->type === 'multipart' || $mediaType->type === 'message') {
-                    $body = IO\spool();
-                    IO\copy($reader, $body, $cancellation);
-                    $body->seek(0);
-                    Internal\HeaderChecker::check(
-                        $body,
-                        $mediaType,
-                        $message->content->headers->get('Content-Transfer-Encoding'),
-                        $cancellation,
-                    );
-                    $body->seek(0);
-                }
+            throw $e;
+        }
 
-                $data = new IO\ConcatReadHandle(new IO\MemoryHandle($headers . "\r\n\r\n"), $body);
-                foreach ([$envelope->sender, ...$envelope->recipients] as $mailbox) {
-                    if ($mailbox !== null && preg_match('/[\x80-\xff]/', $mailbox->localPart) === 1) {
-                        throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
-                    }
-                }
+        $this->pool->checkin($stream);
+
+        return new DeliveryReport($rejectedRecipients);
+    }
+
+    /**
+     * Close all pooled connections.
+     */
+    public function close(): void
+    {
+        $this->pool->close();
+        $this->initialized = new WeakMap();
+    }
+
+    /**
+     * Read the greeting, identify the client, upgrade the connection to TLS if configured, and authenticate.
+     *
+     * A failure of the connection is reported as a connection exception, with the IO or Network exception as its
+     * previous exception.
+     *
+     * @throws Exception\PossibleAttackException If the local hostname contains CRLF or null bytes.
+     * @throws Exception\ConnectionException If the greeting is not 220, the TLS upgrade fails, or the connection fails.
+     * @throws Exception\ProtocolException If the server sends an unexpected or malformed response, or closes the connection.
+     * @throws Exception\AuthenticationException If authentication fails or the mechanism is unsupported.
+     * @throws CancelledException If the operation is cancelled.
+     */
+    private function initialize(Connection $connection, CancellationTokenInterface $cancellation): void
+    {
+        try {
+            $connection->readGreeting($cancellation);
+
+            $this->doEhlo($connection, $cancellation);
+            if ($this->configuration->security === Security::StartTLS) {
+                $connection->startTls($this->tlsConnector, $cancellation);
+                $this->doEhlo($connection, $cancellation);
             }
 
+            if ($this->authenticator !== null) {
+                $this->authenticator->authenticate($connection, $cancellation);
+            }
+        } catch (IO\Exception\RuntimeException|Network\Exception\RuntimeException $e) {
+            throw Exception\ConnectionException::forConnectionLost($e);
+        }
+    }
+
+    /**
+     * Serialize the message for transmission.
+     *
+     * Without SMTPUTF8, the headers are checked for raw UTF-8 first, and a multipart or embedded message body is
+     * buffered so that its nested headers can be checked too. This reads the caller's message and does not use the
+     * connection: a failure to read or buffer the message passes through unchanged.
+     *
+     * @throws Exception\TransmissionException If the message or the envelope needs SMTPUTF8 and the server does not support it.
+     * @throws IO\Exception\RuntimeException If reading or buffering the message content fails.
+     * @throws CancelledException If the operation is cancelled.
+     */
+    private function prepare(
+        Connection $connection,
+        Envelope $envelope,
+        MessageInterface $message,
+        CancellationTokenInterface $cancellation,
+    ): Internal\MessageReadHandle {
+        $data = Message\serialize($message);
+        if (!$connection->supportsCapability(Capability::SMTPUTF8)) {
+            $reader = new IO\Reader($data);
+            $headers = $reader->readUntil("\r\n\r\n", $cancellation) ?? '';
+            if (preg_match('/[\x80-\xff]/', $headers) === 1) {
+                throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
+            }
+
+            $body = $reader;
+            $mediaType = $message->content->mediaType;
+            if ($mediaType->type === 'multipart' || $mediaType->type === 'message') {
+                $body = IO\spool();
+                IO\copy($reader, $body, $cancellation);
+                $body->seek(0);
+                Internal\HeaderChecker::check(
+                    $body,
+                    $mediaType,
+                    $message->content->headers->get('Content-Transfer-Encoding'),
+                    $cancellation,
+                );
+                $body->seek(0);
+            }
+
+            $data = new IO\ConcatReadHandle(new IO\MemoryHandle($headers . "\r\n\r\n"), $body);
+            foreach ([$envelope->sender, ...$envelope->recipients] as $mailbox) {
+                if ($mailbox !== null && preg_match('/[\x80-\xff]/', $mailbox->localPart) === 1) {
+                    throw Exception\TransmissionException::forUnsupportedCapability(Capability::SMTPUTF8);
+                }
+            }
+        }
+
+        return new Internal\MessageReadHandle($data);
+    }
+
+    /**
+     * Run the mail transaction: MAIL FROM, RCPT TO, the message data, then RSET.
+     *
+     * A failure of the connection is reported as a connection exception, with the IO or Network exception as its
+     * previous exception. A failure to read the message content is the caller's, and passes through unchanged.
+     *
+     * @return list<array{Mailbox, Reply}> The rejected recipients.
+     *
+     * @throws Exception\PossibleAttackException If the envelope or DSN parameters contain CRLF or null bytes.
+     * @throws Exception\ConnectionException If the connection fails.
+     * @throws Exception\ProtocolException If the server sends an unexpected or malformed response, or closes the connection.
+     * @throws Exception\TransmissionException If the server rejects the sender, a recipient, or the message data.
+     * @throws IO\Exception\RuntimeException If reading the message content fails.
+     * @throws CancelledException If the operation is cancelled.
+     */
+    private function transmit(
+        Connection $connection,
+        Envelope $envelope,
+        Internal\MessageReadHandle $content,
+        SendConfiguration $sendConfiguration,
+        CancellationTokenInterface $cancellation,
+    ): array {
+        try {
             $chunking = $this->configuration->chunking && $connection->supportsCapability(Capability::Chunking);
             $pipelining = $this->configuration->pipelining && $connection->supportsCapability(Capability::Pipelining);
             $partial = $this->configuration->allowPartialSuccess;
@@ -249,9 +336,9 @@ final class Transport implements TransportInterface
             }
 
             if ($chunking) {
-                $this->transmitChunked($connection, $data, $cancellation);
+                $this->transmitChunked($connection, $content, $cancellation);
             } else {
-                IO\copy(new Internal\DotStuffingReadHandle($data), $connection, $cancellation);
+                IO\copy(new Internal\DotStuffingReadHandle($content), $connection, $cancellation);
 
                 $finalReply = $connection->readReply($cancellation);
                 if (!$finalReply->isPositiveCompletion()) {
@@ -263,25 +350,16 @@ final class Transport implements TransportInterface
             if (!$reply->isPositiveCompletion()) {
                 throw Exception\ProtocolException::forUnexpectedCode(250, $reply->code, $reply->message);
             }
-        } catch (Exception\RuntimeException $e) {
-            $this->pool->clear($stream);
-            $this->forgetInitialized($stream);
+        } catch (IO\Exception\RuntimeException|Network\Exception\RuntimeException $e) {
+            // Reading the caller's message failed, not the connection.
+            if ($e === $content->failure) {
+                throw $e;
+            }
 
-            throw $e;
+            throw Exception\ConnectionException::forConnectionLost($e);
         }
 
-        $this->pool->checkin($stream);
-
-        return new DeliveryReport($rejectedRecipients);
-    }
-
-    /**
-     * Close all pooled connections.
-     */
-    public function close(): void
-    {
-        $this->pool->close();
-        $this->initialized = new WeakMap();
+        return $rejectedRecipients;
     }
 
     /**
