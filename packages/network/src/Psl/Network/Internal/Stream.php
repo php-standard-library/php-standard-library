@@ -6,6 +6,7 @@ namespace Psl\Network\Internal;
 
 use Override;
 use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
 use Psl\IO\Exception;
@@ -121,7 +122,18 @@ class Stream implements Network\StreamInterface
     }
 
     /**
+     * Wait until the socket has bytes to read, then return up to $maxBytes of them without consuming them: the next
+     * read returns the same bytes. Once the peer has ended the stream, a peek returns an empty string.
+     *
+     * The wait ends when the socket becomes readable or when $cancellation is cancelled, whichever comes first. It
+     * has a record of its own, so a cancellation that arrives once the wait has ended, while the fiber waits for
+     * something else, is ignored.
+     *
      * @param positive-int $maxBytes
+     *
+     * @throws Exception\AlreadyClosedException If the stream has already been closed.
+     * @throws IO\Exception\RuntimeException If the socket has nothing to peek once it has become readable.
+     * @throws CancelledException If $cancellation is cancelled before the socket becomes readable.
      */
     #[Override]
     public function peek(int $maxBytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): string
@@ -131,28 +143,33 @@ class Stream implements Network\StreamInterface
             throw new Exception\AlreadyClosedException('Stream handle has already been closed.');
         }
 
-        if ($cancellation->cancellable) {
+        $cancellable = $cancellation->cancellable;
+        if ($cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        $suspension = EventLoop::getSuspension();
-
-        $cancellationId = null;
-        if ($cancellation->cancellable) {
-            $cancellationId = $cancellation->subscribe($suspension->throw(...));
-        }
-
-        $readWatcher = EventLoop::onReadable($stream, static function (string $watcher) use ($suspension): void {
-            EventLoop::cancel($watcher);
-            $suspension->resume(null);
+        // The wait has its own record, which the watcher and the cancellation listener settle: the listener may run
+        // during subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already
+        // be waiting for something else.
+        $waiter = new Waiter();
+        $watcher = EventLoop::onReadable($stream, static function () use ($waiter): void {
+            $waiter->resume();
         });
 
+        $id = null;
+
         try {
-            $suspension->suspend();
+            if ($cancellable) {
+                $id = $cancellation->subscribe(static function (CancelledException $exception) use ($waiter): void {
+                    $waiter->fail($exception);
+                });
+            }
+
+            $waiter->wait();
         } finally {
-            EventLoop::cancel($readWatcher);
-            if (null !== $cancellationId) {
-                $cancellation->unsubscribe($cancellationId);
+            EventLoop::cancel($watcher);
+            if (null !== $id) {
+                $cancellation->unsubscribe($id);
             }
         }
 

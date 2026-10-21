@@ -9,7 +9,6 @@ use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\Network\Exception;
 use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
 
 use function error_clear_last;
 use function error_get_last;
@@ -24,6 +23,13 @@ use const STREAM_CLIENT_ASYNC_CONNECT;
 use const STREAM_CLIENT_CONNECT;
 
 /**
+ * Open a socket connected to the given address, waiting until the connect completes.
+ *
+ * The connect is asynchronous: it ends once the socket becomes writable, whether it succeeded or not, and a socket
+ * that has no peer address then failed. The wait has a record of its own, which the watcher and the cancellation
+ * listener settle, whichever comes first. A connect that does not complete, because it failed or was cancelled,
+ * closes its socket.
+ *
  * @param non-empty-string $uri
  * @param array<string, mixed> $context
  *
@@ -41,7 +47,8 @@ function socket_connect(
     array $context = [],
     CancellationTokenInterface $cancellation = new NullCancellationToken(),
 ): mixed {
-    if ($cancellation->cancellable) {
+    $cancellable = $cancellation->cancellable;
+    if ($cancellable) {
         $cancellation->throwIfCancelled();
     }
 
@@ -69,66 +76,52 @@ function socket_connect(
         );
     }
 
-    /** @var Suspension<resource> */
-    $suspension = EventLoop::getSuspension();
+    // The connect ends, whether it failed or not, once the socket becomes writable. The wait has its own record,
+    // which the watcher and the cancellation listener settle: the listener may run during subscribe(), before the
+    // wait has suspended, or after the wait has ended, when the fiber may already be waiting for something else.
+    $waiter = new Waiter();
+    $watcher = EventLoop::onWritable($socket, static function () use ($waiter): void {
+        $waiter->resume();
+    });
 
-    $writeWatcher = '';
-    $cancellationId = null;
-    if ($cancellation->cancellable) {
-        $cancellationId = $cancellation->subscribe(static function (CancelledException $exception) use (
-            $suspension,
-            &$writeWatcher,
-            $socket,
-        ): void {
-            EventLoop::cancel($writeWatcher);
+    $id = null;
+    $connected = false;
 
-            if (is_resource($socket)) {
-                fclose($socket);
-            }
-
-            $suspension->throw($exception);
-        });
-    }
-
-    $writeWatcher = EventLoop::onWritable($socket, static function () use (
-        $suspension,
-        $socket,
-        $uri,
-        $cancellation,
-        &$cancellationId,
-    ): void {
-        if (null !== $cancellationId) {
-            $cancellation->unsubscribe($cancellationId);
+    try {
+        if ($cancellable) {
+            $id = $cancellation->subscribe(static function (CancelledException $exception) use ($waiter): void {
+                $waiter->fail($exception);
+            });
         }
+
+        $waiter->wait();
 
         error_clear_last();
         // A Unix-domain connect has completed by the time the socket exists, and PHP reports no peer name for a
         // socket in the Linux abstract namespace, so only a TCP connect is checked for its peer.
         if (!str_starts_with($uri, 'unix://') && false === @stream_socket_get_name($socket, true)) {
             $error = error_get_last();
-            fclose($socket);
-            $suspension->throw(
-                new Exception\RuntimeException(
-                    'Failed to connect to client "'
-                    . $uri
-                    . '": '
-                    . ($error['message'] ?? 'the socket has no peer address.'),
-                    $error['type'] ?? 0,
-                ),
-            );
 
-            return;
+            throw new Exception\RuntimeException(
+                'Failed to connect to client "'
+                . $uri
+                . '": '
+                . ($error['message'] ?? 'the socket has no peer address.'),
+                $error['type'] ?? 0,
+            );
         }
 
-        $suspension->resume($socket);
-    });
+        $connected = true;
 
-    try {
-        return $suspension->suspend();
+        return $socket;
     } finally {
-        EventLoop::cancel($writeWatcher);
-        if (null !== $cancellationId) {
-            $cancellation->unsubscribe($cancellationId);
+        EventLoop::cancel($watcher);
+        if (null !== $id) {
+            $cancellation->unsubscribe($id);
+        }
+
+        if (!$connected && is_resource($socket)) {
+            fclose($socket);
         }
     }
 }
