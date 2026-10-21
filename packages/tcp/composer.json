@@ -31,6 +31,7 @@
         "revolt/event-loop": "^1.0.8"
     },
     "require-dev": {
+        "php-standard-library/io": "^6.0",
         "php-standard-library/os": "^6.0",
         "php-standard-library/str": "^6.0",
         "phpunit/phpunit": "^13.0"
