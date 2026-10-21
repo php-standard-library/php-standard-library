@@ -13,6 +13,7 @@ use Psl\DateTime\Duration;
 use Psl\H2;
 use Psl\HPACK;
 use Psl\HTTP\Client\ClientConfiguration;
+use Psl\HTTP\Client\Connection\ConnectionInterface;
 use Psl\HTTP\Client\Connection\ConnectionMetadata;
 use Psl\HTTP\Client\Exception;
 use Psl\HTTP\Client\Exception\ProtocolException;
@@ -1076,7 +1077,7 @@ final class TransportTest extends TestCase
                             continue;
                         }
 
-                        $server->goAway(H2\ErrorCode::NoError, lastStreamId: 0);
+                        $server->goAway(H2\ErrorCode::NoError);
                         return;
                     }
                 }
@@ -1139,13 +1140,11 @@ final class TransportTest extends TestCase
             /** @var int<0, 65535> $portB */
             $portB = $addressB->port;
 
-            $reconnected = false;
             $reconnect = static function (
                 Request $request,
                 ClientConfiguration $configuration,
                 Async\CancellationTokenInterface $cancellation,
-            ) use ($connector, $portB, $h2Config, &$reconnected): H2Connection {
-                $reconnected = true;
+            ) use ($connector, $portB, $h2Config): H2Connection {
                 $streamB = $connector->connect('127.0.0.1', $portB, new TimeoutCancellationToken(Duration::seconds(5)));
                 $sessionB = new H2Session($streamB, $h2Config);
                 return new H2Connection(
@@ -1166,7 +1165,6 @@ final class TransportTest extends TestCase
 
             $tx = $h2Connection->exchange($request, $config);
 
-            static::assertTrue($reconnected);
             static::assertSame(200, $tx->response->status);
             static::assertSame('server-b', $tx->response->headers->get('x-source'));
         } finally {
@@ -1186,7 +1184,7 @@ final class TransportTest extends TestCase
         }
     }
 
-    public function testGoAwayWithErrorDoesNotReplayExchange(): void
+    public function testGoAwayWithErrorDoesNotReplayNonIdempotentExchange(): void
     {
         [$client, $server] = Network\socket_pair();
         $session = new H2Session($client, new H2ClientConfiguration());
@@ -1218,15 +1216,109 @@ final class TransportTest extends TestCase
         try {
             try {
                 $connection->exchange(
-                    new Request(method: 'GET', url: URL\parse('http://example.com/')),
+                    new Request(method: 'POST', url: URL\parse('http://example.com/')),
                     new ClientConfiguration(),
                 );
                 static::fail('GOAWAY must fail the exchange.');
             } catch (ProtocolException $error) {
                 static::assertStringContainsString('Connection closed by server', $error->getMessage());
-                static::assertFalse($reconnected);
+                static::assertFalse($reconnected, 'A POST covered by GOAWAY must not be replayed.');
             }
 
+            $serverTask->await();
+        } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testIdempotencyKeyReplaysPostOnConnectionClose(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $replacement = new Transaction([], null, new Response(status: 200));
+        $fresh = $this->createMock(ConnectionInterface::class);
+        $fresh->expects(static::once())->method('exchange')->willReturn($replacement);
+        $reconnects = 0;
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+            static function () use ($fresh, &$reconnects): ConnectionInterface {
+                $reconnects++;
+                return $fresh;
+            },
+        );
+        $serverTask = Async\run(static function () use ($server): void {
+            $h2 = new H2\ServerConnection($server);
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (true) {
+                foreach ($h2->readEvent() as $event) {
+                    if ($event instanceof H2\Event\HeadersReceived) {
+                        $server->close();
+                        return;
+                    }
+                }
+            }
+        });
+
+        try {
+            $request = new Request(
+                method: 'POST',
+                url: URL\parse('http://example.com/'),
+                headers: FieldMap::from([['idempotency-key', 'abc-123']]),
+            );
+            $transaction = $connection->exchange($request, new ClientConfiguration());
+
+            static::assertSame($replacement, $transaction);
+            static::assertSame(1, $reconnects);
+            $serverTask->await();
+        } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testGoAwayWithErrorReplaysIdempotentExchange(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $replacement = new Transaction([], null, new Response(status: 200));
+        $fresh = $this->createMock(ConnectionInterface::class);
+        $fresh->expects(static::once())->method('exchange')->willReturn($replacement);
+        $reconnects = 0;
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+            static function () use ($fresh, &$reconnects): ConnectionInterface {
+                $reconnects++;
+                return $fresh;
+            },
+        );
+        $serverTask = Async\run(static function () use ($server): void {
+            $h2 = new H2\ServerConnection($server);
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (true) {
+                foreach ($h2->readEvent() as $event) {
+                    if (!$event instanceof H2\Event\HeadersReceived) {
+                        continue;
+                    }
+
+                    $h2->goAway(H2\ErrorCode::InternalError);
+                    return;
+                }
+            }
+        });
+
+        try {
+            $transaction = $connection->exchange(
+                new Request(method: 'GET', url: URL\parse('http://example.com/')),
+                new ClientConfiguration(),
+            );
+
+            static::assertSame($replacement, $transaction);
+            static::assertSame(1, $reconnects);
             $serverTask->await();
         } finally {
             $client->close();
