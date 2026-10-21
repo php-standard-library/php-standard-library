@@ -7,7 +7,6 @@ namespace Psl\Channel\Internal;
 use Override;
 use Psl\Channel\ChannelInterface;
 use Psl\Channel\Exception;
-use Revolt\EventLoop\Suspension;
 
 use function array_search;
 use function array_shift;
@@ -22,7 +21,7 @@ use function count;
 final class UnboundedChannelState implements ChannelInterface
 {
     /**
-     * @var list<Suspension<mixed>>
+     * @var list<Waiter>
      */
     private array $waitingForMessage = [];
 
@@ -33,30 +32,31 @@ final class UnboundedChannelState implements ChannelInterface
 
     private bool $closed = false;
 
-    /**
-     * @param Suspension<mixed> $suspension
-     */
-    public function waitForMessage(Suspension $suspension): void
+    public function waitForMessage(Waiter $waiter): void
     {
-        $this->waitingForMessage[] = $suspension;
+        $waiter->waiting = true;
+        $this->waitingForMessage[] = $waiter;
     }
 
     /**
-     * Remove the given suspension from the waiting list.
+     * Remove the given waiter from the waiting list.
      *
-     * Returns `false` if the suspension was no longer waiting, meaning it has already been
-     * resumed (or thrown into) and must not be resumed again.
-     *
-     * @param Suspension<mixed> $suspension
+     * Returns `false` if the waiter was no longer waiting, meaning it has already been
+     * woken up (or failed) and must not be settled again.
      */
-    public function removeFromWaitingForMessage(Suspension $suspension): bool
+    public function removeFromWaitingForMessage(Waiter $waiter): bool
     {
-        $index = array_search($suspension, $this->waitingForMessage, true);
+        if (!$waiter->waiting) {
+            return false;
+        }
+
+        $index = array_search($waiter, $this->waitingForMessage, true);
         if (false === $index) {
             return false;
         }
 
         array_splice($this->waitingForMessage, $index, 1);
+        $waiter->waiting = false;
 
         return true;
     }
@@ -80,10 +80,10 @@ final class UnboundedChannelState implements ChannelInterface
     {
         $this->closed = true;
 
-        $suspensions = $this->waitingForMessage;
+        $waiters = $this->waitingForMessage;
         $this->waitingForMessage = [];
-        foreach ($suspensions as $suspension) {
-            $suspension->throw(Exception\ClosedChannelException::forReceiving());
+        foreach ($waiters as $waiter) {
+            $waiter->fail(Exception\ClosedChannelException::forReceiving());
         }
     }
 
@@ -138,8 +138,7 @@ final class UnboundedChannelState implements ChannelInterface
         }
 
         $this->messages[] = $message;
-        $suspension = array_shift($this->waitingForMessage);
-        $suspension?->resume(null);
+        array_shift($this->waitingForMessage)?->wake();
     }
 
     /**
@@ -163,8 +162,7 @@ final class UnboundedChannelState implements ChannelInterface
         // Receivers may have queued behind one that was woken up for a message; if messages
         // are left, wake the next one up, as no send() is going to.
         if ($this->messages !== []) {
-            $suspension = array_shift($this->waitingForMessage);
-            $suspension?->resume(null);
+            array_shift($this->waitingForMessage)?->wake();
         }
 
         return $item;

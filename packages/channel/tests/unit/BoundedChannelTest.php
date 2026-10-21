@@ -9,6 +9,7 @@ use Psl\Async;
 use Psl\Channel;
 use Psl\DateTime;
 use Psl\DateTime\Duration;
+use RuntimeException;
 
 final class BoundedChannelTest extends TestCase
 {
@@ -795,5 +796,249 @@ final class BoundedChannelTest extends TestCase
         $this->expectException(Async\Exception\CancelledException::class);
 
         $cancelled->await();
+    }
+
+    public function testReceiveCancelledWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        // The token is cancelled once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function (SubscribeHookToken $cancellation): void {
+            $cancellation->cancel();
+        });
+
+        try {
+            $receiver->receive($token);
+
+            static::fail('Expected CancelledException to be thrown.');
+        } catch (Async\Exception\CancelledException $exception) {
+            static::assertSame($token, $exception->getToken());
+        }
+
+        static::assertSame(0, $token->countSubscriptions());
+
+        // The cancelled call no longer waits, so the next message is left for the next call.
+        $sender->send('foo');
+
+        static::assertSame('foo', $receiver->receive());
+    }
+
+    public function testReceiveWokenUpWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        // A message arrives once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function () use ($sender): void {
+            $sender->send('foo');
+        });
+
+        static::assertSame('foo', $receiver->receive($token));
+        static::assertSame(0, $token->countSubscriptions());
+        static::assertTrue($receiver->isEmpty());
+    }
+
+    public function testReceiveClosedWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        // The channel is closed once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function () use ($sender): void {
+            $sender->close();
+        });
+
+        try {
+            $receiver->receive($token);
+
+            static::fail('Expected ClosedChannelException to be thrown.');
+        } catch (Channel\Exception\ClosedChannelException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame(0, $token->countSubscriptions());
+    }
+
+    public function testReceiveWithATokenThatFailsToSubscribe(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $failure = new RuntimeException('Subscription failed.');
+        $token = new SubscribeHookToken(static function () use ($failure): void {
+            throw $failure;
+        });
+
+        $unrelated = new Async\Deferred();
+        $fiber = Async\run(static function () use ($receiver, $token, $failure, $unrelated): string {
+            try {
+                $receiver->receive($token);
+
+                static::fail('Expected the subscription failure to be thrown.');
+            } catch (RuntimeException $exception) {
+                static::assertSame($failure, $exception);
+            }
+
+            return $unrelated->getAwaitable()->await();
+        });
+
+        Async\later();
+
+        // The failed call no longer waits: the next message neither resumes the fiber, which now
+        // waits for something else, nor gets lost.
+        $sender->send('foo');
+
+        Async\later();
+
+        static::assertFalse($fiber->isComplete());
+        static::assertSame('foo', $receiver->receive());
+
+        $unrelated->complete('bar');
+
+        static::assertSame('bar', $fiber->await());
+    }
+
+    public function testSendCancelledWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        // The token is cancelled once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function (SubscribeHookToken $cancellation): void {
+            $cancellation->cancel();
+        });
+
+        try {
+            $sender->send('bar', $token);
+
+            static::fail('Expected CancelledException to be thrown.');
+        } catch (Async\Exception\CancelledException $exception) {
+            static::assertSame($token, $exception->getToken());
+        }
+
+        static::assertSame(0, $token->countSubscriptions());
+
+        // The cancelled call no longer waits, so the next free space is left for the next call.
+        static::assertSame('foo', $receiver->receive());
+
+        $sender->send('baz');
+
+        static::assertSame('baz', $receiver->receive());
+        static::assertTrue($receiver->isEmpty());
+    }
+
+    public function testSendWokenUpWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        // Space frees up once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function () use ($receiver): void {
+            static::assertSame('foo', $receiver->receive());
+        });
+
+        $sender->send('bar', $token);
+
+        static::assertSame(0, $token->countSubscriptions());
+        static::assertSame('bar', $receiver->receive());
+        static::assertTrue($receiver->isEmpty());
+    }
+
+    public function testSendClosedWhileSubscribingToTheToken(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        // The channel is closed once the call is waiting, but before it suspends.
+        $token = new SubscribeHookToken(static function () use ($receiver): void {
+            $receiver->close();
+        });
+
+        try {
+            $sender->send('bar', $token);
+
+            static::fail('Expected ClosedChannelException to be thrown.');
+        } catch (Channel\Exception\ClosedChannelException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame(0, $token->countSubscriptions());
+        static::assertSame('foo', $receiver->receive());
+    }
+
+    public function testSendWithATokenThatFailsToSubscribe(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $failure = new RuntimeException('Subscription failed.');
+        $token = new SubscribeHookToken(static function () use ($failure): void {
+            throw $failure;
+        });
+
+        $unrelated = new Async\Deferred();
+        $fiber = Async\run(static function () use ($sender, $token, $failure, $unrelated): string {
+            try {
+                $sender->send('bar', $token);
+
+                static::fail('Expected the subscription failure to be thrown.');
+            } catch (RuntimeException $exception) {
+                static::assertSame($failure, $exception);
+            }
+
+            return $unrelated->getAwaitable()->await();
+        });
+
+        Async\later();
+
+        // The failed call no longer waits: the next free space neither resumes the fiber, which
+        // now waits for something else, nor gets lost.
+        static::assertSame('foo', $receiver->receive());
+
+        Async\later();
+
+        static::assertFalse($fiber->isComplete());
+
+        $sender->send('baz');
+
+        static::assertSame('baz', $receiver->receive());
+        static::assertTrue($receiver->isEmpty());
+
+        $unrelated->complete('qux');
+
+        static::assertSame('qux', $fiber->await());
     }
 }

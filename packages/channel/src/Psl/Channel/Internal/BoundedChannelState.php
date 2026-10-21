@@ -7,7 +7,6 @@ namespace Psl\Channel\Internal;
 use Override;
 use Psl\Channel\ChannelInterface;
 use Psl\Channel\Exception;
-use Revolt\EventLoop\Suspension;
 
 use function array_search;
 use function array_shift;
@@ -21,12 +20,12 @@ use function array_splice;
 final class BoundedChannelState implements ChannelInterface
 {
     /**
-     * @var list<Suspension<mixed>>
+     * @var list<Waiter>
      */
     private array $waitingForMessage = [];
 
     /**
-     * @var list<Suspension<mixed>>
+     * @var list<Waiter>
      */
     private array $waitingForSpace = [];
 
@@ -60,20 +59,16 @@ final class BoundedChannelState implements ChannelInterface
         $this->close();
     }
 
-    /**
-     * @param Suspension<mixed> $suspension
-     */
-    public function waitForSpace(Suspension $suspension): void
+    public function waitForSpace(Waiter $waiter): void
     {
-        $this->waitingForSpace[] = $suspension;
+        $waiter->waiting = true;
+        $this->waitingForSpace[] = $waiter;
     }
 
-    /**
-     * @param Suspension<mixed> $suspension
-     */
-    public function waitForMessage(Suspension $suspension): void
+    public function waitForMessage(Waiter $waiter): void
     {
-        $this->waitingForMessage[] = $suspension;
+        $waiter->waiting = true;
+        $this->waitingForMessage[] = $waiter;
     }
 
     /**
@@ -95,16 +90,16 @@ final class BoundedChannelState implements ChannelInterface
     {
         $this->closed = true;
 
-        $suspensions = $this->waitingForSpace;
+        $waiters = $this->waitingForSpace;
         $this->waitingForSpace = [];
-        foreach ($suspensions as $suspension) {
-            $suspension->throw(Exception\ClosedChannelException::forSending());
+        foreach ($waiters as $waiter) {
+            $waiter->fail(Exception\ClosedChannelException::forSending());
         }
 
-        $suspensions = $this->waitingForMessage;
+        $waiters = $this->waitingForMessage;
         $this->waitingForMessage = [];
-        foreach ($suspensions as $suspension) {
-            $suspension->throw(Exception\ClosedChannelException::forReceiving());
+        foreach ($waiters as $waiter) {
+            $waiter->fail(Exception\ClosedChannelException::forReceiving());
         }
     }
 
@@ -147,41 +142,47 @@ final class BoundedChannelState implements ChannelInterface
     }
 
     /**
-     * Remove the given suspension from the waiting list.
+     * Remove the given waiter from the waiting list.
      *
-     * Returns `false` if the suspension was no longer waiting, meaning it has already been
-     * resumed (or thrown into) and must not be resumed again.
-     *
-     * @param Suspension<mixed> $suspension
+     * Returns `false` if the waiter was no longer waiting, meaning it has already been
+     * woken up (or failed) and must not be settled again.
      */
-    public function removeFromWaitingForSpace(Suspension $suspension): bool
+    public function removeFromWaitingForSpace(Waiter $waiter): bool
     {
-        $index = array_search($suspension, $this->waitingForSpace, true);
+        if (!$waiter->waiting) {
+            return false;
+        }
+
+        $index = array_search($waiter, $this->waitingForSpace, true);
         if (false === $index) {
             return false;
         }
 
         array_splice($this->waitingForSpace, $index, 1);
+        $waiter->waiting = false;
 
         return true;
     }
 
     /**
-     * Remove the given suspension from the waiting list.
+     * Remove the given waiter from the waiting list.
      *
-     * Returns `false` if the suspension was no longer waiting, meaning it has already been
-     * resumed (or thrown into) and must not be resumed again.
-     *
-     * @param Suspension<mixed> $suspension
+     * Returns `false` if the waiter was no longer waiting, meaning it has already been
+     * woken up (or failed) and must not be settled again.
      */
-    public function removeFromWaitingForMessage(Suspension $suspension): bool
+    public function removeFromWaitingForMessage(Waiter $waiter): bool
     {
-        $index = array_search($suspension, $this->waitingForMessage, true);
+        if (!$waiter->waiting) {
+            return false;
+        }
+
+        $index = array_search($waiter, $this->waitingForMessage, true);
         if (false === $index) {
             return false;
         }
 
         array_splice($this->waitingForMessage, $index, 1);
+        $waiter->waiting = false;
 
         return true;
     }
@@ -205,14 +206,12 @@ final class BoundedChannelState implements ChannelInterface
         $this->messages[] = $message;
         $this->size++;
 
-        $suspension = array_shift($this->waitingForMessage);
-        $suspension?->resume(null);
+        array_shift($this->waitingForMessage)?->wake();
 
         // Senders may have queued behind one that was woken up for space; if space is
         // left, wake the next one up, as no receive() is going to.
         if ($this->size < $this->capacity) {
-            $suspension = array_shift($this->waitingForSpace);
-            $suspension?->resume(null);
+            array_shift($this->waitingForSpace)?->wake();
         }
     }
 
@@ -236,14 +235,12 @@ final class BoundedChannelState implements ChannelInterface
         // @mago-expect analysis:invalid-property-assignment-value - The size is always in sync with messages.
         $this->size--;
 
-        $suspension = array_shift($this->waitingForSpace);
-        $suspension?->resume(null);
+        array_shift($this->waitingForSpace)?->wake();
 
         // Receivers may have queued behind one that was woken up for a message; if messages
         // are left, wake the next one up, as no send() is going to.
         if ($this->messages !== []) {
-            $suspension = array_shift($this->waitingForMessage);
-            $suspension?->resume(null);
+            array_shift($this->waitingForMessage)?->wake();
         }
 
         return $item;

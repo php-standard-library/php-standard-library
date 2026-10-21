@@ -11,7 +11,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\Channel\Exception;
 use Psl\Channel\ReceiverInterface;
 use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
 
 /**
  * @template T
@@ -27,7 +26,7 @@ final class UnboundedReceiver implements ReceiverInterface
      */
     use ChannelSideTrait;
 
-    private null|Suspension $suspension = null;
+    private null|Waiter $waiter = null;
 
     /**
      * @param UnboundedChannelState<T> $state
@@ -43,23 +42,27 @@ final class UnboundedReceiver implements ReceiverInterface
     #[Override]
     public function receive(CancellationTokenInterface $cancellation = new NullCancellationToken()): mixed
     {
+        $waiter = null;
+
         try {
             // If another receive() is already waiting on this receiver, queue behind it instead of
             // taking the message it may have been woken up for. A closed channel wakes no one up
             // anymore, so never queue on it.
-            if (null !== $this->suspension && !$this->state->isClosed()) {
-                $this->waitForMessage($cancellation);
+            if (null !== $this->waiter && !$this->state->isClosed()) {
+                $waiter = new Waiter(EventLoop::getSuspension());
+                $this->waitForMessage($waiter, $cancellation);
             }
 
             // Being woken up does not guarantee a message: another receiver may have taken it
             // before this fiber got to run, in which case we wait again.
             while ($this->state->isEmpty() && !$this->state->isClosed()) {
-                $this->waitForMessage($cancellation);
+                $waiter ??= new Waiter(EventLoop::getSuspension());
+                $this->waitForMessage($waiter, $cancellation);
             }
 
             return $this->state->receive();
         } finally {
-            $this->suspension = null;
+            $this->waiter = null;
         }
     }
 
@@ -78,37 +81,45 @@ final class UnboundedReceiver implements ReceiverInterface
      * @throws Exception\ClosedChannelException If the channel is closed while waiting.
      * @throws CancelledException If the cancellation token is cancelled while waiting.
      */
-    private function waitForMessage(CancellationTokenInterface $cancellation): void
+    private function waitForMessage(Waiter $waiter, CancellationTokenInterface $cancellation): void
     {
         if ($cancellation->cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        $suspension = EventLoop::getSuspension();
-        $this->suspension = $suspension;
-        $this->state->waitForMessage($suspension);
+        $this->waiter = $waiter;
+        $this->state->waitForMessage($waiter);
 
         $id = null;
-        if ($cancellation->cancellable) {
-            $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                // The suspension may have already been resumed by a send, or thrown into by close().
-                if ($this->state->removeFromWaitingForMessage($suspension)) {
-                    // A cancelled waiter takes nothing, so later calls must not queue behind it.
-                    if ($this->suspension === $suspension) {
-                        $this->suspension = null;
-                    }
-
-                    $suspension->throw($e);
-                }
-            });
-        }
 
         try {
-            $suspension->suspend();
+            if ($cancellation->cancellable) {
+                $id = $cancellation->subscribe(function (CancelledException $e) use ($waiter): void {
+                    // The waiter may have already been woken up by a send, or failed by close().
+                    if (!$this->state->removeFromWaitingForMessage($waiter)) {
+                        return;
+                    }
+
+                    // A cancelled waiter takes nothing, so later calls must not queue behind it.
+                    if ($this->waiter === $waiter) {
+                        $this->waiter = null;
+                    }
+
+                    // When the token cancels inside subscribe(), the waiter is failed before this
+                    // call suspends; it then keeps the exception for wait() to throw.
+                    $waiter->fail($e);
+                });
+            }
+
+            $waiter->wait();
         } finally {
             if (null !== $id) {
                 $cancellation->unsubscribe($id);
             }
+
+            // A waiter is still waiting here if subscribing to the token failed; take it out, so
+            // nothing wakes it up anymore.
+            $this->state->removeFromWaitingForMessage($waiter);
         }
     }
 }
