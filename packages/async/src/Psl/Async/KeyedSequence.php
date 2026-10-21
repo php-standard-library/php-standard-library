@@ -35,15 +35,20 @@ use function count;
 final class KeyedSequence
 {
     /**
-     * Tracks the fiber that currently holds each key, enabling re-entrant
-     * calls from the same fiber without deadlocking.
+     * The execution context (fiber, or this sequence for {main}) holding each key.
      *
-     * @var array<Tk, Fiber|static>
+     * A context calling {@see waitFor()} again for a key it holds re-enters: the re-entrant call runs
+     * right away, and only the outermost call releases the key. A completing operation hands the key
+     * over to the next pending operation's context before resuming it.
+     *
+     * @var array<Tk, Fiber|self>
      */
     private array $ongoing = [];
 
     /**
-     * @var array<Tk, list<Suspension>>
+     * The pending operations for each key: their suspension, and the context waiting on it.
+     *
+     * @var array<Tk, list<array{Suspension, Fiber|self}>>
      */
     private array $pending = [];
 
@@ -76,8 +81,8 @@ final class KeyedSequence
         mixed $input,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): mixed {
-        if (array_key_exists($key, $this->ongoing)) {
-            $currentContext = Fiber::getCurrent() ?? $this;
+        $currentContext = Fiber::getCurrent() ?? $this;
+        if (isset($this->ongoing[$key])) {
             if ($this->ongoing[$key] === $currentContext) {
                 return ($this->operation)($key, $input);
             }
@@ -87,45 +92,52 @@ final class KeyedSequence
             }
 
             $suspension = EventLoop::getSuspension();
-            $this->pending[$key][] = $suspension;
+            $waiter = [$suspension, $currentContext];
+            $this->pending[$key][] = $waiter;
 
             $id = null;
             if ($cancellation->cancellable) {
-                $id = $cancellation->subscribe(function (CancelledException $e) use ($key, $suspension): void {
-                    $index = array_search($suspension, $this->pending[$key] ?? [], true);
+                $id = $cancellation->subscribe(function (CancelledException $e) use ($key, $waiter): void {
+                    $index = array_search($waiter, $this->pending[$key] ?? [], true);
                     if (false !== $index) {
                         array_splice($this->pending[$key], $index, 1);
                         if ([] === $this->pending[$key]) {
                             unset($this->pending[$key]);
                         }
 
-                        $suspension->throw($e);
+                        $waiter[0]->throw($e);
                     }
                 });
             }
 
             try {
+                // Once resumed, the key has been handed over to us: `$this->ongoing[$key]` is already our context.
                 $suspension->suspend();
             } finally {
                 if (null !== $id) {
                     $cancellation->unsubscribe($id);
                 }
             }
+        } else {
+            $this->ongoing[$key] = $currentContext;
         }
-
-        $this->ongoing[$key] = Fiber::getCurrent() ?? $this;
 
         try {
             return ($this->operation)($key, $input);
         } finally {
-            $this->pending[$key] ??= [];
-            $suspension = array_shift($this->pending[$key]);
-            if ([] === $this->pending[$key]) {
-                unset($this->pending[$key]);
+            $next = null;
+            if (isset($this->pending[$key])) {
+                $next = array_shift($this->pending[$key]);
+                if ([] === $this->pending[$key]) {
+                    unset($this->pending[$key]);
+                }
             }
 
-            if (null !== $suspension) {
-                $suspension->resume();
+            if (null !== $next) {
+                // Hand the key over before resuming the next operation: it runs later, and the completing
+                // context must not be able to re-enter in between.
+                $this->ongoing[$key] = $next[1];
+                $next[0]->resume();
             } else {
                 foreach ($this->waits[$key] ?? [] as $suspension) {
                     $suspension->resume();
@@ -147,9 +159,9 @@ final class KeyedSequence
      */
     public function cancel(string|int $key, Exception $exception): void
     {
-        $suspensions = $this->pending[$key] ?? [];
+        $operations = $this->pending[$key] ?? [];
         unset($this->pending[$key]);
-        foreach ($suspensions as $suspension) {
+        foreach ($operations as [$suspension]) {
             $suspension->throw($exception);
         }
     }
@@ -165,8 +177,8 @@ final class KeyedSequence
     {
         $pending = $this->pending;
         $this->pending = [];
-        foreach ($pending as $suspensions) {
-            foreach ($suspensions as $suspension) {
+        foreach ($pending as $operations) {
+            foreach ($operations as [$suspension]) {
                 $suspension->throw($exception);
             }
         }
@@ -192,8 +204,8 @@ final class KeyedSequence
     public function getTotalPendingOperations(): int
     {
         $count = 0;
-        foreach ($this->pending as $suspensions) {
-            $count += count($suspensions);
+        foreach ($this->pending as $operations) {
+            $count += count($operations);
         }
 
         return $count;

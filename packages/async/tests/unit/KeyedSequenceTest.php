@@ -9,6 +9,8 @@ use Psl;
 use Psl\Async;
 use Psl\DateTime;
 
+use function max;
+
 final class KeyedSequenceTest extends TestCase
 {
     public function testItCallsTheOperation(): void
@@ -465,5 +467,135 @@ final class KeyedSequenceTest extends TestCase
         }
 
         static::assertSame('first-b', $other->await());
+    }
+
+    public function testKeyIsHandedOverToThePendingOperation(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'order' => []]);
+
+        /**
+         * @var Async\KeyedSequence<string, string, void>
+         */
+        $ks = new Async\KeyedSequence(static function (string $_key, string $input) use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+            $spy->value['order'][] = $input;
+
+            Async\later();
+
+            $spy->value['current']--;
+        });
+
+        $first = Async\run(static function () use ($ks): void {
+            $ks->waitFor('k', 'a1');
+            // The key released by "a1" belongs to "b", which was already waiting for it.
+            $ks->waitFor('k', 'a2');
+        });
+
+        $second = Async\run(static fn(): null => $ks->waitFor('k', 'b'));
+
+        $first->await();
+        $second->await();
+
+        static::assertSame(1, $spy->value['max']);
+        static::assertSame(['a1', 'b', 'a2'], $spy->value['order']);
+        static::assertFalse($ks->hasOngoingOperations('k'));
+        static::assertFalse($ks->hasPendingOperations('k'));
+    }
+
+    public function testKeyIsHandedOverToThePendingOperationFromMain(): void
+    {
+        $spy = new Psl\Ref(['current' => 0, 'max' => 0, 'order' => []]);
+
+        /**
+         * @var Async\KeyedSequence<string, string, void>
+         */
+        $ks = new Async\KeyedSequence(static function (string $_key, string $input) use ($spy): void {
+            $spy->value['current']++;
+            $spy->value['max'] = max($spy->value['max'], $spy->value['current']);
+            $spy->value['order'][] = $input;
+
+            Async\later();
+
+            $spy->value['current']--;
+        });
+
+        // "b" starts waiting for the key while {main} runs "a1".
+        $second = Async\run(static fn(): null => $ks->waitFor('k', 'b'));
+        $ks->waitFor('k', 'a1');
+
+        // The key belongs to "b" now, although "b" has not resumed yet.
+        static::assertTrue($ks->hasOngoingOperations('k'));
+        static::assertSame(1, $ks->getTotalOngoingOperations());
+        static::assertFalse($ks->hasPendingOperations('k'));
+
+        $ks->waitFor('k', 'a2');
+        $second->await();
+
+        static::assertSame(1, $spy->value['max']);
+        static::assertSame(['a1', 'b', 'a2'], $spy->value['order']);
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
+
+    public function testOperationThatWasHandedTheKeyCanReenter(): void
+    {
+        $gate = new Async\Deferred();
+        $spy = new Psl\Ref([]);
+
+        /** @var Async\KeyedSequence<string, string, string> */
+        $ks = new Async\KeyedSequence(static function (string $key, string $input) use (&$ks, $gate, $spy): string {
+            if ('first' === $input) {
+                $gate->getAwaitable()->await();
+            } elseif ('second' === $input) {
+                $spy->value[] = $ks->waitFor($key, 'inner');
+            }
+
+            return $input;
+        });
+
+        $first = Async\run(static fn(): string => $ks->waitFor('k', 'first'));
+        $second = Async\run(static fn(): string => $ks->waitFor('k', 'second'));
+        Async\later();
+        static::assertTrue($ks->hasPendingOperations('k'));
+
+        $gate->complete(null);
+
+        static::assertSame('first', $first->await());
+        static::assertSame('second', $second->await());
+        static::assertSame(['inner'], $spy->value);
+        static::assertFalse($ks->hasOngoingOperations('k'));
+    }
+
+    public function testCancellingAnOperationTheKeyWasHandedOverToLetsItRun(): void
+    {
+        $gate = new Async\Deferred();
+        $token = new Async\SignalCancellationToken();
+
+        /** @var Async\KeyedSequence<string, string, string> */
+        $ks = new Async\KeyedSequence(static function (string $_key, string $input) use ($gate): string {
+            if ('first' === $input) {
+                $gate->getAwaitable()->await();
+            }
+
+            return $input;
+        });
+
+        $first = Async\run(static function () use ($ks, $token): string {
+            $result = $ks->waitFor('k', 'first');
+            // The key belongs to "second" now, which has not resumed yet: cancelling it is too late.
+            $token->cancel();
+
+            return $result;
+        });
+        $second = Async\run(static fn(): string => $ks->waitFor('k', 'second', $token));
+        Async\later();
+        static::assertTrue($ks->hasPendingOperations('k'));
+
+        $gate->complete(null);
+
+        static::assertSame('first', $first->await());
+        static::assertSame('second', $second->await());
+        static::assertFalse($ks->hasOngoingOperations('k'));
+        static::assertFalse($ks->hasPendingOperations('k'));
     }
 }
