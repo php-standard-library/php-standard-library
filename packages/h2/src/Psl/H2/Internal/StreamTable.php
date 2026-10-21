@@ -146,6 +146,16 @@ final class StreamTable
     }
 
     /**
+     * Update the maximum number of concurrent streams the peer may open.
+     *
+     * Applied when the peer acknowledges our SETTINGS_MAX_CONCURRENT_STREAMS.
+     */
+    public function setPeerMaxConcurrent(int $max): void
+    {
+        $this->peerMaxConcurrent = $max;
+    }
+
+    /**
      * Update the initial send window size for newly created streams.
      */
     public function setInitialSendWindow(int $window): void
@@ -179,6 +189,24 @@ final class StreamTable
             }
 
             $entry->sendWindow = $newWindow;
+        }
+    }
+
+    /**
+     * Adjust the receive windows of streams the peer can still send on when
+     * our acknowledged SETTINGS_INITIAL_WINDOW_SIZE changes (RFC 9113 Section 6.9.2).
+     *
+     * Windows may become negative; the peer applies the same delta to its send
+     * windows and waits for WINDOW_UPDATE before sending again.
+     */
+    public function adjustReceiveWindows(int $delta): void
+    {
+        foreach ($this->streams as $entry) {
+            if (!($entry->state === StreamState::Open || $entry->state === StreamState::HalfClosedLocal)) {
+                continue;
+            }
+
+            $entry->receiveWindow += $delta;
         }
     }
 

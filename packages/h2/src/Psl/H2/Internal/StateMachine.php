@@ -146,6 +146,19 @@ final class StateMachine
     private array $pendingLocalHeaderTableSizes = [];
 
     /**
+     * Local stream limits awaiting SETTINGS ACKs, in send order.
+     *
+     * Each entry holds [MAX_CONCURRENT_STREAMS, INITIAL_WINDOW_SIZE] as sent. They reach
+     * the stream table when the peer acknowledges that SETTINGS frame (RFC 9113 Section 6.5.3).
+     *
+     * @var list<array{int<0, max>, int<0, max>}>
+     */
+    private array $pendingLocalStreamSettings = [];
+
+    /** @var int<0, max> Last acknowledged local INITIAL_WINDOW_SIZE. */
+    private int $acknowledgedLocalInitialWindowSize;
+
+    /**
      * @var int<0, max> Maximum frame payload size the remote peer accepts from us.
      */
     private int $remoteMaxFrameSize;
@@ -188,6 +201,7 @@ final class StateMachine
         $this->settings = new SettingsRegistry($localSettings);
         $localMaxConcurrent = $this->settings->localValue(Setting::MaxConcurrentStreams);
         $localInitialWindow = $this->settings->localValue(Setting::InitialWindowSize);
+        $this->acknowledgedLocalInitialWindowSize = $localInitialWindow;
         $this->streams = new StreamTable(
             PHP_INT_MAX,
             DEFAULT_INITIAL_WINDOW_SIZE,
@@ -220,6 +234,10 @@ final class StateMachine
     {
         $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
         $this->pendingLocalHeaderTableSizes[] = $this->settings->localValue(Setting::HeaderTableSize);
+        $this->pendingLocalStreamSettings[] = [
+            $this->settings->localValue(Setting::MaxConcurrentStreams),
+            $this->settings->localValue(Setting::InitialWindowSize),
+        ];
         $overrides = $this->settings->localOverrides();
         $frames = [new SettingsFrame($overrides, false)->toRaw()];
 
@@ -711,6 +729,10 @@ final class StateMachine
     public function sendSettings(array $settings): array
     {
         $this->settings->updateLocal($settings);
+        $this->pendingLocalStreamSettings[] = [
+            $this->settings->localValue(Setting::MaxConcurrentStreams),
+            $this->settings->localValue(Setting::InitialWindowSize),
+        ];
         $this->pendingLocalMaxFrameSizes[] = $this->settings->localValue(Setting::MaxFrameSize);
         $this->localMaxFrameSize = max([$this->acknowledgedLocalMaxFrameSize, ...$this->pendingLocalMaxFrameSizes]);
         $this->pendingLocalHeaderTableSizes[] = $this->settings->localValue(Setting::HeaderTableSize);
@@ -1027,6 +1049,16 @@ final class StateMachine
                     $this->acknowledgedLocalHeaderTableSize,
                     ...$this->pendingLocalHeaderTableSizes,
                 ]));
+            }
+
+            if ($this->pendingLocalStreamSettings !== []) {
+                [$maxConcurrent, $initialWindow] = array_shift($this->pendingLocalStreamSettings);
+                $this->streams->setPeerMaxConcurrent($maxConcurrent);
+                if ($initialWindow !== $this->acknowledgedLocalInitialWindowSize) {
+                    $this->streams->adjustReceiveWindows($initialWindow - $this->acknowledgedLocalInitialWindowSize);
+                    $this->streams->setInitialReceiveWindow($initialWindow);
+                    $this->acknowledgedLocalInitialWindowSize = $initialWindow;
+                }
             }
 
             if ($this->pendingLocalMaxFrameSizes === []) {
