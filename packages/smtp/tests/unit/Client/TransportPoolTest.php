@@ -6,6 +6,7 @@ namespace Psl\SMTP\Tests\Unit\Client;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\IO;
 use Psl\Message\Address\Mailbox;
@@ -28,6 +29,7 @@ use Psl\SMTP\Security;
 use Psl\TCP;
 use ReflectionClass;
 use ReflectionProperty;
+use RuntimeException;
 use Throwable;
 use WeakMap;
 use WeakReference;
@@ -160,6 +162,49 @@ final class TransportPoolTest extends TestCase
         } catch (ConnectionException $e) {
             static::assertSame('Lost the connection to the SMTP server.', $e->getMessage());
             static::assertSame($reset, $e->getPrevious());
+        }
+
+        static::assertPoolIsClean($transport, $pool);
+    }
+
+    #[DataProvider('exchangeStages')]
+    public function testCancelledSendClearsThePooledStream(string $replies, bool $authenticate): void
+    {
+        $cancelled = new Async\Exception\CancelledException(new Async\SignalCancellationToken());
+        [$transport, $pool] = $this->pooledTransport(
+            $replies,
+            $cancelled,
+            $authenticate ? new PlainAuthenticator('user', 'password') : null,
+        );
+        $mailbox = new Mailbox('sender', 'example.com');
+
+        try {
+            $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+            static::fail('send() succeeded although it was cancelled.');
+        } catch (Async\Exception\CancelledException $e) {
+            static::assertSame($cancelled, $e);
+        }
+
+        static::assertPoolIsClean($transport, $pool);
+    }
+
+    public function testAuthenticatorFailurePassesThroughAndClearsThePooledStream(): void
+    {
+        // A caller's authenticator may fail for reasons of its own, such as a token it cannot refresh.
+        $failure = new RuntimeException('The access token cannot be refreshed.');
+        $authenticator = $this->createStub(AuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willThrowException($failure);
+        [$transport, $pool] = $this->pooledTransport(
+            "220 mail.example.com ESMTP\r\n250-mail.example.com\r\n250 AUTH XOAUTH2\r\n",
+            authenticator: $authenticator,
+        );
+        $mailbox = new Mailbox('sender', 'example.com');
+
+        try {
+            $transport->send(new Envelope($mailbox, [$mailbox]), new Message());
+            static::fail('send() succeeded although authentication failed.');
+        } catch (RuntimeException $e) {
+            static::assertSame($failure, $e);
         }
 
         static::assertPoolIsClean($transport, $pool);

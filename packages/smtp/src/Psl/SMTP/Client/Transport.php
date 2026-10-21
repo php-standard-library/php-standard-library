@@ -81,6 +81,9 @@ final class Transport implements TransportInterface
     /**
      * {@inheritDoc}
      *
+     * Once the connection is open, cancellation passes through unchanged. When the exchange fails or is cancelled,
+     * the pooled connection is closed and never reused.
+     *
      * @throws Exception\PossibleAttackException If the envelope, message, DSN, or configuration contain CRLF or null bytes that could be used for SMTP command injection.
      * @throws Exception\ConnectionException If the connection cannot be established, the TLS upgrade fails, or the connection fails during the exchange, for example because the server reset it.
      * @throws Exception\TimeoutException If the connection times out.
@@ -99,6 +102,7 @@ final class Transport implements TransportInterface
         $stream = $this->checkout($cancellation);
 
         $connection = new Connection($stream);
+        $sent = false;
 
         try {
             if (!$this->isInitialized($stream)) {
@@ -108,11 +112,14 @@ final class Transport implements TransportInterface
 
             $content = $this->prepare($connection, $envelope, $message, $cancellation);
             $rejectedRecipients = $this->transmit($connection, $envelope, $content, $sendConfiguration, $cancellation);
-        } catch (Exception\RuntimeException|IO\Exception\RuntimeException|Network\Exception\RuntimeException $e) {
-            $this->pool->clear($stream);
-            $this->forgetInitialized($stream);
-
-            throw $e;
+            $sent = true;
+        } finally {
+            // Whatever ended the exchange early, cancellation included, left the session in an unknown state: close
+            // the connection and stop tracking it, instead of leaving it checked out until it is garbage-collected.
+            if (!$sent) {
+                $this->pool->clear($stream);
+                $this->forgetInitialized($stream);
+            }
         }
 
         $this->pool->checkin($stream);
