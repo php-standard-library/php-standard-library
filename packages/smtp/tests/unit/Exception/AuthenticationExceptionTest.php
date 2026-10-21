@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\SMTP\Exception\AuthenticationException;
 use Psl\SMTP\Exception\ExceptionInterface;
 use Psl\SMTP\Exception\RuntimeException;
+use Random\RandomException;
 
 final class AuthenticationExceptionTest extends TestCase
 {
@@ -66,6 +67,19 @@ final class AuthenticationExceptionTest extends TestCase
         $e = AuthenticationException::forUnsupportedMechanism('XOAUTH2');
 
         static::assertStringContainsString('XOAUTH2', $e->getMessage());
+    }
+
+    public function testForNonceGenerationFailed(): void
+    {
+        $previous = new RandomException('Failed to retrieve randomness from the operating system.', 42);
+        $e = AuthenticationException::forNonceGenerationFailed('SCRAM-SHA-256', $previous);
+
+        static::assertSame(
+            'SMTP SCRAM-SHA-256 authentication failed: could not generate a secure random nonce.',
+            $e->getMessage(),
+        );
+        static::assertSame($previous, $e->getPrevious());
+        static::assertSame(0, $e->getCode());
     }
 
     public function testForRejectedWith235Code(): void

@@ -8,6 +8,7 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\SMTP\Client\ConnectionInterface;
 use Psl\SMTP\Exception\AuthenticationException;
+use Random\RandomException;
 use SensitiveParameter;
 
 use function base64_decode;
@@ -49,6 +50,8 @@ final readonly class SCRAMSHA256Authenticator implements AuthenticatorInterface
 
     /**
      * {@inheritDoc}
+     *
+     * @throws AuthenticationException If the system cannot generate a secure random nonce, or the server does not offer SCRAM-SHA-256, sends a malformed or unverifiable SCRAM message, or rejects the proof.
      */
     public function authenticate(
         ConnectionInterface $connection,
@@ -59,7 +62,12 @@ final readonly class SCRAMSHA256Authenticator implements AuthenticatorInterface
             throw AuthenticationException::forUnsupportedMechanism($this->mechanism);
         }
 
-        $nonce = base64_encode(random_bytes(18));
+        try {
+            $nonce = base64_encode(random_bytes(18));
+        } catch (RandomException $e) {
+            throw AuthenticationException::forNonceGenerationFailed($this->mechanism, $e);
+        }
+
         $clientFirstBare = 'n=' . self::escapeUsername($this->username) . ',r=' . $nonce;
         $clientFirstMessage = 'n,,' . $clientFirstBare;
 
