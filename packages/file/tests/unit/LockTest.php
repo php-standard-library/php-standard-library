@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\File\Tests\Unit;
 
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
@@ -74,10 +75,48 @@ final class LockTest extends TestCase
 
         $handle->close();
 
-        $this->expectException(AlreadyClosedException::class);
-        $this->expectExceptionMessage('Handle was closed before releasing the lock.');
+        // Releasing the lock fails, but a destructor has no caller to report that to.
+        unset($lock);
+
+        // The file is unlocked: closing the handle released the lock.
+        $other = File\open_read_write($file);
+        $lock = $other->tryLock(File\LockType::Exclusive);
+        static::assertSame(File\LockType::Exclusive, $lock->type);
+        $lock->release();
+        $other->close();
+    }
+
+    public function testDestroyingALockSuppressesAReleaseFailure(): void
+    {
+        $lock = new File\Lock(File\LockType::Shared, static function (): void {
+            throw new File\Exception\RuntimeException('Could not release lock.');
+        });
 
         unset($lock);
+
+        $released = false;
+        $lock = new File\Lock(File\LockType::Shared, static function () use (&$released): void {
+            $released = true;
+        });
+
+        unset($lock);
+
+        static::assertTrue($released);
+    }
+
+    public function testDestroyingALockLetsOtherFailuresThrough(): void
+    {
+        $failure = new LogicException('A defect in the release callback.');
+        $lock = new File\Lock(File\LockType::Shared, static function () use ($failure): void {
+            throw $failure;
+        });
+
+        try {
+            unset($lock);
+            static::fail('The destructor suppressed the failure.');
+        } catch (LogicException $e) {
+            static::assertSame($failure, $e);
+        }
     }
 
     public function testReleasingASecondTimeAfterClosingTheFile(): void

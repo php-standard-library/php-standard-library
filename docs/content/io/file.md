@@ -33,7 +33,7 @@ For more control, open a file handle directly. Handles implement the `IO` handle
 
 ## File Locking
 
-File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected.
+File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected. Only `release()` reports a failure to release it, such as a handle that was closed first; a lock that is garbage collected does not throw.
 
 - **`LockType::Shared`** -- Multiple processes can hold a shared lock simultaneously. Use for reads.
 - **`LockType::Exclusive`** -- Only one process can hold an exclusive lock. Use for writes.
