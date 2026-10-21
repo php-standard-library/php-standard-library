@@ -63,7 +63,7 @@ final class Stream implements TLS\StreamInterface
     /**
      * Serializes write() and writeAll() so that the pending record is handled by one fiber at a time.
      *
-     * @var Async\Sequence<array{string, CancellationTokenInterface, bool}, int<0, max>>
+     * @var Async\Sequence<array{self, string, CancellationTokenInterface, bool}, int<0, max>>
      */
     private readonly Async\Sequence $writes;
 
@@ -73,36 +73,22 @@ final class Stream implements TLS\StreamInterface
     ) {
         $this->localAddress = $inner->getLocalAddress();
         $this->peerAddress = $inner->getPeerAddress();
+
+        // The stream is passed with each operation rather than captured: a captured stream would reference
+        // itself through its sequence, and a stream dropped without being closed would only be destroyed, and
+        // its connection closed, once the cycle collector ran. A fiber that waits for the socket in write() or
+        // writeAll() is kept alive by the event loop, through the watcher it waits on, and keeps the stream
+        // alive through its own frame; the fibers queued behind it are kept alive by the stream's sequence.
         $this->writes = new Async\Sequence(
             /**
-             * @param array{string, CancellationTokenInterface, bool} $input
+             * @param array{self, string, CancellationTokenInterface, bool} $input
              *
              * @return int<0, max>
              */
-            function (array $input): int {
-                [$bytes, $cancellation, $all] = $input;
+            static function (array $input): int {
+                [$stream, $bytes, $cancellation, $all] = $input;
 
-                $this->drainPending($cancellation);
-                if ('' === $bytes) {
-                    return 0;
-                }
-
-                if (!$all) {
-                    $accepted = $this->writeChunk($bytes);
-                    $this->drainPending($cancellation);
-
-                    return $accepted;
-                }
-
-                $total = 0;
-                while ('' !== $bytes) {
-                    $accepted = $this->writeChunk($bytes);
-                    $total += $accepted;
-                    $bytes = substr($bytes, $accepted);
-                    $this->drainPending($cancellation);
-                }
-
-                return $total;
+                return $stream->doWrite($bytes, $cancellation, $all);
             },
         );
     }
@@ -174,7 +160,7 @@ final class Stream implements TLS\StreamInterface
     #[Override]
     public function write(string $bytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
     {
-        return $this->writes->waitFor([$bytes, $cancellation, false], $cancellation);
+        return $this->writes->waitFor([$this, $bytes, $cancellation, false], $cancellation);
     }
 
     #[Override]
@@ -182,7 +168,7 @@ final class Stream implements TLS\StreamInterface
         string $bytes,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): void {
-        $this->writes->waitFor([$bytes, $cancellation, true], $cancellation);
+        $this->writes->waitFor([$this, $bytes, $cancellation, true], $cancellation);
     }
 
     /**
@@ -253,6 +239,39 @@ final class Stream implements TLS\StreamInterface
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Run one write() or writeAll(), in sequence with the others.
+     *
+     * The pending record goes out first, and every byte counted by the return value has been handed to the
+     * socket when this method returns.
+     *
+     * @return int<0, max>
+     */
+    private function doWrite(string $bytes, CancellationTokenInterface $cancellation, bool $all): int
+    {
+        $this->drainPending($cancellation);
+        if ('' === $bytes) {
+            return 0;
+        }
+
+        if (!$all) {
+            $accepted = $this->writeChunk($bytes);
+            $this->drainPending($cancellation);
+
+            return $accepted;
+        }
+
+        $total = 0;
+        while ('' !== $bytes) {
+            $accepted = $this->writeChunk($bytes);
+            $total += $accepted;
+            $bytes = substr($bytes, $accepted);
+            $this->drainPending($cancellation);
+        }
+
+        return $total;
     }
 
     /**
