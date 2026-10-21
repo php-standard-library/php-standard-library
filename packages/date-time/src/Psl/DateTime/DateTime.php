@@ -12,6 +12,7 @@ use Override;
 use Psl\Interoperability;
 use Psl\Locale\Locale;
 
+use function floor;
 use function intdiv;
 use function sprintf;
 
@@ -611,6 +612,8 @@ final readonly class DateTime implements
     /**
      * Creates a {@see DateTime} instance from an {@see IntlCalendar}.
      *
+     * Note: a fractional number of milliseconds is truncated toward negative infinity.
+     *
      * @param IntlCalendar $value
      *
      * @throws Exception\InvalidArgumentException If the timezone has no {@see Timezone} equivalent.
@@ -625,12 +628,11 @@ final readonly class DateTime implements
         /** @var IntlTimeZone $intlTz */
         $intlTz = $value->getTimeZone();
         $timezone = Timezone::fromIntl($intlTz);
-        $millis = $value->getTime();
-        $seconds = (int) ($millis / namespace\MILLISECONDS_PER_SECOND);
-        $remainingMillis = $millis % namespace\MILLISECONDS_PER_SECOND;
-        $nanoseconds = (int) ($remainingMillis * namespace\NANOSECONDS_PER_MILLISECOND);
+        // A calendar can hold a fractional number of milliseconds (e.g. after `setTime(-0.5)`). Truncate it toward
+        // negative infinity, as formatting does: truncating it toward zero would move an instant before 1970 forward.
+        $milliseconds = (int) floor($value->getTime());
 
-        return self::fromTimestamp(Timestamp::fromParts($seconds, $nanoseconds), $timezone);
+        return self::fromTimestamp(Timestamp::fromMilliseconds($milliseconds), $timezone);
     }
 
     /**

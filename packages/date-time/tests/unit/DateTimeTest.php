@@ -1125,6 +1125,21 @@ final class DateTimeTest extends TestCase
         static::assertSame(750_000_000, $dt->getNanoseconds());
     }
 
+    public function testFromIntlTruncatesFractionalMillisecondsTowardNegativeInfinity(): void
+    {
+        $calendar = IntlCalendar::createInstance('UTC');
+
+        $calendar->setTime(1_735_689_599_999.9);
+        static::assertSame([1_735_689_599, 999_000_000], DateTime::fromIntl($calendar)->getTimestamp()->toParts());
+
+        $calendar->setTime(-0.5);
+        static::assertSame([-1, 999_000_000], DateTime::fromIntl($calendar)->getTimestamp()->toParts());
+        static::assertSame('1969-12-31 23:59:59.999', DateTime::fromIntl($calendar)->format('yyyy-MM-dd HH:mm:ss.SSS'));
+
+        $calendar->setTime(-1_500.25);
+        static::assertSame([-2, 499_000_000], DateTime::fromIntl($calendar)->getTimestamp()->toParts());
+    }
+
     public function testFromPartsFloatCastInTimestampCalculation(): void
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 6, 15, 14, 30, 45, 0);
