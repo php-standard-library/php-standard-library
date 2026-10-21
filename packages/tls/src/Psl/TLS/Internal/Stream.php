@@ -65,6 +65,16 @@ final class Stream implements TLS\StreamInterface
      */
     private const int MAX_STALLED_FLUSHES = self::MAX_RECORD_PLAINTEXT + 2_048 + 5;
 
+    /**
+     * The largest part of a caller's buffer that writeAll() copies for one write.
+     *
+     * writeAll() keeps the caller's string and an offset into it. The first write passes the string itself,
+     * which copies nothing; every later write copies at most this many bytes from the offset. Copying the whole
+     * remainder after every write instead made writing N bytes cost O(N²) when the socket accepts a few
+     * kilobytes at a time.
+     */
+    private const int MAXIMUM_WRITE_CHUNK_SIZE = 65_536;
+
     private readonly Network\Address $localAddress;
     private readonly Network\Address $peerAddress;
 
@@ -271,22 +281,21 @@ final class Stream implements TLS\StreamInterface
             return 0;
         }
 
+        $accepted = $this->writeChunk($bytes);
+        $this->drainPending($cancellation);
         if (!$all) {
-            $accepted = $this->writeChunk($bytes);
-            $this->drainPending($cancellation);
-
             return $accepted;
         }
 
-        $total = 0;
-        while ('' !== $bytes) {
-            $accepted = $this->writeChunk($bytes);
-            $total += $accepted;
-            $bytes = substr($bytes, $accepted);
+        // writeChunk() always accepts part of a chunk: the head the socket did not take is kept as pending, as
+        // OpenSSL committed it from that chunk, and drainPending() sends it before the next chunk is written.
+        $length = strlen($bytes);
+        while ($accepted < $length) {
+            $accepted += $this->writeChunk(substr($bytes, $accepted, self::MAXIMUM_WRITE_CHUNK_SIZE));
             $this->drainPending($cancellation);
         }
 
-        return $total;
+        return $accepted;
     }
 
     /**
