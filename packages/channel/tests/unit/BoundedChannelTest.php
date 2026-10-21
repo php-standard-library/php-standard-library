@@ -1041,4 +1041,73 @@ final class BoundedChannelTest extends TestCase
 
         static::assertSame('qux', $fiber->await());
     }
+
+    public function testReceiveWokenUpThenRobbedKeepsItsPlaceInLine(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(2);
+
+        $first = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        $second = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // The first call is woken up for a message that is taken before it gets to run, so it waits again.
+        $sender->send('foo');
+        static::assertSame('foo', $receiver->tryReceive());
+
+        Async\later();
+
+        static::assertFalse($first->isComplete());
+        static::assertFalse($second->isComplete());
+
+        // It keeps its place in line: the next message is for it, and the one after for the second call.
+        $sender->send('bar');
+        $sender->send('baz');
+
+        static::assertSame('bar', $first->await());
+        static::assertSame('baz', $second->await());
+    }
+
+    public function testSendWokenUpThenRobbedKeepsItsPlaceInLine(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\bounded(1);
+
+        $sender->send('foo');
+
+        $first = Async\run(static fn(): null => $sender->send('bar'));
+
+        Async\later();
+
+        $second = Async\run(static fn(): null => $sender->send('baz'));
+
+        Async\later();
+
+        // The first call is woken up for space that is taken before it gets to run, so it waits again.
+        static::assertSame('foo', $receiver->receive());
+        $sender->trySend('qux');
+
+        Async\later();
+
+        static::assertFalse($first->isComplete());
+        static::assertFalse($second->isComplete());
+
+        // It keeps its place in line: the next free space is for it, and the one after for the second call.
+        static::assertSame('qux', $receiver->receive());
+        static::assertSame('bar', $receiver->receive());
+        static::assertSame('baz', $receiver->receive());
+
+        $first->await();
+        $second->await();
+    }
 }

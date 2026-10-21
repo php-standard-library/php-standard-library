@@ -26,6 +26,11 @@ final class UnboundedChannelState implements ChannelInterface
     private array $waitingForMessage = [];
 
     /**
+     * The place in line given to the last waiter that started waiting.
+     */
+    private int $lastTicket = 0;
+
+    /**
      * @var array<array-key, T>
      */
     private array $messages = [];
@@ -35,6 +40,16 @@ final class UnboundedChannelState implements ChannelInterface
     public function waitForMessage(Waiter $waiter): void
     {
         $waiter->waiting = true;
+        if (0 !== $waiter->ticket) {
+            // A call woken up for a message that another call took before it got to run keeps its
+            // place in line.
+            $this->waitingForMessage = self::insertInLine($this->waitingForMessage, $waiter);
+
+            return;
+        }
+
+        $this->lastTicket++;
+        $waiter->ticket = $this->lastTicket;
         $this->waitingForMessage[] = $waiter;
     }
 
@@ -166,5 +181,29 @@ final class UnboundedChannelState implements ChannelInterface
         }
 
         return $item;
+    }
+
+    /**
+     * Insert the given waiter in the given wait list, ahead of every waiter that came after it.
+     *
+     * @param list<Waiter> $waiters
+     *
+     * @return list<Waiter>
+     */
+    private static function insertInLine(array $waiters, Waiter $waiter): array
+    {
+        foreach ($waiters as $index => $other) {
+            if ($other->ticket < $waiter->ticket) {
+                continue;
+            }
+
+            array_splice($waiters, $index, 0, [$waiter]);
+
+            return $waiters;
+        }
+
+        $waiters[] = $waiter;
+
+        return $waiters;
     }
 }

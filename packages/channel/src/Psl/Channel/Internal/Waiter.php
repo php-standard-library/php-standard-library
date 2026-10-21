@@ -26,6 +26,14 @@ final class Waiter
      */
     public bool $waiting = false;
 
+    /**
+     * The waiter's place in line, given by the channel state the first time it waits; 0 before that.
+     *
+     * A call woken up for a message (or space) that another call took before it got to run waits
+     * again with the same waiter, and so keeps its place in line.
+     */
+    public int $ticket = 0;
+
     private bool $suspended = false;
 
     private bool $settled = false;

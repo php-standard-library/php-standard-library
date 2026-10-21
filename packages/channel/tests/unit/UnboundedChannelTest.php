@@ -539,4 +539,37 @@ final class UnboundedChannelTest extends TestCase
 
         static::assertSame('bar', $fiber->await());
     }
+
+    public function testReceiveWokenUpThenRobbedKeepsItsPlaceInLine(): void
+    {
+        /**
+         * @var Channel\ReceiverInterface<string> $receiver
+         * @var Channel\SenderInterface<string> $sender
+         */
+        [$receiver, $sender] = Channel\unbounded();
+
+        $first = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        $second = Async\run($receiver->receive(...));
+
+        Async\later();
+
+        // The first call is woken up for a message that is taken before it gets to run, so it waits again.
+        $sender->send('foo');
+        static::assertSame('foo', $receiver->tryReceive());
+
+        Async\later();
+
+        static::assertFalse($first->isComplete());
+        static::assertFalse($second->isComplete());
+
+        // It keeps its place in line: the next message is for it, and the one after for the second call.
+        $sender->send('bar');
+        $sender->send('baz');
+
+        static::assertSame('bar', $first->await());
+        static::assertSame('baz', $second->await());
+    }
 }
