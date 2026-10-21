@@ -54,6 +54,9 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     private bool $closed = false;
 
     /**
+     * Takes ownership of each handle that implements {@see CloseHandleInterface}: {@see close()} closes it. A
+     * handle that does not is only borrowed.
+     *
      * @param WriteHandleInterface $first The primary write handle.
      * @param WriteHandleInterface $second The secondary write handle that receives a copy of all data.
      */
@@ -166,25 +169,26 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
      * Close the handle, closing both underlying handles and clearing the pending buffer.
      *
      * If either underlying handle implements {@see CloseHandleInterface}, it
-     * will be closed. The pending buffer is discarded. After closing, all
-     * operations will throw {@see Exception\AlreadyClosedException}.
+     * will be closed: both are closed even if closing the first one fails, and
+     * a handle passed as both is closed once; the first failure is then
+     * rethrown. The pending buffer is discarded. Closing the handle again does
+     * nothing. After closing, all operations will throw
+     * {@see Exception\AlreadyClosedException}.
      *
      * @throws Exception\RuntimeException If an error occurred while closing one of the handles.
      */
     #[Override]
     public function close(): void
     {
+        if ($this->closed) {
+            return;
+        }
+
         $this->closed = true;
         $this->pendingForSecond = '';
         $this->pendingOffset = 0;
 
-        if ($this->first instanceof CloseHandleInterface) {
-            $this->first->close();
-        }
-
-        if ($this->second instanceof CloseHandleInterface) {
-            $this->second->close();
-        }
+        Internal\close_all($this->first, $this->second);
     }
 
     /**

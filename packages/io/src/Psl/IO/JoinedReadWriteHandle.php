@@ -29,6 +29,9 @@ final class JoinedReadWriteHandle implements ReadHandleInterface, BufferedWriteH
     private bool $closed = false;
 
     /**
+     * Takes ownership of each handle that implements {@see CloseHandleInterface}: {@see close()} closes it. A
+     * handle that does not is only borrowed.
+     *
      * @param ReadHandleInterface $reader The handle to delegate read operations to.
      * @param WriteHandleInterface $writer The handle to delegate write operations to.
      */
@@ -212,6 +215,9 @@ final class JoinedReadWriteHandle implements ReadHandleInterface, BufferedWriteH
     /**
      * Close the handle, closing both the underlying reader and writer if they implement {@see CloseHandleInterface}.
      *
+     * Both handles are closed even if closing the reader fails, and a handle passed as both is closed once; the
+     * first failure is then rethrown. Closing the handle again does nothing.
+     *
      * After closing, all read and write operations will throw {@see Exception\AlreadyClosedException}.
      *
      * @throws Exception\RuntimeException If unable to close one of the underlying handles.
@@ -219,15 +225,13 @@ final class JoinedReadWriteHandle implements ReadHandleInterface, BufferedWriteH
     #[Override]
     public function close(): void
     {
+        if ($this->closed) {
+            return;
+        }
+
         $this->closed = true;
 
-        if ($this->reader instanceof CloseHandleInterface) {
-            $this->reader->close();
-        }
-
-        if ($this->writer instanceof CloseHandleInterface) {
-            $this->writer->close();
-        }
+        Internal\close_all($this->reader, $this->writer);
     }
 
     /**

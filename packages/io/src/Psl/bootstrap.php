@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 (static function (): void {
     $functions = [
+        'Psl\IO\Internal\close_all' => __DIR__ . '/IO/Internal/close_all.php',
         'Psl\IO\Internal\open_resource' => __DIR__ . '/IO/Internal/open_resource.php',
         'Psl\IO\Internal\suppress' => __DIR__ . '/IO/Internal/suppress.php',
         'Psl\IO\copy' => __DIR__ . '/IO/copy.php',

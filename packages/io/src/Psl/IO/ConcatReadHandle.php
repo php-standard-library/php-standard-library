@@ -32,6 +32,9 @@ final class ConcatReadHandle implements ReadHandleInterface, CloseHandleInterfac
     private bool $firstEof = false;
 
     /**
+     * Takes ownership of each handle that implements {@see CloseHandleInterface}: {@see close()} closes it. A
+     * handle that does not is only borrowed.
+     *
      * @param ReadHandleInterface $first The first handle to read from.
      * @param ReadHandleInterface $second The second handle to read from after $first is exhausted.
      */
@@ -143,20 +146,23 @@ final class ConcatReadHandle implements ReadHandleInterface, CloseHandleInterfac
     /**
      * Close the handle and both underlying handles (if they implement {@see CloseHandleInterface}).
      *
+     * Both handles are closed even if closing the first one fails, and a handle passed as both is closed once;
+     * the first failure is then rethrown. Closing the handle again does nothing.
+     *
      * After closing, all read operations will throw {@see Exception\AlreadyClosedException}.
+     *
+     * @throws Exception\RuntimeException If unable to close one of the underlying handles.
      */
     #[Override]
     public function close(): void
     {
+        if ($this->closed) {
+            return;
+        }
+
         $this->closed = true;
 
-        if ($this->first instanceof CloseHandleInterface) {
-            $this->first->close();
-        }
-
-        if ($this->second instanceof CloseHandleInterface) {
-            $this->second->close();
-        }
+        Internal\close_all($this->first, $this->second);
     }
 
     /**
