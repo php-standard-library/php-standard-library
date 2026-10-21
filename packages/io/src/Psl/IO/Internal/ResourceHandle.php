@@ -10,7 +10,6 @@ use Psl\Async;
 use Psl\IO;
 use Psl\IO\Exception;
 use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
 
 use function error_clear_last;
 use function error_get_last;
@@ -70,14 +69,24 @@ class ResourceHandle implements
      * @var null|Async\Sequence<array{self, string, Async\CancellationTokenInterface, bool}, int<0, max>>
      */
     private null|Async\Sequence $writeSequence = null;
-    private null|Suspension $writeSuspension = null;
+
+    /**
+     * The write waiting for the stream to become writable, if any.
+     */
+    private null|Waiter $writeWaiter = null;
+
     private string $writeWatcher = 'invalid';
 
     /**
      * @var null|Async\Sequence<array{self, null|int<1, max>, Async\CancellationTokenInterface}, string>
      */
     private null|Async\Sequence $readSequence = null;
-    private null|Suspension $readSuspension = null;
+
+    /**
+     * The read waiting for the stream to become readable, if any.
+     */
+    private null|Waiter $readWaiter = null;
+
     private string $readWatcher = 'invalid';
 
     private bool $reachedEof = false;
@@ -136,13 +145,13 @@ class ResourceHandle implements
             // The event loop keeps this callback for as long as the watcher exists, and the watcher only goes
             // away when the handle is closed. The callback must not reference the handle: a handle dropped
             // without being closed would never be destroyed, and its stream would stay open. It shares the
-            // waiting suspension by reference instead, which keeps a fiber waiting in read() alive, and with
-            // it the handle that fiber uses.
-            $readSuspension = &$this->readSuspension;
-            $this->readWatcher = EventLoop::onReadable($stream, static function () use (&$readSuspension): void {
-                $suspension = $readSuspension;
-                $readSuspension = null;
-                $suspension?->resume();
+            // waiting read by reference instead, which keeps a fiber waiting in read() alive, and with it the
+            // handle that fiber uses.
+            $readWaiter = &$this->readWaiter;
+            $this->readWatcher = EventLoop::onReadable($stream, static function () use (&$readWaiter): void {
+                $waiter = $readWaiter;
+                $readWaiter = null;
+                $waiter?->resume();
             });
 
             // The handle is passed with each operation rather than captured, for the same reason: a captured
@@ -169,11 +178,11 @@ class ResourceHandle implements
             stream_set_write_buffer($stream, 0);
 
             // See the read watcher: neither callback may reference the handle.
-            $writeSuspension = &$this->writeSuspension;
-            $this->writeWatcher = EventLoop::onWritable($stream, static function () use (&$writeSuspension): void {
-                $suspension = $writeSuspension;
-                $writeSuspension = null;
-                $suspension?->resume();
+            $writeWaiter = &$this->writeWaiter;
+            $this->writeWatcher = EventLoop::onWritable($stream, static function () use (&$writeWaiter): void {
+                $waiter = $writeWaiter;
+                $writeWaiter = null;
+                $waiter?->resume();
             });
 
             $this->writeSequence = new Async\Sequence(
@@ -205,45 +214,9 @@ class ResourceHandle implements
             return $chunk;
         }
 
-        $cancellable = $cancellation->cancellable;
+        Waiter::await($this->readWatcher, $this->readWaiter, $cancellation);
 
-        if ($cancellable) {
-            $cancellation->throwIfCancelled();
-        }
-
-        $suspension = EventLoop::getSuspension();
-        $this->readSuspension = $suspension;
-        EventLoop::enable($this->readWatcher);
-
-        if (!$cancellable) {
-            try {
-                $suspension->suspend();
-
-                return $this->tryRead($maxBytes);
-            } finally {
-                $this->readSuspension = null;
-                EventLoop::disable($this->readWatcher);
-            }
-        }
-
-        $readSuspension = &$this->readSuspension;
-        $id = $cancellation->subscribe(static function (Async\Exception\CancelledException $e) use (
-            &$readSuspension,
-        ): void {
-            $suspension = $readSuspension;
-            $readSuspension = null;
-            $suspension?->throw($e);
-        });
-
-        try {
-            $suspension->suspend();
-
-            return $this->tryRead($maxBytes);
-        } finally {
-            $this->readSuspension = null;
-            EventLoop::disable($this->readWatcher);
-            $cancellation->unsubscribe($id);
-        }
+        return $this->tryRead($maxBytes);
     }
 
     /**
@@ -296,59 +269,16 @@ class ResourceHandle implements
             return $written;
         }
 
-        $cancellable = $cancellation->cancellable;
+        Waiter::await($this->writeWatcher, $this->writeWaiter, $cancellation);
 
-        if ($cancellable) {
-            $cancellation->throwIfCancelled();
+        $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
+        if ($chunk === 0) {
+            throw new Exception\RuntimeException(
+                'Stream reported as writable but accepted no data; the connection may be broken.',
+            );
         }
 
-        $suspension = EventLoop::getSuspension();
-        $this->writeSuspension = $suspension;
-        EventLoop::enable($this->writeWatcher);
-
-        if (!$cancellable) {
-            try {
-                $suspension->suspend();
-
-                $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
-                if ($chunk === 0) {
-                    throw new Exception\RuntimeException(
-                        'Stream reported as writable but accepted no data; the connection may be broken.',
-                    );
-                }
-
-                return $written + $chunk;
-            } finally {
-                $this->writeSuspension = null;
-                EventLoop::disable($this->writeWatcher);
-            }
-        }
-
-        $writeSuspension = &$this->writeSuspension;
-        $id = $cancellation->subscribe(static function (Async\Exception\CancelledException $e) use (
-            &$writeSuspension,
-        ): void {
-            $suspension = $writeSuspension;
-            $writeSuspension = null;
-            $suspension?->throw($e);
-        });
-
-        try {
-            $suspension->suspend();
-
-            $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
-            if ($chunk === 0) {
-                throw new Exception\RuntimeException(
-                    'Stream reported as writable but accepted no data; the connection may be broken.',
-                );
-            }
-
-            return $written + $chunk;
-        } finally {
-            $this->writeSuspension = null;
-            EventLoop::disable($this->writeWatcher);
-            $cancellation->unsubscribe($id);
-        }
+        return $written + $chunk;
     }
 
     /**
@@ -591,10 +521,10 @@ class ResourceHandle implements
             $exception = new Exception\AlreadyClosedException('Handle has already been closed.');
 
             $this->readSequence?->cancel($exception);
-            $this->readSuspension?->throw($exception);
+            $this->readWaiter?->fail($exception);
 
             $this->writeSequence?->cancel($exception);
-            $this->writeSuspension?->throw($exception);
+            $this->writeWaiter?->fail($exception);
 
             // don't close the stream if `$this->close` is false, or if it's already closed.
             if ($this->close && is_resource($this->stream)) {
