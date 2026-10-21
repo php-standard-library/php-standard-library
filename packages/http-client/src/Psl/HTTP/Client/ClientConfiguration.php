@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\HTTP\Client;
 
 use Closure;
+use Psl\DateTime\Duration;
 use Psl\HTTP\Message;
 use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Response;
@@ -72,6 +73,9 @@ final readonly class ClientConfiguration
      * @param null|(Closure(Response): void) $onInformationalResponse Default callback invoked for each informational (1xx) response
      *  received during an exchange. Can be overridden or extended per-request via {@see SendConfiguration::$onInformationalResponse}.
      *  {@see null} disables the callback.
+     * @param null|Duration $expectContinueTimeout How long an `Expect: 100-continue` request waits for an interim response
+     *  before sending the body anyway. {@see null} uses the default of one second. A final response received within the wait
+     *  suppresses the body and disables connection reuse.
      */
     public function __construct(
         public int $maxResponseHeaderSize = 8_192,
@@ -84,6 +88,7 @@ final readonly class ClientConfiguration
         public null|Socks\Configuration $socksConfiguration = null,
         public null|ProxyConfiguration $proxyConfiguration = null,
         public null|Closure $onInformationalResponse = null,
+        public null|Duration $expectContinueTimeout = null,
     ) {}
 
     /**
@@ -104,6 +109,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -125,6 +131,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -144,6 +151,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -163,6 +171,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -182,6 +191,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -203,6 +213,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -224,6 +235,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -243,6 +255,7 @@ final readonly class ClientConfiguration
             $proxy,
             $this->proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -262,6 +275,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $proxyConfiguration,
             $this->onInformationalResponse,
+            $this->expectContinueTimeout,
         );
     }
 
@@ -312,6 +326,7 @@ final readonly class ClientConfiguration
             $this->socksConfiguration,
             $overrides->proxyConfiguration ?? $this->proxyConfiguration,
             $onInformational,
+            $this->expectContinueTimeout,
         );
     }
 }

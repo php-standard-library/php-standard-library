@@ -88,6 +88,48 @@ final class ExpectContinueHardeningTest extends TestCase
         static::assertStringNotContainsString('payload', $stream->written);
     }
 
+    public function testConfiguredExpectContinueTimeoutIsHonored(): void
+    {
+        $url = URL\parse('http://example.com/');
+        $request = new Request(
+            method: 'POST',
+            url: $url,
+            headers: FieldMap::from([['expect', '100-continue']]),
+            body: new IO\MemoryHandle('payload'),
+        );
+        $written = '';
+        $stream = static::createStub(Network\StreamInterface::class);
+        $stream
+            ->method('writeAll')
+            ->willReturnCallback(static function (string $bytes) use (&$written): void {
+                $written .= $bytes;
+            });
+        $stream
+            ->method('read')
+            ->willReturnCallback(static function (null|int $_, Async\CancellationTokenInterface $cancellation) use (
+                &$written,
+            ): string {
+                // Never send 100 Continue; wait for the body, which the short
+                // configured timeout must release.
+                while (!str_contains($written, 'payload')) {
+                    Async\sleep(Duration::milliseconds(5), $cancellation);
+                }
+
+                return "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n";
+            });
+        $connection = new H1Connection($stream, new ConnectionMetadata(Network\Address::tcp(), Network\Address::tcp()));
+        [$transaction] = Transport::exchange(
+            $connection,
+            $request,
+            $url,
+            new ClientConfiguration(expectContinueTimeout: Duration::milliseconds(10)),
+            new Async\TimeoutCancellationToken(Duration::seconds(2)),
+        );
+
+        static::assertSame(200, $transaction->response->status);
+        static::assertSame(1, substr_count($written, 'payload'));
+    }
+
     #[DataProvider('partialResponses')]
     public function testTimeoutSendsBodyAndPreservesPartialResponse(string $prefix, string $suffix): void
     {

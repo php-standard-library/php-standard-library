@@ -150,6 +150,7 @@ The following fields are overridable per-request:
 | `socksConfiguration` | No (client-only) |
 | `unixSocket` | No (client-only) |
 | `h2ClientConfiguration` | No (client-only) |
+| `expectContinueTimeout` | No (client-only) |
 
 > The `onInformationalResponse` callback receives special treatment: when both the client and send configuration define one, they are composed into a single callback that invokes the client-level callback first, then the per-request callback.
 
@@ -180,7 +181,7 @@ Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. 
 
 Request trailers are sent via `Request::$trailers`, an `Awaitable<FieldMap>` that resolves after the body. Response trailers are available via `Response::$trailers`, which resolves after the response body is fully consumed.
 
-`Expect: 100-continue` waits up to one second before sending the body. The client accepts HTTP/1.0 and HTTP/1.1 interim responses, reads all their fields, and sends the body once. A final response received before the upload disables connection reuse.
+`Expect: 100-continue` waits for an interim response before sending the body, up to `ClientConfiguration::$expectContinueTimeout` (one second by default). The client accepts HTTP/1.0 and HTTP/1.1 interim responses, reads all their fields, and sends the body once. A final response received within the wait suppresses the body and disables connection reuse.
 
 HTTP/1 responses reject malformed Content-Length, whitespace before a field colon, obsolete folded fields, unsupported protocol upgrades, and a bare CR, LF or NUL in a header or trailer value. At most 16 informational responses are accepted per exchange. Chunk size lines, extensions, and total trailers use `maxResponseHeaderSize`; CONNECT status lines and total headers each have an 8192-byte limit. I/O errors while reading a close-delimited body propagate to the caller. Every `Connection` field is read, so a `close` token in any of them ends reuse. A connection cannot be reused when a response carries both Transfer-Encoding and Content-Length, or when an HTTP/1.0 response used Transfer-Encoding.
 

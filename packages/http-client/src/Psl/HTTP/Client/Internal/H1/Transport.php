@@ -58,6 +58,8 @@ final class Transport
      * @throws ProtocolException If the response is malformed or exceeds header size limits.
      * @throws IO\Exception\RuntimeException If an I/O error occurs.
      * @throws CancelledException If the cancellation token fires.
+     *
+     * @mago-expect lint:excessive-nesting
      */
     public static function exchange(
         H1Connection $connection,
@@ -145,12 +147,20 @@ final class Transport
                         [$informationalResponses, $response, $keepAlive] = $pending->await(
                             new Async\LinkedCancellationToken(
                                 $cancellation,
-                                new Async\TimeoutCancellationToken(Duration::seconds(1)),
+                                new Async\TimeoutCancellationToken(
+                                    $configuration->expectContinueTimeout ?? Duration::seconds(1),
+                                ),
                             ),
                         );
                     } catch (CancelledException) {
                         $cancellation->throwIfCancelled();
-                        $sendBody();
+                        // Only send the body if no final response landed with the timeout.
+                        // Fibers are cooperative, so no response can arrive between this
+                        // check and the send, which avoids a body after a final response.
+                        if (!$pending->isComplete()) {
+                            $sendBody();
+                        }
+
                         [$informationalResponses, $response, $keepAlive] = $pending->await($cancellation);
                     }
                 } finally {
