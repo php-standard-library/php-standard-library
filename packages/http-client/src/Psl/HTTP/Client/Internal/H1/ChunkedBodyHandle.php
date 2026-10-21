@@ -19,6 +19,7 @@ use function intval;
 use function ltrim;
 use function preg_match;
 use function strlen;
+use function strpbrk;
 use function strpos;
 use function strtolower;
 use function substr;
@@ -250,6 +251,10 @@ final class ChunkedBodyHandle implements IO\ReadHandleInterface
             }
 
             $value = trim(substr($line, $colonPos + 1), " \t");
+            if (strpbrk($value, "\r\n\0") !== false) {
+                throw ProtocolException::forMalformedResponse('Trailer value contains a bare CR, LF or NUL.');
+            }
+
             $fields[] = [$name, $value];
         }
 

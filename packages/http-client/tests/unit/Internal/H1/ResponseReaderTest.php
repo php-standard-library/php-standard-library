@@ -383,12 +383,12 @@ final class ResponseReaderTest extends TestCase
         static::assertNull($response->body);
     }
 
-    public function testNullBytesInHeaderValue(): void
+    public function testNullBytesInHeaderValueAreRejected(): void
     {
         $raw = "HTTP/1.1 200 OK\r\nx-test: foo\x00bar\r\ncontent-length: 0\r\n\r\n";
-        [$response, $_] = ResponseReader::read(self::reader($raw), 8192, self::timeout(), false);
 
-        static::assertSame("foo\x00bar", $response->headers->get('x-test'));
+        $this->expectException(ProtocolException::class);
+        ResponseReader::read(self::reader($raw), 8192, self::timeout(), false);
     }
 
     public function testHeaderValueWithLeadingWhitespace(): void

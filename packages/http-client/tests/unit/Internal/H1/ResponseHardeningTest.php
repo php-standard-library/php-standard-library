@@ -53,6 +53,8 @@ final class ResponseHardeningTest extends TestCase
             "HTTP/1.1 101 Switching Protocols\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n",
         ];
         yield 'incomplete headers' => ["HTTP/1.1 200 OK\r\nContent-Length: 0\r\n"];
+        yield 'bare NUL in value' => ["HTTP/1.1 200 OK\r\nx-test: a\0b\r\nContent-Length: 0\r\n\r\n"];
+        yield 'bare LF in value' => ["HTTP/1.1 200 OK\r\nx-test: a\nb\r\nContent-Length: 0\r\n\r\n"];
     }
 
     public function testTransferEncodingWithContentLengthDisablesReuse(): void
@@ -69,6 +71,45 @@ final class ResponseHardeningTest extends TestCase
         );
         static::assertFalse($keepAlive);
         static::assertSame('x', $response->body?->readAll());
+    }
+
+    public function testHttp10WithTransferEncodingDisablesReuse(): void
+    {
+        [$_, $keepAlive] = ResponseReader::read(
+            new IO\Reader(
+                new FakeStream(
+                    "HTTP/1.0 200 OK\r\nConnection: keep-alive\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx\r\n0\r\n\r\n",
+                ),
+            ),
+            8192,
+            new Async\NullCancellationToken(),
+            false,
+        );
+        static::assertFalse($keepAlive);
+    }
+
+    public function testEveryConnectionFieldIsRead(): void
+    {
+        [$_, $keepAlive] = ResponseReader::read(
+            new IO\Reader(
+                new FakeStream(
+                    "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+                ),
+            ),
+            8192,
+            new Async\NullCancellationToken(),
+            false,
+        );
+        static::assertFalse($keepAlive, 'A close token in a second Connection field must disable reuse.');
+    }
+
+    public function testTrailerWithBareControlByteIsRejected(): void
+    {
+        $trailers = new Async\Deferred();
+        $handle = new ChunkedBodyHandle(new IO\Reader(new FakeStream("0\r\nx-test: a\0b\r\n\r\n")), $trailers);
+
+        $this->expectException(ProtocolException::class);
+        $handle->readAll();
     }
 
     public function testCloseDelimitedBodyDisablesReuse(): void

@@ -21,6 +21,7 @@ use function ltrim;
 use function preg_match;
 use function str_contains;
 use function strlen;
+use function strpbrk;
 use function strpos;
 use function strtolower;
 use function substr;
@@ -46,6 +47,8 @@ use const PHP_INT_MAX;
  * @see ChunkedBodyHandle Body handle for chunked responses.
  * @see IO\FixedLengthReadHandle Body handle for Content-Length responses.
  * @see UntilCloseBodyHandle Body handle for connection-close responses.
+ *
+ * @mago-expect lint:cyclomatic-complexity
  */
 final class ResponseReader
 {
@@ -167,6 +170,12 @@ final class ResponseReader
                 throw ProtocolException::forMalformedResponse('Invalid header name or whitespace before the colon.');
             }
 
+            // A bare CR, LF or NUL inside a value can be re-split downstream, e.g. into
+            // an unvalidated HTTP/2 :path, so reject it (RFC 9110 Section 5.5).
+            if (strpbrk($value, "\r\n\0") !== false) {
+                throw ProtocolException::forMalformedResponse('Header value contains a bare CR, LF or NUL.');
+            }
+
             $headers[] = [$name, $value];
 
             switch (strtolower($name)) {
@@ -182,7 +191,8 @@ final class ResponseReader
                     $transferEncoding = $transferEncoding === null ? $value : $transferEncoding . ', ' . $value;
                     break;
                 case 'connection':
-                    $connectionHeader ??= $value;
+                    // Keep every Connection field so all its tokens are honored.
+                    $connectionHeader = $connectionHeader === null ? $value : $connectionHeader . ', ' . $value;
                     break;
             }
         }
@@ -200,7 +210,10 @@ final class ResponseReader
         $keepAlive =
             self::isKeepAlive($connectionHeader, $version)
             && !($transferEncoding !== null && $contentLength !== null)
-            && !($body !== null && $transferEncoding === null && $contentLength === null);
+            && !($body !== null && $transferEncoding === null && $contentLength === null)
+            // Transfer-Encoding is an HTTP/1.1 feature; an HTTP/1.0 response that used
+            // it is malformed, so its connection framing cannot be trusted for reuse.
+            && !($version === ProtocolVersion::V10 && $transferEncoding !== null);
 
         $response = new Response(
             status: $status,
