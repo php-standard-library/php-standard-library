@@ -32,6 +32,10 @@ Use `Acceptor` to perform TLS handshakes on incoming streams:
 
 @example('networking/tls-listener.php')
 
+Each accepted connection gets a handshake deadline, 10 seconds by default, which the optional third constructor argument (`handshakeTimeout`, a `Duration`) changes. A connection that fails its handshake, exceeds the deadline, or is cancelled is closed; an exceeded deadline surfaces as a `HandshakeFailedException` whose previous exception is the `CancelledException` that ended the handshake. The deadline starts once the inner listener has accepted the connection, independently of the token passed to `accept()`.
+
+The handshake runs inside `accept()`, one connection at a time. A peer that connects and then stays silent therefore holds up every later connection until its deadline passes. Servers that must keep accepting while a handshake is slow should accept plain streams from the inner listener and run an `Acceptor` per connection in its own fiber.
+
 ### SNI-Based Virtual Hosting (LazyAcceptor)
 
 `LazyAcceptor` peeks at the TLS ClientHello before completing the handshake. This lets you inspect the client's SNI hostname and choose the appropriate `ServerConfiguration` dynamically:
