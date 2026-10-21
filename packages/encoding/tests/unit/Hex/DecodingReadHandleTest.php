@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Psl\Encoding\Tests\Unit\Hex;
 
+use LogicException;
 use PHPUnit\Framework\TestCase;
+use Psl\Async\CancellationTokenInterface;
+use Psl\Async\NullCancellationToken;
 use Psl\Encoding\Exception;
 use Psl\Encoding\Hex;
 use Psl\IO;
 
 use function bin2hex;
 use function str_repeat;
+use function substr;
 
 final class DecodingReadHandleTest extends TestCase
 {
@@ -320,5 +324,101 @@ final class DecodingReadHandleTest extends TestCase
         static::assertSame('line2', $handle->readLine());
         static::assertSame('l', $handle->readByte());
         static::assertSame('ine3', $handle->readAll());
+    }
+
+    public function testReadWaitsForAWholeByte(): void
+    {
+        // The inner handle returns one hex character per read: every other read ends in the middle of a pair.
+        $handle = new Hex\DecodingReadHandle(self::trickle(bin2hex('Hello')));
+
+        $decoded = '';
+        while (!$handle->reachedEndOfDataSource()) {
+            $chunk = $handle->read();
+            static::assertTrue(
+                '' !== $chunk || $handle->reachedEndOfDataSource(),
+                'read() returned nothing before EOF.',
+            );
+            $decoded .= $chunk;
+        }
+
+        static::assertSame('Hello', $decoded);
+    }
+
+    public function testReadByteWaitsForAWholeByte(): void
+    {
+        $handle = new Hex\DecodingReadHandle(self::trickle(bin2hex('Hi')));
+
+        static::assertSame('H', $handle->readByte());
+        static::assertSame('i', $handle->readByte());
+    }
+
+    public function testTryReadMayReturnNothingInTheMiddleOfAPair(): void
+    {
+        $inner = new class() implements IO\ReadHandleInterface {
+            use IO\ReadHandleConvenienceMethodsTrait;
+
+            public string $available = '4';
+
+            public function reachedEndOfDataSource(): bool
+            {
+                return false;
+            }
+
+            public function tryRead(null|int $maxBytes = null): string
+            {
+                $chunk = $this->available;
+                $this->available = '';
+
+                return $chunk;
+            }
+
+            public function read(
+                null|int $maxBytes = null,
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): string {
+                throw new LogicException('read() waits for data that never comes.');
+            }
+        };
+        $handle = new Hex\DecodingReadHandle($inner);
+
+        static::assertSame('', $handle->tryRead());
+        static::assertFalse($handle->reachedEndOfDataSource());
+
+        $inner->available = '8';
+        static::assertSame('H', $handle->tryRead());
+    }
+
+    /**
+     * A handle that returns its data one byte per read.
+     */
+    private static function trickle(string $data): IO\ReadHandleInterface
+    {
+        return new class($data) implements IO\ReadHandleInterface {
+            use IO\ReadHandleConvenienceMethodsTrait;
+
+            public function __construct(
+                private string $data,
+            ) {}
+
+            public function reachedEndOfDataSource(): bool
+            {
+                return '' === $this->data;
+            }
+
+            public function tryRead(null|int $maxBytes = null): string
+            {
+                $chunk = substr($this->data, 0, 1);
+                $this->data = substr($this->data, 1);
+
+                return $chunk;
+            }
+
+            public function read(
+                null|int $maxBytes = null,
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): string {
+                return $this->tryRead($maxBytes);
+            }
+        };
     }
 }

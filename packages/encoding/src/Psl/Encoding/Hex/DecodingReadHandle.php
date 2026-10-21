@@ -256,39 +256,37 @@ final class DecodingReadHandle implements IO\BufferedReadHandleInterface
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
         bool $wait = true,
     ): void {
-        if ($this->eof) {
-            // @codeCoverageIgnoreStart
-            return;
-            // @codeCoverageIgnoreEnd
-        }
+        // A chunk that ends in the middle of a hex pair decodes to nothing yet: keep reading until a whole byte is
+        // decoded, the end of the data is reached, or the inner handle has nothing more to give right away.
+        while (!$this->eof) {
+            $chunk = $wait ? $this->handle->read(4096, $cancellation) : $this->handle->tryRead(4096);
+            if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
+                $this->eof = true;
+                // Decode any remaining bytes.
+                if ($this->remainder !== '') {
+                    $this->buffer .= namespace\decode($this->remainder);
+                    $this->remainder = '';
+                }
 
-        $chunk = $wait ? $this->handle->read(4096, $cancellation) : $this->handle->tryRead(4096);
-        if ($chunk === '' && $this->handle->reachedEndOfDataSource()) {
-            $this->eof = true;
-            // Decode any remaining bytes.
-            if ($this->remainder !== '') {
-                // @codeCoverageIgnoreStart
-                $this->buffer .= namespace\decode($this->remainder);
-                $this->remainder = '';
-                // @codeCoverageIgnoreEnd
+                return;
             }
 
-            return;
-        }
+            $data = $this->remainder . $chunk;
 
-        $data = $this->remainder . $chunk;
+            // Decode complete 2-byte hex pairs only.
+            $length = strlen($data);
+            $usable = $length - ($length % 2);
 
-        // Decode complete 2-byte hex pairs only.
-        $length = strlen($data);
-        $usable = $length - ($length % 2);
+            if ($usable > 0) {
+                $this->buffer .= namespace\decode(substr($data, 0, $usable));
+                $this->remainder = substr($data, $usable);
+            } else {
+                $this->remainder = $data;
+            }
 
-        if ($usable > 0) {
-            $this->buffer .= namespace\decode(substr($data, 0, $usable));
-            $this->remainder = substr($data, $usable);
-        } else {
-            // @codeCoverageIgnoreStart
-            $this->remainder = $data;
-            // @codeCoverageIgnoreEnd
+            if ($chunk === '' || $this->buffer !== '') {
+                return;
+            }
         }
     }
 }
