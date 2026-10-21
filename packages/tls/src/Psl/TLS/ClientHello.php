@@ -10,9 +10,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\Network;
 use Psl\TLS\Exception\HandshakeFailedException;
 
-use function is_resource;
-use function stream_context_set_options;
-
 /**
  * Represents a parsed TLS ClientHello, allowing SNI/ALPN inspection before completing the handshake.
  *
@@ -56,32 +53,21 @@ final readonly class ClientHello
     /**
      * Complete the TLS handshake with the given configuration.
      *
+     * Streams accepted by `TCP\listen()` own a private stream context when ext-sockets is
+     * available. Without it, all streams accepted from one listener share the listener's
+     * context, and a stream whose context already carries client certificate trust settings
+     * (`cafile`, `capath`) that the given configuration does not set is refused rather than
+     * upgraded with another configuration's trust settings.
+     *
      * @throws HandshakeFailedException If the TLS handshake fails.
-     * @throws Network\Exception\RuntimeException If the stream is not available.
+     * @throws Network\Exception\RuntimeException If the stream is not available, or if its context
+     *                                            carries trust settings this configuration does not set.
      * @throws CancelledException If the cancellation token is cancelled during the handshake.
      */
     public function complete(
         ServerConfiguration $serverConfiguration,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): StreamInterface {
-        $resource = $this->stream->getStream();
-        if (!is_resource($resource)) {
-            throw new Network\Exception\RuntimeException('Stream resource is not available.');
-        }
-
-        $sslContext = Internal\server_ssl_context($serverConfiguration);
-        stream_context_set_options($resource, ['ssl' => $sslContext]);
-
-        $cryptoMethod = Internal\crypto_method(
-            $serverConfiguration->minimumVersion,
-            $serverConfiguration->maximumVersion,
-            server: true,
-        );
-
-        Internal\enable_crypto($resource, $cryptoMethod, $cancellation);
-
-        $state = Internal\extract_connection_state($resource);
-
-        return new Internal\Stream($this->stream, $state);
+        return Internal\upgrade_server($this->stream, $serverConfiguration, $cancellation);
     }
 }

@@ -38,6 +38,9 @@
     "conflict": {
         "azjezz/psl": "*"
     },
+    "suggest": {
+        "ext-sockets": "Gives every accepted connection a private stream context, so TLS options and peer certificates cannot leak between connections of one listener"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {

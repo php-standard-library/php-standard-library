@@ -12,6 +12,11 @@ use function stream_context_create;
 /**
  * Build an SSL context options array from {@see TLS\ServerConfiguration}.
  *
+ * The returned array also resets `peer_certificate` and `peer_certificate_chain`. PHP only
+ * writes these when the client presents a certificate; on a stream context shared between
+ * accepted connections, a stale capture from a previous handshake would otherwise be read
+ * back for a client that presented none.
+ *
  * @return array<string, mixed>
  *
  * @internal
@@ -26,6 +31,8 @@ function server_ssl_context(TLS\ServerConfiguration $serverConfiguration): array
         'security_level' => $serverConfiguration->securityLevel,
         'capture_peer_cert' => true,
         'capture_peer_cert_chain' => true,
+        'peer_certificate' => null,
+        'peer_certificate_chain' => null,
         'session_tickets' => $serverConfiguration->sessionTickets,
     ];
 

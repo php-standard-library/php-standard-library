@@ -10,18 +10,28 @@ use Psl\TLS;
 
 use function array_map;
 use function stream_context_get_options;
+use function stream_context_set_option;
 use function stream_get_meta_data;
 
 /**
  * Extract TLS connection state from a stream resource after a successful handshake.
  *
+ * PHP captures the peer certificate into the stream's context, and streams accepted
+ * from one listener may share that context. For server handshakes, the captured
+ * `peer_certificate` and `peer_certificate_chain` options are therefore removed from the
+ * context once read, so that a later connection on the same context that presents no
+ * certificate cannot be reported with this connection's identity.
+ *
  * @param resource $stream The stream resource with an active TLS session.
+ * @param bool $server Whether this is a server handshake.
+ *
+ * @throws Network\Exception\RuntimeException If the negotiated protocol version is unknown.
  *
  * @internal
  *
  * @codeCoverageIgnore
  */
-function extract_connection_state(mixed $stream): TLS\ConnectionState
+function extract_connection_state(mixed $stream, bool $server): TLS\ConnectionState
 {
     $meta = stream_get_meta_data($stream);
     /**
@@ -69,6 +79,11 @@ function extract_connection_state(mixed $stream): TLS\ConnectionState
     $peerCertificateChain = isset($sslOptions['peer_certificate_chain'])
         ? array_map(parse_peer_certificate(...), $sslOptions['peer_certificate_chain'])
         : null;
+
+    if ($server) {
+        stream_context_set_option($stream, 'ssl', 'peer_certificate', null);
+        stream_context_set_option($stream, 'ssl', 'peer_certificate_chain', null);
+    }
 
     return new TLS\ConnectionState(
         $version,

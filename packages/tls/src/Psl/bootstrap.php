@@ -10,6 +10,7 @@ declare(strict_types=1);
         'Psl\TLS\Internal\extract_connection_state' => __DIR__ . '/TLS/Internal/extract_connection_state.php',
         'Psl\TLS\Internal\parse_peer_certificate' => __DIR__ . '/TLS/Internal/parse_peer_certificate.php',
         'Psl\TLS\Internal\server_ssl_context' => __DIR__ . '/TLS/Internal/server_ssl_context.php',
+        'Psl\TLS\Internal\upgrade_server' => __DIR__ . '/TLS/Internal/upgrade_server.php',
         'Psl\TLS\connect' => __DIR__ . '/TLS/connect.php',
     ];
 

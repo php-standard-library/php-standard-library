@@ -15,6 +15,8 @@ $keyFile = '/etc/ssl/private/server.key';
 $cert = TLS\Certificate::create($certFile, $keyFile);
 $acceptor = new TLS\Acceptor(TLS\ServerConfiguration::create($cert)->withAlpnProtocols(['h2', 'http/1.1']));
 
+// With ext-sockets, every accepted connection owns a private stream context, so the TLS
+// options and peer certificate of one connection can never be observed by another.
 $listener = TCP\listen('0.0.0.0', 8443);
 
 while (true) {

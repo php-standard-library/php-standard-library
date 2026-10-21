@@ -83,9 +83,7 @@ final readonly class Connector implements DefaultInterface
             server: false,
         );
 
-        Internal\enable_crypto($resource, $cryptoMethod, $cancellation);
-
-        $state = Internal\extract_connection_state($resource);
+        $state = Internal\enable_crypto($resource, $cryptoMethod, server: false, cancellation: $cancellation);
 
         $pins = $clientConfiguration->peerFingerprints;
         if (null !== $pins && !self::matchesFingerprint($state->peerCertificate, $pins)) {

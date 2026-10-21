@@ -12,22 +12,30 @@ use Psl\Network;
 use Psl\TCP;
 use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
+use Socket;
 
 use function array_search;
 use function array_shift;
 use function array_values;
-use function error_get_last;
 use function fclose;
+use function function_exists;
 use function is_resource;
-use function str_contains;
+use function socket_accept;
+use function socket_close;
+use function socket_export_stream;
+use function socket_import_stream;
+use function socket_set_nonblock;
+use function socket_set_option;
+use function stream_context_get_options;
 use function stream_socket_accept;
+
+use const SOL_TCP;
+use const TCP_NODELAY;
 
 /**
  * @internal
  *
  * @codeCoverageIgnore
- *
- * @mago-expect lint:excessive-nesting
  */
 final class Listener implements TCP\ListenerInterface
 {
@@ -39,6 +47,28 @@ final class Listener implements TCP\ListenerInterface
     private string $watcher;
 
     private readonly Network\Address $localAddress;
+
+    /**
+     * The listening socket imported into ext-sockets, or null when ext-sockets is unavailable.
+     *
+     * Streams returned by `stream_socket_accept()` share the listening socket's stream
+     * context (php-src `main/streams/xp_socket.c`, `php_tcp_sockop_accept`, and
+     * `ext/openssl/xp_ssl.c`, `php_openssl_tcp_sockop_accept`). Everything written to that
+     * context for one connection, such as TLS options and captured peer certificates, is
+     * visible on every other connection of the same listener. A stream created by
+     * `socket_export_stream()` starts without a context (`ext/sockets/sockets.c`), so the
+     * first option written to it allocates a context private to that connection
+     * (`ext/standard/streamsfuncs.c`, `decode_context_param`).
+     */
+    private readonly null|Socket $socket;
+
+    /**
+     * Whether `TCP_NODELAY` must be set on accepted connections.
+     *
+     * `stream_socket_accept()` applies the listener's `socket.tcp_nodelay` context option
+     * itself (`main/network.c`, `php_network_accept_incoming`); `socket_accept()` does not.
+     */
+    private readonly bool $noDelay;
 
     private const int DEFAULT_IDLE_CONNECTIONS = 256;
 
@@ -62,11 +92,6 @@ final class Listener implements TCP\ListenerInterface
     private array $acceptors = [];
 
     /**
-     * Error from the accept callback, if any.
-     */
-    private null|Network\Exception\RuntimeException $error = null;
-
-    /**
      * Maximum number of connections that can be buffered in the backlog.
      */
     private readonly int $capacity;
@@ -85,47 +110,32 @@ final class Listener implements TCP\ListenerInterface
         $this->impl = $impl;
         $this->capacity = $idleConnections;
         $this->localAddress = Network\Internal\get_sock_name($impl);
+        $this->socket = self::importSocket($impl);
+        $this->noDelay = (stream_context_get_options($impl)['socket']['tcp_nodelay'] ?? false) === true;
 
         $this->watcher = EventLoop::onReadable($impl, function (string $watcher, mixed $resource): void {
             while (true) {
-                $sock = self::acceptSocket($resource);
-                if ($sock !== false) {
-                    if ($this->acceptors !== []) {
-                        $acceptor = array_shift($this->acceptors);
-                        $acceptor->resume($sock);
-                    } else {
-                        $this->backlog[] = $sock;
-                        $this->backlogSize++;
+                $sock = $this->acceptSocket($resource);
+                if ($sock === false) {
+                    return;
+                }
 
-                        if ($this->backlogSize >= $this->capacity) {
-                            $this->paused = true;
-                            EventLoop::disable($watcher);
-                            return;
-                        }
-                    }
+                if ($this->acceptors !== []) {
+                    $acceptor = array_shift($this->acceptors);
+                    $acceptor->resume($sock);
 
                     continue;
                 }
 
-                // @codeCoverageIgnoreStart
-                $err = error_get_last();
-                if ($err !== null && !str_contains($err['message'], 'Accept failed')) {
-                    $this->error = new Network\Exception\RuntimeException(
-                        'Failed to accept incoming connection: ' . $err['message'],
-                        $err['type'],
-                    );
+                $this->backlog[] = $sock;
+                $this->backlogSize++;
 
-                    if ($this->acceptors !== []) {
-                        $acceptor = array_shift($this->acceptors);
-                        $acceptor->throw($this->error);
-                    }
-
+                if ($this->backlogSize >= $this->capacity) {
+                    $this->paused = true;
                     EventLoop::disable($watcher);
+
                     return;
                 }
-
-                break;
-                // @codeCoverageIgnoreEnd
             }
         });
 
@@ -141,10 +151,6 @@ final class Listener implements TCP\ListenerInterface
     {
         if (null === $this->impl) {
             throw new Network\Exception\AlreadyStoppedException('Server socket has already been stopped.');
-        }
-
-        if ($this->error !== null) {
-            throw $this->error;
         }
 
         if ($this->paused) {
@@ -220,13 +226,21 @@ final class Listener implements TCP\ListenerInterface
             return;
         }
 
-        while ($this->acceptors !== [] && is_resource($this->impl)) {
-            $sock = self::acceptSocket($this->impl);
+        $resource = $this->impl;
+        while ($this->acceptors !== [] && is_resource($resource)) {
+            $sock = $this->acceptSocket($resource);
             if ($sock === false) {
                 break;
             }
 
             $acceptor = array_shift($this->acceptors);
+            if (null === $acceptor) {
+                $this->backlog[] = $sock;
+                $this->backlogSize++;
+
+                break;
+            }
+
             $this->acceptors = array_values($this->acceptors);
             $acceptor->resume($sock);
         }
@@ -257,34 +271,96 @@ final class Listener implements TCP\ListenerInterface
         $this->backlog = [];
         $this->backlogSize = 0;
 
-        $resource = $this->impl;
         $this->impl = null;
         if (is_resource($resource)) {
             fclose($resource);
         }
     }
 
-    /**
-     * @param resource $resource
-     *
-     * @return false|array{resource, Network\Address}
-     */
-    private static function acceptSocket(mixed $resource): false|array
-    {
-        $peerName = null;
-        while (false !== ($socket = @stream_socket_accept($resource, 0.0, $peerName))) {
-            try {
-                return [$socket, Network\Internal\get_peer_name($socket, $peerName !== '' ? $peerName : null)];
-            } catch (Network\Exception\RuntimeException) {
-                fclose($socket);
-            }
-        }
-
-        return false;
-    }
-
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Import the listening socket into ext-sockets so that connections can be accepted
+     * with `socket_accept()`.
+     *
+     * Returns null when ext-sockets is unavailable; connections are then accepted with
+     * `stream_socket_accept()` and share the listener's stream context.
+     *
+     * @param resource $impl
+     */
+    private static function importSocket(mixed $impl): null|Socket
+    {
+        if (
+            !function_exists('socket_import_stream')
+            || !function_exists('socket_accept')
+            || !function_exists('socket_export_stream')
+        ) {
+            return null;
+        }
+
+        $socket = @socket_import_stream($impl);
+        if ($socket === false || !@socket_set_nonblock($socket)) {
+            return null;
+        }
+
+        return $socket;
+    }
+
+    /**
+     * Accept one pending connection without blocking, together with its peer address.
+     *
+     * With ext-sockets, the connection is accepted with `socket_accept()` and exported into a
+     * stream that owns a private stream context. Without it, `stream_socket_accept()` is used
+     * and the returned stream shares the listener's context.
+     *
+     * The peer address is captured right after accepting. A connection whose peer address
+     * cannot be read (for example one the client already reset) is closed and skipped, so
+     * one misbehaving client never fails the listener.
+     *
+     * @param resource $listener
+     *
+     * @return false|array{resource, Network\Address} False if no connection is pending.
+     */
+    private function acceptSocket(mixed $listener): false|array
+    {
+        while (true) {
+            $peerName = null;
+            if (null === $this->socket) {
+                $stream = @stream_socket_accept($listener, 0.0, $peerName);
+                if (false === $stream) {
+                    return false;
+                }
+            } else {
+                $connection = @socket_accept($this->socket);
+                if ($connection === false) {
+                    return false;
+                }
+
+                if ($this->noDelay) {
+                    @socket_set_option($connection, SOL_TCP, TCP_NODELAY, 1);
+                }
+
+                $stream = @socket_export_stream($connection);
+                if (!is_resource($stream)) {
+                    socket_close($connection);
+
+                    continue;
+                }
+                // The exported stream owns the descriptor from here on; dropping the Socket object
+                // only releases its reference to the stream (`ext/sockets/sockets.c`, `socket_free_obj`).
+            }
+
+            try {
+                return [
+                    $stream,
+                    Network\Internal\get_peer_name($stream, $peerName !== null && $peerName !== '' ? $peerName : null),
+                ];
+            } catch (Network\Exception\RuntimeException) {
+                fclose($stream);
+            }
+        }
     }
 }

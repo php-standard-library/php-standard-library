@@ -26,6 +26,16 @@ Use `Acceptor` to perform TLS handshakes on incoming streams:
 
 @example('networking/tls-server.php')
 
+#### Per-connection stream contexts
+
+PHP reads a server's TLS options from the stream context of the accepted stream, and captures the client's certificate into that same context. Streams returned by `stream_socket_accept()` share the listening socket's context, so without isolation the settings and captures of one connection would be visible to every other connection of the same listener.
+
+`TCP\listen()` therefore accepts connections through `ext-sockets` (`socket_accept()` and `socket_export_stream()`) when the extension is available, which gives every accepted connection a private stream context. Installing `ext-sockets` is recommended for TLS servers; it is listed as a suggestion by the `tcp` and `tls` packages.
+
+Without `ext-sockets`, accepted streams share the listener's context. PSL still guarantees that a client which presents no certificate is never reported with another client's identity: the captured peer certificate is reset before each handshake, and read and removed in the same step that completes it. What cannot be undone on a shared context is a trust setting written by an earlier handshake: if a `ServerConfiguration` without a certificate authority is used on a stream whose context already carries `cafile` or `capath` from another configuration, the handshake is refused with a `Network\Exception\RuntimeException` instead of silently trusting the previous authority. Other optional settings (`ciphers`, `alpnProtocols`, `sniCertificates`, a key passphrase) of an earlier configuration also remain in effect for a later configuration that omits them. Use one listener per `ServerConfiguration` in that setup, or install `ext-sockets`.
+
+The captured `peer_certificate` and `peer_certificate_chain` options are removed from the stream context after a server handshake; read the peer certificate from `StreamInterface::getState()` instead of the raw context.
+
 ### TLS Listener
 
 `TLS\Listener` wraps any `Network\ListenerInterface` and automatically performs TLS handshakes on accepted connections. This is the simplest way to build a TLS server:

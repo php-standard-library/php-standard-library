@@ -39,6 +39,9 @@
     "conflict": {
         "azjezz/psl": "*"
     },
+    "suggest": {
+        "ext-sockets": "Required for TCP listeners to give every accepted connection a private stream context; without it, one server configuration per listener is enforced"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
