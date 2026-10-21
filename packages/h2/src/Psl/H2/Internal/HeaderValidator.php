@@ -11,6 +11,7 @@ use function strlen;
 use function strpbrk;
 use function strspn;
 use function strtolower;
+use function substr;
 use function trim;
 
 /**
@@ -32,6 +33,11 @@ final readonly class HeaderValidator
         'upgrade' => true,
         'transfer-encoding' => true,
     ];
+
+    /**
+     * Lowercase token characters allowed in HTTP/2 field names (RFC 9110 Section 5.6.2).
+     */
+    private const string TOKEN_CHARACTERS = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz";
 
     /**
      * Valid request pseudo-headers per RFC 9113 Section 8.3.1 and RFC 8441.
@@ -134,7 +140,7 @@ final readonly class HeaderValidator
                     );
                 }
 
-                if (strspn($name, "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz") !== strlen($name)) {
+                if (strspn($name, self::TOKEN_CHARACTERS) !== strlen($name)) {
                     throw StreamException::forMalformedMessage(
                         $streamId,
                         'Header name "' . $name . '" contains invalid characters',
@@ -151,6 +157,29 @@ final readonly class HeaderValidator
             } else {
                 self::validateRequestPseudoHeaders($pseudoSeen, $method, $hasProtocol, $streamId);
             }
+        }
+    }
+
+    /**
+     * Check an outbound, already lowercased field name (RFC 9113 Section 8.2.1).
+     *
+     * Pseudo-header names keep their leading colon; regular names must be
+     * non-empty token characters.
+     *
+     * @throws StreamException If the name is empty or contains non-token bytes.
+     */
+    public static function validateFieldName(string $name, int $streamId): void
+    {
+        if ($name === '') {
+            throw StreamException::forMalformedMessage($streamId, 'Header name must not be empty');
+        }
+
+        $token = $name[0] === ':' ? substr($name, 1) : $name;
+        if ($token === '' || strspn($token, self::TOKEN_CHARACTERS) !== strlen($token)) {
+            throw StreamException::forMalformedMessage(
+                $streamId,
+                'Header name "' . $name . '" contains invalid characters',
+            );
         }
     }
 

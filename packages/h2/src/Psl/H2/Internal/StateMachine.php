@@ -1925,9 +1925,10 @@ final class StateMachine
     {
         $result = [];
         foreach ($headers as $header) {
+            $lower = strtolower($header->name);
+            HeaderValidator::validateFieldName($lower, $streamId);
             HeaderValidator::validateConnectionSpecificField($header, $streamId);
             HeaderValidator::validateFieldValue($header, $streamId);
-            $lower = strtolower($header->name);
             $result[] = $lower === $header->name ? $header : new Header($lower, $header->value, $header->sensitive);
         }
 
