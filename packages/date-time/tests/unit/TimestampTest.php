@@ -9,6 +9,7 @@ use DateTimeZone;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\Comparison\Order;
+use Psl\DateTime\DateStyle;
 use Psl\DateTime\DateTime;
 use Psl\DateTime\Duration;
 use Psl\DateTime\Exception\InvalidArgumentException;
@@ -19,6 +20,7 @@ use Psl\DateTime\FormatPattern;
 use Psl\DateTime\Period;
 use Psl\DateTime\SecondsStyle;
 use Psl\DateTime\Timestamp;
+use Psl\DateTime\TimeStyle;
 use Psl\DateTime\Timezone;
 use Psl\Locale\Locale;
 use Psl\Math;
@@ -709,5 +711,36 @@ final class TimestampTest extends TestCase
         $duration = $a->since($b);
 
         static::assertSame(150, (int) $duration->getTotalSeconds());
+    }
+
+    public function testFormattingTruncatesSubSecondInstantsTowardNegativeInfinity(): void
+    {
+        $pattern = 'yyyy-MM-dd HH:mm:ss.SSS';
+
+        // 2024-12-31 23:59:59.999999999 UTC: as a float number of seconds, this rounds up to 2025.
+        $timestamp = Timestamp::fromParts(1_735_689_599, 999_999_999);
+        static::assertSame('2024-12-31 23:59:59.999', $timestamp->format($pattern, Timezone::UTC));
+        static::assertSame('2025-01-01 08:59:59.999', $timestamp->format($pattern, Timezone::AsiaTokyo));
+        static::assertSame('31/12/2024, 23:59:59', $timestamp->toString(
+            DateStyle::Short,
+            TimeStyle::Medium,
+            Timezone::UTC,
+            Locale::EnglishUnitedKingdom,
+        ));
+
+        // 1950-12-31 23:59:59.999999999 UTC.
+        $timestamp = Timestamp::fromParts(-599_616_001, 999_999_999);
+        static::assertSame('1950-12-31 23:59:59.999', $timestamp->format($pattern, Timezone::UTC));
+        static::assertSame('1950-12-31 18:59:59.999', $timestamp->format($pattern, Timezone::AmericaNewYork));
+
+        // Before the epoch, the milliseconds are truncated toward negative infinity, not toward zero.
+        static::assertSame('1969-12-31 23:59:59.999', Timestamp::fromParts(-1, 999_999_999)->format(
+            $pattern,
+            Timezone::UTC,
+        ));
+        static::assertSame('1969-12-31 23:59:58.999', Timestamp::fromParts(-2, 999_500_000)->format(
+            $pattern,
+            Timezone::UTC,
+        ));
     }
 }

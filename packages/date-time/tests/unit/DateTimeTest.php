@@ -1027,8 +1027,7 @@ final class DateTimeTest extends TestCase
     {
         $dt = DateTime::fromParts(Timezone::UTC, 2024, 1, 15, 12, 0, 0, 500_000_000);
 
-        // The format method uses $timestamp->getSeconds() + ($timestamp->getNanoseconds() / NANOSECONDS_PER_SECOND)
-        // which requires proper float arithmetic. Test that formatting works with non-zero nanoseconds.
+        // Test that formatting keeps non-zero nanoseconds, to the millisecond.
         $formatted = $dt->format(pattern: FormatPattern::Iso8601);
 
         static::assertStringContainsString('.5', $formatted);
@@ -1729,6 +1728,90 @@ final class DateTimeTest extends TestCase
         static::assertSame(6, $end->getMonth());
         static::assertSame(16, $end->getDay());
         static::assertSame(23, $end->getHours());
+    }
+
+    /**
+     * @return iterable<string, array{Timezone}>
+     */
+    public static function provideTimezonesForSubSecondFormatting(): iterable
+    {
+        yield 'UTC' => [Timezone::UTC];
+        yield 'Europe/London' => [Timezone::EuropeLondon];
+        yield 'America/New_York' => [Timezone::AmericaNewYork];
+        yield 'Asia/Kathmandu' => [Timezone::AsiaKathmandu];
+        yield 'Australia/Lord_Howe' => [Timezone::AustraliaLordHowe];
+        yield 'Pacific/Kiritimati' => [Timezone::PacificKiritimati];
+        yield '-03:30' => [Timezone::Minus0330];
+    }
+
+    #[DataProvider('provideTimezonesForSubSecondFormatting')]
+    public function testFormattingTheEndOfAPeriodDoesNotRoundUpToTheNextOne(Timezone $timezone): void
+    {
+        $dt = DateTime::fromParts($timezone, 2024, 1, 15, 12);
+
+        $endOfYear = $dt->atEndOfYear();
+        static::assertSame('2024-12-31', $endOfYear->format(FormatPattern::SqlDate));
+        static::assertSame('2024-12-31 23:59:59.999', $endOfYear->format('yyyy-MM-dd HH:mm:ss.SSS'));
+        static::assertSame(366, $endOfYear->getDayOfYear());
+        static::assertSame('31/12/2024, 23:59:59', $endOfYear->toString(
+            DateStyle::Short,
+            TimeStyle::Medium,
+            locale: Locale::EnglishUnitedKingdom,
+        ));
+
+        $endOfJanuary = $dt->atEndOfMonth();
+        static::assertSame(31, $endOfJanuary->getDayOfYear());
+        static::assertSame('2024-01-31 23:59:59', $endOfJanuary->format(FormatPattern::SqlDateTime));
+
+        // 2024-06-16 is a Sunday, the last day of ISO week 24.
+        $endOfSunday = DateTime::fromParts($timezone, 2024, 6, 16, 12)->atEndOfDay();
+        static::assertSame(Weekday::Sunday, $endOfSunday->getWeekday());
+        static::assertSame([2024, 24], $endOfSunday->getISOWeekNumber());
+        static::assertSame('2024-W24-7', $endOfSunday->format(FormatPattern::IsoWeekDate));
+        static::assertTrue($endOfSunday->atEndOfWeek()->equals($endOfSunday));
+    }
+
+    #[DataProvider('provideTimezonesForSubSecondFormatting')]
+    public function testFormattingSubSecondInstantsBeforeTheEpoch(Timezone $timezone): void
+    {
+        // 1950-01-15 is a Sunday.
+        $dt = DateTime::fromParts($timezone, 1950, 1, 15, 12);
+
+        $endOfYear = $dt->atEndOfYear();
+        static::assertSame('1950-12-31', $endOfYear->format(FormatPattern::SqlDate));
+        static::assertSame('1950-12-31 23:59:59.999', $endOfYear->format('yyyy-MM-dd HH:mm:ss.SSS'));
+        static::assertSame(365, $endOfYear->getDayOfYear());
+
+        static::assertSame(31, $dt->atEndOfMonth()->getDayOfYear());
+
+        $endOfSunday = $dt->atEndOfDay();
+        static::assertSame(Weekday::Sunday, $endOfSunday->getWeekday());
+        static::assertTrue($endOfSunday->atEndOfWeek()->equals($endOfSunday));
+    }
+
+    public function testFormattingTheEndOfADayWithADaylightSavingTimeTransition(): void
+    {
+        $pattern = 'yyyy-MM-dd HH:mm:ss.SSS xxx';
+
+        // London springs forward on 2024-03-31, and falls back on 2024-10-27.
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 3, 31, 12)->atEndOfDay();
+        static::assertSame('2024-03-31 23:59:59.999 +01:00', $dt->format($pattern));
+        static::assertSame(Weekday::Sunday, $dt->getWeekday());
+
+        $dt = DateTime::fromParts(Timezone::EuropeLondon, 2024, 10, 27, 12)->atEndOfDay();
+        static::assertSame('2024-10-27 23:59:59.999 +00:00', $dt->format($pattern));
+        static::assertSame(301, $dt->getDayOfYear());
+
+        // America/Nuuk skips 23:00-00:00 on 2024-03-30, so that day ends just before the transition; rounding
+        // up would land on the transition itself, midnight on the next day.
+        $dt = DateTime::fromParts(Timezone::AmericaNuuk, 2024, 3, 30, 12)->atEndOfDay();
+        static::assertSame('2024-03-30 22:59:59.999 -02:00', $dt->format($pattern));
+        static::assertSame(Weekday::Saturday, $dt->getWeekday());
+
+        // Cuba repeats 00:00-01:00 on 2024-11-03, so the day before ends just before the first midnight.
+        $dt = DateTime::fromParts(Timezone::AmericaHavana, 2024, 11, 2, 12)->atEndOfDay();
+        static::assertSame('2024-11-02 23:59:59.999 -04:00', $dt->format($pattern));
+        static::assertSame(Weekday::Saturday, $dt->getWeekday());
     }
 
     public function testPlusZeroPeriodReturnsSameInstance(): void
