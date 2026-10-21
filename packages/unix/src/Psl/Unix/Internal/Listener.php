@@ -79,10 +79,20 @@ final class Listener implements Unix\ListenerInterface
     private bool $paused = false;
 
     /**
-     * @param resource $impl
+     * Wrap a listening Unix-domain socket, taking ownership of it.
+     *
+     * The listener accepts nothing until the first accept() call enables its watcher, so that a process can fork
+     * between listen() and accept() without losing connections. From then on, the watcher hands each connection to
+     * the oldest waiting accept() call, and keeps the connections that no call takes in a backlog. Once the backlog
+     * holds $idleConnections connections, the watcher pauses until the next accept() call.
+     *
+     * An accept that fails with any error but PHP's accept failure stops the listener: every waiting accept() call
+     * fails with that error, and so does every later one.
+     *
+     * @param resource $impl The listening socket, which the listener closes once it is closed or destroyed.
      * @param Network\Address $boundAddress The address the socket was bound to, reported as the local
      *                                     address when the socket's name cannot be read from it.
-     * @param int<1, max> $idleConnections
+     * @param int<1, max> $idleConnections The most connections the backlog holds before the watcher pauses.
      */
     public function __construct(
         mixed $impl,
@@ -145,8 +155,11 @@ final class Listener implements Unix\ListenerInterface
                         $err['type'],
                     );
 
-                    if ($acceptors !== []) {
-                        $acceptor = array_shift($acceptors);
+                    // The listener stops accepting: every waiting call fails with the error once, and every later
+                    // call with it too. The queue empties first, so that no cancellation fails a call again.
+                    $failed = $acceptors;
+                    $acceptors = [];
+                    foreach ($failed as $acceptor) {
                         $acceptor->throw($error);
                     }
 

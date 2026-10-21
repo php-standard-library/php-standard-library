@@ -6,6 +6,7 @@ namespace Psl\Unix\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\Filesystem;
 use Psl\Network;
 use Psl\Network\Exception;
@@ -19,11 +20,85 @@ use function array_values;
 use function bin2hex;
 use function gc_collect_cycles;
 use function random_bytes;
+use function restore_error_handler;
+use function set_error_handler;
+use function str_contains;
 use function sys_get_temp_dir;
+use function trigger_error;
 use function unlink;
+
+use const E_USER_WARNING;
 
 final class ServerTest extends TestCase
 {
+    /**
+     * How long a waiting accept() may wait before the test counts it as stuck.
+     */
+    private const int DEADLINE_MILLISECONDS = 2_000;
+
+    /**
+     * How many accept() calls wait at once in the failure test.
+     */
+    private const int WAITING_ACCEPTS = 3;
+
+    /**
+     * When accepting fails for good, every waiting accept() call fails with the error, and so does a later one.
+     */
+    public function testAcceptFailureFailsEveryWaitingCall(): void
+    {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Unix Server is not supported on Windows platform.');
+        }
+
+        $sock = sys_get_temp_dir() . '/psl-' . bin2hex(random_bytes(8)) . '.sock';
+        $listener = Unix\listen($sock);
+        $deadline = new Async\TimeoutCancellationToken(Duration::milliseconds(self::DEADLINE_MILLISECONDS));
+
+        // The listener takes the last error after a failed accept for the reason it failed, and stops accepting
+        // unless that error reports an accept failure that a later attempt may not have. This handler puts another
+        // error in place of the warning of the failed accept that follows the first connection.
+        set_error_handler(static function (int $level, string $message): bool {
+            if (!str_contains($message, 'Accept failed')) {
+                return false;
+            }
+
+            @trigger_error('the listener failed', E_USER_WARNING);
+
+            return true;
+        });
+
+        try {
+            $accepts = [];
+            for ($i = 0; $i < self::WAITING_ACCEPTS; $i++) {
+                $accepts[] = Async\run(static fn(): Unix\StreamInterface => $listener->accept($deadline));
+            }
+
+            Async\later();
+            $client = Unix\connect($sock);
+
+            $outcomes = [];
+            foreach ($accepts as $accept) {
+                try {
+                    $outcomes[] = $accept->await()::class;
+                } catch (Exception\RuntimeException $e) {
+                    $outcomes[] = $e->getMessage();
+                }
+            }
+
+            $failure = 'Failed to accept incoming connection: the listener failed';
+            static::assertSame([Unix\Internal\Stream::class, $failure, $failure], $outcomes);
+
+            $this->expectException(Exception\RuntimeException::class);
+            $this->expectExceptionMessage($failure);
+
+            $listener->accept();
+        } finally {
+            restore_error_handler();
+            $listener->close();
+            @unlink($sock);
+        }
+    }
+
     public function testAcceptOnStoppedListener(): void
     {
         if (OS\is_windows()) {
