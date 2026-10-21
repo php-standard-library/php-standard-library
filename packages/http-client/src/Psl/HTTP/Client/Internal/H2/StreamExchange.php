@@ -6,6 +6,7 @@ namespace Psl\HTTP\Client\Internal\H2;
 
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
+use Psl\Async\NullCancellationToken;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\Exception\ConnectionException;
 use Psl\H2\Exception\ExceptionInterface;
@@ -21,11 +22,15 @@ use Psl\HTTP\Message\Request;
 use Psl\HTTP\Message\Response;
 use Psl\HTTP\Message\Transaction;
 use Psl\IO;
+use Psl\Network;
 use Psl\URL;
 
 use function explode;
 use function in_array;
+use function min;
+use function strlen;
 use function strtolower;
+use function substr;
 use function trim;
 
 /**
@@ -52,6 +57,13 @@ use function trim;
  * a stream error affects only the failed stream (RFC 9113 Section 5.4.2).
  * Connection and I/O failures, and HTTP/2 protocol failures after HEADERS
  * were written, also mark the session as closed.
+ *
+ * The caller's cancellation token applies only to waits: the stream slot,
+ * send-window credit, request body reads, trailers, and the response. Frames
+ * are always written to completion, because a frame torn by cancellation
+ * would corrupt the connection for every other stream. A failed write marks
+ * the session closed and skips RST_STREAM, since the connection state is
+ * unknown.
  *
  * H1/H2 header mapping: connection-specific fields and fields named in
  * Connection are dropped from headers and trailers. Only te: trailers is
@@ -90,6 +102,7 @@ final class StreamExchange
      * @throws CancelledException If the cancellation token fires.
      * @throws ExceptionInterface If an H2 framing error occurs.
      * @throws IO\Exception\RuntimeException If an I/O error occurs.
+     * @throws Network\Exception\ExceptionInterface If the transport fails.
      */
     public static function exchange(
         H2Session $session,
@@ -141,8 +154,9 @@ final class StreamExchange
         }
 
         $requestReadError = null;
+        $uncancellable = new NullCancellationToken();
         try {
-            $connection->sendHeaders($streamId, $headers, $request->body === null, $cancellation);
+            $connection->sendHeaders($streamId, $headers, $request->body === null, $uncancellable);
             $headersSent = true;
 
             if ($request->body !== null) {
@@ -165,7 +179,7 @@ final class StreamExchange
 
                     $trailerHeaders = self::filterHeaders($trailerFields, $request->headers);
 
-                    $connection->sendHeaders($streamId, $trailerHeaders, true, $cancellation);
+                    $connection->sendHeaders($streamId, $trailerHeaders, true, $uncancellable);
                 }
             }
 
@@ -220,20 +234,32 @@ final class StreamExchange
             }
 
             throw $e;
-        } catch (ExceptionInterface|RuntimeException|IO\Exception\RuntimeException $e) {
+        } catch (
+            ExceptionInterface|RuntimeException|IO\Exception\RuntimeException|Network\Exception\ExceptionInterface $e
+        ) {
             $streamError = $stream->getError();
-            if ($headersSent) {
+            // Stream resets arrive as StreamException above, so an H2 protocol failure
+            // here is connection-level once the request is on the wire: an HPACK,
+            // flow-control or frame-decoding failure during or after the send corrupts
+            // the shared encoder or windows and drops the session. A failure before any
+            // HEADERS are written (e.g. the peer header-list-size limit, checked before
+            // encoding) wrote nothing and leaves the session usable. A request-body read
+            // error is the caller's, not the connection's.
+            $connectionBroken =
+                $e instanceof ConnectionException
+                || $e instanceof Network\Exception\ExceptionInterface
+                || $e instanceof IO\Exception\RuntimeException && $e !== $requestReadError
+                || $headersSent && $e instanceof ExceptionInterface;
+
+            if ($connectionBroken) {
+                // The connection state is unknown after a failed write or a protocol
+                // failure: drop the session and skip RST_STREAM on it.
+                $session->markClosed();
+                $multiplexer->unregister($streamId);
+            } elseif ($headersSent) {
                 $multiplexer->cancel($streamId);
             } else {
                 $multiplexer->unregister($streamId);
-            }
-
-            if (
-                $e instanceof ConnectionException
-                || $e instanceof IO\Exception\RuntimeException && $e !== $requestReadError
-                || $headersSent && $e instanceof ExceptionInterface
-            ) {
-                $session->markClosed();
             }
 
             if ($e instanceof ExceptionInterface && $streamError instanceof UnprocessedRequestException) {
@@ -281,11 +307,16 @@ final class StreamExchange
      * Stream the request body as HTTP/2 DATA frames.
      *
      * Reads from the body handle in 16,384-byte chunks (the default maximum
-     * frame payload per RFC 9113 Section 4.2) and sends each as a DATA frame.
-     * The END_STREAM flag is set on the final DATA frame if no trailers follow.
+     * frame payload per RFC 9113 Section 4.2) and sends each as one or more
+     * DATA frames that fit the available send window. The END_STREAM flag is
+     * set on the final DATA frame if no trailers follow.
      *
      * If the body is empty (reaches EOF immediately), an empty DATA frame with
      * END_STREAM is sent to signal the end of the request.
+     *
+     * The cancellation token interrupts body reads and send-window waits only.
+     * Each frame is written with no cancellation, so a cancelled upload never
+     * leaves a partial frame on the shared connection.
      *
      * @param ClientConnectionInterface $connection The H2 connection to send DATA frames on.
      * @param positive-int $streamId The stream ID to send data on.
@@ -302,6 +333,7 @@ final class StreamExchange
         bool $endStreamOnFinish = true,
     ): void {
         $sentEndStream = false;
+        $uncancellable = new NullCancellationToken();
 
         while (true) {
             try {
@@ -322,14 +354,33 @@ final class StreamExchange
             }
 
             $endStream = $endStreamOnFinish && $isLast;
-            $connection->sendAllData($streamId, $chunk, $endStream, $cancellation);
+            $offset = 0;
+            $remaining = strlen($chunk);
+            while ($remaining > 0) {
+                $connection->waitForSendWindow($streamId, 1, $cancellation);
+                $size = min($remaining, $connection->availableSendWindow($streamId), 16_384);
+                if ($size <= 0) {
+                    continue;
+                }
+
+                $isFinal = $size === $remaining;
+                $connection->sendData(
+                    $streamId,
+                    substr($chunk, $offset, $size),
+                    $endStream && $isFinal,
+                    $uncancellable,
+                );
+                $offset += $size;
+                $remaining -= $size;
+            }
+
             if ($endStream) {
                 $sentEndStream = true;
             }
         }
 
         if ($endStreamOnFinish && !$sentEndStream) {
-            $connection->sendData($streamId, '', endStream: true, cancellation: $cancellation);
+            $connection->sendData($streamId, '', endStream: true, cancellation: $uncancellable);
         }
     }
 }

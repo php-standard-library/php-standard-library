@@ -6,7 +6,10 @@ namespace Psl\HTTP\Client\Internal\H2;
 
 use Exception;
 use Psl\Async;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\SignalCancellationToken;
+use Psl\Async\TimeoutCancellationToken;
+use Psl\DateTime\Duration;
 use Psl\H2\ClientConnectionInterface;
 use Psl\H2\ErrorCode;
 use Psl\H2\Event;
@@ -64,6 +67,13 @@ final class H2Multiplexer
      * Cancellation token used to stop the background read fiber when no streams remain.
      */
     private SignalCancellationToken $fiberCancellation;
+
+    /**
+     * How long {@see cancel()} waits for its RST_STREAM write before giving up on the session.
+     *
+     * The frame is 13 bytes; the write only waits when the peer has stopped reading.
+     */
+    private const int RESET_WRITE_TIMEOUT_MILLISECONDS = 1_000;
 
     /**
      * The last-stream-id from the most recent GOAWAY frame, or -1 if none received.
@@ -138,6 +148,12 @@ final class H2Multiplexer
     /**
      * Cancel a stream and release its slot.
      *
+     * Sends RST_STREAM(CANCEL) so the peer stops working on the stream. The
+     * write is bounded: a peer that no longer reads must not block cleanup
+     * after a timeout or an early body close. A write that fails or times out
+     * may have left a partial frame on the wire, so the session is marked
+     * closed in that case.
+     *
      * @param positive-int $streamId
      */
     public function cancel(int $streamId): void
@@ -147,8 +163,12 @@ final class H2Multiplexer
         }
 
         try {
-            $this->connection->resetStream($streamId, ErrorCode::Cancel);
-        } catch (ExceptionInterface|IO\Exception\RuntimeException) {
+            $this->connection->resetStream(
+                $streamId,
+                ErrorCode::Cancel,
+                new TimeoutCancellationToken(Duration::milliseconds(self::RESET_WRITE_TIMEOUT_MILLISECONDS)),
+            );
+        } catch (CancelledException|ExceptionInterface|IO\Exception\RuntimeException) {
             $this->session->markClosed();
         } finally {
             $this->unregister($streamId);

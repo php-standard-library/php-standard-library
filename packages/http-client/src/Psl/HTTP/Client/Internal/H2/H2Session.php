@@ -6,6 +6,7 @@ namespace Psl\HTTP\Client\Internal\H2;
 
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Deferred;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\H2\ClientConnection;
 use Psl\H2\ClientConnectionInterface;
@@ -114,6 +115,15 @@ final class H2Session
             $this->multiplexer->start();
             try {
                 $waiter->getAwaitable()->await($cancellation);
+            } catch (CancelledException $e) {
+                if ($waiter->isComplete()) {
+                    // A release already removed this waiter and chose it. Hand its
+                    // wake-up to the next one, or the freed slot stays unused until
+                    // another release.
+                    $this->wakeOneWaiter();
+                }
+
+                throw $e;
             } finally {
                 $this->streamWaiters = array_values(array_filter(
                     $this->streamWaiters,
@@ -160,6 +170,14 @@ final class H2Session
             $this->activeStreams--;
         }
 
+        $this->wakeOneWaiter();
+    }
+
+    /**
+     * Wake the oldest pending waiter, if any, so it re-checks the limit.
+     */
+    private function wakeOneWaiter(): void
+    {
         $waiter = array_shift($this->streamWaiters);
         $waiter?->complete(null);
     }

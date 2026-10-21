@@ -12,11 +12,13 @@ use Psl\DateTime\Duration;
 use Psl\H2;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Connection\ConnectionMetadata;
+use Psl\HTTP\Client\Exception;
 use Psl\HTTP\Client\Exception\ProtocolException;
 use Psl\HTTP\Client\H2ClientConfiguration;
 use Psl\HTTP\Client\Internal\H2\H2Connection;
 use Psl\HTTP\Client\Internal\H2\H2Session;
 use Psl\HTTP\Client\Internal\H2\H2Stream;
+use Psl\HTTP\Client\Tests\Fixture\H2\FaultyHandle;
 use Psl\HTTP\Message\FieldMap;
 use Psl\HTTP\Message\Request;
 use Psl\IO;
@@ -25,6 +27,9 @@ use Psl\URL;
 
 use function str_repeat;
 
+/**
+ * @mago-expect lint:kan-defect
+ */
 final class CancellationTest extends TestCase
 {
     #[DataProvider('provideCancellationOrders')]
@@ -330,6 +335,248 @@ final class CancellationTest extends TestCase
                 $cancellation,
             );
         } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testCancellingABlockedUploadDoesNotCorruptTheSharedConnection(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+        );
+        $overall = new Async\TimeoutCancellationToken(Duration::seconds(5));
+        $serverTask = Async\run(static function () use ($server, $overall): void {
+            $h2 = new H2\ServerConnection($server);
+            $h2->readClientPreface();
+            $h2->initialize();
+            // Stop reading so the upload backs up in the socket, then catch up.
+            Async\sleep(Duration::milliseconds(400));
+            while (true) {
+                foreach ($h2->readEvent($overall) as $event) {
+                    if ($event instanceof H2\Event\HeadersReceived && $event->streamId === 3) {
+                        $h2->sendHeadersWithStatus(3, '200', [], endStream: true);
+                    }
+                }
+            }
+        });
+        $serverTask->ignore();
+
+        try {
+            try {
+                $connection->exchange(
+                    new Request(
+                        method: 'POST',
+                        url: URL\parse('http://example.com/upload'),
+                        body: new IO\MemoryHandle(str_repeat('A', 60_000)),
+                    ),
+                    new ClientConfiguration(),
+                    new Async\TimeoutCancellationToken(Duration::milliseconds(150)),
+                );
+                static::fail('The upload must be cancelled.');
+            } catch (CancelledException) {
+                static::assertFalse($session->isClosed(), 'Cancellation must not close the shared session.');
+            }
+
+            $transaction = $connection->exchange(
+                new Request(method: 'GET', url: URL\parse('http://example.com/next')),
+                new ClientConfiguration(),
+                $overall,
+            );
+            static::assertSame(200, $transaction->response->status);
+        } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testCancelledRequestFreesPeerConcurrency(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+        );
+        $overall = new Async\TimeoutCancellationToken(Duration::seconds(5));
+        $serverTask = Async\run(static function () use ($server, $overall): void {
+            $h2 = new H2\ServerConnection($server, new H2\Configuration(settings: [
+                H2\Setting::MaxConcurrentStreams->value => 1,
+            ]));
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (true) {
+                foreach ($h2->readEvent($overall) as $event) {
+                    if ($event instanceof H2\Event\HeadersReceived && $event->streamId !== 1) {
+                        $h2->sendHeadersWithStatus($event->streamId, '200', [], endStream: true);
+                    }
+                }
+            }
+        });
+        $serverTask->ignore();
+
+        try {
+            try {
+                $connection->exchange(
+                    new Request(method: 'GET', url: URL\parse('http://example.com/slow')),
+                    new ClientConfiguration(),
+                    new Async\TimeoutCancellationToken(Duration::milliseconds(100)),
+                );
+                static::fail('The request must be cancelled.');
+            } catch (CancelledException) {
+                // @mago-expect lint:no-empty-catch-clause - The stream must be reset below.
+            }
+
+            $transaction = $connection->exchange(
+                new Request(method: 'GET', url: URL\parse('http://example.com/next')),
+                new ClientConfiguration(),
+                $overall,
+            );
+            static::assertSame(200, $transaction->response->status);
+        } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testResetWriteIsBoundedWhenThePeerStopsReading(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $handle = new FaultyHandle($client);
+        $session = new H2Session($handle, new H2ClientConfiguration());
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+        );
+        $overall = new Async\TimeoutCancellationToken(Duration::seconds(5));
+        $gotHeaders = new Async\Deferred();
+        $serverTask = Async\run(static function () use ($server, $overall, $gotHeaders): void {
+            $h2 = new H2\ServerConnection($server);
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (!$gotHeaders->isComplete()) {
+                foreach ($h2->readEvent($overall) as $event) {
+                    if ($event instanceof H2\Event\HeadersReceived) {
+                        $gotHeaders->complete(null);
+                        break;
+                    }
+                }
+            }
+            // Stop reading so a later RST_STREAM write would have to block for room.
+        });
+        $serverTask->ignore();
+
+        $cancellation = new Async\SignalCancellationToken();
+        $exchange = Async\run(static fn() => $connection->exchange(
+            new Request(method: 'GET', url: URL\parse('http://example.com/')),
+            new ClientConfiguration(),
+            $cancellation,
+        ));
+        $exchange->ignore();
+
+        try {
+            $gotHeaders->getAwaitable()->await($overall);
+            Async\later();
+            $handle->stallWrites = true;
+            $cancellation->cancel();
+
+            try {
+                $exchange->await(new Async\TimeoutCancellationToken(Duration::seconds(3)));
+                static::fail('The request must be cancelled.');
+            } catch (CancelledException) {
+                static::assertTrue($exchange->isComplete(), 'A stalled RST_STREAM write must not block cancellation.');
+            }
+
+            static::assertTrue($session->isClosed(), 'A session whose reset could not be written is unusable.');
+        } finally {
+            $serverTask->ignore();
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testTransportFailureReleasesTheSlotAndClosesTheSession(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $handle = new FaultyHandle($client);
+        $session = new H2Session($handle, new H2ClientConfiguration());
+        $session->updateMaxConcurrentStreams(1);
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+        );
+        $request = new Request(method: 'GET', url: URL\parse('http://example.com/'));
+        $configuration = new ClientConfiguration();
+        $handle->writeFailure = new Network\Exception\RuntimeException('Transport failed.');
+        $waiter = Async\run(static fn() => $connection->exchange(
+            $request,
+            $configuration,
+            new Async\TimeoutCancellationToken(Duration::seconds(1)),
+        ));
+        $waiter->ignore();
+
+        try {
+            try {
+                $connection->exchange($request, $configuration);
+                static::fail('The transport failure must propagate.');
+            } catch (Network\Exception\RuntimeException $error) {
+                static::assertSame('Transport failed.', $error->getMessage());
+            }
+
+            static::assertTrue($session->isClosed());
+
+            try {
+                $waiter->await();
+                static::fail('The queued request must not run on the failed session.');
+            } catch (Exception\RuntimeException $error) {
+                static::assertStringContainsString('closed', $error->getMessage());
+            }
+        } finally {
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testCancelledSlotWaiterHandsItsWakeUpOn(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        $session = new H2Session($client, new H2ClientConfiguration());
+        $session->updateMaxConcurrentStreams(1);
+        $session->acquireStream();
+        $first = new Async\SignalCancellationToken();
+        $firstWaiter = Async\run(static function () use ($session, $first): bool {
+            try {
+                $session->acquireStream($first);
+
+                return true;
+            } catch (CancelledException) {
+                return false;
+            }
+        });
+        $firstWaiter->ignore();
+        $secondWaiter = Async\run(static fn() => $session->acquireStream(new Async\TimeoutCancellationToken(Duration::seconds(
+            1,
+        ))));
+        $secondWaiter->ignore();
+        Async\later();
+
+        try {
+            // The release picks the first waiter; its cancellation lands before it resumes.
+            $session->releaseStream();
+            $first->cancel();
+            Async\later();
+
+            if ($firstWaiter->await()) {
+                $session->releaseStream();
+            }
+
+            $secondWaiter->await();
+            static::assertFalse($session->hasStreamWaiters());
+        } finally {
+            $session->markClosed();
             $client->close();
             $server->close();
         }
