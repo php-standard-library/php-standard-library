@@ -42,19 +42,28 @@ trait WriteHandleConvenienceMethodsTrait
             return;
         }
 
-        $originalSize = strlen($bytes);
+        $length = strlen($bytes);
 
-        do {
-            $written = $this->write($bytes, $cancellation);
-            $bytes = substr($bytes, $written);
-        } while (0 !== $written && '' !== $bytes);
+        // Keep the caller's string and an offset into it: the first write gets the string itself, which copies
+        // nothing, and every later write gets a slice of at most 64 KiB. Passing the whole remainder instead
+        // copied it on every pass, which made writing N bytes cost O(N²) for a handle that accepts a few
+        // kilobytes per call.
+        $offset = $this->write($bytes, $cancellation);
+        while (0 !== $offset && $offset < $length) {
+            $written = $this->write(substr($bytes, $offset, 65_536), $cancellation);
+            if (0 === $written) {
+                break;
+            }
 
-        if ('' !== $bytes) {
+            $offset += $written;
+        }
+
+        if ($offset < $length) {
             // @codeCoverageIgnoreStart
             throw new Exception\RuntimeException(sprintf(
                 'asked to write %d bytes, but only able to write %d bytes',
-                $originalSize,
-                $originalSize - strlen($bytes),
+                $length,
+                $offset,
             ));
             // @codeCoverageIgnoreEnd
         }

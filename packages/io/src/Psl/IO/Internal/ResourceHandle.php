@@ -26,6 +26,7 @@ use function stream_get_meta_data;
 use function stream_set_blocking;
 use function stream_set_read_buffer;
 use function stream_set_write_buffer;
+use function strlen;
 use function strpbrk;
 use function substr;
 
@@ -48,6 +49,16 @@ class ResourceHandle implements
 
     public const int DEFAULT_READ_BUFFER_SIZE = 4096;
     public const int MAXIMUM_READ_BUFFER_SIZE = 786_432;
+
+    /**
+     * The largest part of a caller's buffer copied for one native write.
+     *
+     * Write loops keep the caller's string and an offset into it. The first attempt passes the string itself,
+     * which copies nothing; every later attempt copies at most this many bytes from the offset. Copying the
+     * whole remainder on every attempt instead made writing N bytes cost O(N²) when the stream accepts a few
+     * kilobytes at a time.
+     */
+    private const int MAXIMUM_WRITE_CHUNK_SIZE = 65_536;
 
     /**
      * @var closed-resource|resource|null $stream
@@ -148,23 +159,23 @@ class ResourceHandle implements
                 function (array $input): int {
                     [$bytes, $cancellation, $atomic] = $input;
                     if (!$atomic) {
-                        return $this->doWrite($bytes, $cancellation);
+                        return $this->doWrite($bytes, 0, $cancellation);
                     }
 
-                    $total = 0;
-                    while ('' !== $bytes) {
-                        $chunk = $this->doWrite($bytes, $cancellation);
+                    $length = strlen($bytes);
+                    $offset = 0;
+                    while ($offset < $length) {
+                        $chunk = $this->doWrite($bytes, $offset, $cancellation);
                         if (0 === $chunk) {
                             throw new Exception\RuntimeException(
                                 'writeAll: stream reported writable but accepted no data',
                             );
                         }
 
-                        $total += $chunk;
-                        $bytes = substr($bytes, $chunk);
+                        $offset += $chunk;
                     }
 
-                    return $total;
+                    return $offset;
                 },
             );
             EventLoop::disable($this->writeWatcher);
@@ -220,29 +231,33 @@ class ResourceHandle implements
     }
 
     /**
-     * @return int<0, max>
+     * Write the part of `$bytes` that starts at `$offset`.
+     *
+     * @param int<0, max> $offset
+     *
+     * @return int<0, max> The number of bytes written, counted from `$offset`.
      */
-    private function doWrite(string $bytes, Async\CancellationTokenInterface $cancellation): int
+    private function doWrite(string $bytes, int $offset, Async\CancellationTokenInterface $cancellation): int
     {
-        $written = $this->tryWrite($bytes);
-        $remainingBytes = substr($bytes, $written);
-        if ($this->blocks || '' === $remainingBytes) {
+        $length = strlen($bytes);
+        $written = $this->tryWrite(0 === $offset ? $bytes : substr($bytes, $offset, self::MAXIMUM_WRITE_CHUNK_SIZE));
+
+        if ($this->blocks) {
             return $written;
         }
 
         // Retry while the fd is still making progress before suspending.
         // This avoids unnecessary fiber suspension when the fd is ready.
-        while ('' !== $remainingBytes) {
-            $chunk = $this->tryWrite($remainingBytes);
+        while (0 !== $written && ($offset + $written) < $length) {
+            $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
             if ($chunk === 0) {
                 break;
             }
 
             $written += $chunk;
-            $remainingBytes = substr($remainingBytes, $chunk);
         }
 
-        if ('' === $remainingBytes) {
+        if (($offset + $written) >= $length) {
             return $written;
         }
 
@@ -260,7 +275,7 @@ class ResourceHandle implements
             try {
                 $suspension->suspend();
 
-                $chunk = $this->tryWrite($remainingBytes);
+                $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
                 if ($chunk === 0) {
                     throw new Exception\RuntimeException(
                         'Stream reported as writable but accepted no data; the connection may be broken.',
@@ -283,7 +298,7 @@ class ResourceHandle implements
         try {
             $suspension->suspend();
 
-            $chunk = $this->tryWrite($remainingBytes);
+            $chunk = $this->tryWrite(substr($bytes, $offset + $written, self::MAXIMUM_WRITE_CHUNK_SIZE));
             if ($chunk === 0) {
                 throw new Exception\RuntimeException(
                     'Stream reported as writable but accepted no data; the connection may be broken.',
