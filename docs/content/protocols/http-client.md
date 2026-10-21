@@ -168,7 +168,7 @@ Middleware is registered via the `Client` constructor and applied in order: the 
 
 @example('protocols/http-client-middleware.php')
 
-`DeniedDestinationsMiddleware::forPrivateNetworkRanges()` also blocks current-network, shared, reserved, benchmarking, multicast, IPv6 translation, and 6to4 ranges. IPv4-mapped IPv6 addresses use the same checks as IPv4, including exact deny-list entries. Bracketed IPv6 peer addresses are accepted. Unix sockets have no peer IP and skip these checks.
+`DeniedDestinationsMiddleware::forPrivateNetworkRanges()` also blocks current-network, shared, reserved, benchmarking, documentation (IPv4 TEST-NET-1/2/3 and IPv6 2001:db8::/32, 3fff::/20), multicast, IPv6 translation and 6to4, Teredo, discard-only, IPv4-compatible, and deprecated site-local ranges. IPv4-mapped IPv6 addresses use the same checks as IPv4, including exact deny-list entries. Bracketed IPv6 peer addresses are accepted. Unix sockets have no peer IP and skip these checks. The check inspects the resolved peer address, so behind an HTTP or SOCKS proxy it sees the proxy's address, not the ultimate target.
 
 ## HTTP/1.0 Mode
 

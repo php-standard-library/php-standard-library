@@ -94,9 +94,15 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
      * - **IPv6 unique local** (`fc00::/7`): RFC 4193 unique local addresses.
      * - **IPv6 link-local** (`fe80::/10`): IPv6 link-local addresses.
      * - **IPv6 unspecified** (`::`): the IPv6 unspecified address.
-     * - **IPv6 translation and 6to4** (`64:ff9b::/96`, `2002::/16`): can encode an IPv4 destination.
+     * - **IPv4 documentation and 6to4 relay** (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`, `192.88.99.0/24`).
+     * - **IPv6 translation and 6to4** (`64:ff9b::/96`, `64:ff9b:1::/48`, `2002::/16`): can encode an IPv4 destination.
+     * - **IPv6 Teredo and documentation** (`2001::/32`, `2001:db8::/32`, `3fff::/20`).
+     * - **IPv6 IPv4-compatible, discard-only, deprecated site-local** (`::/96`, `100::/64`, `fec0::/10`).
      * - **IPv6 multicast** (`ff00::/8`).
      * - **IPv4-mapped IPv6**: The IPv6 equivalents of the above IPv4 ranges (e.g., `::ffff:127.0.0.0/104`).
+     *
+     * This inspects the resolved peer address. Behind an HTTP or SOCKS proxy the peer
+     * is the proxy, so the check sees the proxy's address, not the ultimate target.
      *
      * Suitable for any application that fetches user-supplied URLs and needs to prevent
      * access to internal network resources.
@@ -119,17 +125,32 @@ final readonly class DeniedDestinationsMiddleware implements MiddlewareInterface
             new CIDR\Block('198.18.0.0/15'),
             new CIDR\Block('224.0.0.0/4'),
             new CIDR\Block('240.0.0.0/4'),
+            // IPv4 documentation (TEST-NET-1/2/3) and 6to4 relay anycast
+            new CIDR\Block('192.0.2.0/24'),
+            new CIDR\Block('198.51.100.0/24'),
+            new CIDR\Block('203.0.113.0/24'),
+            new CIDR\Block('192.88.99.0/24'),
             // IPv6 loopback
             IP\Address::v6('::1'),
             // IPv6 private (unique local)
             new CIDR\Block('fc00::/7'),
+            // IPv6 deprecated site-local
+            new CIDR\Block('fec0::/10'),
             // IPv6 link-local
             new CIDR\Block('fe80::/10'),
             // IPv6 unspecified
             IP\Address::v6('::'),
-            // IPv6 translation, 6to4, and multicast
+            // IPv6 IPv4-compatible (deprecated) and discard-only
+            new CIDR\Block('::/96'),
+            new CIDR\Block('100::/64'),
+            // IPv6 translation, 6to4, Teredo, and multicast
             new CIDR\Block('64:ff9b::/96'),
+            new CIDR\Block('64:ff9b:1::/48'),
             new CIDR\Block('2002::/16'),
+            new CIDR\Block('2001::/32'),
+            // IPv6 documentation
+            new CIDR\Block('2001:db8::/32'),
+            new CIDR\Block('3fff::/20'),
             new CIDR\Block('ff00::/8'),
         ]);
     }

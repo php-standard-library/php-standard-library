@@ -8,8 +8,9 @@ use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
 
-// The preset also blocks shared, reserved, multicast, translation, and 6to4 ranges.
-// Unix sockets have no peer IP and do not undergo these checks.
+// The preset also blocks shared, reserved, documentation, multicast, translation,
+// 6to4, Teredo, discard-only, and deprecated site-local ranges. Unix sockets have
+// no peer IP and do not undergo these checks. Behind a proxy the check sees the proxy.
 $client = new Client\Client(middleware: [Client\Middleware\DeniedDestinationsMiddleware::forPrivateNetworkRanges()]);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));

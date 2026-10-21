@@ -64,8 +64,25 @@ final class DeniedDestinationsMiddlewareTest extends TestCase
             yield 'mapped ' . $address => ['::ffff:' . $address];
         }
 
+        foreach ([
+            '192.0.2.1',
+            '198.51.100.1',
+            '203.0.113.1',
+            '192.88.99.1',
+        ] as $address) {
+            yield $address => [$address];
+            yield 'mapped ' . $address => ['::ffff:' . $address];
+        }
+
         yield 'translation prefix' => ['64:ff9b::a9fe:a9fe'];
+        yield 'nat64 local-use' => ['64:ff9b:1::1'];
         yield '6to4' => ['2002:7f00:1::'];
+        yield 'teredo' => ['2001::1'];
+        yield 'ipv6 documentation' => ['2001:db8::1'];
+        yield 'ipv6 documentation 3fff' => ['3fff::1'];
+        yield 'deprecated site-local' => ['fec0::1'];
+        yield 'ipv4-compatible' => ['::0.0.8.8'];
+        yield 'discard-only' => ['100::1'];
         yield 'IPv6 multicast' => ['ff02::1'];
         yield 'bracketed IPv6 loopback' => ['[::1]'];
         yield 'bracketed mapped metadata' => ['[::ffff:169.254.169.254]'];
