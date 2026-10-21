@@ -15,6 +15,10 @@ use Psl\HTTP\Message\Transaction;
 use Psl\IO;
 use Psl\Network;
 
+use function is_nan;
+
+use const PHP_INT_MAX;
+
 /**
  * Decorator that retries failed requests with exponential backoff.
  *
@@ -172,12 +176,37 @@ final readonly class RetryClient implements ClientInterface
                     $body->seek($bodyOffset);
                 }
 
-                $delayMs = (int) (
-                    $this->backoff->getTotalMilliseconds() * ($this->backoffMultiplier ** ($attempt - 1))
+                $delayMs = self::saturatingMilliseconds(
+                    $this->backoff->getTotalMilliseconds() * ($this->backoffMultiplier ** ($attempt - 1)),
                 );
 
                 Async\sleep(Duration::milliseconds($delayMs), $cancellation);
             }
         }
+    }
+
+    /**
+     * Clamp a computed backoff, in milliseconds, to a safe integer range.
+     *
+     * The exponential formula can overflow to a float, `INF`, or `NAN` for large
+     * attempt counts or multipliers, and casting that straight to int warns on
+     * PHP 8.5+ and wraps. A delay below the integer range (including a zero,
+     * negative or `NAN` value) becomes 0, and `INF` or an above-range value
+     * saturates at `PHP_INT_MAX` milliseconds.
+     *
+     * @return int<0, max>
+     */
+    private static function saturatingMilliseconds(float $milliseconds): int
+    {
+        if (is_nan($milliseconds) || $milliseconds <= 0.0) {
+            return 0;
+        }
+
+        if ($milliseconds >= (float) PHP_INT_MAX) {
+            return PHP_INT_MAX;
+        }
+
+        /** @var int<0, max> */
+        return (int) $milliseconds;
     }
 }

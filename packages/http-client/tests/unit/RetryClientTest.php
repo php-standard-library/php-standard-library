@@ -21,9 +21,11 @@ use Psl\HTTP\Message\Transaction;
 use Psl\IO;
 use Psl\Network\Exception\RuntimeException;
 use Psl\URL;
+use ReflectionMethod;
 
 use function abs;
 
+use const PHP_INT_MAX;
 use const PHP_OS_FAMILY;
 
 final class RetryClientTest extends TestCase
@@ -728,5 +730,43 @@ final class RetryClientTest extends TestCase
         static::assertSame(0, $seekValues[0]);
         static::assertSame(0, $seekValues[1]);
         static::assertSame(0, $seekValues[2]);
+    }
+
+    public function testBackoffSaturatesInsteadOfOverflowing(): void
+    {
+        $method = new ReflectionMethod(RetryClient::class, 'saturatingMilliseconds');
+
+        // Normal values pass through unchanged.
+        static::assertSame(0, $method->invoke(null, 0.0));
+        static::assertSame(100, $method->invoke(null, 100.0));
+        static::assertSame(100, $method->invoke(null, 100.9));
+
+        // Zero, negative and NAN collapse to no delay.
+        static::assertSame(0, $method->invoke(null, -1.0));
+        static::assertSame(0, $method->invoke(null, -INF));
+        static::assertSame(0, $method->invoke(null, NAN));
+
+        // INF and above-range values saturate at PHP_INT_MAX milliseconds.
+        static::assertSame(PHP_INT_MAX, $method->invoke(null, INF));
+        static::assertSame(PHP_INT_MAX, $method->invoke(null, 1.0e308));
+        static::assertSame(PHP_INT_MAX, $method->invoke(null, (float) PHP_INT_MAX));
+    }
+
+    public function testLargeMultiplierDoesNotWarnOrWrap(): void
+    {
+        // The exponential formula overflows to a float here; it must not warn or
+        // wrap to a negative delay. A cancelled token avoids the saturated sleep.
+        $inner = self::alwaysFailClient();
+        $client = new RetryClient(
+            $inner,
+            maxAttempts: 3,
+            backoff: Duration::milliseconds(100),
+            backoffMultiplier: PHP_INT_MAX,
+        );
+        $token = new \Psl\Async\SignalCancellationToken();
+        $token->cancel();
+
+        $this->expectException(\Psl\Async\Exception\CancelledException::class);
+        $client->send(self::request(), new SendConfiguration(), $token);
     }
 }
