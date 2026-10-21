@@ -15,9 +15,15 @@ use Psl\TLS;
 use Revolt\EventLoop;
 
 use function is_resource;
+use function restore_error_handler;
+use function set_error_handler;
 use function stream_socket_enable_crypto;
 use function strlen;
 use function substr;
+
+use const E_ALL;
+use const E_DEPRECATED;
+use const E_USER_DEPRECATED;
 
 /**
  * TLS-wrapped stream implementation.
@@ -49,6 +55,15 @@ final class Stream implements TLS\StreamInterface
      * this many bytes of its unwritten remainder.
      */
     private const int MAX_RECORD_PLAINTEXT = 16_384;
+
+    /**
+     * How many writable wakes in a row may end in a flush that reports no progress, see drainPending().
+     *
+     * Each such wake moved at least one byte of the record to the socket, and a record is at most 16,384 +
+     * 2,048 bytes of ciphertext behind a 5-byte header (RFC 5246 section 6.2.3; RFC 8446 section 5.2 allows
+     * less), so more wakes in a row than that mean the socket takes nothing at all.
+     */
+    private const int MAX_STALLED_FLUSHES = self::MAX_RECORD_PLAINTEXT + 2_048 + 5;
 
     private readonly Network\Address $localAddress;
     private readonly Network\Address $peerAddress;
@@ -315,25 +330,64 @@ final class Stream implements TLS\StreamInterface
     /**
      * Send the pending record, waiting for the socket to become writable as needed.
      *
-     * A fatal SSL error is reported by PHP as a write of 0 bytes on a non-blocking stream
-     * (`ext/openssl/xp_ssl.c`, `php_openssl_sockop_io`), and a broken socket reports as
-     * writable, so a record that makes no progress right after the socket became writable
-     * means the connection is gone; waiting again would spin.
+     * PHP reports a write of 0 bytes on a non-blocking stream both when OpenSSL wants to write
+     * more and when the connection failed (`ext/openssl/xp_ssl.c`, `php_openssl_sockop_io`).
+     * Only the failure comes with a warning (`php_openssl_handle_ssl_error`): a broken socket
+     * reports as writable and fails again with a warning on every write. OpenSSL wants to write
+     * more when the socket became writable with room for part of the record only; it took that
+     * part, but PHP reports the record once it is complete. So a flush that reports no progress
+     * right after the socket became writable fails the write when it raised a warning, and
+     * waits for the socket again when it did not. A socket that keeps reporting as writable
+     * without taking anything, and without a warning, fails the write once more wakes in a row
+     * ended that way than the record has bytes; see {@see self::MAX_STALLED_FLUSHES}.
+     *
+     * `feof()` is not a sign of failure here: it peeks at the socket, and is true once the peer
+     * has shut down its write side, while it may still read what this side writes.
      *
      * @throws CancelledException If the cancellation token is cancelled while waiting; the record stays pending.
-     * @throws IO\Exception\RuntimeException If the stream accepts no data although it reported as writable.
+     * @throws IO\Exception\RuntimeException If the connection failed, or the stream accepts no data although it
+     *                                       keeps reporting as writable.
      */
     private function drainPending(CancellationTokenInterface $cancellation): void
     {
-        while (!$this->flushPending()) {
+        if ($this->flushPending()) {
+            return;
+        }
+
+        $stalled = 0;
+        while (true) {
             $this->waitUntilWritable($cancellation);
 
             $remaining = strlen($this->pending);
-            if ($this->flushPending()) {
+            $error = null;
+            set_error_handler(
+                static function (int $_, string $message) use (&$error): bool {
+                    $error = $message;
+
+                    return false;
+                },
+                E_ALL & ~(E_DEPRECATED | E_USER_DEPRECATED),
+            );
+
+            try {
+                $flushed = $this->flushPending();
+            } finally {
+                restore_error_handler();
+            }
+
+            if ($flushed) {
                 return;
             }
 
-            if (strlen($this->pending) === $remaining) {
+            if (null !== $error) {
+                $this->pending = '';
+                $message = 'Stream reported as writable but accepted no data; the connection may be broken: ';
+
+                throw new IO\Exception\RuntimeException($message . $error);
+            }
+
+            $stalled = strlen($this->pending) < $remaining ? 0 : $stalled + 1;
+            if ($stalled > self::MAX_STALLED_FLUSHES) {
                 $this->pending = '';
 
                 throw new IO\Exception\RuntimeException(

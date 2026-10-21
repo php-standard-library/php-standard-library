@@ -23,7 +23,9 @@ use function stream_socket_pair;
 use function strlen;
 use function strspn;
 use function substr;
+use function trigger_error;
 
+use const E_USER_WARNING;
 use const STREAM_IPPROTO_IP;
 use const STREAM_PF_UNIX;
 use const STREAM_SOCK_STREAM;
@@ -202,6 +204,49 @@ final class WriteSafetyTest extends TestCase
         static::assertSame(['AAA', 'BBB'], [$calls[count($calls) - 2], $calls[count($calls) - 1]]);
     }
 
+    public function testWriteWaitsAgainWhileTheSocketTakesOnlyPartOfTheRecord(): void
+    {
+        $calls = [];
+        $inner = $this->createInner(static function (string $bytes) use (&$calls): int {
+            $calls[] = $bytes;
+
+            // The chunk, the flush before waiting, and two flushes after the socket became writable report
+            // nothing written, without an error: the socket took part of the record each time. The third
+            // flush after a wait completes it.
+            return count($calls) < 5 ? 0 : strlen($bytes);
+        });
+        $stream = $this->wrap($inner);
+
+        static::assertSame(3, $stream->write('AAA', new Async\TimeoutCancellationToken(Duration::seconds(5))));
+        static::assertSame(1, $stream->tryWrite('B'));
+        static::assertSame(['AAA', 'AAA', 'AAA', 'AAA', 'AAA', 'B'], $calls);
+    }
+
+    public function testWriteFailsPromptlyWhenAFlushFailsWithANativeError(): void
+    {
+        $calls = 0;
+        $inner = $this->createInner(static function () use (&$calls): int {
+            $calls++;
+            if ($calls === 3) {
+                // What PHP reports, from `ext/openssl/xp_ssl.c`, when the socket is gone.
+                @trigger_error('fwrite(): SSL operation failed with code 5', E_USER_WARNING);
+            }
+
+            return 0;
+        });
+        $stream = $this->wrap($inner);
+
+        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('accepted no data; the connection may be broken: fwrite(): SSL operation failed');
+
+        try {
+            $stream->write('AAA', new Async\TimeoutCancellationToken(Duration::seconds(5)));
+        } finally {
+            // The chunk, one flush before waiting for writability, and the failing flush after it.
+            static::assertSame(3, $calls);
+        }
+    }
+
     public function testWriteFailsInsteadOfSpinningWhenAWritableSocketAcceptsNothing(): void
     {
         $calls = 0;
@@ -218,9 +263,11 @@ final class WriteSafetyTest extends TestCase
         try {
             $stream->write('AAA', new Async\TimeoutCancellationToken(Duration::seconds(5)));
         } finally {
-            // The chunk itself, one flush attempt before waiting for writability, and one retry
-            // after it: no busy loop until the deadline.
-            static::assertSame(3, $calls);
+            // The chunk, one flush before waiting for writability, and one flush after each wait. Every wait
+            // that ends in a flush reporting no progress moved at least one byte of the record, and a record
+            // is at most 16,384 + 2,048 bytes behind a 5-byte header: one more such wait than that fails,
+            // well before the deadline.
+            static::assertSame(2 + 18_437 + 1, $calls);
         }
     }
 
