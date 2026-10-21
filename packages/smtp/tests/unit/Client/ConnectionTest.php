@@ -6,6 +6,7 @@ namespace Psl\SMTP\Tests\Unit\Client;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\IO;
 use Psl\IO\Exception\AlreadyClosedException;
 use Psl\Network;
 use Psl\SMTP\Capability;
@@ -17,7 +18,13 @@ use Psl\Str\Byte;
 use Psl\TCP;
 use Psl\TLS\Connector;
 
+use function extension_loaded;
+use function socket_import_stream;
+use function socket_set_option;
+
 use const PHP_OS_FAMILY;
+use const SO_LINGER;
+use const SOL_SOCKET;
 
 final class ConnectionTest extends TestCase
 {
@@ -276,7 +283,36 @@ final class ConnectionTest extends TestCase
         $serverStream->close();
         Async\later();
 
-        $this->expectException(ProtocolException::class);
+        // The server's kernel answers the command with a reset. If the read sees the end of the stream first, the
+        // reply is cut short (ProtocolException); if it sees the reset first, the read fails (IO's
+        // RuntimeException). sendCommand() documents both, and which one comes first is up to the kernel.
+        try {
+            $connection->sendCommand('NOOP');
+            static::fail('Expected sendCommand() to fail once the server closed the connection.');
+        } catch (ProtocolException|IO\Exception\RuntimeException) {
+            static::addToAssertionCount(1);
+        } finally {
+            $connection->close();
+        }
+    }
+
+    public function testSendCommandOnResetStream(): void
+    {
+        if (!extension_loaded('sockets')) {
+            static::markTestSkipped('Resetting a connection on close requires ext-sockets.');
+        }
+
+        [$connection, $serverStream] = $this->createPair();
+
+        // A zero linger time makes closing the socket reset the connection instead of ending it.
+        $socket = socket_import_stream($serverStream->getStream());
+        static::assertNotFalse($socket);
+        static::assertTrue(socket_set_option($socket, SOL_SOCKET, SO_LINGER, ['l_onoff' => 1, 'l_linger' => 0]));
+        unset($socket);
+        $serverStream->close();
+        Async\later();
+
+        $this->expectException(IO\Exception\RuntimeException::class);
 
         try {
             $connection->sendCommand('NOOP');

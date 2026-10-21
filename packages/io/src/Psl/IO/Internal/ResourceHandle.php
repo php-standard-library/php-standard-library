@@ -12,6 +12,7 @@ use Psl\IO\Exception;
 use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
 
+use function error_clear_last;
 use function error_get_last;
 use function fclose;
 use function feof;
@@ -21,7 +22,6 @@ use function ftell;
 use function fwrite;
 use function is_resource;
 use function str_contains;
-use function stream_get_contents;
 use function stream_get_meta_data;
 use function stream_set_blocking;
 use function stream_set_read_buffer;
@@ -36,6 +36,7 @@ use function substr;
  * @codeCoverageIgnore
  *
  * @mago-expect lint:cyclomatic-complexity
+ * @mago-expect lint:too-many-properties
  */
 class ResourceHandle implements
     IO\ReadHandleInterface,
@@ -79,9 +80,23 @@ class ResourceHandle implements
     private null|Suspension $readSuspension = null;
     private string $readWatcher = 'invalid';
 
-    private bool $useSingleRead = false;
     private bool $reachedEof = false;
     private bool $blocks;
+
+    /**
+     * Whether the stream is a socket, whose EOF bit is read without feof(); see {@see hasReachedNativeEof()}.
+     */
+    private bool $socket = false;
+
+    /**
+     * Bytes PHP had already buffered when the handle was created and that no read has returned yet.
+     */
+    private int $buffered = 0;
+
+    /**
+     * The error of the read that failed, once one failed: every later read fails with it again.
+     */
+    private null|string $readError = null;
 
     /**
      * @param resource $stream
@@ -99,7 +114,8 @@ class ResourceHandle implements
 
         $meta = stream_get_meta_data($stream);
         if ($read) {
-            $this->useSingleRead = 'udp_socket' === $meta['stream_type'] || 'STDIO' === $meta['stream_type'];
+            $this->socket = str_contains($meta['stream_type'], 'socket');
+            $this->buffered = $meta['unread_bytes'];
         }
 
         /** @mago-expect analysis:redundant-null-coalesce */
@@ -406,6 +422,8 @@ class ResourceHandle implements
 
         // `fseek()` clears the stream's EOF indicator; our cached flag must follow.
         $this->reachedEof = false;
+        // It also discards PHP's read buffer, which is disabled, so it holds nothing new.
+        $this->buffered = 0;
     }
 
     /**
@@ -444,7 +462,11 @@ class ResourceHandle implements
             return true;
         }
 
-        return $this->reachedEof = feof($this->stream);
+        if ($this->buffered > 0) {
+            return false;
+        }
+
+        return $this->reachedEof = $this->hasReachedNativeEof($this->stream);
     }
 
     /**
@@ -459,30 +481,65 @@ class ResourceHandle implements
             throw new Exception\AlreadyClosedException('Handle has already been closed.');
         }
 
+        if (null !== $this->readError) {
+            throw new Exception\RuntimeException($this->readError);
+        }
+
         if (null === $maxBytes) {
             $maxBytes = self::DEFAULT_READ_BUFFER_SIZE;
         } elseif ($maxBytes > self::MAXIMUM_READ_BUFFER_SIZE) {
             $maxBytes = self::MAXIMUM_READ_BUFFER_SIZE;
         }
 
-        if ($this->useSingleRead) {
-            $result = fread($this->stream, $maxBytes);
-        } else {
-            $result = stream_get_contents($this->stream, $maxBytes);
+        // Bytes PHP buffered before the handle was created are returned on their own: a call that returned them
+        // together with a native read could not report that native read's failure.
+        if ($this->buffered > 0 && $maxBytes > $this->buffered) {
+            $maxBytes = $this->buffered;
         }
 
+        // Exactly one native read. `stream_get_contents()` reads until it has `$maxBytes` or reaches the end of
+        // the data: on a socket, every short chunk then costs a second read and two liveness peeks, datagrams are
+        // joined, and a failed read only ends the loop, so a connection reset reads as a clean end of data.
+        error_clear_last();
+        $result = @fread($this->stream, $maxBytes);
         if (false === $result) {
-            /** @var array{message?: string} $error */
-            $error = error_get_last();
+            // The failure is kept: after a reset, the next native read would report a clean end of data.
+            // A socket read failure leaves no diagnostic.
+            $this->readError =
+                error_get_last()['message'] ?? 'Failed to read from the stream; the connection may have been reset.';
 
-            throw new Exception\RuntimeException($error['message'] ?? 'unknown error.');
+            throw new Exception\RuntimeException($this->readError);
         }
 
-        if ('' === $result && feof($this->stream)) {
+        if ($this->buffered > 0) {
+            $this->buffered -= strlen($result);
+        }
+
+        if ('' === $result && $this->hasReachedNativeEof($this->stream)) {
             $this->reachedEof = true;
         }
 
         return $result;
+    }
+
+    /**
+     * Whether the last native operation on the stream reached the end of its data.
+     *
+     * @param resource $stream
+     */
+    private function hasReachedNativeEof(mixed $stream): bool
+    {
+        if ($this->socket) {
+            // On a socket, `feof()` checks whether the connection is still alive: a poll and a recv() with
+            // MSG_PEEK. That costs two system calls, and a peek that meets a connection reset consumes it, so the
+            // next read sees a clean end of data. The EOF bit in the metadata is the one the last read set; like
+            // `feof()`, ignore it while PHP still holds bytes in its buffer.
+            $meta = stream_get_meta_data($stream);
+
+            return $meta['eof'] && 0 === $meta['unread_bytes'];
+        }
+
+        return feof($stream);
     }
 
     /**
