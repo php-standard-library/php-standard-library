@@ -311,6 +311,89 @@ final class RedirectClientTest extends TestCase
         static::assertSame(['payload'], $inner->bodies);
     }
 
+    #[DataProvider('bodyPreservingRedirects')]
+    public function testRedirectResendsUnreadNonSeekableBody(int $status): void
+    {
+        // The first hop ignores the body (as Expect: 100-continue does when a
+        // final response pre-empts the upload); the final hop reads it.
+        $inner = new class([self::redirect($status, '/last'), self::ok()]) implements ClientInterface {
+            /** @var non-negative-int */
+            private int $index = 0;
+
+            /** @var list<null|string> */
+            public array $bodies = [];
+
+            /**
+             * @param list<Response> $responses
+             */
+            public function __construct(
+                private readonly array $responses,
+            ) {}
+
+            #[Override]
+            public function send(
+                Request $request,
+                SendConfiguration $configuration = new SendConfiguration(),
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): Transaction {
+                $response = $this->responses[$this->index++];
+                // Read the body only once a non-redirect response is returned.
+                $this->bodies[] =
+                    $response->status >= 300 && $response->status < 400
+                        ? null
+                        : $request->body?->readAll(cancellation: $cancellation);
+
+                return new Transaction([], null, $response);
+            }
+        };
+        $body = new IO\Reader(new IO\MemoryHandle('payload'));
+        $client = new RedirectClient($inner);
+
+        $client->send(self::request('POST')->withBody($body));
+
+        static::assertSame([null, 'payload'], $inner->bodies);
+    }
+
+    public function testRedirectWrapsBodyPositionFailure(): void
+    {
+        $inner = self::fakeClient(self::redirect(307, '/new'), self::ok());
+        $body = new class implements IO\ReadHandleInterface, IO\SeekHandleInterface {
+            use IO\ReadHandleConvenienceMethodsTrait;
+
+            public function reachedEndOfDataSource(): bool
+            {
+                return false;
+            }
+
+            public function tryRead(null|int $maxBytes = null): string
+            {
+                return '';
+            }
+
+            public function read(
+                null|int $maxBytes = null,
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): string {
+                return '';
+            }
+
+            public function seek(int $offset): void {}
+
+            public function tell(): int
+            {
+                throw new IO\Exception\RuntimeException('Cannot tell.');
+            }
+        };
+        $client = new RedirectClient($inner);
+
+        try {
+            $client->send(self::request('POST')->withBody($body));
+            static::fail('Expected the body position failure to surface as a request exception.');
+        } catch (RequestException $exception) {
+            static::assertStringContainsString('Cannot read the request body position', $exception->getMessage());
+        }
+    }
+
     public function testBodyHeadersStrippedOnMethodRewrite(): void
     {
         $inner = self::fakeClient(self::redirect(301, 'http://example.com/new'), self::ok());

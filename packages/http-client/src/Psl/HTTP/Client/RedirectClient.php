@@ -127,8 +127,24 @@ final readonly class RedirectClient implements ClientInterface
     ): Transaction {
         $redirectCount = 0;
 
+        // Track consumption of a non-seekable body so one that was never read,
+        // e.g. an Expect: 100-continue body a redirect pre-empted, can be re-sent.
+        $tracker = null;
+        if ($request->body !== null && !$request->body instanceof IO\SeekHandleInterface) {
+            $tracker = new Internal\ConsumptionTrackingReadHandle($request->body);
+            $request = $request->withBody($tracker);
+        }
+
         while (true) {
-            $bodyPosition = $request->body instanceof IO\SeekHandleInterface ? $request->body->tell() : null;
+            try {
+                $bodyPosition = $request->body instanceof IO\SeekHandleInterface ? $request->body->tell() : null;
+            } catch (IO\Exception\ExceptionInterface $exception) {
+                throw new RequestException(
+                    'Cannot read the request body position for a redirect.',
+                    previous: $exception,
+                );
+            }
+
             $transaction = $this->inner->send($request, $configuration, $cancellation);
             $response = $transaction->response;
 
@@ -173,14 +189,18 @@ final readonly class RedirectClient implements ClientInterface
             }
 
             if ($request->body !== null) {
-                if (!$request->body instanceof IO\SeekHandleInterface || $bodyPosition === null) {
+                if ($request->body instanceof IO\SeekHandleInterface && $bodyPosition !== null) {
+                    try {
+                        $request->body->seek($bodyPosition);
+                    } catch (IO\Exception\ExceptionInterface $exception) {
+                        throw new RequestException(
+                            'Cannot rewind the request body for a redirect.',
+                            previous: $exception,
+                        );
+                    }
+                } elseif ($tracker === null || $tracker->wasConsumed()) {
+                    // A non-seekable body that was already read cannot be resent.
                     throw RequestException::forInvalidRequest('Cannot redirect a request with a non-seekable body.');
-                }
-
-                try {
-                    $request->body->seek($bodyPosition);
-                } catch (IO\Exception\ExceptionInterface $exception) {
-                    throw new RequestException('Cannot rewind the request body for a redirect.', previous: $exception);
                 }
             }
 
