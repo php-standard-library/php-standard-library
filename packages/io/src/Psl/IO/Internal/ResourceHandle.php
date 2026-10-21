@@ -516,6 +516,17 @@ class ResourceHandle implements
         }
 
         if ('' === $result && $this->hasReachedNativeEof($this->stream)) {
+            // On a TLS stream, `fread()` never returns false: a connection reset, or an error in the TLS layer,
+            // returns nothing, sets the EOF bit and raises a warning (`ext/openssl/xp_ssl.c`: `php_openssl_sockop_io()`
+            // returns 0 where a plain socket read returns -1). A socket read that reaches the end of the data cleanly
+            // raises nothing, so the warning is the failure.
+            $error = $this->socket ? error_get_last() : null;
+            if (null !== $error) {
+                $this->readError = $error['message'];
+
+                throw new Exception\RuntimeException($this->readError);
+            }
+
             $this->reachedEof = true;
         }
 
