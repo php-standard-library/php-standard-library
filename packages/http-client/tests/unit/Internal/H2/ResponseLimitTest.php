@@ -22,6 +22,9 @@ use Psl\Network;
 use Psl\URL;
 use ReflectionProperty;
 
+use function str_repeat;
+use function strlen;
+
 final class ResponseLimitTest extends TestCase
 {
     public function testLimitIsEnforcedBeforeTheBodyIsRead(): void
@@ -45,6 +48,43 @@ final class ResponseLimitTest extends TestCase
         static::assertSame('1234', $stream->tryReadBody());
         $stream->handleData('5', true);
 
+        static::assertInstanceOf(ProtocolException::class, $stream->getError());
+    }
+
+    public function testZeroLimitMeansUnlimited(): void
+    {
+        $stream = new H2Stream(1, null, 0);
+        $stream->handleHeaders([new Header(':status', '200')], false);
+        $stream->handleData(str_repeat('x', 1_000_000), true);
+
+        static::assertNull($stream->getError());
+        static::assertSame(1_000_000, strlen($stream->tryReadBody()));
+    }
+
+    public function testMalformedStatusFailsTheStream(): void
+    {
+        foreach (['2000', '20', '0', 'abc', '099', ''] as $value) {
+            $stream = new H2Stream(1);
+            $stream->handleHeaders([new Header(':status', $value)], false);
+            static::assertInstanceOf(
+                ProtocolException::class,
+                $stream->getError(),
+                'Expected :status "' . $value . '" to fail the stream.',
+            );
+        }
+    }
+
+    public function testInterimResponsesAreCappedAtSixteen(): void
+    {
+        $stream = new H2Stream(1);
+        for ($i = 0; $i < 16; $i++) {
+            $stream->handleHeaders([new Header(':status', '103')], false);
+        }
+
+        static::assertNull($stream->getError());
+        static::assertCount(16, $stream->getInformationalResponses());
+
+        $stream->handleHeaders([new Header(':status', '103')], false);
         static::assertInstanceOf(ProtocolException::class, $stream->getError());
     }
 

@@ -211,7 +211,7 @@ HTTP/2 retries a failed exchange at most once, and only when the body is absent 
 
 HTTP/2 obeys the peer's SETTINGS_MAX_CONCURRENT_STREAMS limit. A stream holds its slot until it closes, including while its response body is still arriving.
 
-HTTP/2 checks `maxResponseBodySize` as DATA frames arrive and cancels a stream that exceeds it, even if its body is unread. The same limit bounds each stream's buffer. Flow-control windows still update on receipt because the h2 API cannot defer updates until reads.
+HTTP/2 checks `maxResponseBodySize` as DATA frames arrive and cancels a stream that exceeds it, even if its body is unread. The same limit bounds each stream's buffer, and a value of `0` means unlimited, as for HTTP/1. Flow-control windows still update on receipt because the h2 API cannot defer updates until reads. A `:status` that is not three digits in 100-999 is a stream error, and at most 16 interim (1xx) responses are accepted per stream, as for HTTP/1.
 
 Cancellation interrupts stream-slot waits and uploads, including stalled flow-control windows. Cancelling a request or closing its response body early sends RST_STREAM(CANCEL) and frees its stream slot. A request waiting for a pooled connection can cancel its own wait without cancelling the shared connection attempt.
 

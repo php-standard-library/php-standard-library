@@ -17,6 +17,8 @@ use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
 use Throwable;
 
+use function count;
+use function preg_match;
 use function strlen;
 use function substr;
 
@@ -52,6 +54,12 @@ use function substr;
  */
 final class H2Stream
 {
+    /**
+     * Maximum number of 1xx responses accepted before the final response,
+     * matching the HTTP/1 reader (RFC 9110 Section 15.2).
+     */
+    private const int MAX_INFORMATIONAL_RESPONSES = 16;
+
     /**
      * Deferred resolved when the final (non-informational) response HEADERS arrive.
      *
@@ -101,7 +109,7 @@ final class H2Stream
     /**
      * @param int $streamId The HTTP/2 stream identifier assigned by the connection.
      * @param null|(Closure(Response): void) $onInformationalResponse Callback invoked for each 1xx response as it arrives.
-     * @param positive-int $maxResponseBodySize Maximum received and buffered body bytes.
+     * @param int $maxResponseBodySize Maximum received and buffered body bytes; 0 means unlimited, as for HTTP/1.
      */
     public function __construct(
         public readonly int $streamId,
@@ -145,6 +153,14 @@ final class H2Stream
 
         foreach ($headers as $header) {
             if ($header->name === ':status') {
+                // RFC 9113 Section 8.3.2: :status is exactly three digits. Validate
+                // before casting so "2000" or a non-numeric value is a stream error
+                // rather than a silently truncated or zeroed status.
+                if (preg_match('/^[1-9][0-9]{2}$/D', $header->value) !== 1) {
+                    $this->fail(ProtocolException::forMalformedResponse('Invalid :status pseudo-header.'));
+                    return;
+                }
+
                 /** @var int<100, 999> $status */
                 $status = (int) $header->value;
                 continue;
@@ -163,6 +179,11 @@ final class H2Stream
         }
 
         if ($status < 200) {
+            if (count($this->informationalResponses) >= self::MAX_INFORMATIONAL_RESPONSES) {
+                $this->fail(ProtocolException::forMalformedResponse('Too many informational responses.'));
+                return;
+            }
+
             $informationalResponse = new Response(
                 status: $status,
                 protocolVersion: ProtocolVersion::V20,
@@ -204,7 +225,8 @@ final class H2Stream
         }
 
         $length = strlen($data);
-        if ($length > ($this->maxResponseBodySize - $this->bytesReceived)) {
+        // A limit of 0 means unlimited, matching the HTTP/1 reader.
+        if ($this->maxResponseBodySize > 0 && $length > ($this->maxResponseBodySize - $this->bytesReceived)) {
             $this->fail(ProtocolException::forResponseBodyTooLarge($this->maxResponseBodySize));
             return;
         }
