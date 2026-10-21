@@ -8,10 +8,8 @@ use Override;
 use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
-use Revolt\EventLoop\Suspension;
 use Throwable;
 
-use function array_key_first;
 use function array_map;
 use function array_shift;
 use function count;
@@ -77,15 +75,17 @@ final class CompositeListener implements ListenerInterface
     private Async\SignalCancellationToken $acceptCancellation;
 
     /**
-     * Waiting accept() calls, by suspension object ID.
+     * The waiting accept() calls that nothing has woken up yet, oldest first, by record object ID.
      *
-     * The suspensions are referenced strongly: a fiber waiting in accept() may not be referenced from
-     * anywhere else, and the cycle collector would destroy it, along with its suspension, if they were
-     * only referenced weakly.
+     * Each call waits on a record of its own, which a wake-up or its cancellation listener settles, whichever comes
+     * first. The records, and with them the suspensions of the waiting fibers, are referenced strongly: a fiber
+     * waiting in accept() may not be referenced from anywhere else, and the cycle collector would destroy it, along
+     * with its suspension, if they were only referenced weakly. A record stays in the list until it is woken up or
+     * its call ends otherwise, so its object ID cannot be reused while it is listed.
      *
-     * @var array<int, Suspension<null>>
+     * @var array<int, Internal\CompositeAcceptWaiter>
      */
-    private array $signal = [];
+    private array $waiters = [];
 
     /**
      * Number of waiting accept() calls that have been woken up, but have not run yet.
@@ -214,39 +214,69 @@ final class CompositeListener implements ListenerInterface
     }
 
     /**
-     * Wait until an inner accept completes, or the listener is closed.
+     * Wait until an inner accept completes, an inner listener stops, or the listener is closed.
+     *
+     * The wait has a record of its own, which a wake-up and the cancellation listener settle, whichever comes first;
+     * the other is then ignored. The listener may run during subscribe(), before the wait has suspended, or after
+     * the wait has ended, when the fiber may already be waiting for something else, so it fails only a wait that has
+     * not ended yet. A call that its cancellation ends leaves the list of waiting calls at once, and if no other call
+     * is waiting, the in-flight inner accepts are cancelled.
      *
      * @throws Async\Exception\CancelledException If the cancellation token is cancelled while waiting.
      */
     private function wait(CancellationTokenInterface $cancellation): void
     {
-        /** @var Suspension<null> $signal */
-        $signal = Async\Scheduler::getSuspension();
-        $id = spl_object_id($signal);
-        $this->signal[$id] = $signal;
-        $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use (
-            $id,
-            $signal,
-        ): void {
-            // The signal may have already been resumed by an inner accept, or by close().
-            if (($this->signal[$id] ?? null) !== $signal) {
-                return;
-            }
+        $waiter = new Internal\CompositeAcceptWaiter();
+        $id = spl_object_id($waiter);
+        $this->waiters[$id] = $waiter;
 
-            unset($this->signal[$id]);
-            $signal->throw($e);
-
-            $this->cancelPendingAcceptsIfNobodyIsWaiting();
-        });
+        $subscription = null;
+        $wasWoken = false;
 
         try {
-            $signal->suspend();
+            if ($cancellation->cancellable) {
+                $subscription = $cancellation->subscribe(function (Async\Exception\CancelledException $e) use (
+                    $waiter,
+                    $id,
+                ): void {
+                    // A wake-up may have ended the wait already: by an inner accept, or by close().
+                    if ($waiter->fail($e)) {
+                        $this->forget($id);
+                    }
+                });
+            }
 
-            // @mago-expect analysis:invalid-property-assignment-value - every resumed signal was counted when woken up.
+            $waiter->wait();
+            $wasWoken = true;
+
+            // @mago-expect analysis:invalid-property-assignment-value - every woken call was counted when woken up.
             $this->woken--;
         } finally {
-            $cancellation->unsubscribe($subscription);
+            if (null !== $subscription) {
+                $cancellation->unsubscribe($subscription);
+            }
+
+            // A wait that something other than a wake-up or its cancellation ended still leaves the list.
+            if (!$wasWoken) {
+                $this->forget($id);
+            }
         }
+    }
+
+    /**
+     * Take a waiting accept() call that has ended without being woken up out of the list of waiting calls, if it is
+     * still there, and cancel the in-flight inner accepts if no other call is waiting for them.
+     *
+     * @param int $id The object ID of the call's record, its key in {@see CompositeListener::$waiters}.
+     */
+    private function forget(int $id): void
+    {
+        if (!isset($this->waiters[$id])) {
+            return;
+        }
+
+        unset($this->waiters[$id]);
+        $this->cancelPendingAcceptsIfNobodyIsWaiting();
     }
 
     /**
@@ -306,7 +336,7 @@ final class CompositeListener implements ListenerInterface
 
                 // Inner accepts are only started by accept() calls that start waiting: start this one
                 // again for the calls still waiting, as no new call may come while they wait.
-                if ([] !== $this->signal) {
+                if ([] !== $this->waiters) {
                     $this->startPendingAccepts();
                 }
             });
@@ -322,7 +352,7 @@ final class CompositeListener implements ListenerInterface
      */
     private function cancelPendingAcceptsIfNobodyIsWaiting(): void
     {
-        if ([] === $this->signal && 0 === $this->woken) {
+        if ([] === $this->waiters && 0 === $this->woken) {
             $this->cancelPendingAccepts();
         }
     }
@@ -344,31 +374,37 @@ final class CompositeListener implements ListenerInterface
     }
 
     /**
-     * Notify the longest waiting accept() call that something happened.
+     * Wake up the longest waiting accept() call, to tell it that something happened.
+     *
+     * A call whose wait has already ended, which only something other than a wake-up or its cancellation can do, is
+     * skipped and leaves the list.
      */
     private function notifySignal(): void
     {
-        $id = array_key_first($this->signal);
-        if (null === $id) {
-            return;
-        }
+        foreach ($this->waiters as $id => $waiter) {
+            unset($this->waiters[$id]);
+            if ($waiter->wake()) {
+                $this->woken++;
 
-        $signal = $this->signal[$id];
-        unset($this->signal[$id]);
-        $this->woken++;
-        $signal->resume(null);
+                return;
+            }
+        }
     }
 
     /**
-     * Notify all waiting accept() calls that something happened.
+     * Wake up every waiting accept() call, to tell them that something happened.
      */
     private function notifyAllSignals(): void
     {
-        $signals = $this->signal;
-        $this->signal = [];
-        foreach ($signals as $signal) {
+        $waiters = $this->waiters;
+        $this->waiters = [];
+        foreach ($waiters as $waiter) {
+            // A call whose wait has already ended is not counted as woken up.
+            if (!$waiter->wake()) {
+                continue;
+            }
+
             $this->woken++;
-            $signal->resume(null);
         }
     }
 }

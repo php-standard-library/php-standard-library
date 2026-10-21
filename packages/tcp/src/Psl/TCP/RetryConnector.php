@@ -58,6 +58,21 @@ final readonly class RetryConnector implements ConnectorInterface
         $this->backoff = $backoff ?? Duration::milliseconds(100);
     }
 
+    /**
+     * Connect to the given host and port, retrying a failed attempt after a backoff.
+     *
+     * A failure that implements {@see Network\Exception\NonRetryableExceptionInterface} is thrown at once. Each
+     * backoff wait has a record of its own, which its timer and the cancellation listener settle, whichever comes
+     * first, so a cancellation that arrives once the wait has ended, while the fiber waits for something else, is
+     * ignored.
+     *
+     * @param non-empty-string $host
+     * @param int<0, 65535> $port
+     *
+     * @throws Network\Exception\RuntimeException If every attempt failed, or an attempt failed for a reason that
+     *                                             retrying cannot change.
+     * @throws CancelledException If $cancellation is cancelled before an attempt succeeds.
+     */
     #[Override]
     public function connect(
         string $host,
@@ -92,30 +107,41 @@ final readonly class RetryConnector implements ConnectorInterface
                     $cancellation->throwIfCancelled();
                 }
 
-                $suspension = Scheduler::getSuspension();
-                $watcher = Scheduler::delay($this->getDelay($attempts), static function () use ($suspension): void {
-                    $suspension->resume();
+                self::wait($this->getDelay($attempts), $cancellation);
+            }
+        }
+    }
+
+    /**
+     * Wait for the given delay before the next attempt, or until $cancellation is cancelled.
+     *
+     * The wait has its own record, which the timer and the cancellation listener settle: the listener may run during
+     * subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already be waiting
+     * for something else.
+     *
+     * @throws CancelledException If $cancellation is cancelled before the delay elapses.
+     */
+    private static function wait(Duration $delay, CancellationTokenInterface $cancellation): void
+    {
+        $waiter = new Internal\BackoffWaiter();
+        $watcher = Scheduler::delay($delay, static function () use ($waiter): void {
+            $waiter->resume();
+        });
+
+        $id = null;
+
+        try {
+            if ($cancellation->cancellable) {
+                $id = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
+                    $waiter->fail($e);
                 });
+            }
 
-                $id = null;
-                if ($cancellation->cancellable) {
-                    $id = $cancellation->subscribe(static function (CancelledException $e) use (
-                        $suspension,
-                        $watcher,
-                    ): void {
-                        Scheduler::cancel($watcher);
-                        $suspension->throw($e);
-                    });
-                }
-
-                try {
-                    $suspension->suspend();
-                } finally {
-                    Scheduler::cancel($watcher);
-                    if (null !== $id) {
-                        $cancellation->unsubscribe($id);
-                    }
-                }
+            $waiter->wait();
+        } finally {
+            Scheduler::cancel($watcher);
+            if (null !== $id) {
+                $cancellation->unsubscribe($id);
             }
         }
     }
