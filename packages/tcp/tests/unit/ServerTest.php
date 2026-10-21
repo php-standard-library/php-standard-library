@@ -4,29 +4,72 @@ declare(strict_types=1);
 
 namespace Psl\TCP\Tests\Unit;
 
+use Composer\Autoload\ClassLoader;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\Network\Exception\AlreadyStoppedException;
 use Psl\TCP;
+use ReflectionClass;
 use Revolt\EventLoop;
 use WeakReference;
 
 use function array_diff;
 use function array_values;
+use function dirname;
 use function extension_loaded;
 use function fclose;
 use function gc_collect_cycles;
+use function proc_close;
+use function proc_open;
 use function socket_import_stream;
 use function socket_set_option;
+use function stream_get_contents;
 use function stream_socket_client;
+use function var_export;
 
+use const PHP_BINARY;
 use const SO_LINGER;
 use const SOL_SOCKET;
 
 final class ServerTest extends TestCase
 {
+    /**
+     * A listener accepts without ext-sockets when one of the extension's functions it calls is disabled.
+     */
+    public function testListenerAcceptsWhenAnExtSocketsFunctionIsDisabled(): void
+    {
+        $loader = new ReflectionClass(ClassLoader::class)->getFileName();
+        static::assertIsString($loader);
+
+        $script = 'require ' . var_export(dirname($loader, 2) . '/autoload.php', true) . ';' . <<<'PHP'
+        $listener = Psl\TCP\listen('127.0.0.1');
+        $client = Psl\TCP\connect('127.0.0.1', $listener->getLocalAddress()->port);
+        $server = $listener->accept();
+        $client->writeAll('ping');
+        echo $server->readFixedSize(4);
+        $client->close();
+        $server->close();
+        $listener->close();
+        PHP;
+
+        $process = proc_open(
+            [PHP_BINARY, '-dopcache.enable=0', '-ddisable_functions=socket_set_nonblock', '-r', $script],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        static::assertNotFalse($process);
+
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        static::assertSame(0, proc_close($process), (string) $output . (string) $errors);
+        static::assertSame('ping', $output, (string) $errors);
+    }
+
     public function testResetBufferedConnectionKeepsCapturedPeer(): void
     {
         if (!extension_loaded('sockets')) {

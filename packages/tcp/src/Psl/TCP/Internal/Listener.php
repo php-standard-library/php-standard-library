@@ -16,7 +16,6 @@ use Socket;
 use function array_shift;
 use function array_unshift;
 use function fclose;
-use function function_exists;
 use function is_resource;
 use function socket_accept;
 use function socket_close;
@@ -332,11 +331,7 @@ final class Listener implements TCP\ListenerInterface
      */
     private static function importSocket(mixed $impl): null|Socket
     {
-        if (
-            !function_exists('socket_import_stream')
-            || !function_exists('socket_accept')
-            || !function_exists('socket_export_stream')
-        ) {
+        if (!namespace\sockets_available()) {
             return null;
         }
 
@@ -369,7 +364,9 @@ final class Listener implements TCP\ListenerInterface
     {
         while (true) {
             $peerName = null;
-            if (null === $socket) {
+            // A listener has its socket only if the guard passed when it was created; every call into ext-sockets
+            // still sits behind the guard.
+            if (null === $socket || !namespace\sockets_available()) {
                 $stream = @stream_socket_accept($listener, 0.0, $peerName);
                 if (false === $stream) {
                     return false;
