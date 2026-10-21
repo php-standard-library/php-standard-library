@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\IO\Tests\Unit;
 
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
@@ -57,6 +58,7 @@ final class ReaderTest extends TestCase
         static::assertSame('', $reader->readLine());
         static::assertSame('namespace Psl\\IO\\Tests\\Unit;', $reader->readLine());
         static::assertSame('', $reader->readLine());
+        static::assertSame('use LogicException;', $reader->readLine());
         static::assertSame('use PHPUnit\\Framework\\TestCase;', $reader->readLine());
 
         static::assertSame('use Psl', $reader->readUntil('\\'));
@@ -523,6 +525,21 @@ final class ReaderTest extends TestCase
 
         $closer->await();
         $read->close();
+    }
+
+    public function testReadAllKeepsTheDataReadWhenAnyExceptionIsThrown(): void
+    {
+        $reader = new IO\Reader(new ThrowingHandle('hello', new LogicException('decoder failed')));
+
+        try {
+            $reader->readAll();
+            static::fail('Expected LogicException');
+        } catch (LogicException $e) {
+            static::assertSame('decoder failed', $e->getMessage());
+        }
+
+        // not only IO exceptions and cancellations: nothing read before the failure is lost.
+        static::assertSame('hello', $reader->read());
     }
 
     public function testReachedEndOfDataSourceHonoursCancellation(): void

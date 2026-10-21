@@ -69,7 +69,8 @@ final class Reader implements BufferedReadHandleInterface
     /**
      * {@inheritDoc}
      *
-     * If the operation fails or is cancelled, the bytes read so far stay buffered for the next read.
+     * If anything throws (a cancellation, an I/O error, or any other exception from the underlying
+     * handle), the bytes read so far stay buffered for the next read.
      *
      * @param ?positive-int $maxBytes the maximum number of bytes to read
      */
@@ -80,6 +81,7 @@ final class Reader implements BufferedReadHandleInterface
     ): string {
         $toRead = $maxBytes;
         $data = '';
+        $completed = false;
 
         try {
             do {
@@ -89,10 +91,13 @@ final class Reader implements BufferedReadHandleInterface
                     $toRead -= strlen($chunk);
                 }
             } while ((null === $toRead || $toRead > 0) && !$this->reachedEndOfDataSource($cancellation));
-        } catch (Exception\ExceptionInterface|CancelledException $e) {
-            $this->buffer = $data . $this->buffer;
 
-            throw $e;
+            $completed = true;
+        } finally {
+            if (!$completed) {
+                // whatever was thrown, put back what was read so the next read does not lose it.
+                $this->buffer = $data . $this->buffer;
+            }
         }
 
         return $data;
