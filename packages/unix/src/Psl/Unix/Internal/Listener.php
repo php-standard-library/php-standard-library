@@ -98,19 +98,37 @@ final class Listener implements Unix\ListenerInterface
 
         $this->peerAddress = Network\Address::unix('<anonymous>');
 
-        $this->watcher = EventLoop::onReadable($impl, function (string $watcher, mixed $resource): void {
+        // The callback must not reference the listener: the event loop would keep it alive forever, so a
+        // listener that is no longer used would never be closed by `__destruct()`, and once accept() has
+        // enabled the watcher, it would keep the event loop running. The callback shares the accept state
+        // by reference instead, which still keeps the suspensions of waiting accept() calls alive.
+        $acceptors = &$this->acceptors;
+        $backlog = &$this->backlog;
+        $backlogSize = &$this->backlogSize;
+        $paused = &$this->paused;
+        $error = &$this->error;
+        $capacity = $this->capacity;
+
+        $this->watcher = EventLoop::onReadable($impl, static function (string $watcher, mixed $resource) use (
+            &$acceptors,
+            &$backlog,
+            &$backlogSize,
+            &$paused,
+            &$error,
+            $capacity,
+        ): void {
             while (true) {
                 $sock = @stream_socket_accept($resource, timeout: 0.0);
                 if ($sock !== false) {
-                    if ($this->acceptors !== []) {
-                        $acceptor = array_shift($this->acceptors);
+                    if ($acceptors !== []) {
+                        $acceptor = array_shift($acceptors);
                         $acceptor->resume($sock);
                     } else {
-                        $this->backlog[] = $sock;
-                        $this->backlogSize++;
+                        $backlog[] = $sock;
+                        $backlogSize++;
 
-                        if ($this->backlogSize >= $this->capacity) {
-                            $this->paused = true;
+                        if ($backlogSize >= $capacity) {
+                            $paused = true;
                             EventLoop::disable($watcher);
                             return;
                         }
@@ -122,14 +140,14 @@ final class Listener implements Unix\ListenerInterface
                 // @codeCoverageIgnoreStart
                 $err = error_get_last();
                 if ($err !== null && !str_contains($err['message'], 'Accept failed')) {
-                    $this->error = new Network\Exception\RuntimeException(
+                    $error = new Network\Exception\RuntimeException(
                         'Failed to accept incoming connection: ' . $err['message'],
                         $err['type'],
                     );
 
-                    if ($this->acceptors !== []) {
-                        $acceptor = array_shift($this->acceptors);
-                        $acceptor->throw($this->error);
+                    if ($acceptors !== []) {
+                        $acceptor = array_shift($acceptors);
+                        $acceptor->throw($error);
                     }
 
                     EventLoop::disable($watcher);

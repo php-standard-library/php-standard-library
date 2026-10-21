@@ -113,25 +113,45 @@ final class Listener implements TCP\ListenerInterface
         $this->socket = self::importSocket($impl);
         $this->noDelay = (stream_context_get_options($impl)['socket']['tcp_nodelay'] ?? false) === true;
 
-        $this->watcher = EventLoop::onReadable($impl, function (string $watcher, mixed $resource): void {
+        // The callback must not reference the listener: the event loop would keep it alive forever, so a
+        // listener that is no longer used would never be closed by `__destruct()`, and once accept() has
+        // enabled the watcher, it would keep the event loop running. The callback shares the accept state
+        // by reference instead, which still keeps the suspensions of waiting accept() calls alive.
+        $acceptors = &$this->acceptors;
+        $backlog = &$this->backlog;
+        $backlogSize = &$this->backlogSize;
+        $paused = &$this->paused;
+        $capacity = $this->capacity;
+        $socket = $this->socket;
+        $noDelay = $this->noDelay;
+
+        $this->watcher = EventLoop::onReadable($impl, static function (string $watcher, mixed $resource) use (
+            &$acceptors,
+            &$backlog,
+            &$backlogSize,
+            &$paused,
+            $capacity,
+            $socket,
+            $noDelay,
+        ): void {
             while (true) {
-                $sock = $this->acceptSocket($resource);
+                $sock = self::acceptSocket($resource, $socket, $noDelay);
                 if ($sock === false) {
                     return;
                 }
 
-                if ($this->acceptors !== []) {
-                    $acceptor = array_shift($this->acceptors);
+                if ($acceptors !== []) {
+                    $acceptor = array_shift($acceptors);
                     $acceptor->resume($sock);
 
                     continue;
                 }
 
-                $this->backlog[] = $sock;
-                $this->backlogSize++;
+                $backlog[] = $sock;
+                $backlogSize++;
 
-                if ($this->backlogSize >= $this->capacity) {
-                    $this->paused = true;
+                if ($backlogSize >= $capacity) {
+                    $paused = true;
                     EventLoop::disable($watcher);
 
                     return;
@@ -228,19 +248,12 @@ final class Listener implements TCP\ListenerInterface
 
         $resource = $this->impl;
         while ($this->acceptors !== [] && is_resource($resource)) {
-            $sock = $this->acceptSocket($resource);
+            $sock = self::acceptSocket($resource, $this->socket, $this->noDelay);
             if ($sock === false) {
                 break;
             }
 
             $acceptor = array_shift($this->acceptors);
-            if (null === $acceptor) {
-                $this->backlog[] = $sock;
-                $this->backlogSize++;
-
-                break;
-            }
-
             $this->acceptors = array_values($this->acceptors);
             $acceptor->resume($sock);
         }
@@ -321,25 +334,27 @@ final class Listener implements TCP\ListenerInterface
      * one misbehaving client never fails the listener.
      *
      * @param resource $listener
+     * @param null|Socket $socket The listening socket imported into ext-sockets, see {@see Listener::$socket}.
+     * @param bool $noDelay Whether to set `TCP_NODELAY` on the connection, see {@see Listener::$noDelay}.
      *
      * @return false|array{resource, Network\Address} False if no connection is pending.
      */
-    private function acceptSocket(mixed $listener): false|array
+    private static function acceptSocket(mixed $listener, null|Socket $socket, bool $noDelay): false|array
     {
         while (true) {
             $peerName = null;
-            if (null === $this->socket) {
+            if (null === $socket) {
                 $stream = @stream_socket_accept($listener, 0.0, $peerName);
                 if (false === $stream) {
                     return false;
                 }
             } else {
-                $connection = @socket_accept($this->socket);
+                $connection = @socket_accept($socket);
                 if ($connection === false) {
                     return false;
                 }
 
-                if ($this->noDelay) {
+                if ($noDelay) {
                     @socket_set_option($connection, SOL_TCP, TCP_NODELAY, 1);
                 }
 

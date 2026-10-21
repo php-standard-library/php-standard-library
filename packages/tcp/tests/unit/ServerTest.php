@@ -10,9 +10,14 @@ use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\Network\Exception\AlreadyStoppedException;
 use Psl\TCP;
+use Revolt\EventLoop;
+use WeakReference;
 
+use function array_diff;
+use function array_values;
 use function extension_loaded;
 use function fclose;
+use function gc_collect_cycles;
 use function socket_import_stream;
 use function socket_set_option;
 use function stream_socket_client;
@@ -160,5 +165,72 @@ final class ServerTest extends TestCase
         $second_connection->close();
 
         $listener->close();
+    }
+
+    public function testListenerIsDestroyedOnceNoLongerReferenced(): void
+    {
+        $listener = TCP\listen('127.0.0.1');
+        $reference = WeakReference::create($listener);
+        unset($listener);
+
+        static::assertNull($reference->get());
+    }
+
+    public function testAcceptingListenerIsDestroyedOnceNoLongerReferenced(): void
+    {
+        $callbacks = self::getReferencedCallbacks();
+
+        $listener = TCP\listen('127.0.0.1');
+        $client = TCP\connect('127.0.0.1', $listener->getLocalAddress()->port);
+        $listener->accept()->close();
+        $client->close();
+
+        // accept() enabled the listener's watcher. If the event loop kept the listener alive, the listening
+        // socket would never be closed, and the watcher would keep the event loop running forever.
+        $reference = WeakReference::create($listener);
+        unset($listener);
+
+        static::assertNull($reference->get());
+        static::assertSame([], array_values(array_diff(self::getReferencedCallbacks(), $callbacks)));
+    }
+
+    public function testWaitingAcceptKeepsListenerAlive(): void
+    {
+        $listener = TCP\listen('127.0.0.1');
+        $port = $listener->getLocalAddress()->port;
+        $accept = Async\run($listener->accept(...));
+        unset($listener);
+
+        // Once accept() waits, the listener is only referenced by the waiting fiber, which is itself only
+        // referenced by the listener. The event loop must keep both alive until a connection comes in.
+        Async\later();
+        gc_collect_cycles();
+
+        $client = TCP\connect('127.0.0.1', $port);
+        $server = $accept->await();
+
+        $client->write('ping');
+        static::assertSame('ping', $server->read(4));
+
+        $client->close();
+        $server->close();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function getReferencedCallbacks(): array
+    {
+        $driver = EventLoop::getDriver();
+        $callbacks = [];
+        foreach ($driver->getIdentifiers() as $callback) {
+            if (!$driver->isEnabled($callback) || !$driver->isReferenced($callback)) {
+                continue;
+            }
+
+            $callbacks[] = $callback;
+        }
+
+        return $callbacks;
     }
 }
