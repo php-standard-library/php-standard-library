@@ -9,7 +9,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psl\IO;
 use Psl\IO\Tests\Fixture\NonCloseableWriteHandle;
+use Psl\IO\Tests\Fixture\RecordingWriteHandle;
 use Psl\IO\Tests\Fixture\SlowWriteHandle;
+
+use function hrtime;
+use function str_repeat;
+use function strlen;
 
 final class TeeWriteHandleTest extends TestCase
 {
@@ -287,5 +292,28 @@ final class TeeWriteHandleTest extends TestCase
         $this->expectException(IO\Exception\AlreadyClosedException::class);
 
         $tee->flush();
+    }
+
+    public function testPendingBytesDrainInLinearTime(): void
+    {
+        $first = new IO\MemoryHandle();
+        $second = new RecordingWriteHandle(8192);
+        $tee = new IO\TeeWriteHandle($first, $second);
+        $payload = str_repeat('0123456789abcdef', 262_144);
+        $length = strlen($payload);
+
+        $start = hrtime(true);
+        static::assertSame($length, $tee->tryWrite($payload));
+        // The second handle took 8 KiB; every later call drains 8 KiB more of the rest.
+        while (strlen($second->buffer) < $length) {
+            static::assertSame(0, $tee->tryWrite(''));
+        }
+
+        $elapsed = (hrtime(true) - $start) / 1e9;
+
+        static::assertSame($payload, $second->buffer);
+        // Passing the whole rest on every call hands the second handle about 1 GiB here.
+        static::assertLessThan(16 * $length, $second->given);
+        static::assertLessThan(1.0, $elapsed);
     }
 }

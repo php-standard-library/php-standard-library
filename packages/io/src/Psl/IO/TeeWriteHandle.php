@@ -9,6 +9,7 @@ use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 
+use function strlen;
 use function substr;
 
 /**
@@ -32,9 +33,23 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     use WriteHandleConvenienceMethodsTrait;
 
     /**
-     * Bytes accepted by the first handle but not yet written to the second.
+     * The largest part of the pending bytes copied for one write to the second handle.
+     */
+    private const int MAXIMUM_WRITE_CHUNK_SIZE = 65_536;
+
+    /**
+     * Bytes accepted by the first handle but not yet written to the second: the part of this string that starts
+     * at {@see $pendingOffset}.
+     *
+     * Draining advances the offset instead of copying the rest of the string: copying it after every write made
+     * draining N bytes cost O(N²) when the second handle accepts a few kilobytes at a time.
      */
     private string $pendingForSecond = '';
+
+    /**
+     * @var int<0, max>
+     */
+    private int $pendingOffset = 0;
 
     private bool $closed = false;
 
@@ -71,10 +86,7 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
         $this->assertHandleIsOpen();
 
         if ($this->pendingForSecond !== '') {
-            $drained = $this->second->tryWrite($this->pendingForSecond);
-            if ($drained > 0) {
-                $this->pendingForSecond = substr($this->pendingForSecond, $drained);
-            }
+            $this->advancePending($this->second->tryWrite($this->pendingSlice()));
 
             if ($this->pendingForSecond !== '') {
                 return 0;
@@ -86,14 +98,16 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
             return 0;
         }
 
-        $slice = substr($bytes, 0, $firstN);
+        $slice = $firstN === strlen($bytes) ? $bytes : substr($bytes, 0, $firstN);
         $secondN = $this->second->tryWrite($slice);
 
         if ($secondN === $firstN) {
             return $firstN;
         }
 
-        $this->pendingForSecond = substr($slice, $secondN);
+        $this->pendingForSecond = $slice;
+        $this->pendingOffset = 0;
+        $this->advancePending($secondN);
 
         return $firstN;
     }
@@ -131,8 +145,9 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
         $this->assertHandleIsOpen();
 
         if ($this->pendingForSecond !== '') {
-            $this->second->writeAll($this->pendingForSecond, $cancellation);
+            $this->second->writeAll($this->pendingSlice(null), $cancellation);
             $this->pendingForSecond = '';
+            $this->pendingOffset = 0;
         }
     }
 
@@ -161,6 +176,7 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     {
         $this->closed = true;
         $this->pendingForSecond = '';
+        $this->pendingOffset = 0;
 
         if ($this->first instanceof CloseHandleInterface) {
             $this->first->close();
@@ -168,6 +184,45 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
 
         if ($this->second instanceof CloseHandleInterface) {
             $this->second->close();
+        }
+    }
+
+    /**
+     * The pending bytes to pass to the second handle: the pending string itself when none of it was written yet,
+     * which copies nothing, and otherwise at most `$length` bytes of it, or all the rest when `$length` is null.
+     *
+     * @param null|positive-int $length
+     */
+    private function pendingSlice(null|int $length = self::MAXIMUM_WRITE_CHUNK_SIZE): string
+    {
+        if (0 === $this->pendingOffset) {
+            return $this->pendingForSecond;
+        }
+
+        return substr($this->pendingForSecond, $this->pendingOffset, $length);
+    }
+
+    /**
+     * Mark `$written` more pending bytes as written to the second handle.
+     *
+     * @param int<0, max> $written
+     */
+    private function advancePending(int $written): void
+    {
+        $this->pendingOffset += $written;
+        $length = strlen($this->pendingForSecond);
+        if ($this->pendingOffset >= $length) {
+            $this->pendingForSecond = '';
+            $this->pendingOffset = 0;
+
+            return;
+        }
+
+        // Drop the written part once it is at least as large as the rest. That copy is never larger than the
+        // part it drops, so all of them together copy at most as many bytes as were written.
+        if ($this->pendingOffset >= ($length - $this->pendingOffset)) {
+            $this->pendingForSecond = substr($this->pendingForSecond, $this->pendingOffset);
+            $this->pendingOffset = 0;
         }
     }
 
