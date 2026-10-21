@@ -16,6 +16,10 @@ All TCP connectors implement `ConnectorInterface`, making them interchangeable a
 - **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 - **`StaticConnector`** -- redirects all connections to a fixed host and port (useful for testing).
 
+### Connect failures
+
+`TCP\connect()` throws `Network\Exception\RuntimeException` when the connection cannot be made. With `ext-sockets` installed, its code is the operating system's error number, such as `ECONNREFUSED` for a refused connection; without the extension it is 0 for a connection that fails after the socket was created. The `network` package lists `ext-sockets` as a suggestion.
+
 ### SocketPool
 
 `SocketPool` reuses idle TCP connections. Checked-in connections stay alive for a configurable idle timeout before being closed.

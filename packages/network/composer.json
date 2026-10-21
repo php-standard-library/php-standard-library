@@ -33,6 +33,9 @@
     "conflict": {
         "azjezz/psl": "*"
     },
+    "suggest": {
+        "ext-sockets": "Reports the errno of a failed TCP connect, which is 0 without the extension"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {

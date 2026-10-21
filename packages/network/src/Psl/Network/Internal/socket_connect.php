@@ -13,22 +13,30 @@ use Revolt\EventLoop;
 use function error_clear_last;
 use function error_get_last;
 use function fclose;
+use function is_int;
 use function is_resource;
+use function socket_get_option;
+use function socket_import_stream;
+use function socket_strerror;
 use function str_starts_with;
 use function stream_context_create;
 use function stream_socket_client;
 use function stream_socket_get_name;
 
+use const SO_ERROR;
+use const SOL_SOCKET;
 use const STREAM_CLIENT_ASYNC_CONNECT;
 use const STREAM_CLIENT_CONNECT;
 
 /**
  * Open a socket connected to the given address, waiting until the connect completes.
  *
- * A TCP connect is asynchronous: it ends once the socket becomes writable, whether it succeeded or not, and a socket
- * that has no peer address then failed. The wait has a record of its own, which the watcher and the cancellation
- * listener settle, whichever comes first. A connect that does not complete, because it failed or was cancelled,
- * closes its socket.
+ * A TCP connect is asynchronous: it ends once the socket becomes writable, whether it succeeded or not. With
+ * ext-sockets, the socket's pending error (`SO_ERROR`) then tells whether it failed, and the exception carries that
+ * errno as its code. Without the extension, or when the error cannot be read, a socket that has no peer address
+ * failed, and the code is 0. The wait has a record of its own, which the watcher and the cancellation listener
+ * settle, whichever comes first. A connect that does not complete, because it failed or was cancelled, closes its
+ * socket.
  *
  * A Unix-domain connect never completes later: it returns its socket at once, without the wait or the check, or it
  * has already failed, as when the listener's backlog is full.
@@ -106,17 +114,38 @@ function socket_connect(
 
         $waiter->wait();
 
-        error_clear_last();
-        if (false === @stream_socket_get_name($socket, true)) {
-            $error = error_get_last();
+        // The socket's pending error tells whether the connect failed, and why; reading it clears it, so it is read
+        // once. Reading it needs ext-sockets. Without the extension, a socket that has no peer address failed, and
+        // the exception's code is 0.
+        $checked = false;
+        if (namespace\sockets_available()) {
+            $imported = @socket_import_stream($socket);
+            $errno = false === $imported ? false : @socket_get_option($imported, SOL_SOCKET, SO_ERROR);
+            if (is_int($errno)) {
+                if (0 !== $errno) {
+                    throw new Exception\RuntimeException(
+                        'Failed to connect to client "' . $uri . '": ' . socket_strerror($errno) . '.',
+                        $errno,
+                    );
+                }
 
-            throw new Exception\RuntimeException(
-                'Failed to connect to client "'
-                . $uri
-                . '": '
-                . ($error['message'] ?? 'the socket has no peer address.'),
-                $error['type'] ?? 0,
-            );
+                $checked = true;
+            }
+        }
+
+        if (!$checked) {
+            error_clear_last();
+            if (false === @stream_socket_get_name($socket, true)) {
+                $error = error_get_last();
+
+                throw new Exception\RuntimeException(
+                    'Failed to connect to client "'
+                    . $uri
+                    . '": '
+                    . ($error['message'] ?? 'the socket has no peer address.'),
+                    0,
+                );
+            }
         }
 
         $connected = true;

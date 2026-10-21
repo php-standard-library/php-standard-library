@@ -106,7 +106,7 @@
         "azjezz/psl": "*"
     },
     "suggest": {
-        "ext-sockets": "Gives every TCP connection accepted by Psl\\TCP a private stream context, so TLS options and peer certificates cannot leak between connections of one listener",
+        "ext-sockets": "Gives every TCP connection accepted by Psl\\TCP a private stream context, so TLS options and peer certificates cannot leak between connections of one listener, and reports the errno of a failed TCP connect",
         "php-standard-library/phpstan-extension": "PHPStan integration",
         "php-standard-library/psalm-plugin": "Psalm integration"
     },
