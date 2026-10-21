@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Psl\TCP\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\TCP;
+use Psl\TCP\Tests\Fixture\RecordingDriver;
+use Revolt\EventLoop;
 
 use function fclose;
 use function fopen;
@@ -28,6 +31,38 @@ final class SocketPoolTest extends TestCase
             $first = $pool->checkout('::1', 1234);
             $pool->checkin($first);
             static::assertSame($first, $pool->checkout('[::1]', 1234));
+        } finally {
+            $pool->close();
+            fclose($resource);
+        }
+    }
+
+    /**
+     * The idle timer must go through {@see Async\Scheduler}, so that scheduler-level handling of long timers covers
+     * it. Swapping in a recording driver needs an event loop that has not run yet, hence the separate process.
+     */
+    #[RunInSeparateProcess]
+    public function testIdleTimerIsScheduledThroughTheAsyncScheduler(): void
+    {
+        $driver = new RecordingDriver(EventLoop::getDriver());
+        EventLoop::setDriver($driver);
+
+        $resource = fopen('php://memory', 'r+');
+        static::assertIsResource($resource);
+        $stream = $this->createStub(TCP\StreamInterface::class);
+        $stream->method('getStream')->willReturn($resource);
+        $connector = $this->createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($stream);
+        $pool = new TCP\SocketPool($connector, Duration::seconds(7));
+
+        try {
+            $pool->checkin($pool->checkout('127.0.0.1', 1234));
+
+            static::assertCount(1, $driver->timers);
+            static::assertSame(Async\Scheduler::class . '::delay', $driver->timers[0]['registeredBy']);
+            static::assertSame(7.0, $driver->timers[0]['seconds']);
+            // Like before, an idle connection keeps the event loop running until its timer fires.
+            static::assertTrue(EventLoop::isReferenced($driver->timers[0]['id']));
         } finally {
             $pool->close();
             fclose($resource);

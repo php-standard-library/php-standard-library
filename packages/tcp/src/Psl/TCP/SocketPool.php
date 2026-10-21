@@ -6,9 +6,9 @@ namespace Psl\TCP;
 
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
+use Psl\Async\Scheduler;
 use Psl\DateTime\Duration;
 use Psl\Network;
-use Revolt\EventLoop;
 
 use function array_filter;
 use function array_pop;
@@ -68,7 +68,7 @@ final class SocketPool implements SocketPoolInterface
         while (isset($this->idle[$key]) && $this->idle[$key] !== []) {
             $entry = array_pop($this->idle[$key]);
             [$stream, $timerId] = $entry;
-            EventLoop::cancel($timerId);
+            Scheduler::cancel($timerId);
 
             if ($this->idle[$key] === []) {
                 unset($this->idle[$key]);
@@ -110,7 +110,7 @@ final class SocketPool implements SocketPoolInterface
         }
 
         // Start idle timer
-        $timerId = EventLoop::delay($this->idleTimeout->getTotalSeconds(), function () use ($stream, $key): void {
+        $timerId = Scheduler::delay($this->idleTimeout, function () use ($stream, $key): void {
             $this->removeFromIdle($stream, $key);
             $stream->close();
         });
@@ -148,7 +148,7 @@ final class SocketPool implements SocketPoolInterface
 
         foreach ($this->idle as $entries) {
             foreach ($entries as [$stream, $timerId]) {
-                EventLoop::cancel($timerId);
+                Scheduler::cancel($timerId);
                 $stream->close();
             }
         }
@@ -168,7 +168,7 @@ final class SocketPool implements SocketPoolInterface
         ): bool {
             [$s, $timerId] = $entry;
             if (spl_object_id($s) === $targetId) {
-                EventLoop::cancel($timerId);
+                Scheduler::cancel($timerId);
                 return false;
             }
 
