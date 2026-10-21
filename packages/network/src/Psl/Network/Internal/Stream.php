@@ -14,7 +14,9 @@ use Psl\Network;
 use Psl\Network\Address;
 use Revolt\EventLoop;
 
+use function fread;
 use function is_resource;
+use function stream_get_meta_data;
 use function stream_socket_recvfrom;
 use function stream_socket_shutdown;
 
@@ -186,11 +188,43 @@ class Stream implements Network\StreamInterface
     #[Override]
     public function close(): void
     {
+        $stream = $this->handle->getStream();
+        if (is_resource($stream)) {
+            self::discardUnreadBytes($stream);
+        }
+
         $this->handle->close();
     }
 
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Read and discard the bytes already waiting on the socket, without waiting for more.
+     *
+     * Closing a TCP socket that still holds unread bytes makes the kernel reset the connection instead of ending it
+     * (RFC 1122 section 4.2.2.13). The kernel then drops what this side wrote last and the peer has not received
+     * yet, and the peer sees an error instead of the end of the stream. A peer that sent a greeting, a pipelined
+     * request or anything else this side never read is enough.
+     *
+     * This only reads what has already arrived, from a non-blocking socket, and at most 1 MiB of it: it never
+     * waits for the peer. Bytes that arrive later, or past that bound, still reset the connection, as before.
+     *
+     * @param resource $stream
+     */
+    private static function discardUnreadBytes(mixed $stream): void
+    {
+        if (stream_get_meta_data($stream)['blocked']) {
+            return;
+        }
+
+        for ($i = 0; $i < 16; $i++) {
+            $chunk = @fread($stream, 65_536);
+            if (false === $chunk || '' === $chunk) {
+                return;
+            }
+        }
     }
 }
