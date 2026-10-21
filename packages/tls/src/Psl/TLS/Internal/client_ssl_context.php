@@ -67,9 +67,10 @@ function client_ssl_context(TLS\ClientConfiguration $clientConfiguration): array
         $ssl['alpn_protocols'] = implode(',', $clientConfiguration->alpnProtocols);
     }
 
-    if (null !== $clientConfiguration->peerFingerprints) {
-        $ssl['peer_fingerprint'] = ['sha256' => $clientConfiguration->peerFingerprints];
-    }
+    // `peerFingerprints` is deliberately not mapped to `peer_fingerprint`: PHP accepts one
+    // fingerprint string per algorithm there, never a list (ext/openssl/xp_ssl.c,
+    // php_openssl_x509_fingerprint_match). The pins are checked by Connector::connect()
+    // against the captured peer certificate once the handshake has completed.
 
     return $ssl;
 }

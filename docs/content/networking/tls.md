@@ -58,6 +58,8 @@ The handshake runs inside `accept()`, one connection at a time. A peer that conn
 
 @example('networking/tls-pinning.php')
 
+Pins are SHA-256 fingerprints of the peer's leaf certificate, in hexadecimal; letter case and `:` separators are ignored. They are checked after the handshake, on top of the chain and name verification configured by the other options. A certificate that matches none of the pins closes the connection and throws `HandshakeFailedException`.
+
 ### STARTTLS (Upgrade Mid-Connection)
 
 @example('networking/tls-starttls.php')
