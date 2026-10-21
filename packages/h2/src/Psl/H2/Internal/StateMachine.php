@@ -1703,7 +1703,9 @@ final class StateMachine
                 try {
                     $this->flowController->applyStreamWindowUpdate($stream, $streamId, $increment);
                 } catch (FlowControlException) {
-                    return [$this->resetStreamForError($streamId, ErrorCode::FlowControlError), []];
+                    // RFC 9113 Section 6.9.1: a stream-level overflow is a stream error.
+                    // Throwing lets the connection send RST_STREAM and tell the caller.
+                    throw StreamException::forWindowOverflow($streamId, $stream->sendWindow, $increment);
                 }
             }
         }

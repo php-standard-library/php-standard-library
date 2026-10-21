@@ -70,6 +70,23 @@ final class StreamException extends RuntimeException
     }
 
     /**
+     * Create a stream error when a WINDOW_UPDATE would push a stream's send
+     * window above 2^31-1 (RFC 9113 Section 6.9.1).
+     *
+     * @param int $streamId The stream whose window would overflow.
+     * @param int $window The current send window.
+     * @param int $increment The received increment.
+     */
+    public static function forWindowOverflow(int $streamId, int $window, int $increment): self
+    {
+        return new self(
+            'Stream ' . $streamId . ' send window ' . $window . ' cannot grow by ' . $increment . '.',
+            $streamId,
+            ErrorCode::FlowControlError,
+        );
+    }
+
+    /**
      * Create a stream exception when an operation is attempted on a
      * stream that has already been fully closed.
      *

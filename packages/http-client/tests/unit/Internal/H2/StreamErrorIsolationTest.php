@@ -7,6 +7,7 @@ namespace Psl\HTTP\Client\Tests\Unit\Internal\H2;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\Async\NullCancellationToken;
+use Psl\DateTime\Duration;
 use Psl\H2;
 use Psl\HPACK;
 use Psl\HTTP\Client\ClientConfiguration;
@@ -16,6 +17,8 @@ use Psl\HTTP\Client\Internal\H2\StreamExchange;
 use Psl\HTTP\Client\Tests\Fixture\H2\ChunkedHandle;
 use Psl\HTTP\Message\Request;
 use Psl\URL;
+
+use const Psl\H2\MAX_WINDOW_SIZE;
 
 final class StreamErrorIsolationTest extends TestCase
 {
@@ -73,5 +76,41 @@ final class StreamErrorIsolationTest extends TestCase
         static::assertSame(204, $transaction->response->status);
         static::assertFalse($session->isClosed());
         static::assertTrue($session->connection->isConnected());
+    }
+
+    public function testStreamWindowOverflowFailsOnlyItsOwnRequest(): void
+    {
+        $encoder = new HPACK\Encoder();
+        $handle = new ChunkedHandle(
+            H2\Frame\encode(new H2\Frame\SettingsFrame([], false)->toRaw())
+                . H2\Frame\encode(new H2\Frame\WindowUpdateFrame(1, MAX_WINDOW_SIZE)->toRaw())
+                . H2\Frame\encode(
+                    new H2\Frame\HeadersFrame(
+                        3,
+                        $encoder->encode([
+                            new HPACK\Header(':status', '204'),
+                        ]),
+                        true,
+                        true,
+                    )->toRaw(),
+                ),
+        );
+        $session = new H2Session($handle, new H2ClientConfiguration());
+        $url = URL\parse('https://example.com/');
+        $request = new Request(method: 'GET', url: $url, requestTarget: '/');
+        $configuration = new ClientConfiguration();
+        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(2));
+
+        try {
+            StreamExchange::exchange($session, $request, $url, $configuration, $cancellation);
+            static::fail('Expected the window overflow to fail its request.');
+        } catch (H2\Exception\StreamException $e) {
+            static::assertSame(1, $e->streamId);
+            static::assertSame(H2\ErrorCode::FlowControlError, $e->errorCode);
+        }
+
+        static::assertFalse($session->isClosed());
+        $transaction = StreamExchange::exchange($session, $request, $url, $configuration, $cancellation);
+        static::assertSame(204, $transaction->response->status);
     }
 }

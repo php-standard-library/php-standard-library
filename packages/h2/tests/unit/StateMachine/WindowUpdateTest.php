@@ -10,11 +10,11 @@ use Psl\H2\Event\WindowUpdated;
 use Psl\H2\Exception\FlowControlException;
 use Psl\H2\Exception\FrameDecodingException;
 use Psl\H2\Exception\ProtocolException;
+use Psl\H2\Exception\StreamException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\FrameType;
 use Psl\H2\Frame\HeadersFrame;
 use Psl\H2\Frame\RawFrame;
-use Psl\H2\Frame\RstStreamFrame;
 use Psl\H2\Frame\WindowUpdateFrame;
 use Psl\H2\Internal\StateMachine;
 use Psl\HPACK\Encoder;
@@ -149,7 +149,7 @@ final class WindowUpdateTest extends TestCase
         $sm->receive(new WindowUpdateFrame(0, MAX_WINDOW_SIZE)->toRaw());
     }
 
-    public function testStreamLevelWindowOverflowReturnsRstStream(): void
+    public function testStreamLevelWindowOverflowThrowsStreamError(): void
     {
         $sm = new StateMachine(false);
         $sm->initialize();
@@ -162,12 +162,15 @@ final class WindowUpdateTest extends TestCase
         ]);
         $sm->receive(new HeadersFrame(1, $block, false, true)->toRaw());
 
-        $raw = new WindowUpdateFrame(1, MAX_WINDOW_SIZE)->toRaw();
-        [$responseFrames, $_] = $sm->receive($raw);
+        try {
+            $sm->receive(new WindowUpdateFrame(1, MAX_WINDOW_SIZE)->toRaw());
+            static::fail('Expected a stream error.');
+        } catch (StreamException $error) {
+            static::assertSame(1, $error->streamId);
+            static::assertSame(ErrorCode::FlowControlError, $error->errorCode);
+        }
 
-        static::assertCount(1, $responseFrames);
-        $rst = RstStreamFrame::fromRaw($responseFrames[0]);
-        static::assertSame(1, $rst->streamId);
-        static::assertSame(ErrorCode::FlowControlError, $rst->errorCode);
+        [$frames] = $sm->receive(new WindowUpdateFrame(0, 1)->toRaw());
+        static::assertSame([], $frames);
     }
 }
