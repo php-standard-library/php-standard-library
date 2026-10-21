@@ -97,6 +97,53 @@ final class RateLimiterTest extends TestCase
         }
     }
 
+    public function testDefaultReturnsLimitersWithIndependentCounters(): void
+    {
+        $first = RateLimiter::default();
+        $second = RateLimiter::default();
+
+        static::assertNotSame($first, $second);
+
+        for ($i = 0; $i < 50; $i++) {
+            $first->record(FrameType::Ping->value);
+        }
+
+        for ($i = 0; $i < 50; $i++) {
+            $second->record(FrameType::Ping->value);
+        }
+
+        $this->expectException(ProtocolException::class);
+        $first->record(FrameType::Ping->value);
+    }
+
+    public function testFreshKeepsTheLimitsWithoutTheRecordedFrames(): void
+    {
+        $limiter = new RateLimiter([
+            FrameType::Ping->value => [2, DateTime\Duration::seconds(10)],
+        ]);
+        $limiter->record(FrameType::Ping->value);
+        $limiter->record(FrameType::Ping->value);
+
+        $fresh = $limiter->fresh();
+
+        static::assertNotSame($limiter, $fresh);
+
+        $fresh->record(FrameType::Ping->value);
+        $fresh->record(FrameType::Ping->value);
+
+        try {
+            $fresh->record(FrameType::Ping->value);
+
+            static::fail('Expected the fresh limiter to keep the limit of 2 PING frames.');
+        } catch (ProtocolException $exception) {
+            static::assertStringContainsString('Ping', $exception->getMessage());
+        }
+
+        // Recording on the fresh limiter left the original one at its own count.
+        $this->expectException(ProtocolException::class);
+        $limiter->record(FrameType::Ping->value);
+    }
+
     public function testEmptyDataRecording(): void
     {
         $limiter = new RateLimiter([

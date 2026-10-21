@@ -33,6 +33,8 @@ final readonly class Configuration implements DefaultInterface
      *  that send excessive empty frames, SETTINGS floods, or PING floods. It also configures
      *  {@see RateLimiter::STREAM_ERROR_RESET}. With null, peer errors may cause 100 resets per 10 seconds;
      *  other frame types have no limit. Pass a limiter without that key to disable the reset limit.
+     *  Only its limits are used: each connection built from this configuration counts its peer's frames from zero,
+     *  separately from every other connection, and never records them on the given limiter.
      * @param int $maxHeaderBlockSize Maximum accumulated header block size in bytes before HPACK decoding. 0 means unlimited.
      *  Protects against decompression bombs from malicious peers.
      * @param null|int<1, max> $maxReceiveWindowSize Maximum receive window size in bytes for BDP auto-tuning. When set,

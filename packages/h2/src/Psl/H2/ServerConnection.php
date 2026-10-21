@@ -49,7 +49,7 @@ final class ServerConnection implements ServerConnectionInterface
         $this->stateMachine = new StateMachine(
             false,
             $configuration->settings,
-            $configuration->rateLimiter,
+            $configuration->rateLimiter?->fresh(),
             $configuration->maxHeaderBlockSize,
             $maxReceiveWindowSize !== null
                 ? new BDPEstimator(

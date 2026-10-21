@@ -74,6 +74,19 @@ final class RateLimiter implements DefaultInterface
     }
 
     /**
+     * Create a rate limiter with the same limits and no recorded frames.
+     *
+     * A {@see Configuration} may be reused for many connections, so each connection counts its peer's frames
+     * on a limiter of its own instead of the configured one.
+     *
+     * @internal
+     */
+    public function fresh(): self
+    {
+        return new self($this->limits);
+    }
+
+    /**
      * Record a received frame or a reset caused by a peer error, and enforce its limit.
      *
      * If the frame type has no configured limit, this is a no-op.

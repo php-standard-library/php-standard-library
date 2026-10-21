@@ -46,7 +46,7 @@ final class ClientConnection implements ClientConnectionInterface
         $this->stateMachine = new StateMachine(
             true,
             $configuration->settings,
-            $configuration->rateLimiter,
+            $configuration->rateLimiter?->fresh(),
             $configuration->maxHeaderBlockSize,
             $maxReceiveWindowSize !== null
                 ? new Internal\BDPEstimator(
