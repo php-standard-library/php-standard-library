@@ -319,10 +319,10 @@ final class Reader implements BufferedReadHandleInterface
                 return '';
             }
 
+            // an empty read does not record EOF: asking the wrapped handle may wait (it can be, or
+            // pass the check through to, another `Reader`), and this method never waits.
             $this->buffer = $this->getHandle()->tryRead();
             if ('' === $this->buffer) {
-                $this->eof = $this->handle->reachedEndOfDataSource();
-
                 return '';
             }
         }

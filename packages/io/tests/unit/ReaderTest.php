@@ -567,19 +567,39 @@ final class ReaderTest extends TestCase
         static::assertSame(0, $handle->readsAfterEof);
     }
 
-    public function testTryReadRecordsTheEndOfDataSource(): void
+    /**
+     * A `Reader`'s `reachedEndOfDataSource()` waits for data, so `tryRead()` must not consult it on the
+     * handle it wraps: when that handle is, or passes the check through to, another `Reader`, the
+     * non-blocking read would wait for the peer.
+     */
+    public function testTryReadDoesNotWaitOnANestedReader(): void
     {
-        $handle = new EofTrackingHandle('hello');
-        $reader = new IO\Reader($handle);
+        $wrappers = [
+            'reader' => static fn(IO\ReadHandleInterface $handle): IO\ReadHandleInterface => new IO\Reader($handle),
+            'bounded reader' =>
+                static fn(IO\ReadHandleInterface $handle): IO\ReadHandleInterface => new IO\BoundedReadHandle(
+                    new IO\Reader($handle),
+                    1024,
+                ),
+        ];
 
-        static::assertSame('hello', $reader->tryRead());
-        static::assertSame('', $reader->tryRead());
-        static::assertTrue($reader->reachedEndOfDataSource());
-        static::assertSame('', $reader->tryRead());
-        static::assertSame('', $reader->read());
-        static::assertNull($reader->readLine());
+        foreach ($wrappers as $name => $wrap) {
+            [$read, $write] = IO\pipe();
+            $reader = new IO\Reader($wrap($read));
 
-        static::assertSame(0, $handle->readsAfterEof);
+            // deferred: it only runs once something gives the event loop a turn.
+            $writer = Async\run(static fn() => $write->writeAll('late'));
+
+            // nothing is available yet: `tryRead()` returns at once, without waiting for the writer.
+            static::assertSame('', $reader->tryRead(), $name);
+            static::assertFalse($writer->isComplete(), $name);
+
+            static::assertSame('late', $reader->read(), $name);
+
+            $writer->await();
+            $write->close();
+            $read->close();
+        }
     }
 
     public function testReadByteWithDelayedHandle(): void
