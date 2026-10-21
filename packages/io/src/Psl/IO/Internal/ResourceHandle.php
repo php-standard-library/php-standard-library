@@ -108,6 +108,11 @@ class ResourceHandle implements
     private null|string $readError = null;
 
     /**
+     * The handle's membership of the {@see BlockingModeRegistry}, while it has one.
+     */
+    private null|int $membership = null;
+
+    /**
      * @param resource $stream
      */
     public function __construct(
@@ -119,16 +124,7 @@ class ResourceHandle implements
     ) {
         $this->stream = $stream;
 
-        stream_set_blocking($stream, false);
-
         $meta = stream_get_meta_data($stream);
-        if ($read) {
-            $this->socket = str_contains($meta['stream_type'], 'socket');
-            $this->buffered = $meta['unread_bytes'];
-        }
-
-        /** @mago-expect analysis:redundant-null-coalesce */
-        $this->blocks = ($meta['blocked'] ?? true) || ($meta['wrapper_type'] ?? '') === 'plainfile';
         if ($seek) {
             $seekable = $meta['seekable'];
 
@@ -139,7 +135,36 @@ class ResourceHandle implements
             $readable = str_contains($meta['mode'], 'r') || str_contains($meta['mode'], '+');
 
             Psl\invariant($readable, 'Handle is not readable.');
+        }
 
+        if ($write) {
+            $writable = false !== strpbrk($meta['mode'], 'xwca+');
+
+            Psl\invariant($writable, 'Handle is not writeable.');
+        }
+
+        // A stream this handle does not close may be shared with other code and other processes, which expect it in
+        // the mode they left it in; so may a duplicate of a standard stream that this handle closes. Either joins the
+        // registry before it changes the mode, which puts the mode back once the last handle over the stream is
+        // released.
+        $membership = $close ? BlockingModeRegistry::claim($stream) : BlockingModeRegistry::join($stream);
+        if (stream_set_blocking($stream, false)) {
+            $this->membership = $membership;
+        } elseif (null !== $membership) {
+            // The mode did not change, so there is nothing to put back.
+            BlockingModeRegistry::leave($membership);
+        }
+
+        $meta = stream_get_meta_data($stream);
+        if ($read) {
+            $this->socket = str_contains($meta['stream_type'], 'socket');
+            $this->buffered = $meta['unread_bytes'];
+        }
+
+        /** @mago-expect analysis:redundant-null-coalesce */
+        $this->blocks = ($meta['blocked'] ?? true) || ($meta['wrapper_type'] ?? '') === 'plainfile';
+
+        if ($read) {
             stream_set_read_buffer($stream, 0);
 
             // The event loop keeps this callback for as long as the watcher exists, and the watcher only goes
@@ -171,10 +196,6 @@ class ResourceHandle implements
         }
 
         if ($write) {
-            $writable = false !== strpbrk($meta['mode'], 'xwca+');
-
-            Psl\invariant($writable, 'Handle is not writeable.');
-
             stream_set_write_buffer($stream, 0);
 
             // See the read watcher: neither callback may reference the handle.
@@ -517,6 +538,12 @@ class ResourceHandle implements
     {
         EventLoop::cancel($this->readWatcher);
         EventLoop::cancel($this->writeWatcher);
+        if (null !== $this->membership) {
+            $membership = $this->membership;
+            $this->membership = null;
+            BlockingModeRegistry::leave($membership);
+        }
+
         if (null !== $this->stream) {
             $exception = new Exception\AlreadyClosedException('Handle has already been closed.');
 

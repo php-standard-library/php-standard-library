@@ -26,6 +26,10 @@ final class SeekReadWriteStreamHandle implements
     private StreamHandleInterface&WriteHandleInterface&ReadHandleInterface&SeekHandleInterface $handle;
 
     /**
+     * The handle borrows the stream: it never closes it. It makes the stream nonblocking; once the last handle
+     * over the stream is released, or at the end of an orderly shutdown, the stream gets back the blocking mode it
+     * had, which other processes sharing it may rely on.
+     *
      * @param resource $stream
      */
     public function __construct(mixed $stream)
