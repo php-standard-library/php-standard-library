@@ -1052,11 +1052,18 @@ final class StateMachine
             return true;
         }
 
+        // A peer stream at or below the highest it opened was once live.
         if ($streamId <= $this->lastPeerStreamId) {
             return true;
         }
 
-        return false;
+        // A local stream at or below the highest we opened was once live and is now
+        // closed. RFC 9113 Section 5.1 requires tolerating RST_STREAM and
+        // WINDOW_UPDATE the peer sent before it saw our reset; the frame handlers
+        // discard them. Treating such a stream as idle would be wrong.
+        $isLocalStream = (($streamId % 2) === 1) === $this->isClient;
+
+        return $isLocalStream && $streamId <= $this->lastLocalStreamId;
     }
 
     /**
