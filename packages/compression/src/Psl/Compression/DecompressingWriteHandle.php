@@ -29,7 +29,23 @@ final class DecompressingWriteHandle implements IO\BufferedWriteHandleInterface
 {
     use IO\WriteHandleConvenienceMethodsTrait;
 
+    /**
+     * The largest part of the pending output copied for one write to the inner handle.
+     */
+    private const int MAXIMUM_WRITE_CHUNK_SIZE = 65_536;
+
+    /**
+     * The output that is not written yet is the part of `$buffer` that starts at `$offset`.
+     *
+     * Draining advances the offset instead of copying the rest of the buffer: copying it after every write made
+     * draining N bytes cost O(N²) when the inner handle accepts a few kilobytes at a time.
+     */
     private string $buffer = '';
+
+    /**
+     * @var int<0, max>
+     */
+    private int $offset = 0;
 
     public function __construct(
         private readonly IO\WriteHandleInterface $inner,
@@ -112,10 +128,7 @@ final class DecompressingWriteHandle implements IO\BufferedWriteHandleInterface
             return;
         }
 
-        $written = $this->inner->tryWrite($this->buffer);
-        if ($written > 0) {
-            $this->buffer = substr($this->buffer, $written);
-        }
+        $this->advance($this->inner->tryWrite($this->pending()));
     }
 
     /**
@@ -131,10 +144,7 @@ final class DecompressingWriteHandle implements IO\BufferedWriteHandleInterface
             return;
         }
 
-        $written = $this->inner->write($this->buffer, $cancellation);
-        if ($written > 0) {
-            $this->buffer = substr($this->buffer, $written);
-        }
+        $this->advance($this->inner->write($this->pending(), $cancellation));
     }
 
     /**
@@ -150,7 +160,49 @@ final class DecompressingWriteHandle implements IO\BufferedWriteHandleInterface
             return;
         }
 
-        $this->inner->writeAll($this->buffer, $cancellation);
+        $this->inner->writeAll(
+            0 === $this->offset ? $this->buffer : substr($this->buffer, $this->offset),
+            $cancellation,
+        );
         $this->buffer = '';
+        $this->offset = 0;
+    }
+
+    /**
+     * The pending output to pass to the inner handle: the buffer itself when nothing of it was written yet, which
+     * copies nothing, and otherwise at most {@see MAXIMUM_WRITE_CHUNK_SIZE} bytes of it.
+     */
+    private function pending(): string
+    {
+        if (0 === $this->offset) {
+            return $this->buffer;
+        }
+
+        return substr($this->buffer, $this->offset, self::MAXIMUM_WRITE_CHUNK_SIZE);
+    }
+
+    /**
+     * Mark `$written` more bytes of the pending output as written.
+     *
+     * @param int<0, max> $written
+     */
+    private function advance(int $written): void
+    {
+        $this->offset += $written;
+        $length = strlen($this->buffer);
+        if ($this->offset >= $length) {
+            $this->buffer = '';
+            $this->offset = 0;
+
+            return;
+        }
+
+        // Drop the written part once it is at least as large as the rest. That copy is never larger than the
+        // part it drops, so all of them together copy at most as many bytes as were written, and a handle that
+        // never fully drains does not keep everything it ever wrote.
+        if ($this->offset >= ($length - $this->offset)) {
+            $this->buffer = substr($this->buffer, $this->offset);
+            $this->offset = 0;
+        }
     }
 }
