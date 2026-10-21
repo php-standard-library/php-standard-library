@@ -1244,7 +1244,10 @@ final class StateMachine
         if ($isNewStream) {
             $this->validatePeerStreamId($frame->streamId);
 
-            if ($this->shutdown && $frame->streamId > $this->lastPeerStreamId) {
+            // After the peer's own GOAWAY it must not open streams. After a GOAWAY we
+            // sent, streams at or below its last-stream-id are still accepted so a
+            // graceful shutdown can announce 2^31-1 first (RFC 9113 Section 6.8).
+            if ($this->shutdown && $this->sentGoAwayLastStreamId === null) {
                 throw ProtocolException::forConnectionError(
                     'New stream ' . $frame->streamId . ' received after GOAWAY',
                 );

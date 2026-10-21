@@ -6,6 +6,7 @@ namespace Psl\H2\Tests\Unit\StateMachine;
 
 use PHPUnit\Framework\TestCase;
 use Psl\H2\ErrorCode;
+use Psl\H2\Event\HeadersReceived;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Frame;
 use Psl\H2\Frame\GoAwayFrame;
@@ -13,6 +14,8 @@ use Psl\H2\Frame\HeadersFrame;
 use Psl\H2\Internal\StateMachine;
 use Psl\HPACK\Encoder;
 use Psl\HPACK\Header;
+
+use const Psl\H2\MAX_STREAM_ID;
 
 final class ShutdownTest extends TestCase
 {
@@ -89,6 +92,50 @@ final class ShutdownTest extends TestCase
 
         $raw3 = new HeadersFrame(3, $block, true, true)->toRaw();
         static::assertSame([[], []], $sm->receive($raw3));
+    }
+
+    public function testGracefulGoAwayAcceptsPeerStreamsBelowItsCutoff(): void
+    {
+        $sm = new StateMachine(false);
+        $sm->initialize();
+
+        $encoder = new Encoder();
+        $block = $encoder->encode([
+            new Header(':method', 'GET'),
+            new Header(':scheme', 'https'),
+            new Header(':path', '/'),
+        ]);
+        $sm->receive(new HeadersFrame(1, $block, true, true)->toRaw());
+
+        [$first] = $sm->goAway(ErrorCode::NoError, lastStreamId: MAX_STREAM_ID);
+        static::assertSame(MAX_STREAM_ID, GoAwayFrame::fromRaw($first)->lastStreamId);
+
+        [, $events] = $sm->receive(new HeadersFrame(3, $block, true, true)->toRaw());
+        static::assertInstanceOf(HeadersReceived::class, $events[0]);
+        static::assertSame(3, $events[0]->streamId);
+        static::assertSame(3, $sm->lastPeerStreamId());
+
+        [$second] = $sm->goAway(ErrorCode::NoError);
+        static::assertSame(3, GoAwayFrame::fromRaw($second)->lastStreamId);
+        static::assertSame([[], []], $sm->receive(new HeadersFrame(5, $block, true, true)->toRaw()));
+        static::assertSame(3, $sm->lastPeerStreamId());
+    }
+
+    public function testPeerStreamAfterReceivedGoAwayIsAConnectionError(): void
+    {
+        $sm = new StateMachine(false);
+        $sm->initialize();
+        $sm->receive(new GoAwayFrame(0, ErrorCode::NoError->value, '')->toRaw());
+
+        $block = new Encoder()->encode([
+            new Header(':method', 'GET'),
+            new Header(':scheme', 'https'),
+            new Header(':path', '/'),
+        ]);
+
+        $this->expectException(ProtocolException::class);
+        $this->expectExceptionMessage('after GOAWAY');
+        $sm->receive(new HeadersFrame(1, $block, true, true)->toRaw());
     }
 
     public function testGoAwayIncludesLastPeerStreamId(): void
