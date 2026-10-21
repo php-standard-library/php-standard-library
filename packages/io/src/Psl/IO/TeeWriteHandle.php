@@ -9,6 +9,7 @@ use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 
+use function sprintf;
 use function strlen;
 use function substr;
 
@@ -26,6 +27,12 @@ use function substr;
  * is non-empty and {@see $second} cannot drain it, preventing the caller from
  * writing more data until both handles are in sync.
  *
+ * Writes made concurrently from several fibers never lose or repeat bytes,
+ * but they are not serialized: when {@see $second} takes the bytes of one
+ * write in several parts, the bytes of another write can come between them,
+ * and the two handles then hold the bytes in different orders. While a
+ * {@see write()} or {@see flush()} waits, {@see tryWrite()} returns 0.
+ *
  * @api
  */
 final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleInterface
@@ -38,8 +45,8 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     private const int MAXIMUM_WRITE_CHUNK_SIZE = 65_536;
 
     /**
-     * Bytes accepted by the first handle but not yet written to the second: the part of this string that starts
-     * at {@see $pendingOffset}.
+     * Bytes accepted by the first handle that are not written to the second, and that no call is writing to it:
+     * the part of this string that starts at {@see $pendingOffset}.
      *
      * Draining advances the offset instead of copying the rest of the string: copying it after every write made
      * draining N bytes cost O(N²) when the second handle accepts a few kilobytes at a time.
@@ -50,6 +57,14 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
      * @var int<0, max>
      */
     private int $pendingOffset = 0;
+
+    /**
+     * The number of {@see write()} and {@see flush()} calls in progress.
+     *
+     * While one of them waits, {@see tryWrite()} writes nothing: its bytes would reach the second handle ahead of
+     * bytes that call has not written yet.
+     */
+    private int $writing = 0;
 
     private bool $closed = false;
 
@@ -88,6 +103,10 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     {
         $this->assertHandleIsOpen();
 
+        if (0 !== $this->writing) {
+            return 0;
+        }
+
         if ($this->pendingForSecond !== '') {
             $this->advancePending($this->second->tryWrite($this->pendingSlice()));
 
@@ -101,16 +120,11 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
             return 0;
         }
 
-        $slice = $firstN === strlen($bytes) ? $bytes : substr($bytes, 0, $firstN);
-        $secondN = $this->second->tryWrite($slice);
-
-        if ($secondN === $firstN) {
-            return $firstN;
-        }
-
-        $this->pendingForSecond = $slice;
+        // Record what the second handle owes before writing to it: if that write fails, the bytes the first
+        // handle accepted stay pending.
+        $this->pendingForSecond = $firstN === strlen($bytes) ? $bytes : substr($bytes, 0, $firstN);
         $this->pendingOffset = 0;
-        $this->advancePending($secondN);
+        $this->advancePending($this->second->tryWrite($this->pendingForSecond));
 
         return $firstN;
     }
@@ -118,10 +132,14 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     /**
      * Write bytes to both handles, waiting if necessary.
      *
-     * First drains any pending buffer to {@see $second} using {@see writeAll()}
-     * (blocking until complete). Then writes to {@see $first} and, if any bytes
-     * were accepted, writes the same bytes to {@see $second} using
-     * {@see writeAll()} to guarantee both handles stay in sync.
+     * First drains any pending buffer to {@see $second} (waiting until it is
+     * empty, see {@see flush()}). Then writes to {@see $first} and, if any bytes
+     * were accepted, writes the same bytes to {@see $second}, waiting until it
+     * has accepted all of them, to keep both handles in sync.
+     *
+     * If writing to {@see $second} fails, the bytes {@see $first} accepted and
+     * {@see $second} has not reported accepting stay pending, and the next write
+     * or flush delivers them first.
      *
      * @throws Exception\AlreadyClosedException If the handle has been closed.
      * @throws Exception\RuntimeException If an error occurred during the operation.
@@ -134,23 +152,45 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     {
         $this->assertHandleIsOpen();
 
-        $this->flush($cancellation);
-        $firstN = $this->first->write($bytes, $cancellation);
-        if ($firstN > 0) {
-            $this->second->writeAll(substr($bytes, 0, $firstN), $cancellation);
-        }
+        $this->writing++;
 
-        return $firstN;
+        try {
+            $this->drainPending($cancellation);
+            $firstN = $this->first->write($bytes, $cancellation);
+            if ($firstN > 0) {
+                $this->writeToSecond($firstN === strlen($bytes) ? $bytes : substr($bytes, 0, $firstN), $cancellation);
+            }
+
+            return $firstN;
+        } finally {
+            $this->writing--;
+        }
     }
 
+    /**
+     * Write the pending bytes to {@see $second}, waiting until it has accepted all of them.
+     *
+     * The pending bytes are written with counted writes: if one fails, the bytes {@see $second} accepted before
+     * it are not pending anymore, and a retry writes only the rest. That rest includes whatever the failed write
+     * wrote without reporting it: a write to a PSL pipe or socket handle that is cancelled, or fails, after part of
+     * its bytes went out reports none of them, so a flush retried after a timeout on such a handle writes those
+     * bytes again.
+     *
+     * @throws Exception\AlreadyClosedException If the handle has been closed.
+     * @throws Exception\RuntimeException If an error occurred during the operation.
+     * @throws Async\Exception\CancelledException If the cancellation token is cancelled.
+     */
+    #[Override]
     public function flush(CancellationTokenInterface $cancellation = new NullCancellationToken()): void
     {
         $this->assertHandleIsOpen();
 
-        if ($this->pendingForSecond !== '') {
-            $this->second->writeAll($this->pendingSlice(null), $cancellation);
-            $this->pendingForSecond = '';
-            $this->pendingOffset = 0;
+        $this->writing++;
+
+        try {
+            $this->drainPending($cancellation);
+        } finally {
+            $this->writing--;
         }
     }
 
@@ -192,18 +232,77 @@ final class TeeWriteHandle implements BufferedWriteHandleInterface, CloseHandleI
     }
 
     /**
-     * The pending bytes to pass to the second handle: the pending string itself when none of it was written yet,
-     * which copies nothing, and otherwise at most `$length` bytes of it, or all the rest when `$length` is null.
+     * Write the pending bytes to {@see $second}, waiting until it has accepted all of them.
      *
-     * @param null|positive-int $length
+     * @throws Exception\RuntimeException If an error occurred during the operation.
+     * @throws Async\Exception\CancelledException If the cancellation token is cancelled.
      */
-    private function pendingSlice(null|int $length = self::MAXIMUM_WRITE_CHUNK_SIZE): string
+    private function drainPending(CancellationTokenInterface $cancellation): void
+    {
+        if ($this->pendingForSecond === '') {
+            return;
+        }
+
+        $bytes = 0 === $this->pendingOffset
+            ? $this->pendingForSecond
+            : substr($this->pendingForSecond, $this->pendingOffset);
+        $this->pendingForSecond = '';
+        $this->pendingOffset = 0;
+
+        $this->writeToSecond($bytes, $cancellation);
+    }
+
+    /**
+     * Write `$bytes`, which are not pending, to {@see $second}, waiting until it has accepted all of them.
+     *
+     * No other call sees these bytes while this one writes them, so none writes them again or replaces them.
+     * They are written with counted writes; if one fails, the bytes {@see $second} has not reported accepting
+     * become pending again, ahead of any bytes that became pending since, and the next write or flush delivers
+     * them first.
+     *
+     * @throws Exception\RuntimeException If an error occurred during the operation.
+     * @throws Async\Exception\CancelledException If the cancellation token is cancelled.
+     */
+    private function writeToSecond(string $bytes, CancellationTokenInterface $cancellation): void
+    {
+        $length = strlen($bytes);
+        $offset = 0;
+
+        try {
+            while ($offset < $length) {
+                $written = $this->second->write(
+                    0 === $offset ? $bytes : substr($bytes, $offset, self::MAXIMUM_WRITE_CHUNK_SIZE),
+                    $cancellation,
+                );
+                if (0 === $written) {
+                    throw new Exception\RuntimeException(sprintf(
+                        'The second handle accepted no data; %d bytes are still pending.',
+                        $length - $offset + strlen($this->pendingForSecond) - $this->pendingOffset,
+                    ));
+                }
+
+                $offset += $written;
+            }
+        } finally {
+            if ($offset < $length && !$this->closed) {
+                $this->pendingForSecond =
+                    substr($bytes, $offset) . substr($this->pendingForSecond, $this->pendingOffset);
+                $this->pendingOffset = 0;
+            }
+        }
+    }
+
+    /**
+     * The pending bytes to pass to the second handle: the pending string itself when none of it was written yet,
+     * which copies nothing, and otherwise at most {@see MAXIMUM_WRITE_CHUNK_SIZE} bytes of it.
+     */
+    private function pendingSlice(): string
     {
         if (0 === $this->pendingOffset) {
             return $this->pendingForSecond;
         }
 
-        return substr($this->pendingForSecond, $this->pendingOffset, $length);
+        return substr($this->pendingForSecond, $this->pendingOffset, self::MAXIMUM_WRITE_CHUNK_SIZE);
     }
 
     /**

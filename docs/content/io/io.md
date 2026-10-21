@@ -130,7 +130,7 @@ At the limit, `read()` waits for the next byte before deciding, and `tryRead()` 
 
 ### TeeWriteHandle
 
-`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
+`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. If a write to the second handle fails, the bytes it has not reported accepting stay pending, and a retried `flush()` writes only those. A write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes. Writes made concurrently from several fibers never lose or repeat bytes, but they are not serialized: when the second handle takes one write's bytes in several parts, another write's bytes can come between them, and the two handles then hold the bytes in different orders. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
 
 @example('io/io-tee-write-handle.php')
 
