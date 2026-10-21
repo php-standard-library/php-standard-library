@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\Cache\Tests\Unit;
 
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\Cache\Exception\InvalidArgumentException;
@@ -12,6 +13,7 @@ use Psl\Cache\Exception\UnavailableItemException;
 use Psl\Cache\LocalStore;
 use Psl\DateTime\Duration;
 use Revolt\EventLoop;
+use Revolt\EventLoop\Driver\TracingDriver;
 use WeakReference;
 
 use function array_diff;
@@ -999,5 +1001,29 @@ final class LocalStoreTest extends TestCase
         static::assertTrue(EventLoop::isEnabled($created[0]));
         static::assertFalse(EventLoop::isReferenced($created[0]));
         static::assertSame('value', $store->get('key'));
+    }
+
+    /**
+     * The cleanup timer must go through {@see Async\Scheduler}, so that scheduler-level handling of long timers
+     * covers it. Swapping in a tracing driver needs an event loop that has not run yet, hence the separate process.
+     */
+    #[RunInSeparateProcess]
+    public function testCleanupTimerIsScheduledThroughTheAsyncScheduler(): void
+    {
+        $driver = new TracingDriver(EventLoop::getDriver());
+        EventLoop::setDriver($driver);
+
+        $before = EventLoop::getIdentifiers();
+        $store = new LocalStore(cleanupInterval: Duration::seconds(7));
+        $created = array_values(array_diff(EventLoop::getIdentifiers(), $before));
+        static::assertCount(1, $created);
+        static::assertFalse(EventLoop::isEnabled($created[0]));
+        static::assertFalse(EventLoop::isReferenced($created[0]));
+
+        // The tracing driver only dumps the creation trace of enabled, referenced callbacks.
+        $store->compute('key', static fn(): string => 'value', Duration::hours(1));
+        EventLoop::reference($created[0]);
+
+        static::assertStringContainsString(Async\Scheduler::class . '::repeat()', $driver->dump());
     }
 }

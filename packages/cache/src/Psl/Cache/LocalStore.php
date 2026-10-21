@@ -9,7 +9,6 @@ use Override;
 use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\DateTime\Timestamp;
-use Revolt\EventLoop;
 use WeakReference;
 
 use function array_key_first;
@@ -55,6 +54,8 @@ final class LocalStore implements StoreInterface
 
     /**
      * Event loop callback ID for the periodic TTL cleanup.
+     *
+     * @var non-empty-string
      */
     private readonly string $cleanupCallbackId;
 
@@ -135,7 +136,7 @@ final class LocalStore implements StoreInterface
                 if ($ttl !== null) {
                     $expiresAt = Timestamp::monotonic()->plus($ttl);
                     $this->hasTtlEntries = true;
-                    EventLoop::enable($this->cleanupCallbackId);
+                    Async\Scheduler::enable($this->cleanupCallbackId);
                 }
 
                 $this->entries[$key] = [$value, $expiresAt];
@@ -153,7 +154,7 @@ final class LocalStore implements StoreInterface
         $cleanup = static function (string $callbackId) use ($self): void {
             $store = $self->get();
             if (null === $store) {
-                EventLoop::cancel($callbackId);
+                Async\Scheduler::cancel($callbackId);
 
                 return;
             }
@@ -161,15 +162,15 @@ final class LocalStore implements StoreInterface
             $store->sweep();
 
             if (!$store->hasTtlEntries) {
-                EventLoop::disable($callbackId);
+                Async\Scheduler::disable($callbackId);
             }
         };
 
-        $this->cleanupCallbackId = EventLoop::repeat($cleanupInterval->getTotalSeconds(), $cleanup);
+        $this->cleanupCallbackId = Async\Scheduler::repeat($cleanupInterval, $cleanup);
 
         // Sweeping expired entries is housekeeping, it must not keep the event loop (and so the program) running.
-        EventLoop::unreference($this->cleanupCallbackId);
-        EventLoop::disable($this->cleanupCallbackId);
+        Async\Scheduler::unreference($this->cleanupCallbackId);
+        Async\Scheduler::disable($this->cleanupCallbackId);
     }
 
     /**
@@ -297,6 +298,6 @@ final class LocalStore implements StoreInterface
 
     public function __destruct()
     {
-        EventLoop::cancel($this->cleanupCallbackId);
+        Async\Scheduler::cancel($this->cleanupCallbackId);
     }
 }
