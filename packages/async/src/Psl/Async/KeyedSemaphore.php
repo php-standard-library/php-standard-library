@@ -17,7 +17,7 @@ use function array_shift;
 use function array_splice;
 use function array_sum;
 use function count;
-use function in_array;
+use function spl_object_id;
 
 /**
  * Run an operation with a limit on number of ongoing asynchronous jobs for a specific key.
@@ -38,15 +38,20 @@ use function in_array;
 final class KeyedSemaphore
 {
     /**
+     * The number of slots taken for each key: one for each execution context running an operation,
+     * and one for each operation that a slot was handed over to, but that has not resumed yet.
+     *
      * @var array<Tk, int<0, max>>
      */
     private array $ongoing = [];
 
     /**
-     * Tracks which execution contexts (fibers or {main}) hold slots for
-     * each key, enabling re-entrant calls without deadlocking.
+     * The execution contexts (fibers, or this semaphore for {main}) holding a slot for each key, by object id.
      *
-     * @var array<Tk, list<Fiber|self>>
+     * A context calling {@see waitFor()} again for a key it holds a slot for re-enters: the re-entrant call
+     * runs right away using that slot, and only the outermost call releases it.
+     *
+     * @var array<Tk, array<int, Fiber|self>>
      */
     private array $holders = [];
 
@@ -74,6 +79,9 @@ final class KeyedSemaphore
      *
      * If the concurrency limit has been reached for the given `$key`, this method will wait until one of the ongoing operations has completed.
      *
+     * If the current fiber (or {main}) is already running an operation for the given `$key`, the operation
+     * runs right away, using the slot the outer operation holds.
+     *
      * @param Tk $key
      * @param Tin $input
      *
@@ -90,27 +98,15 @@ final class KeyedSemaphore
         mixed $input,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): mixed {
+        $currentContext = Fiber::getCurrent() ?? $this;
+        $contextId = spl_object_id($currentContext);
+        if (isset($this->holders[$key][$contextId])) {
+            // A re-entrant call runs using the slot its context already holds, which the outermost call releases.
+            return $this->invoke($key, $input);
+        }
+
         $this->ongoing[$key] ??= 0;
-        // Re-entrant calls can take the count above the limit, so `===` is not enough here.
         if ($this->ongoing[$key] >= $this->concurrencyLimit) {
-            $currentContext = Fiber::getCurrent() ?? $this;
-            if (in_array($currentContext, $this->holders[$key] ?? [], true)) {
-                $this->ongoing[$key]++;
-                $this->holders[$key][] = $currentContext;
-
-                try {
-                    return $this->invoke($key, $input);
-                } finally {
-                    $index = array_search($currentContext, $this->holders[$key], true);
-                    if (false !== $index) {
-                        array_splice($this->holders[$key], $index, 1);
-                    }
-
-                    // The re-entrant call may have been all that kept the count at the limit.
-                    $this->release($key);
-                }
-            }
-
             if ($cancellation->cancellable) {
                 $cancellation->throwIfCancelled();
             }
@@ -146,16 +142,12 @@ final class KeyedSemaphore
             $this->ongoing[$key]++;
         }
 
-        $currentContext = Fiber::getCurrent() ?? $this;
-        $this->holders[$key][] = $currentContext;
+        $this->holders[$key][$contextId] = $currentContext;
 
         try {
             return $this->invoke($key, $input);
         } finally {
-            $index = array_search($currentContext, $this->holders[$key] ?? [], true);
-            if (false !== $index) {
-                array_splice($this->holders[$key], $index, 1);
-            }
+            unset($this->holders[$key][$contextId]);
 
             $this->release($key);
         }
@@ -257,9 +249,10 @@ final class KeyedSemaphore
     /**
      * Get the number of ongoing operations for the given key.
      *
-     * The returned number is lower than, or equal to the concurrency limit, unless operations call
-     * {@see waitFor()} again for the same key: such re-entrant calls run right away, and can take
-     * the number above the limit.
+     * Each fiber (or {main}) running an operation for the given key counts once, however many times it
+     * re-entered {@see waitFor()} for that key, so the returned number never exceeds the concurrency limit.
+     * An operation that the slot of a completed operation was handed over to counts as ongoing once the slot
+     * is handed over, even if it has not resumed yet.
      *
      * @param Tk $key
      *
@@ -353,65 +346,40 @@ final class KeyedSemaphore
     }
 
     /**
-     * Release the slot of a completing operation, re-entrant or not, for the given key.
+     * Release the slot of a completing outermost operation for the given key.
      *
-     * The slot is handed over to the next pending operation if possible. Otherwise, it is released, and
-     * if no operation is pending anymore, the {@see waitForPending()} calls for the given key are resumed.
+     * The slot is handed over to the next pending operation, if any, without being released: the resumed
+     * operation runs later, and releasing the slot now would let a new caller take it in between. Otherwise,
+     * the slot is released, and the {@see waitForPending()} calls for the given key are resumed.
      *
      * @param Tk $key
      */
     private function release(string|int $key): void
     {
-        if ($this->handOver($key)) {
-            return;
-        }
-
-        // Operations may still be pending, if re-entrant calls keep the count at the limit.
-        if (($this->pending[$key] ?? []) === []) {
-            foreach ($this->waits[$key] ?? [] as $suspension) {
-                $suspension->resume();
+        if (($this->pending[$key] ?? []) !== []) {
+            $suspension = array_shift($this->pending[$key]);
+            if ([] === $this->pending[$key]) {
+                unset($this->pending[$key]);
             }
 
-            unset($this->waits[$key]);
+            if (null !== $suspension) {
+                $suspension->resume();
+
+                return;
+            }
         }
+
+        foreach ($this->waits[$key] ?? [] as $suspension) {
+            $suspension->resume();
+        }
+
+        unset($this->waits[$key]);
 
         // @mago-expect analysis:invalid-property-assignment-value - true positive, no one will modify this.
         $this->ongoing[$key]--;
         if (0 === $this->ongoing[$key]) {
             unset($this->ongoing[$key], $this->holders[$key]);
         }
-    }
-
-    /**
-     * Hand the slot of a completing operation over to the next pending operation for the given key.
-     *
-     * The slot is handed over without being released: the resumed operation runs later, and releasing
-     * the slot now would let a new caller take it in between. Re-entrant calls can take the count above
-     * the limit, in which case the slot is not handed over until the count, without the completing
-     * operation, is below the limit.
-     *
-     * Returns `false` if the slot was not handed over, and must be released by the caller.
-     *
-     * @param Tk $key
-     */
-    private function handOver(string|int $key): bool
-    {
-        if (($this->ongoing[$key] ?? 0) > $this->concurrencyLimit || ($this->pending[$key] ?? []) === []) {
-            return false;
-        }
-
-        $suspension = array_shift($this->pending[$key]);
-        if ([] === $this->pending[$key]) {
-            unset($this->pending[$key]);
-        }
-
-        if (null === $suspension) {
-            return false;
-        }
-
-        $suspension->resume();
-
-        return true;
     }
 
     /**
