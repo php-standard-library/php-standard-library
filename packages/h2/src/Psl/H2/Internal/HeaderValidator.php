@@ -40,6 +40,14 @@ final readonly class HeaderValidator
     private const string TOKEN_CHARACTERS = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyz";
 
     /**
+     * Control bytes forbidden in a field value: NUL, every C0 control except HTAB,
+     * and DEL.
+     */
+    private const string FORBIDDEN_VALUE_BYTES =
+        "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0a\x0b\x0c\x0d\x0e\x0f"
+            . "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f";
+
+    /**
      * Valid request pseudo-headers per RFC 9113 Section 8.3.1 and RFC 8441.
      *
      * @var array<string, true>
@@ -199,11 +207,18 @@ final readonly class HeaderValidator
     }
 
     /**
-     * @throws StreamException If the field value violates RFC 9113 Section 8.2.1.
+     * Field values may hold visible ASCII, obs-text, spaces and tabs, but no NUL,
+     * CR, LF or other control bytes, and no leading or trailing whitespace
+     * (RFC 9113 Section 8.2.1, RFC 9110 Section 5.5).
+     *
+     * @throws StreamException If the field value contains a forbidden byte.
      */
     public static function validateFieldValue(Header $header, int $streamId): void
     {
-        if (strpbrk($header->value, "\0\r\n") !== false || trim($header->value, " \t") !== $header->value) {
+        if (
+            strpbrk($header->value, self::FORBIDDEN_VALUE_BYTES) !== false
+            || trim($header->value, " \t") !== $header->value
+        ) {
             throw StreamException::forMalformedMessage($streamId, 'Invalid value for header "' . $header->name . '"');
         }
     }

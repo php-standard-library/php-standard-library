@@ -10,6 +10,7 @@ use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Internal\H1\RequestWriter;
 use Psl\HTTP\Client\Tests\Fixture\H1\FakeStream;
 use Psl\HTTP\Message\FieldMap;
+use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Request;
 use Psl\IO;
 use Psl\URL;
@@ -160,7 +161,7 @@ final class RequestWriterTest extends TestCase
 
         $request = $request->withRequestTarget("/path\r\nX-Injected: evil");
 
-        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectException(RequestException::class);
         self::write($request);
     }
 
@@ -170,7 +171,7 @@ final class RequestWriterTest extends TestCase
 
         $request = $request->withRequestTarget("/path\0evil");
 
-        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectException(RequestException::class);
         self::write($request);
     }
 
@@ -305,5 +306,116 @@ final class RequestWriterTest extends TestCase
             null,
         ];
         yield 'unsupported encoding' => ['POST', FieldMap::from([['transfer-encoding', 'gzip']]), 'hello', null];
+    }
+
+    public function testRequestTargetWithSpaceThrows(): void
+    {
+        $request = new Request(method: 'GET', url: URL\parse('http://example.com/'), headers: FieldMap::default());
+        $request = $request->withRequestTarget('/path with space');
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testRequestTargetWithTabThrows(): void
+    {
+        $request = new Request(method: 'GET', url: URL\parse('http://example.com/'), headers: FieldMap::default());
+        $request = $request->withRequestTarget("/path\ttab");
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testRequestTargetWithNonAsciiThrows(): void
+    {
+        $request = new Request(method: 'GET', url: URL\parse('http://example.com/'), headers: FieldMap::default());
+        $request = $request->withRequestTarget("/caf\xc3\xa9");
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testFieldValueWithControlByteThrows(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::from([['x-test', "a\x01b"]]),
+        );
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testMultipleHostHeadersThrow(): void
+    {
+        $request = new Request(
+            method: 'GET',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::from([
+                ['host', 'a.example.com'],
+                ['host', 'b.example.com'],
+            ]),
+        );
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testHttp10BodyWithoutContentLengthThrows(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::default(),
+            body: new IO\MemoryHandle('payload'),
+            protocolVersion: ProtocolVersion::V10,
+        );
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testHttp10DoesNotAddChunkedEncoding(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::from([['content-length', '7']]),
+            body: new IO\MemoryHandle('payload'),
+            protocolVersion: ProtocolVersion::V10,
+        );
+
+        $written = self::write($request);
+
+        static::assertStringContainsString("content-length: 7\r\n", $written);
+        static::assertStringNotContainsString('transfer-encoding', $written);
+    }
+
+    public function testHttp10RejectsTransferEncoding(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::from([['transfer-encoding', 'chunked']]),
+            body: new IO\MemoryHandle('payload'),
+            protocolVersion: ProtocolVersion::V10,
+        );
+
+        $this->expectException(RequestException::class);
+        self::write($request);
+    }
+
+    public function testTrailersWithContentLengthThrow(): void
+    {
+        $request = new Request(
+            method: 'POST',
+            url: URL\parse('http://example.com/'),
+            headers: FieldMap::from([['content-length', '7']]),
+            body: new IO\MemoryHandle('payload'),
+        );
+
+        $this->expectException(RequestException::class);
+        self::write($request, null, FieldMap::from([['x-checksum', 'abc']]));
     }
 }

@@ -8,6 +8,7 @@ use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\HTTP\Client\Exception\RequestException;
+use Psl\HTTP\Client\Internal\RequestValidator;
 use Psl\HTTP\Message\FieldMap;
 use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Request;
@@ -16,16 +17,10 @@ use Psl\Network;
 use Psl\URL\URL;
 
 use function count;
-use function ctype_digit;
 use function dechex;
-use function ltrim;
-use function preg_match;
-use function str_contains;
 use function strlen;
 use function strtolower;
 use function trim;
-
-use const PHP_INT_MAX;
 
 /**
  * Serializes and writes an HTTP/1.x request message to a network stream.
@@ -70,19 +65,17 @@ final class RequestWriter
         bool $headersOnly = false,
     ): void {
         $target = $request->requestTarget;
-        if (str_contains($target, "\r") || str_contains($target, "\n") || str_contains($target, "\0")) {
-            throw new IO\Exception\RuntimeException('Request target contains invalid characters');
-        }
-
-        if (preg_match("/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/D", $request->method) !== 1) {
-            throw RequestException::forInvalidRequest('Method must be a token.');
-        }
+        RequestValidator::validateRequestTarget($target);
+        RequestValidator::validateMethod($request->method);
+        RequestValidator::validateFields($request->headers);
 
         foreach ($trailers ?? FieldMap::default() as [$name, $value]) {
-            self::validateField($name, $value);
+            RequestValidator::validateFieldName($name);
+            RequestValidator::validateFieldValue($value);
         }
 
-        $protocol = $request->protocolVersion === ProtocolVersion::V10 ? '1.0' : '1.1';
+        $isHttp10 = $request->protocolVersion === ProtocolVersion::V10;
+        $protocol = $isHttp10 ? '1.0' : '1.1';
         $head = $request->method . ' ' . $target . ' HTTP/' . $protocol . "\r\n";
 
         if (!$request->headers->has('host')) {
@@ -95,7 +88,6 @@ final class RequestWriter
         }
 
         foreach ($request->headers as [$name, $value]) {
-            self::validateField($name, $value);
             $head .= $name . ': ' . $value . "\r\n";
         }
 
@@ -115,12 +107,28 @@ final class RequestWriter
             );
         }
 
+        // RFC 9112 Section 6.1: HTTP/1.0 has no chunked framing, so a body there
+        // must declare its length. Adding chunked would be a smuggling vector.
+        if ($isHttp10 && $hasTransferEncoding) {
+            throw RequestException::forInvalidRequest('HTTP/1.0 does not support Transfer-Encoding.');
+        }
+
         $body = $request->body;
         if ($body === null && ($contentLength ?? 0) !== 0) {
             throw RequestException::forInvalidRequest('Content-Length does not match the empty body.');
         }
 
+        // Trailers only exist in the chunked trailer section; Content-Length framing
+        // would silently drop them.
+        if ($trailers !== null && !$trailers->isEmpty() && ($hasContentLength || $isHttp10)) {
+            throw RequestException::forInvalidRequest('Trailers require chunked transfer encoding.');
+        }
+
         if ($body !== null && !$hasContentLength && !$hasTransferEncoding) {
+            if ($isHttp10) {
+                throw RequestException::forInvalidRequest('An HTTP/1.0 request body must declare a Content-Length.');
+            }
+
             $head .= "transfer-encoding: chunked\r\n";
         } elseif ($body === null && !$hasContentLength && !$hasTransferEncoding) {
             $head .= "content-length: 0\r\n";
@@ -157,38 +165,9 @@ final class RequestWriter
         }
     }
 
-    private static function validateField(string $name, string $value): void
-    {
-        if (
-            preg_match("/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/D", $name) !== 1
-            || str_contains($value, "\r")
-            || str_contains($value, "\n")
-            || str_contains($value, "\0")
-        ) {
-            throw RequestException::forInvalidRequest('Invalid header or trailer field.');
-        }
-    }
-
     private static function contentLength(Request $request): null|int
     {
-        $value = $request->headers->get('content-length');
-        if ($value === null) {
-            return null;
-        }
-
-        $value = trim($value, " \t");
-        $digits = ltrim($value, '0');
-        $maximum = (string) PHP_INT_MAX;
-        if (
-            !ctype_digit($value)
-            || strlen($digits) > strlen($maximum)
-            || strlen($digits) === strlen($maximum) && $digits > $maximum
-            || count($request->headers->getAll('content-length')) !== 1
-        ) {
-            throw RequestException::forInvalidRequest('Invalid Content-Length.');
-        }
-
-        return (int) $value;
+        return RequestValidator::contentLength($request->headers);
     }
 
     /**

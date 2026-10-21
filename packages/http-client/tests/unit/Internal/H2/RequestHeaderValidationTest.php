@@ -11,6 +11,7 @@ use Psl\Async\NullCancellationToken;
 use Psl\H2;
 use Psl\HPACK;
 use Psl\HTTP\Client\ClientConfiguration;
+use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\H2ClientConfiguration;
 use Psl\HTTP\Client\Internal\H2\H2Session;
 use Psl\HTTP\Client\Internal\H2\StreamExchange;
@@ -207,6 +208,42 @@ final class RequestHeaderValidationTest extends TestCase
     /**
      * @return iterable<string, array{string}>
      */
+    public function testRejectsNonTokenMethodBeforeSending(): void
+    {
+        $handle = self::responseHandle(3);
+        $session = new H2Session($handle, new H2ClientConfiguration());
+        $before = $handle->written;
+        $url = URL\parse('https://example.com/');
+        $request = new Request(method: "GE\tT", url: $url, requestTarget: '/');
+
+        try {
+            StreamExchange::exchange($session, $request, $url, new ClientConfiguration(), new NullCancellationToken());
+            static::fail('Expected an invalid method to be rejected.');
+        } catch (RequestException $error) {
+            static::assertStringContainsString('Method must be a token', $error->getMessage());
+            static::assertSame($before, $handle->written);
+            static::assertFalse($session->isClosed());
+        }
+    }
+
+    public function testRejectsInvalidRequestTargetBeforeSending(): void
+    {
+        $handle = self::responseHandle(3);
+        $session = new H2Session($handle, new H2ClientConfiguration());
+        $before = $handle->written;
+        $url = URL\parse('https://example.com/');
+        $request = new Request(method: 'GET', url: $url, requestTarget: '/a b');
+
+        try {
+            StreamExchange::exchange($session, $request, $url, new ClientConfiguration(), new NullCancellationToken());
+            static::fail('Expected an invalid request target to be rejected.');
+        } catch (RequestException $error) {
+            static::assertStringContainsString('Request target', $error->getMessage());
+            static::assertSame($before, $handle->written);
+            static::assertFalse($session->isClosed());
+        }
+    }
+
     public static function invalidValues(): iterable
     {
         yield 'carriage return' => ["before\rafter"];
@@ -216,6 +253,9 @@ final class RequestHeaderValidationTest extends TestCase
         yield 'trailing space' => ['value '];
         yield 'leading tab' => ["\tvalue"];
         yield 'trailing tab' => ["value\t"];
+        yield 'vertical tab' => ["before\x0bafter"];
+        yield 'bell control' => ["before\x07after"];
+        yield 'delete control' => ["before\x7fafter"];
     }
 
     /**

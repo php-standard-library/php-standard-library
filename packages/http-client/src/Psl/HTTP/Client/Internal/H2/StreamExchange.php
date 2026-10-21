@@ -16,6 +16,7 @@ use Psl\HPACK\Header;
 use Psl\HTTP\Client\ClientConfiguration;
 use Psl\HTTP\Client\Exception\RequestException;
 use Psl\HTTP\Client\Exception\RuntimeException;
+use Psl\HTTP\Client\Internal\RequestValidator;
 use Psl\HTTP\Message\FieldMap;
 use Psl\HTTP\Message\ProtocolVersion;
 use Psl\HTTP\Message\Request;
@@ -116,6 +117,15 @@ final class StreamExchange
                 'Trailers cannot be sent without a message body (RFC 9110 Section 6.5).',
             );
         }
+
+        // Validate the pseudo-header inputs and Content-Length the same way the
+        // HTTP/1 writer does, so a request a proxy downgrades from H2 to H1 cannot
+        // smuggle framing (shared validator). Regular field names and values are
+        // validated per field by the H2 HeaderValidator as they are encoded, after
+        // connection-specific fields are filtered out.
+        RequestValidator::validateMethod($request->method);
+        RequestValidator::validateRequestTarget($request->requestTarget);
+        RequestValidator::contentLength($request->headers);
 
         $session->acquireStream($cancellation);
 
