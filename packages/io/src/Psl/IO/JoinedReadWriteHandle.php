@@ -249,6 +249,10 @@ final class JoinedReadWriteHandle implements ReadHandleInterface, BufferedWriteH
      */
     public function __destruct()
     {
-        $this->close();
+        try {
+            $this->close();
+        } catch (Exception\RuntimeException) {
+            // @mago-expect lint:no-empty-catch-clause - A destructor cannot report an expected close failure (E11).
+        }
     }
 }

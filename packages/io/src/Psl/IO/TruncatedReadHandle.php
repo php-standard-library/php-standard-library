@@ -33,6 +33,9 @@ final class TruncatedReadHandle implements ReadHandleInterface, CloseHandleInter
     private int $bytesRead = 0;
 
     /**
+     * Takes ownership of `$handle` if it implements {@see CloseHandleInterface}: {@see close()} closes it.
+     * Otherwise it is only borrowed.
+     *
      * @param ReadHandleInterface $handle The underlying handle to read from.
      * @param int $limit The maximum total number of bytes to read from the underlying handle.
      */
@@ -133,19 +136,29 @@ final class TruncatedReadHandle implements ReadHandleInterface, CloseHandleInter
      */
     public function __destruct()
     {
-        $this->close();
+        try {
+            $this->close();
+        } catch (Exception\RuntimeException) {
+            // @mago-expect lint:no-empty-catch-clause - A destructor cannot report an expected close failure (E11).
+        }
     }
 
     /**
      * Close the handle.
      *
      * If the underlying handle implements {@see CloseHandleInterface}, it will be
-     * closed as well. After closing, all read operations will throw
-     * {@see Exception\AlreadyClosedException}.
+     * closed as well. Closing the handle again does nothing. After closing, all
+     * read operations will throw {@see Exception\AlreadyClosedException}.
+     *
+     * @throws Exception\RuntimeException If unable to close the underlying handle.
      */
     #[Override]
     public function close(): void
     {
+        if ($this->closed) {
+            return;
+        }
+
         $this->closed = true;
 
         if ($this->handle instanceof CloseHandleInterface) {
