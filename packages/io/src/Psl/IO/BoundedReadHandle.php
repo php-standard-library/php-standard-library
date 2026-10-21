@@ -18,11 +18,14 @@ use function strlen;
  * Reads up to $limit bytes from the underlying handle. Once the limit is
  * reached, the handle peeks one additional byte from the underlying handle to
  * distinguish between "data fits exactly" (reports EOF) and "data exceeds
- * limit" (throws {@see Exception\RuntimeException}). {@see read()} waits for
+ * limit" (throws {@see Exception\LimitExceededException}). {@see read()} waits for
  * that byte; {@see tryRead()} only inspects data that is already available and
  * returns an empty string, without reporting EOF, while the underlying handle
  * has nothing to offer yet. EOF is reported only when the underlying handle
  * reports it.
+ *
+ * Once an overflow has been seen, every later read throws the same
+ * {@see Exception\LimitExceededException} without touching the underlying handle.
  *
  * This is useful for enforcing size limits where exceeding the boundary is a
  * violation (e.g., HTTP response body size limits, protocol frame sizes).
@@ -39,6 +42,7 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
     private bool $closed = false;
     private int $bytesRead = 0;
     private bool $limitReached = false;
+    private null|Exception\LimitExceededException $overflow = null;
 
     /**
      * Takes ownership of `$handle` if it implements {@see CloseHandleInterface}: {@see close()} closes it.
@@ -46,7 +50,7 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
      *
      * @param ReadHandleInterface $handle The underlying handle to read from.
      * @param int $limit The maximum total number of bytes allowed. If the underlying
-     *  handle contains more data, an {@see Exception\RuntimeException} is thrown.
+     *  handle contains more data, an {@see Exception\LimitExceededException} is thrown.
      */
     public function __construct(
         private readonly ReadHandleInterface $handle,
@@ -74,13 +78,15 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
      *
      * If the byte limit has been reached, peeks one available byte to check for
      * overflow: if the underlying handle has more data, throws
-     * {@see Exception\RuntimeException}. Otherwise, returns an empty string; this
+     * {@see Exception\LimitExceededException}. Otherwise, returns an empty string; this
      * is EOF only once the underlying handle reports EOF.
      *
      * @param null|positive-int $maxBytes Maximum number of bytes to return, or null for the remaining allowance.
      *
      * @throws Exception\AlreadyClosedException If the handle has been closed.
-     * @throws Exception\RuntimeException If the underlying handle contains more data than the limit allows.
+     * @throws Exception\LimitExceededException If the underlying handle contains more data than the limit allows,
+     *  now or in an earlier read.
+     * @throws Exception\RuntimeException If an error occurred during the operation.
      */
     #[Override]
     public function tryRead(null|int $maxBytes = null): string
@@ -107,13 +113,15 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
      *
      * If the byte limit has been reached, waits for one more byte to check for
      * overflow: if the underlying handle delivers data, throws
-     * {@see Exception\RuntimeException}. Otherwise, returns an empty string once
+     * {@see Exception\LimitExceededException}. Otherwise, returns an empty string once
      * the underlying handle reports EOF.
      *
      * @param null|positive-int $maxBytes Maximum number of bytes to return, or null for the remaining allowance.
      *
      * @throws Exception\AlreadyClosedException If the handle has been closed.
-     * @throws Exception\RuntimeException If the underlying handle contains more data than the limit allows.
+     * @throws Exception\LimitExceededException If the underlying handle contains more data than the limit allows,
+     *  now or in an earlier read.
+     * @throws Exception\RuntimeException If an error occurred during the operation.
      */
     #[Override]
     public function read(
@@ -188,10 +196,18 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
      * exceeds the limit. An empty peek reports EOF only when the underlying
      * handle now reports EOF; bytes that have not arrived yet are not EOF.
      *
-     * @throws Exception\RuntimeException If the underlying handle has overflow data.
+     * An overflow is recorded, and later calls throw it again without peeking:
+     * a second peek could consume more data, or find the underlying handle at
+     * EOF and report the data as fitting.
+     *
+     * @throws Exception\LimitExceededException If the underlying handle has overflow data.
      */
     private function handleLimitReached(bool $blocking, CancellationTokenInterface $cancellation): string
     {
+        if (null !== $this->overflow) {
+            throw $this->overflow;
+        }
+
         if ($this->limitReached || $this->handle->reachedEndOfDataSource()) {
             $this->limitReached = true;
 
@@ -200,9 +216,7 @@ final class BoundedReadHandle implements ReadHandleInterface, CloseHandleInterfa
 
         $peek = $blocking ? $this->handle->read(1, $cancellation) : $this->handle->tryRead(1);
         if ($peek !== '') {
-            throw new Exception\RuntimeException(
-                'Response body exceeded the configured limit of ' . $this->limit . ' bytes.',
-            );
+            throw $this->overflow = Exception\LimitExceededException::forLimit($this->limit);
         }
 
         if ($this->handle->reachedEndOfDataSource()) {

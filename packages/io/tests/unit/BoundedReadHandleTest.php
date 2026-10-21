@@ -116,6 +116,65 @@ final class BoundedReadHandleTest extends TestCase
         static::assertTrue($handle->reachedEndOfDataSource());
     }
 
+    public function testARetryAfterAnOverflowThrowsAgainInsteadOfReportingEof(): void
+    {
+        // the overflow byte is the last one: a second peek would find the inner handle at EOF.
+        $inner = new IO\MemoryHandle('hello!');
+        $handle = new IO\BoundedReadHandle($inner, 5);
+
+        static::assertSame('hello', $handle->read(5));
+
+        try {
+            $handle->read();
+            static::fail('Expected LimitExceededException');
+        } catch (IO\Exception\LimitExceededException $e) {
+            static::assertSame(5, $e->limit);
+        }
+
+        $this->expectException(IO\Exception\LimitExceededException::class);
+        $this->expectExceptionMessage('exceeded the configured limit of 5 bytes');
+
+        $handle->read();
+    }
+
+    public function testAnObservedOverflowIsLatched(): void
+    {
+        $inner = new IO\MemoryHandle('hello world');
+        $handle = new IO\BoundedReadHandle($inner, 5);
+
+        static::assertSame('hello', $handle->read(5));
+
+        $overflow = null;
+        try {
+            $handle->tryRead();
+        } catch (IO\Exception\LimitExceededException $e) {
+            $overflow = $e;
+        }
+
+        static::assertNotNull($overflow);
+        static::assertInstanceOf(IO\Exception\RuntimeException::class, $overflow);
+        static::assertSame('Data exceeded the configured limit of 5 bytes.', $overflow->getMessage());
+
+        $position = $inner->tell();
+
+        // every later read throws the same exception and leaves the inner handle alone.
+        foreach ([
+            $handle->read(...),
+            $handle->tryRead(...),
+            $handle->readAll(...),
+            static fn() => $handle->readFixedSize(1),
+        ] as $operation) {
+            try {
+                $operation();
+                static::fail('Expected LimitExceededException');
+            } catch (IO\Exception\LimitExceededException $e) {
+                static::assertSame($overflow, $e);
+            }
+        }
+
+        static::assertSame($position, $inner->tell());
+    }
+
     public function testLimitReachedFlagPreventsRepeatedPeeks(): void
     {
         $inner = new IO\MemoryHandle('hello');

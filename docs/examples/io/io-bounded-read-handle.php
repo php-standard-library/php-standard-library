@@ -18,6 +18,14 @@ $handle->read(5); // 'hello'
 
 try {
     $handle->read(); // throws -- underlying handle has more data
-} catch (IO\Exception\RuntimeException $e) {
-    $e->getMessage(); // 'Response body exceeded the configured limit of 5 bytes.'
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->getMessage(); // 'Data exceeded the configured limit of 5 bytes.'
+    $e->limit; // 5
+}
+
+// The overflow is latched: later reads throw it again without reading any further
+try {
+    $handle->read();
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->limit; // 5
 }
