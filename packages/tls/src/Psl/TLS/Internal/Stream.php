@@ -14,9 +14,11 @@ use Psl\Network;
 use Psl\TLS;
 use Revolt\EventLoop;
 
+use function fread;
 use function is_resource;
 use function restore_error_handler;
 use function set_error_handler;
+use function stream_get_meta_data;
 use function stream_socket_enable_crypto;
 use function strlen;
 use function substr;
@@ -252,10 +254,12 @@ final class Stream implements TLS\StreamInterface
     #[Override]
     public function close(): void
     {
-        // Send TLS close_notify before closing the underlying stream.
         $stream = $this->inner->getStream();
         if (is_resource($stream)) {
+            // Send close_notify, then let go of what the peer sent and nobody read, so that closing the socket ends
+            // the connection instead of resetting it.
             @stream_socket_enable_crypto($stream, false);
+            self::discardUnreadBytes($stream);
         }
 
         $this->inner->close();
@@ -264,6 +268,34 @@ final class Stream implements TLS\StreamInterface
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Read and discard the bytes already waiting on the socket, without waiting for more.
+     *
+     * Closing a socket that still holds unread bytes makes the kernel reset the connection instead of ending it
+     * (RFC 1122 section 4.2.2.13). The kernel then drops what this side wrote last and the peer has not received
+     * yet, close_notify included, and the peer sees an error, or nothing at all, instead of the end of the stream.
+     * A TLS 1.3 server sends session tickets right after the handshake, so a client that never reads leaves such
+     * bytes behind. Once crypto is disabled, reads return the raw bytes of the socket.
+     *
+     * This only reads what has already arrived, from a non-blocking socket, and at most 1 MiB of it: it never
+     * waits for the peer. Bytes that arrive later, or past that bound, still reset the connection, as before.
+     *
+     * @param resource $stream
+     */
+    private static function discardUnreadBytes(mixed $stream): void
+    {
+        if (stream_get_meta_data($stream)['blocked']) {
+            return;
+        }
+
+        for ($i = 0; $i < 16; $i++) {
+            $chunk = @fread($stream, 65_536);
+            if (false === $chunk || '' === $chunk) {
+                return;
+            }
+        }
     }
 
     /**
