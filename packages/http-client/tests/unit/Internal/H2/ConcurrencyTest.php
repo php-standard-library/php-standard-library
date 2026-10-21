@@ -18,6 +18,9 @@ use Psl\IO;
 use Psl\Network;
 use Psl\URL;
 
+/**
+ * @mago-expect lint:excessive-nesting
+ */
 final class ConcurrencyTest extends TestCase
 {
     public function testPeerLimitHoldsSlotUntilStreamCloses(): void
@@ -134,6 +137,76 @@ final class ConcurrencyTest extends TestCase
                 $firstBody->close();
             }
 
+            $client->close();
+            $server->close();
+        }
+    }
+
+    public function testLocalLimitCapsOutgoingStreamsBeforeAnySettings(): void
+    {
+        [$client, $server] = Network\socket_pair();
+        // The peer advertises a generous limit; the client's own limit of 1 must still apply.
+        $session = new H2Session($client, new H2ClientConfiguration(maxConcurrentStreams: 1));
+        $connection = new H2Connection(
+            $session,
+            new ConnectionMetadata($client->getLocalAddress(), $client->getPeerAddress()),
+        );
+        $overall = new Async\TimeoutCancellationToken(Duration::seconds(2));
+        $release = new Async\Deferred();
+        $h2 = new H2\ServerConnection($server, new H2\Configuration(settings: [
+            H2\Setting::MaxConcurrentStreams->value => 100,
+        ]));
+        $serverTask = Async\run(static function () use ($h2, $overall, $release): void {
+            $h2->readClientPreface();
+            $h2->initialize();
+            while (true) {
+                foreach ($h2->readEvent($overall) as $event) {
+                    if (!$event instanceof H2\Event\HeadersReceived) {
+                        continue;
+                    }
+
+                    if ($event->streamId === 1) {
+                        // Hold the first stream's response, but keep serving others,
+                        // so only a client-side limit can delay a second stream.
+                        $streamId = $event->streamId;
+                        Async\run(static function () use ($h2, $streamId, $overall, $release): void {
+                            $release->getAwaitable()->await($overall);
+                            $h2->sendHeadersWithStatus($streamId, '200', [], endStream: true);
+                        })->ignore();
+
+                        continue;
+                    }
+
+                    $h2->sendHeadersWithStatus($event->streamId, '200', [], endStream: true);
+                }
+            }
+        });
+        $serverTask->ignore();
+        $configuration = new ClientConfiguration();
+        $url = URL\parse('http://example.com/');
+
+        try {
+            $first = Async\run(static fn() => $connection->exchange(
+                new Request(method: 'GET', url: $url),
+                $configuration,
+                $overall,
+            ));
+            $first->ignore();
+            Async\later();
+            $second = Async\run(static fn() => $connection->exchange(
+                new Request(method: 'GET', url: $url),
+                $configuration,
+                $overall,
+            ));
+            $second->ignore();
+            Async\sleep(Duration::milliseconds(50));
+
+            static::assertFalse($second->isComplete(), 'The local limit of 1 must queue the second stream.');
+
+            $release->complete(null);
+            static::assertSame(200, $first->await()->response->status);
+            static::assertSame(200, $second->await()->response->status);
+        } finally {
             $client->close();
             $server->close();
         }

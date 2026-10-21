@@ -20,8 +20,6 @@ use function array_filter;
 use function array_shift;
 use function array_values;
 
-use const PHP_INT_MAX;
-
 /**
  * Manages an HTTP/2 multiplexed session over a single TCP/TLS connection.
  *
@@ -50,7 +48,16 @@ final class H2Session
 
     private int $activeStreams = 0;
 
-    private int $maxConcurrentStreams = PHP_INT_MAX;
+    /**
+     * The client's own SETTINGS_MAX_CONCURRENT_STREAMS. It caps outgoing streams
+     * until the peer advertises its own, lower limit.
+     */
+    private readonly int $localMaxConcurrentStreams;
+
+    /**
+     * The effective outgoing-stream limit: the local value, then min(local, peer).
+     */
+    private int $maxConcurrentStreams;
 
     /**
      * @var list<Deferred<null>>
@@ -68,6 +75,9 @@ final class H2Session
         IO\ReadHandleInterface&IO\WriteHandleInterface $handle,
         H2ClientConfiguration $configuration,
     ) {
+        $this->localMaxConcurrentStreams = $configuration->maxConcurrentStreams;
+        $this->maxConcurrentStreams = $configuration->maxConcurrentStreams;
+
         /** @var array<positive-int, non-negative-int> $settings */
         $settings = [
             Setting::MaxConcurrentStreams->value => $configuration->maxConcurrentStreams,
@@ -145,7 +155,10 @@ final class H2Session
      */
     public function updateMaxConcurrentStreams(int $limit): void
     {
-        $this->maxConcurrentStreams = $limit;
+        // Outgoing streams are bounded by both endpoints' limits (RFC 9113 Section 5.1.2).
+        $this->maxConcurrentStreams = $limit < $this->localMaxConcurrentStreams
+            ? $limit
+            : $this->localMaxConcurrentStreams;
         $waiters = $this->streamWaiters;
         $this->streamWaiters = [];
         foreach ($waiters as $waiter) {
