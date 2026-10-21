@@ -77,6 +77,45 @@ final class BoundedReadHandleTest extends TestCase
         static::assertTrue($handle->reachedEndOfDataSource());
     }
 
+    public function testLateBytesAtTheLimitAreNotEof(): void
+    {
+        $inner = new ScriptedReadHandle(['hello', '', ' world']);
+        $handle = new IO\BoundedReadHandle($inner, 5);
+
+        static::assertSame('hello', $handle->read());
+        static::assertSame('', $handle->tryRead());
+        static::assertFalse($handle->reachedEndOfDataSource());
+
+        $this->expectException(IO\Exception\RuntimeException::class);
+        $this->expectExceptionMessage('exceeded the configured limit of 5 bytes');
+
+        $handle->read();
+    }
+
+    public function testTryReadAtTheLimitThrowsOnceLateBytesArrive(): void
+    {
+        $inner = new ScriptedReadHandle(['hello', '', 'x']);
+        $handle = new IO\BoundedReadHandle($inner, 5);
+
+        static::assertSame('hello', $handle->tryRead());
+        static::assertSame('', $handle->tryRead());
+        static::assertFalse($handle->reachedEndOfDataSource());
+
+        $this->expectException(IO\Exception\RuntimeException::class);
+
+        $handle->tryRead();
+    }
+
+    public function testReadAtTheLimitReportsEofOnlyWhenTheInnerHandleDoes(): void
+    {
+        $inner = new ScriptedReadHandle(['hello', '']);
+        $handle = new IO\BoundedReadHandle($inner, 5);
+
+        static::assertSame('hello', $handle->read());
+        static::assertSame('', $handle->read());
+        static::assertTrue($handle->reachedEndOfDataSource());
+    }
+
     public function testLimitReachedFlagPreventsRepeatedPeeks(): void
     {
         $inner = new IO\MemoryHandle('hello');

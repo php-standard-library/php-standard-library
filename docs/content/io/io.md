@@ -112,6 +112,8 @@ PSL provides several decorator handles that wrap an existing handle and add beha
 
 `BoundedReadHandle` reads up to N bytes from the underlying handle. Unlike `TruncatedReadHandle`, it peeks past the limit to check for overflow. If the underlying handle has more data, an `IO\Exception\RuntimeException` is thrown. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).
 
+At the limit, `read()` waits for the next byte before deciding, and `tryRead()` returns an empty string while nothing is available yet. The handle reports EOF only when the underlying handle does, so bytes that arrive later still count as overflow.
+
 @example('io/io-bounded-read-handle.php')
 
 ### FixedLengthReadHandle
