@@ -68,6 +68,41 @@ final class ConnectorTest extends TestCase
         ]);
     }
 
+    public function testRetryConnectorDoesNotRetryNonRetryableFailures(): void
+    {
+        $attempts = 0;
+        $rejected = new class('certificate rejected') extends Network\Exception\RuntimeException implements
+            Network\Exception\NonRetryableExceptionInterface {};
+
+        $failingConnector = new class($attempts, $rejected) implements TCP\ConnectorInterface {
+            public function __construct(
+                private int &$attempts,
+                private readonly Network\Exception\RuntimeException $rejected,
+            ) {}
+
+            public function connect(
+                string $host,
+                int $port,
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): TCP\StreamInterface {
+                $this->attempts++;
+
+                throw $this->rejected;
+            }
+        };
+
+        $connector = new TCP\RetryConnector($failingConnector, maxAttempts: 3, backoff: Duration::milliseconds(1));
+
+        try {
+            $connector->connect('127.0.0.1', 1);
+            static::fail('Expected the failure to propagate.');
+        } catch (Network\Exception\RuntimeException $exception) {
+            static::assertSame($rejected, $exception);
+        }
+
+        static::assertSame(1, $attempts);
+    }
+
     public function testRetryConnectorSucceedsOnFirstAttempt(): void
     {
         Async\concurrently([

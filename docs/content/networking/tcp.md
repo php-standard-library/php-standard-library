@@ -13,7 +13,7 @@ The `TCP` component provides a non-blocking API for TCP client and server connec
 All TCP connectors implement `ConnectorInterface`, making them interchangeable and composable. The built-in connectors are:
 
 - **`Connector`** -- the default connector wrapping `TCP\connect()`.
-- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure.
+- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 - **`StaticConnector`** -- redirects all connections to a fixed host and port (useful for testing).
 
 ### SocketPool

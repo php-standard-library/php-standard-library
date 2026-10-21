@@ -39,6 +39,9 @@ use const PHP_INT_MAX;
  *
  * All other exceptions propagate immediately without retry, including:
  *
+ * - {@see Network\Exception\NonRetryableExceptionInterface}: a failure that repeating the
+ *   request cannot fix, such as a TLS certificate that was rejected
+ *   ({@see \Psl\TLS\Exception\PeerVerificationException}).
  * - {@see Exception\RequestException}: invalid request (no URL).
  * - {@see Exception\ProtocolException}: malformed server response.
  * - {@see Exception\TooManyRedirectsException}: redirect limit exceeded.
@@ -159,7 +162,7 @@ final readonly class RetryClient implements ClientInterface
             try {
                 return $this->inner->send($request, $configuration, $cancellation);
             } catch (Network\Exception\RuntimeException|IO\Exception\RuntimeException $e) {
-                if ($attempt >= $this->maxAttempts) {
+                if ($e instanceof Network\Exception\NonRetryableExceptionInterface || $attempt >= $this->maxAttempts) {
                     throw $e;
                 }
 

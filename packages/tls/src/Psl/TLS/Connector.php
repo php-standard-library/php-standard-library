@@ -11,6 +11,7 @@ use Psl\Async\NullCancellationToken;
 use Psl\Default\DefaultInterface;
 use Psl\Network;
 use Psl\TLS\Exception\HandshakeFailedException;
+use Psl\TLS\Exception\PeerVerificationException;
 
 use function hash_equals;
 use function is_resource;
@@ -53,9 +54,10 @@ final readonly class Connector implements DefaultInterface
      *
      * When the configuration pins peer fingerprints, the peer certificate's SHA-256 fingerprint
      * is compared with them after the handshake; on a mismatch the stream is closed and
-     * {@see HandshakeFailedException} is thrown.
+     * {@see PeerVerificationException} is thrown.
      *
-     * @throws HandshakeFailedException If the TLS handshake fails, or the peer certificate matches no configured fingerprint.
+     * @throws PeerVerificationException If the peer certificate fails chain, name or fingerprint verification.
+     * @throws HandshakeFailedException If the TLS handshake fails for any other reason.
      * @throws Network\Exception\RuntimeException If the stream is not available.
      * @throws CancelledException If the cancellation token is cancelled during the handshake.
      */
@@ -91,7 +93,7 @@ final readonly class Connector implements DefaultInterface
             @stream_socket_enable_crypto($resource, false);
             $stream->close();
 
-            throw new HandshakeFailedException(
+            throw new PeerVerificationException(
                 'TLS peer certificate does not match any of the configured SHA-256 fingerprints.',
             );
         }

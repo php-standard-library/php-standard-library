@@ -32,7 +32,7 @@ For 301 and 302, only POST changes to GET. Other methods keep their body and met
 
 ## Retries
 
-`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff.
+`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 
 @example('protocols/http-client-retries.php')
 

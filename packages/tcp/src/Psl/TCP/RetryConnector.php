@@ -56,6 +56,10 @@ final readonly class RetryConnector implements ConnectorInterface
             try {
                 return $this->connector->connect($host, $port, $cancellation);
             } catch (Network\Exception\RuntimeException $e) {
+                if ($e instanceof Network\Exception\NonRetryableExceptionInterface) {
+                    throw $e;
+                }
+
                 $messages[] = "Attempt {$attempts}: {$e->getMessage()}";
 
                 if ($attempts >= $this->maxAttempts) {

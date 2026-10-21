@@ -19,6 +19,7 @@ use Psl\HTTP\Message\Request;
 use Psl\HTTP\Message\Response;
 use Psl\HTTP\Message\Transaction;
 use Psl\IO;
+use Psl\Network\Exception\NonRetryableExceptionInterface;
 use Psl\Network\Exception\RuntimeException;
 use Psl\URL;
 use ReflectionMethod;
@@ -218,6 +219,35 @@ final class RetryClientTest extends TestCase
         $tx = $client->send(self::request('TRACE'));
 
         static::assertSame(200, $tx->response->status);
+    }
+
+    public function testDoesNotRetryNonRetryableNetworkFailures(): void
+    {
+        $inner = new class() implements ClientInterface {
+            public int $attempts = 0;
+
+            #[Override]
+            public function send(
+                Request $request,
+                SendConfiguration $configuration = new SendConfiguration(),
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): Transaction {
+                $this->attempts++;
+
+                throw new class('certificate rejected') extends RuntimeException implements
+                    NonRetryableExceptionInterface {};
+            }
+        };
+
+        $client = new RetryClient($inner, maxAttempts: 3, backoff: Duration::milliseconds(1));
+
+        $this->expectException(NonRetryableExceptionInterface::class);
+
+        try {
+            $client->send(self::request());
+        } finally {
+            static::assertSame(1, $inner->attempts);
+        }
     }
 
     public function testDoesNotRetryOnProtocolException(): void

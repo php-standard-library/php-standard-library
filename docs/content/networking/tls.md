@@ -68,7 +68,11 @@ The handshake runs inside `accept()`, one connection at a time. A peer that conn
 
 @example('networking/tls-pinning.php')
 
-Pins are SHA-256 fingerprints of the peer's leaf certificate, in hexadecimal; letter case and `:` separators are ignored. They are checked after the handshake, on top of the chain and name verification configured by the other options. A certificate that matches none of the pins closes the connection and throws `HandshakeFailedException`.
+Pins are SHA-256 fingerprints of the peer's leaf certificate, in hexadecimal; letter case and `:` separators are ignored. They are checked after the handshake, on top of the chain and name verification configured by the other options. A certificate that matches none of the pins closes the connection and throws `PeerVerificationException`.
+
+### Verification Failures
+
+A handshake that fails because the peer's certificate was rejected, by chain verification (unknown authority, expired or self-signed certificate), by peer name verification, or by a pin, throws `TLS\Exception\PeerVerificationException`. It extends `HandshakeFailedException`, so existing handlers keep matching, and it implements `Network\Exception\NonRetryableExceptionInterface`: `TCP\RetryConnector` and `HTTP\Client\RetryClient` rethrow it at once instead of repeating a handshake that the same certificate will fail again. Other handshake failures, such as a reset connection or a peer that does not speak TLS, remain plain `HandshakeFailedException`s and are retried as before. Both carry the native error in their message.
 
 ### STARTTLS (Upgrade Mid-Connection)
 

@@ -9,6 +9,9 @@ use Psl\Network\Exception;
 /**
  * Exception thrown when a TLS handshake fails.
  *
+ * A handshake that failed because the peer's certificate was rejected throws the
+ * {@see PeerVerificationException} subclass, which retry decorators do not retry.
+ *
  * @api
  */
-final class HandshakeFailedException extends Exception\RuntimeException implements ExceptionInterface {}
+class HandshakeFailedException extends Exception\RuntimeException implements ExceptionInterface {}

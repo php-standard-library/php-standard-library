@@ -14,6 +14,8 @@ use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
 use Throwable;
 
+use function restore_error_handler;
+use function set_error_handler;
 use function stream_socket_enable_crypto;
 
 /**
@@ -29,6 +31,9 @@ use function stream_socket_enable_crypto;
  * PHP captures the peer certificate into that context (`ext/openssl/xp_ssl.c`,
  * `php_openssl_capture_peer_certs`). Reading it later would attribute a certificate
  * captured by another connection's handshake to this one.
+ *
+ * A failed handshake is reported with the warning PHP emitted for it, through
+ * {@see handshake_failure()}, which tells certificate verification failures apart.
  *
  * @param resource $stream The stream resource to enable TLS on.
  * @param int $cryptoMethod The crypto method bitmask (STREAM_CRYPTO_METHOD_*).
@@ -52,15 +57,37 @@ function enable_crypto(
         $cancellation->throwIfCancelled();
     }
 
-    // Try the initial handshake; stream is already non-blocking from ResourceHandle
-    $result = @stream_socket_enable_crypto($stream, true, $cryptoMethod);
+    /**
+     * One handshake step, capturing the warning PHP emits when the step fails.
+     *
+     * @return array{bool|int, null|string}
+     */
+    $step = static function () use ($stream, $cryptoMethod): array {
+        $native = null;
+        set_error_handler(static function (int $_, string $message) use (&$native): bool {
+            $native = $message;
+
+            return true;
+        });
+
+        try {
+            // The stream is already non-blocking from ResourceHandle.
+            $result = stream_socket_enable_crypto($stream, true, $cryptoMethod);
+        } finally {
+            restore_error_handler();
+        }
+
+        return [$result, $native];
+    };
+
+    [$result, $native] = $step();
 
     if (true === $result) {
         return namespace\extract_connection_state($stream, $server);
     }
 
     if (false === $result) {
-        throw new HandshakeFailedException('TLS handshake failed.');
+        throw namespace\handshake_failure($native);
     }
 
     // $result === 0, handshake in progress; wait for the event loop
@@ -72,10 +99,10 @@ function enable_crypto(
         &$watcher,
         $suspension,
         $stream,
-        $cryptoMethod,
+        $step,
         $server,
     ): void {
-        $result = @stream_socket_enable_crypto($stream, true, $cryptoMethod);
+        [$result, $native] = $step();
 
         if (true === $result) {
             EventLoop::cancel($watcher);
@@ -96,7 +123,7 @@ function enable_crypto(
         if (false === $result) {
             EventLoop::cancel($watcher);
 
-            $suspension->throw(new HandshakeFailedException('TLS handshake failed.'));
+            $suspension->throw(namespace\handshake_failure($native));
 
             return;
         }
