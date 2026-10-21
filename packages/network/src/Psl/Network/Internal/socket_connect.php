@@ -25,10 +25,13 @@ use const STREAM_CLIENT_CONNECT;
 /**
  * Open a socket connected to the given address, waiting until the connect completes.
  *
- * The connect is asynchronous: it ends once the socket becomes writable, whether it succeeded or not, and a socket
+ * A TCP connect is asynchronous: it ends once the socket becomes writable, whether it succeeded or not, and a socket
  * that has no peer address then failed. The wait has a record of its own, which the watcher and the cancellation
  * listener settle, whichever comes first. A connect that does not complete, because it failed or was cancelled,
  * closes its socket.
+ *
+ * A Unix-domain connect never completes later: it returns its socket at once, without the wait or the check, or it
+ * has already failed, as when the listener's backlog is full.
  *
  * @param non-empty-string $uri
  * @param array<string, mixed> $context
@@ -76,6 +79,13 @@ function socket_connect(
         );
     }
 
+    // A Unix-domain connect never completes later: it has connected, or it has already failed above, as when the
+    // listener's backlog is full (EAGAIN on Linux, ECONNREFUSED on macOS). The completion check below would only
+    // misread its socket, as PHP reports no peer name for a socket in the Linux abstract namespace.
+    if (str_starts_with($uri, 'unix://')) {
+        return $socket;
+    }
+
     // The connect ends, whether it failed or not, once the socket becomes writable. The wait has its own record,
     // which the watcher and the cancellation listener settle: the listener may run during subscribe(), before the
     // wait has suspended, or after the wait has ended, when the fiber may already be waiting for something else.
@@ -97,9 +107,7 @@ function socket_connect(
         $waiter->wait();
 
         error_clear_last();
-        // A Unix-domain connect has completed by the time the socket exists, and PHP reports no peer name for a
-        // socket in the Linux abstract namespace, so only a TCP connect is checked for its peer.
-        if (!str_starts_with($uri, 'unix://') && false === @stream_socket_get_name($socket, true)) {
+        if (false === @stream_socket_get_name($socket, true)) {
             $error = error_get_last();
 
             throw new Exception\RuntimeException(
