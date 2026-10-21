@@ -137,7 +137,7 @@ final class Connection implements ConnectionInterface
         }
 
         try {
-            $tlsStream = $connector->connect($this->stream);
+            $tlsStream = $connector->connect($this->stream, cancellation: $cancellation);
         } catch (TLS\Exception\HandshakeFailedException|Network\Exception\RuntimeException $e) {
             throw Exception\ConnectionException::forTLSUpgradeFailed($e);
         }

@@ -4175,6 +4175,60 @@ final class TransportTest extends TestCase
         }
     }
 
+    public function testCancellingStalledStartTlsHandshakePassesThrough(): void
+    {
+        $server = TCP\listen('127.0.0.1', 0);
+        $address = $server->getLocalAddress();
+        $token = new Async\SignalCancellationToken();
+        $future = Async\run(static function () use ($server, $token): void {
+            $client = $server->accept();
+            $client->writeAll("220 mail.example.com ESMTP\r\n");
+            self::readCommand($client);
+            $client->writeAll("250-mail.example.com\r\n250 STARTTLS\r\n");
+            static::assertStringContainsString('STARTTLS', self::readCommand($client));
+            $client->writeAll("220 Ready to start TLS\r\n");
+
+            // The ClientHello arrives: the client is in the handshake. Cancel it there, and never answer.
+            $client->read();
+            $token->cancel();
+
+            // If the cancellation does not reach the handshake, close the stream after a while so that the handshake
+            // fails instead of hanging the test.
+            $deadline = new Async\TimeoutCancellationToken(Duration::seconds(5));
+            try {
+                while ('' !== $client->read(cancellation: $deadline)) {
+                    // Discard the rest of the ClientHello until the client closes the connection.
+                }
+            } catch (Async\Exception\CancelledException) {
+                $client->close();
+            }
+        });
+        $configuration = new TransportConfiguration(
+            host: $address->host,
+            port: $address->port,
+            security: Security::StartTLS,
+        );
+        $transport = new Transport($configuration);
+        $sender = new Mailbox('sender', 'example.com');
+        $recipient = new Mailbox('recipient', 'example.com');
+        $envelope = new Envelope($sender, [$recipient]);
+        $message = new Message()
+            ->withFrom($sender)
+            ->withTo($recipient)
+            ->withSubject('Test')
+            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
+        try {
+            $transport->send($envelope, $message, cancellation: $token);
+            static::fail('Expected the stalled STARTTLS handshake to be cancelled.');
+        } catch (Async\Exception\CancelledException $e) {
+            static::assertSame($token, $e->getToken());
+        } finally {
+            $transport->close();
+            $server->close();
+            $future->await();
+        }
+    }
+
     public function testDeliverByNotifyMode(): void
     {
         $server = TCP\listen('127.0.0.1', 0);

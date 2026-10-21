@@ -6,6 +6,7 @@ namespace Psl\SMTP\Tests\Unit\Client;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\IO;
 use Psl\IO\Exception\AlreadyClosedException;
 use Psl\Network;
@@ -461,6 +462,44 @@ final class ConnectionTest extends TestCase
             $connection->startTls(new Connector());
         } finally {
             $connection->close();
+            $serverStream->close();
+        }
+    }
+
+    public function testStartTlsHandshakeCanBeCancelled(): void
+    {
+        [$connection, $serverStream] = $this->createPair();
+        $token = new Async\SignalCancellationToken();
+
+        $server = Async\run(static function () use ($serverStream, $token): void {
+            $command = self::readCommand($serverStream);
+            static::assertStringContainsString('STARTTLS', $command);
+            $serverStream->writeAll("220 Ready to start TLS\r\n");
+
+            // The ClientHello arrives: the client is in the handshake. Cancel it there, and never answer.
+            $serverStream->read();
+            $token->cancel();
+
+            // If the cancellation does not reach the handshake, close the stream after a while so that the handshake
+            // fails instead of hanging the test.
+            $deadline = new Async\TimeoutCancellationToken(Duration::seconds(5));
+            try {
+                while ('' !== $serverStream->read(cancellation: $deadline)) {
+                    // Discard the rest of the ClientHello until the client closes the connection.
+                }
+            } catch (Async\Exception\CancelledException) {
+                $serverStream->close();
+            }
+        });
+
+        try {
+            $connection->startTls(new Connector(), $token);
+            static::fail('Expected the stalled STARTTLS handshake to be cancelled.');
+        } catch (Async\Exception\CancelledException $e) {
+            static::assertSame($token, $e->getToken());
+        } finally {
+            $connection->close();
+            $server->await();
             $serverStream->close();
         }
     }
