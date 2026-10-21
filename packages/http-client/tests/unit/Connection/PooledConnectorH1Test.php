@@ -20,11 +20,17 @@ use Psl\Network;
 use Psl\TCP;
 use Psl\URL;
 
+use function extension_loaded;
 use function preg_match;
+use function socket_import_stream;
+use function socket_set_option;
 use function str_contains;
 use function strlen;
 use function strpos;
 use function substr;
+
+use const SO_LINGER;
+use const SOL_SOCKET;
 
 /**
  * @mago-expect lint:excessive-nesting
@@ -222,6 +228,77 @@ final class PooledConnectorH1Test extends TestCase
 
         // Two TCP connections should have been accepted.
         static::assertSame(2, $acceptCount);
+    }
+
+    /**
+     * A pooled connection that the server reset while it was idle must be
+     * discarded on checkout: the request goes out on a new connection
+     * instead of failing with the error of the reset connection.
+     */
+    public function testResetConnectionDiscardedOnCheckout(): void
+    {
+        if (!extension_loaded('sockets')) {
+            static::markTestSkipped('The sockets extension is required to reset a connection.');
+        }
+
+        $response = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nok";
+        $listener = TCP\listen('127.0.0.1', 0, new TCP\ListenConfiguration(noDelay: true));
+        /** @var int<0, 65535> $port */
+        $port = $listener->getLocalAddress()->port;
+        $pooled = new Async\Deferred();
+        $reset = new Async\Deferred();
+
+        $server = Async\run(static function () use ($listener, $response, $pooled, $reset): int {
+            try {
+                $first = $listener->accept(new TimeoutCancellationToken(Duration::seconds(5)));
+                static::assertTrue(self::readRequest($first));
+                $first->writeAll($response);
+
+                // Once the client has put the connection back in its pool, close it abortively.
+                $pooled->getAwaitable()->await(new TimeoutCancellationToken(Duration::seconds(5)));
+                $socket = socket_import_stream($first->getStream());
+                static::assertNotFalse($socket);
+                static::assertTrue(socket_set_option($socket, SOL_SOCKET, SO_LINGER, [
+                    'l_onoff' => 1,
+                    'l_linger' => 0,
+                ]));
+                $first->close();
+                unset($socket);
+                Async\sleep(Duration::milliseconds(50));
+                $reset->complete(null);
+
+                $second = $listener->accept(new TimeoutCancellationToken(Duration::seconds(5)));
+                static::assertTrue(self::readRequest($second));
+                $second->writeAll($response);
+                $second->close();
+
+                return 2;
+            } finally {
+                $listener->close();
+            }
+        });
+
+        $connector = new PooledConnector();
+        $configuration = new ClientConfiguration(protocolVersions: [ProtocolVersion::V11]);
+        $client = new Client(connector: $connector, configuration: $configuration);
+        $url = URL\parse('http://127.0.0.1:' . $port . '/');
+
+        $tx1 = $client->send(new Request(method: 'GET', url: $url));
+        static::assertSame(200, $tx1->response->status);
+        $body1 = $tx1->response->body;
+        static::assertNotNull($body1);
+        static::assertSame('ok', $body1->readAll());
+
+        $pooled->complete(null);
+        $reset->getAwaitable()->await(new TimeoutCancellationToken(Duration::seconds(5)));
+
+        $tx2 = $client->send(new Request(method: 'GET', url: $url));
+        static::assertSame(200, $tx2->response->status);
+        $body2 = $tx2->response->body;
+        static::assertNotNull($body2);
+        static::assertSame('ok', $body2->readAll());
+
+        static::assertSame(2, $server->await());
     }
 
     /**

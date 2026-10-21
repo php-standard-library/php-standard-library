@@ -768,8 +768,9 @@ final class PooledConnector implements ConnectorInterface
      * unusable and discarded if:
      *
      * - It has been closed (e.g., by the server or a timeout).
-     * - A non-blocking read probe returns data or EOF, indicating the server
-     *   sent unexpected data or closed the connection while it was idle.
+     * - A non-blocking read probe returns data or EOF, or fails, indicating the
+     *   server sent unexpected data, or closed or reset the connection, while it
+     *   was idle.
      *
      * Returns the first usable stream and its metadata, or {@see null} if no
      * usable stream is available for the given origin.
@@ -791,8 +792,14 @@ final class PooledConnector implements ConnectorInterface
                 continue;
             }
 
-            $probe = $stream->tryRead(1);
-            if ($probe !== '' || $stream->reachedEndOfDataSource()) {
+            try {
+                $usable = $stream->tryRead(1) === '' && !$stream->reachedEndOfDataSource();
+            } catch (IO\Exception\ExceptionInterface) {
+                // The server reset the connection while it was idle, or it was closed some other way.
+                $usable = false;
+            }
+
+            if (!$usable) {
                 $stream->close();
                 continue;
             }
