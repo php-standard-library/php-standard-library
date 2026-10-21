@@ -8,22 +8,39 @@ use Override;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
+use Psl\Async\Scheduler;
+use Psl\DateTime;
 use Psl\DateTime\Duration;
 use Psl\Network;
-use Revolt\EventLoop;
 
 use function implode;
+use function round;
+
+use const PHP_INT_MAX;
 
 /**
  * A connector that retries failed connections with exponential backoff.
  *
  * Wraps any {@see ConnectorInterface} and automatically retries on failure.
- * The delay between attempts grows exponentially: backoff * multiplier^attempt.
+ * The delay before retry n grows exponentially: backoff * multiplier^(n-1).
+ *
+ * The delay is capped at PHP_INT_MAX seconds (about 2.9e11 years): a longer
+ * one, which large multipliers and attempt counts can produce, waits that
+ * long instead. A zero or negative delay retries at once.
  *
  * @api
  */
 final readonly class RetryConnector implements ConnectorInterface
 {
+    /**
+     * The longest delay before a retry, in seconds.
+     *
+     * The exponential backoff is computed as a float, which large multipliers
+     * and attempt counts take beyond what a {@see Duration} can hold, or to INF.
+     * Such delays saturate here; no process can wait long enough to notice.
+     */
+    private const int MAX_DELAY_SECONDS = PHP_INT_MAX;
+
     private Duration $backoff;
 
     /**
@@ -75,11 +92,8 @@ final readonly class RetryConnector implements ConnectorInterface
                     $cancellation->throwIfCancelled();
                 }
 
-                // Exponential backoff: base * multiplier^(attempt-1)
-                $delaySec = $this->backoff->getTotalSeconds() * ($this->backoffMultiplier ** ($attempts - 1));
-
-                $suspension = EventLoop::getSuspension();
-                $watcher = EventLoop::delay($delaySec, static function () use ($suspension): void {
+                $suspension = Scheduler::getSuspension();
+                $watcher = Scheduler::delay($this->getDelay($attempts), static function () use ($suspension): void {
                     $suspension->resume();
                 });
 
@@ -89,7 +103,7 @@ final readonly class RetryConnector implements ConnectorInterface
                         $suspension,
                         $watcher,
                     ): void {
-                        EventLoop::cancel($watcher);
+                        Scheduler::cancel($watcher);
                         $suspension->throw($e);
                     });
                 }
@@ -97,12 +111,35 @@ final readonly class RetryConnector implements ConnectorInterface
                 try {
                     $suspension->suspend();
                 } finally {
-                    EventLoop::cancel($watcher);
+                    Scheduler::cancel($watcher);
                     if (null !== $id) {
                         $cancellation->unsubscribe($id);
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Compute the delay before the retry that follows the given failed attempt.
+     *
+     * @param positive-int $attempt
+     */
+    private function getDelay(int $attempt): Duration
+    {
+        // Exponential backoff: base * multiplier^(attempt-1). Integer overflow turns the power into
+        // a float, which can exceed what a Duration holds, or become INF (and 0 * INF is NAN).
+        $seconds = $this->backoff->getTotalSeconds() * ($this->backoffMultiplier ** ($attempt - 1));
+        if (!($seconds > 0.0)) {
+            return Duration::zero();
+        }
+
+        if ($seconds >= self::MAX_DELAY_SECONDS) {
+            return Duration::seconds(self::MAX_DELAY_SECONDS);
+        }
+
+        $whole = (int) $seconds;
+
+        return Duration::fromParts(0, 0, $whole, (int) round(($seconds - $whole) * DateTime\NANOSECONDS_PER_SECOND));
     }
 }
