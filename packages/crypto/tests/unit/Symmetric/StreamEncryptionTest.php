@@ -910,4 +910,51 @@ final class StreamEncryptionTest extends TestCase
         $decrypted->seek(0);
         static::assertSame($plaintext, $decrypted->readAll());
     }
+
+    public function testCopySealedWritesEachFrameWithItsLengthInOneWrite(): void
+    {
+        $encryptor = new Symmetric\StreamEncryptor(Symmetric\generate_key());
+        $destination = new class() implements IO\WriteHandleInterface {
+            use IO\WriteHandleConvenienceMethodsTrait;
+
+            /**
+             * @var list<string>
+             */
+            public array $writes = [];
+
+            public function tryWrite(string $bytes): int
+            {
+                $this->writes[] = $bytes;
+
+                return Byte\length($bytes);
+            }
+
+            public function write(
+                string $bytes,
+                CancellationTokenInterface $cancellation = new NullCancellationToken(),
+            ): int {
+                return $this->tryWrite($bytes);
+            }
+        };
+
+        // 20 bytes in chunks of 8: two full frames and a short final one.
+        $encryptor->copySealed(new TrickleReadHandle('0123456789abcdefghij', 3), $destination, 8);
+
+        static::assertCount(4, $destination->writes);
+        static::assertSame(
+            SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES + 4,
+            Byte\length($destination->writes[0]),
+        );
+        static::assertSame(8, unpack('V', Byte\slice($destination->writes[0], -4))[1]);
+        foreach ([8, 8, 4] as $index => $plaintextLength) {
+            $frame = $destination->writes[$index + 1];
+            $frameLength = Symmetric\STREAM_TAG_BYTES + $plaintextLength;
+            static::assertSame(4 + $frameLength, Byte\length($frame));
+            static::assertSame($frameLength, unpack('V', Byte\slice($frame, 0, 4))[1]);
+        }
+
+        $decrypted = new IO\MemoryHandle();
+        $encryptor->copyOpened(new IO\MemoryHandle(Str\join($destination->writes, '')), $decrypted);
+        static::assertSame('0123456789abcdefghij', $decrypted->getBuffer());
+    }
 }

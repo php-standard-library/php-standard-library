@@ -48,8 +48,10 @@ final readonly class StreamEncryptor implements StreamEncryptorInterface
         $init = Internal\call_sodium(fn() => sodium_crypto_secretstream_xchacha20poly1305_init_push($this->key->bytes));
         [$state, $header] = $init;
 
-        $destination->writeAll($header);
-        $destination->writeAll(pack('V', $chunkSize));
+        // Each part of the stream goes out in one write: a length prefix written on its own leaves a peer
+        // holding a prefix without its frame, and on TCP two small writes in a row can stall on Nagle's
+        // algorithm and delayed acknowledgements.
+        $destination->writeAll($header . pack('V', $chunkSize));
 
         while (!$source->reachedEndOfDataSource()) {
             $chunk = $source->read($chunkSize);
@@ -67,8 +69,7 @@ final readonly class StreamEncryptor implements StreamEncryptorInterface
             $encrypted = Internal\call_sodium(static function () use (&$state, $chunk, $tag): string {
                 return sodium_crypto_secretstream_xchacha20poly1305_push($state, $chunk, '', $tag);
             });
-            $destination->writeAll(pack('V', strlen($encrypted)));
-            $destination->writeAll($encrypted);
+            $destination->writeAll(pack('V', strlen($encrypted)) . $encrypted);
 
             if ($isLast) {
                 return;
@@ -83,8 +84,7 @@ final readonly class StreamEncryptor implements StreamEncryptorInterface
                 SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_FINAL,
             );
         });
-        $destination->writeAll(pack('V', strlen($encrypted)));
-        $destination->writeAll($encrypted);
+        $destination->writeAll(pack('V', strlen($encrypted)) . $encrypted);
     }
 
     /**
