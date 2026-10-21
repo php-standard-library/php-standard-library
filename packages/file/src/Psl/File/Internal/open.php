@@ -7,6 +7,8 @@ namespace Psl\File\Internal;
 use Psl\IO;
 
 /**
+ * @throws IO\Exception\RuntimeException If the file cannot be opened.
+ *
  * @internal
  *
  * @codeCoverageIgnore

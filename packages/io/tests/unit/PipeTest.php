@@ -4,11 +4,23 @@ declare(strict_types=1);
 
 namespace Psl\IO\Tests\Unit;
 
+use Composer\Autoload\ClassLoader;
 use PHPUnit\Framework\TestCase;
 use Psl;
 use Psl\Async;
 use Psl\DateTime;
 use Psl\IO;
+use ReflectionClass;
+
+use function dirname;
+use function fclose;
+use function proc_close;
+use function proc_open;
+use function stream_get_contents;
+use function var_export;
+
+use const PHP_BINARY;
+use const PHP_OS_FAMILY;
 
 final class PipeTest extends TestCase
 {
@@ -156,5 +168,48 @@ final class PipeTest extends TestCase
         $write->close();
 
         static::assertTrue($write->isClosed());
+    }
+
+    public function testThrowsWhenTheProcessHasNoFileDescriptorLeft(): void
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            static::markTestSkipped('This test lowers the file descriptor limit with ulimit.');
+        }
+
+        $loader = new ReflectionClass(ClassLoader::class)->getFileName();
+        static::assertIsString($loader);
+
+        // Load the exception class first: once the descriptors are used up, autoloading cannot open its file.
+        $script = 'require ' . var_export(dirname($loader, 2) . '/autoload.php', true) . ';' . <<<'PHP'
+        class_exists(Psl\IO\Exception\RuntimeException::class);
+        $held = [];
+        while (false !== ($handle = @fopen(PHP_BINARY, 'rb'))) {
+            $held[] = $handle;
+        }
+
+        try {
+            Psl\IO\pipe();
+            echo 'no exception';
+        } catch (Throwable $exception) {
+            echo $exception::class, ': ', $exception->getMessage();
+        }
+        PHP;
+
+        $process = proc_open(
+            ['sh', '-c', 'ulimit -n 64 && exec "$0" -dopcache.enable=0 -r "$1"', PHP_BINARY, $script],
+            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        static::assertNotFalse($process);
+
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        static::assertSame(0, proc_close($process), (string) $errors);
+        static::assertIsString($output);
+        static::assertStringStartsWith('Psl\IO\Exception\RuntimeException: ', $output);
+        static::assertStringContainsString('Too many open files', $output);
     }
 }

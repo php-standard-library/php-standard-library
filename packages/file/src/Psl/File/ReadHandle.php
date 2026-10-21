@@ -29,6 +29,8 @@ final readonly class ReadHandle extends Internal\AbstractHandleWrapper implement
      * @throws Exception\NotFoundException If $file does not exist, or contains a NUL byte.
      * @throws Exception\NotFileException If $file points to a non-file node on the filesystem.
      * @throws Exception\NotReadableException If $file exists, and is non-readable.
+     * @throws IO\Exception\RuntimeException If the file cannot be opened, for example when the process has no file
+     *  descriptors left.
      */
     public function __construct(string $file)
     {

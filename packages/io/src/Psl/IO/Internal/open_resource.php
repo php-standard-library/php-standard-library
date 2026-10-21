@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Psl\IO\Internal;
 
-use Psl;
+use Psl\IO\Exception;
 
 use function error_get_last;
 use function fopen;
 
 /**
+ * @throws Exception\RuntimeException If the resource cannot be opened.
+ *
  * @return resource
  *
  * @internal
@@ -26,8 +28,8 @@ function open_resource(string $uri, string $mode): mixed
             $resource = fopen($uri, $mode);
             if (false === $resource) {
                 $error = error_get_last();
-                $message = $error['message'] ?? 'Unable to open resource.';
-                Psl\invariant_violation($message);
+
+                throw new Exception\RuntimeException($error['message'] ?? 'Unable to open resource.');
             }
 
             return $resource;

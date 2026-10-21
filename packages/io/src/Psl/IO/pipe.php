@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Psl\IO;
 
-use Psl;
-
 use function error_get_last;
 use function stream_socket_pair;
 
@@ -23,6 +21,9 @@ use const STREAM_SOCK_STREAM;
  *  CloseHandleInterface&WriteHandleInterface&StreamHandleInterface,
  * }
  *
+ * @throws Exception\RuntimeException If the pair of connected sockets cannot be created, for example when the
+ *  process has no file descriptors left.
+ *
  * @api
  */
 function pipe(): array
@@ -37,8 +38,8 @@ function pipe(): array
             // @codeCoverageIgnoreStart
             if (false === $sockets) {
                 $error = error_get_last();
-                $message = $error['message'] ?? 'Unable to create a pipe stream.';
-                Psl\invariant_violation($message);
+
+                throw new Exception\RuntimeException($error['message'] ?? 'Unable to create a pipe stream.');
             }
 
             // @codeCoverageIgnoreEnd

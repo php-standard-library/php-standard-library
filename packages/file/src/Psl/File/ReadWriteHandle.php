@@ -40,6 +40,8 @@ final readonly class ReadWriteHandle extends Internal\AbstractHandleWrapper impl
      * @throws Exception\NotReadableException If $file exists, and is non-readable.
      * @throws Exception\RuntimeException If unable to create the $file if it does not exist.
      * @throws Exception\InvalidArgumentException If $file contains a NUL byte.
+     * @throws IO\Exception\RuntimeException If the file cannot be opened, for example when the process has no file
+     *  descriptors left.
      */
     public function __construct(string $file, WriteMode $writeMode = WriteMode::OpenOrCreate)
     {

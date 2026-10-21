@@ -16,6 +16,9 @@ use const PHP_SAPI;
  * In CLI mode, this is likely STDIN; for HTTP requests, it may contain the
  * POST data, if any.
  *
+ * @throws Exception\RuntimeException If the stream cannot be opened, for example when the process has no file
+ *  descriptors left.
+ *
  * @codeCoverageIgnore
  *
  * @api

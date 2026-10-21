@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 use Psl\IO;
 
 use function str_repeat;
+use function stream_wrapper_restore;
+use function stream_wrapper_unregister;
 
 final class SpoolTest extends TestCase
 {
@@ -209,5 +211,21 @@ final class SpoolTest extends TestCase
         static::assertSame('hello', $data);
 
         $handle->close();
+    }
+
+    public function testThrowsWhenTheTemporaryStreamCannotBeOpened(): void
+    {
+        // php://temp cannot be opened while the php:// wrapper is unregistered.
+        static::assertTrue(stream_wrapper_unregister('php'));
+
+        try {
+            IO\spool();
+
+            static::fail('Expected spool() to fail without the php:// wrapper.');
+        } catch (IO\Exception\RuntimeException $exception) {
+            static::assertStringContainsString('Failed to open stream', $exception->getMessage());
+        } finally {
+            stream_wrapper_restore('php');
+        }
     }
 }

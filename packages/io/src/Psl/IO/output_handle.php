@@ -16,6 +16,9 @@ use const PHP_SAPI;
  * This should generally be used for sending data to clients. In CLI mode, this
  * is usually the process STDOUT.
  *
+ * @throws Exception\RuntimeException If the stream cannot be opened, for example when the process has no file
+ *  descriptors left.
+ *
  * @codeCoverageIgnore
  *
  * @api
