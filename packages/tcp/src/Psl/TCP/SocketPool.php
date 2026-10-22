@@ -12,9 +12,7 @@ use Psl\DateTime\Duration;
 use Psl\Network;
 use WeakMap;
 
-use function array_filter;
-use function array_pop;
-use function array_values;
+use function array_key_last;
 use function is_resource;
 use function spl_object_id;
 
@@ -37,10 +35,21 @@ use function spl_object_id;
 final class SocketPool implements SocketPoolInterface
 {
     /**
-     * @var array<string, list<array{StreamInterface, string}>>
-     *     Map of "host:port" => list of [stream, idle_timer_watcher_id]
+     * The idle connections, by pool key and then by object ID, each with the ID of its idle timer.
+     *
+     * Each bucket is in check-in order, and a checkout takes the connection checked in last. An idle connection is
+     * referenced from here, so no other object can get its object ID while it is idle.
+     *
+     * @var array<string, array<int, array{StreamInterface, string}>>
      */
     private array $idle = [];
+
+    /**
+     * The pool key of each idle connection, by object ID.
+     *
+     * @var array<int, string>
+     */
+    private array $idleKeys = [];
 
     /**
      * The pool key of each checked-out connection.
@@ -89,15 +98,9 @@ final class SocketPool implements SocketPoolInterface
     ): StreamInterface {
         $key = Network\Address::tcp($host, $port)->toString();
 
-        // Try to reuse an idle connection
-        while (isset($this->idle[$key]) && $this->idle[$key] !== []) {
-            $entry = array_pop($this->idle[$key]);
-            [$stream, $timerId] = $entry;
-            Scheduler::cancel($timerId);
-
-            if ($this->idle[$key] === []) {
-                unset($this->idle[$key]);
-            }
+        // Try to reuse an idle connection, the one checked in last first
+        while (null !== ($id = array_key_last($this->idle[$key] ?? []))) {
+            $stream = $this->forgetIdle($key, $id);
 
             // Verify connection is still valid
             $resource = $stream->getStream();
@@ -140,31 +143,29 @@ final class SocketPool implements SocketPoolInterface
         }
 
         // Start idle timer
-        $timerId = Scheduler::delay($this->idleTimeout, function () use ($stream, $key): void {
-            $this->removeFromIdle($stream, $key);
-            $stream->close();
+        $id = spl_object_id($stream);
+        $timerId = Scheduler::delay($this->idleTimeout, function () use ($key, $id): void {
+            $this->forgetIdle($key, $id)->close();
         });
 
-        $this->idle[$key] ??= [];
-        $this->idle[$key][] = [$stream, $timerId];
+        $this->idle[$key][$id] = [$stream, $timerId];
+        $this->idleKeys[$id] = $key;
     }
 
     /**
      * Remove a connection from the pool for good, and close it.
      *
+     * The connection leaves the pool whether it is checked out or idle, and an idle connection's timer is cancelled.
      * The connection is closed even when the pool does not know it.
      */
     public function clear(StreamInterface $stream): void
     {
-        // Remove from checked-out tracking
-        $key = $this->checkedOut[$stream] ?? null;
-        if ($key !== null) {
-            unset($this->checkedOut[$stream]);
-        }
+        unset($this->checkedOut[$stream]);
 
-        // Remove from idle pool
-        if ($key !== null) {
-            $this->removeFromIdle($stream, $key);
+        $id = spl_object_id($stream);
+        $key = $this->idleKeys[$id] ?? null;
+        if (null !== $key) {
+            $this->forgetIdle($key, $id);
         }
 
         $stream->close();
@@ -175,6 +176,11 @@ final class SocketPool implements SocketPoolInterface
         return $this->closed;
     }
 
+    /**
+     * Close the pool: close every idle connection, after cancelling its idle timer.
+     *
+     * The connections that are checked out stay open.
+     */
     public function close(): void
     {
         $this->closed = true;
@@ -187,31 +193,27 @@ final class SocketPool implements SocketPoolInterface
         }
 
         $this->idle = [];
+        $this->idleKeys = [];
     }
 
-    private function removeFromIdle(StreamInterface $stream, string $key): void
+    /**
+     * Take an idle connection out of the pool, and cancel its idle timer.
+     *
+     * @param string $key The pool key of the connection, its key in {@see SocketPool::$idle}.
+     * @param int $id The object ID of the connection, its key in the bucket.
+     *
+     * @return StreamInterface The connection, which the caller now owns.
+     */
+    private function forgetIdle(string $key, int $id): StreamInterface
     {
-        if (!isset($this->idle[$key])) {
-            return;
-        }
-
-        $targetId = spl_object_id($stream);
-        $this->idle[$key] = array_values(array_filter($this->idle[$key], static function (array $entry) use (
-            $targetId,
-        ): bool {
-            [$s, $timerId] = $entry;
-            if (spl_object_id($s) === $targetId) {
-                Scheduler::cancel($timerId);
-                return false;
-            }
-
-            // @codeCoverageIgnoreStart
-            return true;
-            // @codeCoverageIgnoreEnd
-        }));
-
-        if ($this->idle[$key] === []) {
+        [$stream, $timerId] = $this->idle[$key][$id];
+        unset($this->idle[$key][$id], $this->idleKeys[$id]);
+        if ([] === $this->idle[$key]) {
             unset($this->idle[$key]);
         }
+
+        Scheduler::cancel($timerId);
+
+        return $stream;
     }
 }

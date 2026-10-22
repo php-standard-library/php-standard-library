@@ -10,6 +10,7 @@ use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\Network;
 use Psl\TCP;
+use Psl\TCP\Tests\Fixture\CallbackSnapshot;
 use Psl\TCP\Tests\Fixture\MemoryConnector;
 use Psl\TCP\Tests\Fixture\RecordingDriver;
 use Revolt\EventLoop;
@@ -470,5 +471,46 @@ final class SocketPoolTest extends TestCase
             $foreign->close();
             $pool->close();
         }
+    }
+
+    /**
+     * Clearing an idle connection takes it out of the pool and cancels its idle timer: once the event loop has
+     * warmed up, a check-in and a clear leave no callback behind, and the next checkout opens a new connection.
+     */
+    public function testClearOfAnIdleConnectionCancelsItsIdleTimer(): void
+    {
+        $connector = new MemoryConnector();
+        $pool = new TCP\SocketPool($connector);
+
+        try {
+            self::checkInAndClear($pool);
+            $before = new CallbackSnapshot();
+
+            $connection = self::checkInAndClear($pool);
+
+            $after = new CallbackSnapshot();
+            static::assertSame([], $after->addedSince($before));
+            static::assertSame([], $after->grownSince($before));
+            static::assertTrue($connection->isClosed());
+
+            static::assertNotSame($connection, $pool->checkout('example.com', 80));
+            static::assertSame(3, $connector->connects);
+        } finally {
+            $pool->close();
+        }
+    }
+
+    /**
+     * Check a connection out of the pool, check it in, then clear it while it is idle.
+     *
+     * @return TCP\StreamInterface The cleared connection.
+     */
+    private static function checkInAndClear(TCP\SocketPool $pool): TCP\StreamInterface
+    {
+        $connection = $pool->checkout('example.com', 80);
+        $pool->checkin($connection);
+        $pool->clear($connection);
+
+        return $connection;
     }
 }
