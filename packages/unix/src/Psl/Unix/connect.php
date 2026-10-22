@@ -16,7 +16,8 @@ use Psl\Network;
  *
  * @param non-empty-string $path
  *
- * @throws Network\Exception\InvalidArgumentException If the path contains a NUL byte other than a leading one.
+ * @throws Network\Exception\InvalidArgumentException If the path contains a NUL byte other than a leading one, or is
+ *                                                    longer than the system can hold.
  * @throws Network\Exception\RuntimeException If failed to connect on the given path, or if on Windows.
  * @throws CancelledException If the operation is cancelled.
  *
