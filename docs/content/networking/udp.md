@@ -23,6 +23,10 @@ You can also create a connected socket directly. `UDP\connect()` selects the loc
 
 @example('networking/udp-connect-shorthand.php')
 
+### Receive Errors
+
+On POSIX systems with ext-sockets, a `ConnectedSocket` receives through the extension, so a failed `receive()` or `peek()` throws `Network\Exception\RuntimeException` with the errno as its code, such as `ECONNREFUSED` once the peer's port was unreachable. The socket stays usable, and the next receive waits for the next datagram.
+
 ### Configuration
 
 `UDP\Socket::bind()` accepts a `BindConfiguration` to control address reuse, port reuse, and broadcast. Configuration objects are immutable with `with*` builder methods.

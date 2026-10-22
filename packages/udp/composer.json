@@ -36,6 +36,9 @@
     "conflict": {
         "azjezz/psl": "*"
     },
+    "suggest": {
+        "ext-sockets": "Reports the errno of a failed receive or peek on a connected socket, on POSIX systems"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
