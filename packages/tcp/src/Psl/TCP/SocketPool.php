@@ -86,14 +86,15 @@ final class SocketPool implements SocketPoolInterface
     /**
      * Get a connection to the given host and port: an idle connection of the pool if one is left, or a new one.
      *
-     * A closed pool hands out no connection, and a connection still being made when the pool closes is closed.
+     * A closed pool hands out no connection, and a connection still being made when the pool closes is closed. A
+     * token already cancelled when checkout() is called wins over reusing an idle connection, which stays idle.
      *
      * @param non-empty-string $host
      * @param int<0, 65535> $port
      *
      * @throws Network\Exception\AlreadyStoppedException If the pool is closed before or while the connection is made.
      * @throws Network\Exception\RuntimeException If the connection fails.
-     * @throws CancelledException If $cancellation is cancelled while connecting.
+     * @throws CancelledException If $cancellation is cancelled before checkout() is called or while connecting.
      */
     public function checkout(
         string $host,
@@ -103,6 +104,8 @@ final class SocketPool implements SocketPoolInterface
         if ($this->closed) {
             throw new Network\Exception\AlreadyStoppedException('The socket pool has been closed.');
         }
+
+        $cancellation->throwIfCancelled();
 
         $key = Network\Address::tcp($host, $port)->toString();
 

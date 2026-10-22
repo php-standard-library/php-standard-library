@@ -694,6 +694,36 @@ final class SocketPoolTest extends TestCase
     }
 
     /**
+     * A token cancelled before checkout() is called wins over reusing an idle connection: the checkout throws the
+     * token's exception, and the idle connection stays in the pool for the next checkout.
+     */
+    public function testCancelledCheckoutDoesNotReuseAnIdleConnection(): void
+    {
+        $connector = new MemoryConnector();
+        $pool = new TCP\SocketPool($connector);
+        $connection = $pool->checkout('example.com', 80);
+        $pool->checkin($connection);
+
+        $token = new Async\SignalCancellationToken();
+        $token->cancel();
+
+        try {
+            $pool->checkout('example.com', 80, $token);
+
+            static::fail('Expected CancelledException to be thrown.');
+        } catch (Async\Exception\CancelledException $exception) {
+            static::assertSame($token, $exception->getToken());
+        }
+
+        try {
+            static::assertSame($connection, $pool->checkout('example.com', 80));
+            static::assertSame(1, $connector->connects);
+        } finally {
+            $pool->close();
+        }
+    }
+
+    /**
      * Check a connection out of the pool, check it in, then clear it while it is idle.
      *
      * @return TCP\StreamInterface The cleared connection.
