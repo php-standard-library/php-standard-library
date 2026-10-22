@@ -8,12 +8,15 @@ use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
+use Psl\Network;
 use Psl\TCP;
+use Psl\TCP\Tests\Fixture\MemoryConnector;
 use Psl\TCP\Tests\Fixture\RecordingDriver;
 use Revolt\EventLoop;
 
 use function fclose;
 use function fopen;
+use function spl_object_id;
 
 final class SocketPoolTest extends TestCase
 {
@@ -430,5 +433,42 @@ final class SocketPoolTest extends TestCase
                 $pool->close();
             },
         ]);
+    }
+
+    /**
+     * A connection that its borrower drops without checking it in leaves the pool's books. A connection made later
+     * that gets the same object ID is foreign to the pool: checking it in does nothing, and a checkout for the
+     * dropped connection's host and port does not hand it out.
+     */
+    public function testForeignConnectionWithTheObjectIdOfADroppedOneIsNotPooled(): void
+    {
+        $connector = new MemoryConnector();
+        $pool = new TCP\SocketPool($connector);
+
+        // Everything the foreign connection needs is made before the checked-out connection is dropped, so that the
+        // foreign connection is the next object PHP creates, and takes the dropped connection's object ID.
+        $localAddress = Network\Address::tcp('127.0.0.1', 0);
+        $peerAddress = Network\Address::tcp('192.0.2.1', 443);
+        $resource = fopen('php://memory', 'r+');
+        static::assertIsResource($resource);
+
+        $dropped = $pool->checkout('example.com', 80);
+        $id = spl_object_id($dropped);
+        unset($dropped);
+
+        $foreign = new TCP\Internal\Stream($resource, $localAddress, $peerAddress);
+        static::assertSame($id, spl_object_id($foreign), 'The foreign connection must reuse the object ID.');
+
+        try {
+            $pool->checkin($foreign);
+
+            $connection = $pool->checkout('example.com', 80);
+            static::assertNotSame($foreign, $connection);
+            static::assertSame(2, $connector->connects);
+            static::assertFalse($foreign->isClosed());
+        } finally {
+            $foreign->close();
+            $pool->close();
+        }
     }
 }

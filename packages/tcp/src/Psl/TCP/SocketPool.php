@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Psl\TCP;
 
 use Psl\Async\CancellationTokenInterface;
+use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\Async\Scheduler;
 use Psl\DateTime\Duration;
 use Psl\Network;
+use WeakMap;
 
 use function array_filter;
 use function array_pop;
@@ -41,22 +43,45 @@ final class SocketPool implements SocketPoolInterface
     private array $idle = [];
 
     /**
-     * @var array<int, string>
-     *     Map of spl_object_id => "host:port" key for checked-out streams
+     * The pool key of each checked-out connection.
+     *
+     * The connections themselves are the keys, held weakly: a connection that its borrower drops without checking it
+     * in leaves on its own, and a connection that later gets the same object ID is not mistaken for it.
+     *
+     * @var WeakMap<StreamInterface, string>
      */
-    private array $checkedOut = [];
+    private readonly WeakMap $checkedOut;
 
     private readonly Duration $idleTimeout;
 
     private bool $closed = false;
 
+    /**
+     * Create an empty pool that makes its new connections with the given connector.
+     *
+     * @param null|Duration $idleTimeout How long a checked-in connection stays idle in the pool before it is
+     *                                   closed. Defaults to 10 seconds.
+     */
     public function __construct(
+        /**
+         * The connector that makes each new connection of the pool.
+         */
         private readonly ConnectorInterface $connector = new Connector(),
         null|Duration $idleTimeout = null,
     ) {
         $this->idleTimeout = $idleTimeout ?? Duration::seconds(10);
+        $this->checkedOut = new WeakMap();
     }
 
+    /**
+     * Get a connection to the given host and port: an idle connection of the pool if one is left, or a new one.
+     *
+     * @param non-empty-string $host
+     * @param int<0, 65535> $port
+     *
+     * @throws Network\Exception\RuntimeException If the connection fails.
+     * @throws CancelledException If $cancellation is cancelled while connecting.
+     */
     public function checkout(
         string $host,
         int $port,
@@ -77,7 +102,7 @@ final class SocketPool implements SocketPoolInterface
             // Verify connection is still valid
             $resource = $stream->getStream();
             if ($resource !== null && is_resource($resource)) {
-                $this->checkedOut[spl_object_id($stream)] = $key;
+                $this->checkedOut[$stream] = $key;
                 return $stream;
             }
 
@@ -87,20 +112,25 @@ final class SocketPool implements SocketPoolInterface
 
         // No idle connection available, create a new one
         $stream = $this->connector->connect($host, $port, $cancellation);
-        $this->checkedOut[spl_object_id($stream)] = $key;
+        $this->checkedOut[$stream] = $key;
 
         return $stream;
     }
 
+    /**
+     * Return a connection that {@see checkout()} handed out to the pool for reuse.
+     *
+     * The connection stays idle in the pool until it is checked out again, or until the idle timeout closes it. A
+     * connection the pool does not have checked out, a foreign one or one already checked in, is left alone.
+     */
     public function checkin(StreamInterface $stream): void
     {
-        $id = spl_object_id($stream);
-        $key = $this->checkedOut[$id] ?? null;
+        $key = $this->checkedOut[$stream] ?? null;
         if ($key === null) {
             return;
         }
 
-        unset($this->checkedOut[$id]);
+        unset($this->checkedOut[$stream]);
 
         // Verify connection is still valid before pooling
         $resource = $stream->getStream();
@@ -119,14 +149,17 @@ final class SocketPool implements SocketPoolInterface
         $this->idle[$key][] = [$stream, $timerId];
     }
 
+    /**
+     * Remove a connection from the pool for good, and close it.
+     *
+     * The connection is closed even when the pool does not know it.
+     */
     public function clear(StreamInterface $stream): void
     {
-        $id = spl_object_id($stream);
-
         // Remove from checked-out tracking
-        $key = $this->checkedOut[$id] ?? null;
+        $key = $this->checkedOut[$stream] ?? null;
         if ($key !== null) {
-            unset($this->checkedOut[$id]);
+            unset($this->checkedOut[$stream]);
         }
 
         // Remove from idle pool

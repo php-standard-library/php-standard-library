@@ -350,7 +350,7 @@ final class TransportPoolTest extends TestCase
      */
     private static function assertPoolIsClean(Transport $transport, TCP\SocketPool $pool): void
     {
-        static::assertSame([], new ReflectionProperty(TCP\SocketPool::class, 'checkedOut')->getValue($pool));
+        static::assertCount(0, new ReflectionProperty(TCP\SocketPool::class, 'checkedOut')->getValue($pool));
         static::assertSame([], new ReflectionProperty(TCP\SocketPool::class, 'idle')->getValue($pool));
         $initialized = new ReflectionProperty(Transport::class, 'initialized')->getValue($transport);
         static::assertInstanceOf(WeakMap::class, $initialized);
