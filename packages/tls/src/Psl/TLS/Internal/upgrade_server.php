@@ -20,11 +20,16 @@ use function stream_context_set_options;
  * Streams accepted with `stream_socket_accept()` share the listening socket's stream
  * context, and PHP reads the server's SSL options from that context when the handshake
  * starts (`ext/openssl/xp_ssl.c`, `php_openssl_setup_crypto`). Options are merged into a
- * context; nothing can remove one. A trust setting written for one server configuration
- * therefore stays in effect for a later configuration that does not set it, which would
- * let that configuration accept client certificates it never asked to trust. Such a
- * stream is refused rather than upgraded. `TCP\listen()` gives every accepted connection
- * a private context when ext-sockets is available, in which case this cannot happen.
+ * context; nothing can remove one. A trust setting written before, by another server
+ * configuration or by a client handshake on a stream of the same listener, therefore
+ * stays in effect for a later configuration that does not set it. `allow_self_signed`
+ * then accepts any self-signed client certificate and reports it as the peer, and
+ * `cafile`, `capath` or a larger `verify_depth` accept certificates the configuration
+ * never asked to trust; `verify_peer`, `verify_peer_name` and `peer_fingerprint` change
+ * whether and how a client certificate is checked. A stream whose context carries any of
+ * them, unset by this configuration, is refused rather than upgraded. `TCP\listen()`
+ * gives every accepted connection a private context when ext-sockets is available, in
+ * which case this cannot happen.
  *
  * @throws HandshakeFailedException If the TLS handshake fails.
  * @throws Network\Exception\RuntimeException If the stream is not available, or if its context
@@ -50,7 +55,15 @@ function upgrade_server(
 
     /** @var array<string, mixed> $existing */
     $existing = stream_context_get_options($resource)['ssl'] ?? [];
-    foreach (['cafile', 'capath'] as $trustOption) {
+    foreach ([
+        'cafile',
+        'capath',
+        'verify_peer',
+        'verify_peer_name',
+        'peer_fingerprint',
+        'allow_self_signed',
+        'verify_depth',
+    ] as $trustOption) {
         if (isset($existing[$trustOption]) && !isset($sslContext[$trustOption])) {
             throw new Network\Exception\RuntimeException(
                 "The stream context already carries the \"{$trustOption}\" TLS option, which this server configuration does not set. "

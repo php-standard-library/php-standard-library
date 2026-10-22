@@ -56,8 +56,9 @@ final readonly class ClientHello
      * Streams accepted by `TCP\listen()` own a private stream context when ext-sockets is
      * available. Without it, all streams accepted from one listener share the listener's
      * context, and a stream whose context already carries client certificate trust settings
-     * (`cafile`, `capath`) that the given configuration does not set is refused rather than
-     * upgraded with another configuration's trust settings.
+     * (`cafile`, `capath`, `verify_peer`, `verify_peer_name`, `peer_fingerprint`,
+     * `allow_self_signed`, `verify_depth`) that the given configuration does not set is refused
+     * rather than upgraded with another handshake's trust settings.
      *
      * @throws HandshakeFailedException If the TLS handshake fails.
      * @throws Network\Exception\RuntimeException If the stream is not available, or if its context

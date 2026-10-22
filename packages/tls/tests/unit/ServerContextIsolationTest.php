@@ -31,6 +31,18 @@ final class ServerContextIsolationTest extends TestCase
     private const string KEY_FILE = __DIR__ . '/../../fixture/certs/server.key';
 
     /**
+     * A self-signed certificate that the fixture authority did not sign, and its key.
+     */
+    private const string UNTRUSTED_CERT_FILE = __DIR__ . '/../../fixture/certs/sni-a.crt';
+
+    private const string UNTRUSTED_KEY_FILE = __DIR__ . '/../../fixture/certs/sni-a.key';
+
+    /**
+     * A chain depth larger than PHP's default of 9.
+     */
+    private const int LARGE_VERIFY_DEPTH = 100;
+
+    /**
      * @return list<array{string}>
      */
     public static function upgradePaths(): array
@@ -192,15 +204,24 @@ final class ServerContextIsolationTest extends TestCase
     }
 
     /**
-     * @return list<array{string}>
+     * Every option that changes how a client certificate is trusted or checked, with a value an earlier handshake on
+     * the same context could have left behind.
+     *
+     * @return iterable<string, array{string, mixed}>
      */
-    public static function trustOptions(): array
+    public static function trustOptions(): iterable
     {
-        return [['cafile'], ['capath']];
+        yield 'cafile' => ['cafile', self::CERT_FILE];
+        yield 'capath' => ['capath', __DIR__ . '/../../fixture/certs'];
+        yield 'verify_peer' => ['verify_peer', false];
+        yield 'verify_peer_name' => ['verify_peer_name', true];
+        yield 'peer_fingerprint' => ['peer_fingerprint', 'sha256'];
+        yield 'allow_self_signed' => ['allow_self_signed', true];
+        yield 'verify_depth' => ['verify_depth', self::LARGE_VERIFY_DEPTH];
     }
 
     #[DataProvider('trustOptions')]
-    public function testRefusesStreamWhoseContextCarriesForeignTrustSettings(string $option): void
+    public function testRefusesStreamWhoseContextCarriesForeignTrustSettings(string $option, mixed $value): void
     {
         $listener = TCP\listen('127.0.0.1', 0);
         $deadline = new Async\TimeoutCancellationToken(Duration::seconds(5));
@@ -212,7 +233,7 @@ final class ServerContextIsolationTest extends TestCase
             static::assertIsResource($resource);
 
             // Simulate a trust setting left behind on a shared context by another configuration.
-            stream_context_set_option($resource, 'ssl', $option, self::CERT_FILE);
+            stream_context_set_option($resource, 'ssl', $option, $value);
 
             $acceptor = new TLS\Acceptor(TLS\ServerConfiguration::create(new TLS\Certificate(
                 self::CERT_FILE,
@@ -229,6 +250,63 @@ final class ServerContextIsolationTest extends TestCase
             }
         } finally {
             $client->close();
+            $listener->close();
+        }
+    }
+
+    /**
+     * A stale `allow_self_signed` on a shared context would accept a self-signed client certificate that the
+     * configured authority never signed, and report it as the peer: the stream is refused instead.
+     */
+    public function testStaleAllowSelfSignedDoesNotTrustAnUnknownClient(): void
+    {
+        $listener = TCP\listen('127.0.0.1', 0);
+        $deadline = new Async\TimeoutCancellationToken(Duration::seconds(5));
+        $configuration = new TLS\ServerConfiguration(
+            new TLS\Certificate(self::CERT_FILE, self::KEY_FILE),
+            certificateAuthority: self::CERT_FILE,
+        );
+
+        try {
+            Async\concurrently([
+                'server' => static function () use ($listener, $configuration, $deadline): void {
+                    $plain = $listener->accept($deadline);
+                    $resource = $plain->getStream();
+                    static::assertIsResource($resource);
+                    // What a client handshake with allowSelfSigned on another stream of this listener leaves behind.
+                    stream_context_set_option($resource, 'ssl', 'allow_self_signed', true);
+
+                    try {
+                        $server = new TLS\Acceptor($configuration)->accept($plain, $deadline);
+                        $peer = $server->getState()->peerCertificate?->subject;
+                        $server->close();
+                        static::fail('The untrusted client was accepted as ' . ($peer ?? 'nobody') . '.');
+                    } catch (Network\Exception\RuntimeException $exception) {
+                        static::assertNotInstanceOf(TLS\Exception\HandshakeFailedException::class, $exception);
+                        static::assertStringContainsString('"allow_self_signed"', $exception->getMessage());
+                    } finally {
+                        $plain->close();
+                    }
+                },
+                'client' => static function () use ($listener, $deadline): void {
+                    try {
+                        TLS\connect(
+                            '127.0.0.1',
+                            $listener->getLocalAddress()->port,
+                            new TLS\ClientConfiguration(
+                                peerName: 'localhost',
+                                certificateAuthority: self::CERT_FILE,
+                                certificate: new TLS\Certificate(self::UNTRUSTED_CERT_FILE, self::UNTRUSTED_KEY_FILE),
+                            ),
+                            $deadline,
+                        )->close();
+                    } catch (Throwable $exception) {
+                        // The server refuses the stream and closes it, which ends the handshake.
+                        static::assertNotInstanceOf(Async\Exception\CancelledException::class, $exception);
+                    }
+                },
+            ]);
+        } finally {
             $listener->close();
         }
     }
