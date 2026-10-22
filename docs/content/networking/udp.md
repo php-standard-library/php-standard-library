@@ -15,7 +15,9 @@ It uses two distinct types for type-safe socket usage:
 
 ### Unconnected vs. Connected Sockets
 
-An unconnected `Socket` can send to and receive from any address using `sendTo()` and `receiveFrom()`. When you call `connect()` on it, the original socket is closed and a `ConnectedSocket` is returned. The connected socket uses simpler `send()` and `receive()` methods since the peer is fixed.
+An unconnected `Socket` can send to and receive from any address using `sendTo()` and `receiveFrom()`. When you call `connect()` on it, a `ConnectedSocket` is returned and the `Socket` object is closed. The connected socket uses simpler `send()` and `receive()` methods since the peer is fixed.
+
+With ext-sockets, `connect()` connects the same OS socket in place, so the connected socket keeps the socket's options, its local address and port, and the datagrams already queued on it. It connects to the address a new socket would: an IP literal, or the first address of a host name, in the system's order, that the socket's family reaches (an IPv4 socket skips IPv6 addresses). An IPv6 socket bound to `::` reaches an IPv4 address through its IPv4-mapped form, such as `::ffff:127.0.0.1`, which its local address then shows. Without the extension, a new socket bound to the same local address takes its place: it starts without those options and queued datagrams, and another process may take the port in between. The same replacement, by an IPv4 socket on a new port, runs for an IPv4 address on an IPv6 socket that is IPv6-only or bound to any address but `::`, and a connect that fails in place is replaced too, so it fails, or succeeds, as it does without the extension. An IPv4 socket cannot connect to an IPv6 address.
 
 @example('networking/udp-connected.php')
 

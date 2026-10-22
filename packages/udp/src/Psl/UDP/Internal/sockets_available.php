@@ -23,6 +23,9 @@ function sockets_available(): bool
     return $available ??=
         extension_loaded('sockets')
         && function_exists('socket_import_stream')
+        && function_exists('socket_addrinfo_lookup')
+        && function_exists('socket_addrinfo_explain')
+        && function_exists('socket_connect')
         && function_exists('socket_recv')
         && function_exists('socket_last_error')
         && function_exists('socket_strerror');

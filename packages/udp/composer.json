@@ -37,7 +37,7 @@
         "azjezz/psl": "*"
     },
     "suggest": {
-        "ext-sockets": "Reports the errno of a failed receive or peek on a connected socket, on POSIX systems"
+        "ext-sockets": "Connects a socket in place (Psl\\UDP\\Socket::connect()), keeping its descriptor, its options, its local port and the datagrams queued on it, and reports the errno of a failed receive or peek on a connected socket, on POSIX systems"
     },
     "minimum-stability": "dev",
     "autoload": {
