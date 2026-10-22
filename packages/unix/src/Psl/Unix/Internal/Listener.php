@@ -11,11 +11,9 @@ use Psl\Async\NullCancellationToken;
 use Psl\Network;
 use Psl\Unix;
 use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
 
-use function array_search;
 use function array_shift;
-use function array_values;
+use function array_unshift;
 use function error_get_last;
 use function fclose;
 use function is_resource;
@@ -26,8 +24,6 @@ use function stream_socket_accept;
  * @internal
  *
  * @codeCoverageIgnore
- *
- * @mago-expect lint:excessive-nesting
  */
 final class Listener implements Unix\ListenerInterface
 {
@@ -57,9 +53,9 @@ final class Listener implements Unix\ListenerInterface
     private int $backlogSize = 0;
 
     /**
-     * Suspensions waiting for the next accepted stream.
+     * The accept() calls waiting for the next connection, oldest first.
      *
-     * @var list<Suspension<resource>>
+     * @var list<AcceptWaiter>
      */
     private array $acceptors = [];
 
@@ -83,8 +79,9 @@ final class Listener implements Unix\ListenerInterface
      *
      * The listener accepts nothing until the first accept() call enables its watcher, so that a process can fork
      * between listen() and accept() without losing connections. From then on, the watcher hands each connection to
-     * the oldest waiting accept() call, and keeps the connections that no call takes in a backlog. Once the backlog
-     * holds $idleConnections connections, the watcher pauses until the next accept() call.
+     * the oldest waiting accept() call that has not ended yet, skipping a call that a cancellation ended, and keeps
+     * the connections that no call takes in a backlog. Once the backlog holds $idleConnections connections, the
+     * watcher pauses until the next accept() call.
      *
      * An accept that fails with any error but PHP's accept failure stops the listener: every waiting accept() call
      * fails with that error, and so does every later one.
@@ -111,7 +108,7 @@ final class Listener implements Unix\ListenerInterface
         // The callback must not reference the listener: the event loop would keep it alive forever, so a
         // listener that is no longer used would never be closed by `__destruct()`, and once accept() has
         // enabled the watcher, it would keep the event loop running. The callback shares the accept state
-        // by reference instead, which still keeps the suspensions of waiting accept() calls alive.
+        // by reference instead, which still keeps the records of waiting accept() calls alive.
         $acceptors = &$this->acceptors;
         $backlog = &$this->backlog;
         $backlogSize = &$this->backlogSize;
@@ -130,18 +127,17 @@ final class Listener implements Unix\ListenerInterface
             while (true) {
                 $sock = @stream_socket_accept($resource, timeout: 0.0);
                 if ($sock !== false) {
-                    if ($acceptors !== []) {
-                        $acceptor = array_shift($acceptors);
-                        $acceptor->resume($sock);
-                    } else {
-                        $backlog[] = $sock;
-                        $backlogSize++;
+                    if ($acceptors !== [] && AcceptWaiter::handOver($acceptors, $sock)) {
+                        continue;
+                    }
 
-                        if ($backlogSize >= $capacity) {
-                            $paused = true;
-                            EventLoop::disable($watcher);
-                            return;
-                        }
+                    $backlog[] = $sock;
+                    $backlogSize++;
+
+                    if ($backlogSize >= $capacity) {
+                        $paused = true;
+                        EventLoop::disable($watcher);
+                        return;
                     }
 
                     continue;
@@ -160,7 +156,7 @@ final class Listener implements Unix\ListenerInterface
                     $failed = $acceptors;
                     $acceptors = [];
                     foreach ($failed as $acceptor) {
-                        $acceptor->throw($error);
+                        $acceptor->fail($error);
                     }
 
                     EventLoop::disable($watcher);
@@ -179,7 +175,16 @@ final class Listener implements Unix\ListenerInterface
     }
 
     /**
-     * @inheritDoc
+     * Return the oldest connection in the backlog, or wait for the next one.
+     *
+     * The wait has a record of its own, which the watcher, the cancellation listener, a failure of the listener and
+     * {@see close()} settle, whichever comes first; the others are then ignored. A call that a cancellation ended
+     * leaves the queue of waiting calls once its fiber runs again, and a connection that arrives meanwhile goes to the
+     * next waiting call, or to the backlog.
+     *
+     * @throws Network\Exception\AlreadyStoppedException If the listener is closed before or while the call waits.
+     * @throws Network\Exception\RuntimeException If the listener has failed to accept, before or while the call waits.
+     * @throws CancelledException If $cancellation is cancelled before a connection arrives.
      */
     #[Override]
     public function accept(CancellationTokenInterface $cancellation = new NullCancellationToken()): Unix\StreamInterface
@@ -204,34 +209,39 @@ final class Listener implements Unix\ListenerInterface
             return new Stream($socket, $this->localAddress, $this->peerAddress);
         }
 
-        if ($cancellation->cancellable) {
+        $cancellable = $cancellation->cancellable;
+        if ($cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        /** @var Suspension<resource> $suspension */
-        $suspension = EventLoop::getSuspension();
-        $this->acceptors[] = $suspension;
+        // The wait has its own record, which the watcher, the cancellation listener and close() settle: the listener
+        // may run during subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may
+        // already be waiting for something else.
+        $waiter = new AcceptWaiter();
+        $this->acceptors[] = $waiter;
 
-        if ($cancellation->cancellable) {
-            $id = $cancellation->subscribe(function (CancelledException $e) use ($suspension): void {
-                $key = array_search($suspension, $this->acceptors, true);
-                if ($key !== false) {
-                    unset($this->acceptors[$key]);
-                    $this->acceptors = array_values($this->acceptors);
-                    $suspension->throw($e);
-                }
-            });
+        $id = null;
+        $accepted = false;
 
-            try {
-                $socket = $suspension->suspend();
+        try {
+            if ($cancellable) {
+                $id = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
+                    $waiter->fail($e);
+                });
+            }
 
-                return new Stream($socket, $this->localAddress, $this->peerAddress);
-            } finally {
+            $socket = $waiter->wait();
+            $accepted = true;
+        } finally {
+            if (null !== $id) {
                 $cancellation->unsubscribe($id);
             }
-        }
 
-        $socket = $suspension->suspend();
+            // A wait that took a connection has already left the queue; one that ended otherwise leaves it now.
+            if (!$accepted) {
+                AcceptWaiter::forget($this->acceptors, $waiter);
+            }
+        }
 
         return new Stream($socket, $this->localAddress, $this->peerAddress);
     }
@@ -255,7 +265,12 @@ final class Listener implements Unix\ListenerInterface
     }
 
     /**
-     * @inheritDoc
+     * Stop listening, and settle every waiting accept() call.
+     *
+     * Before the listening socket closes, the connections already pending on it and those in the backlog go to the
+     * waiting calls, oldest first, skipping a call that a cancellation ended. The calls left over fail with
+     * `AlreadyStoppedException`, and the connections left over are closed. The connections that accept() returned
+     * stay open. Closing a closed listener does nothing.
      */
     #[Override]
     public function close(): void
@@ -265,32 +280,36 @@ final class Listener implements Unix\ListenerInterface
             return;
         }
 
-        // Drain any pending OS connections to satisfy waiting acceptors.
-        while ($this->acceptors !== [] && is_resource($this->impl)) {
-            $sock = @stream_socket_accept($this->impl, timeout: 0.0);
+        $resource = $this->impl;
+        while ($this->acceptors !== [] && is_resource($resource)) {
+            $sock = @stream_socket_accept($resource, timeout: 0.0);
             if ($sock === false) {
                 break;
             }
 
-            $acceptor = array_shift($this->acceptors);
-            $this->acceptors = array_values($this->acceptors);
-            $acceptor->resume($sock);
+            if (!AcceptWaiter::handOver($this->acceptors, $sock)) {
+                // Every waiting call had already ended; the connection is closed with the backlog below.
+                $this->backlog[] = $sock;
+                $this->backlogSize++;
+            }
         }
 
-        // Feed remaining acceptors from the backlog.
         while ($this->acceptors !== [] && $this->backlog !== []) {
             $sock = array_shift($this->backlog);
+            if (!AcceptWaiter::handOver($this->acceptors, $sock)) {
+                array_unshift($this->backlog, $sock);
+
+                break;
+            }
+
             $this->backlogSize--;
-            $acceptor = array_shift($this->acceptors);
-            $this->acceptors = array_values($this->acceptors);
-            $acceptor->resume($sock);
         }
 
         $acceptors = $this->acceptors;
         $this->acceptors = [];
         $exception = new Network\Exception\AlreadyStoppedException('Server socket has been stopped.');
         foreach ($acceptors as $acceptor) {
-            $acceptor->throw($exception);
+            $acceptor->fail($exception);
         }
 
         foreach ($this->backlog as $sock) {
@@ -304,7 +323,6 @@ final class Listener implements Unix\ListenerInterface
         $this->backlog = [];
         $this->backlogSize = 0;
 
-        $resource = $this->impl;
         $this->impl = null;
         if (is_resource($resource)) {
             fclose($resource);

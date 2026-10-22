@@ -11,6 +11,10 @@ use Revolt\EventLoop;
 /**
  * Wait for a stream to become writable, with cancellation support.
  *
+ * The wait ends when the stream becomes writable or when $cancellation is cancelled, whichever comes first. It has a
+ * record of its own, so a cancellation that arrives once the wait has ended, while the fiber waits for something
+ * else, is ignored.
+ *
  * @internal
  *
  * @param resource $stream
@@ -19,26 +23,31 @@ use Revolt\EventLoop;
  */
 function wait_writable(mixed $stream, CancellationTokenInterface $cancellation): void
 {
-    if ($cancellation->cancellable) {
+    $cancellable = $cancellation->cancellable;
+    if ($cancellable) {
         $cancellation->throwIfCancelled();
     }
 
-    $suspension = EventLoop::getSuspension();
-
-    $writeWatcher = EventLoop::onWritable($stream, static function (string $watcher) use ($suspension): void {
-        EventLoop::cancel($watcher);
-        $suspension->resume();
+    // The wait has its own record, which the watcher and the cancellation listener settle: the listener may run during
+    // subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already be waiting
+    // for something else.
+    $waiter = new Waiter();
+    $watcher = EventLoop::onWritable($stream, static function () use ($waiter): void {
+        $waiter->resume();
     });
 
     $id = null;
-    if ($cancellation->cancellable) {
-        $id = $cancellation->subscribe($suspension->throw(...));
-    }
 
     try {
-        $suspension->suspend();
+        if ($cancellable) {
+            $id = $cancellation->subscribe(static function (CancelledException $exception) use ($waiter): void {
+                $waiter->fail($exception);
+            });
+        }
+
+        $waiter->wait();
     } finally {
-        EventLoop::cancel($writeWatcher);
+        EventLoop::cancel($watcher);
         if (null !== $id) {
             $cancellation->unsubscribe($id);
         }
