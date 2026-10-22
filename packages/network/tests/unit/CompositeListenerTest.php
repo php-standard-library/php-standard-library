@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Network\Tests\Unit;
 
+use Closure;
 use Error;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
@@ -11,6 +12,8 @@ use Psl\DateTime\Duration;
 use Psl\IO;
 use Psl\Network;
 use Psl\Network\Tests\Fixture\FakeListener;
+use Revolt\EventLoop;
+use Throwable;
 
 use function gc_collect_cycles;
 
@@ -747,5 +750,180 @@ final class CompositeListenerTest extends TestCase
         }
 
         Async\later();
+    }
+
+    /**
+     * An `Error` that an inner accept throws once the composite listener has cancelled it, because its last waiting
+     * call was cancelled, is not dropped with the cancellation: the next accept() call throws it.
+     */
+    public function testErrorThatEndsACancelledInnerAcceptIsThrownToTheNextCall(): void
+    {
+        $defect = new Error('The inner listener has a defect.');
+        $listener = new FakeListener();
+        $listener->cancellationFailure = $defect;
+        $composite = new Network\CompositeListener([$listener]);
+
+        $this->cancelTheOnlyWaitingCall($composite, $listener);
+
+        try {
+            $composite->accept(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected the Error to be thrown.');
+        } catch (Error $exception) {
+            static::assertSame($defect, $exception);
+        }
+
+        $composite->close();
+    }
+
+    /**
+     * An `Error` that an inner accept throws once close() has cancelled it can reach no accept() call anymore: it
+     * reaches the event loop instead of being dropped.
+     */
+    public function testErrorThatEndsAnInnerAcceptAfterCloseReachesTheEventLoop(): void
+    {
+        $defect = new Error('The inner listener has a defect.');
+        $listener = new FakeListener();
+        $listener->cancellationFailure = $defect;
+        $composite = new Network\CompositeListener([$listener]);
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        static::assertSame(1, $listener->waiting);
+
+        $errors = self::recordEventLoopErrors(static function () use ($composite): void {
+            $composite->close();
+
+            // The cancelled inner accept ends in one turn of the event loop, and what it reports runs in the next.
+            Async\later();
+            Async\later();
+        });
+
+        try {
+            $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame([$defect], $errors);
+        static::assertSame(0, $listener->waiting);
+    }
+
+    /**
+     * An `Error` left in the backlog when the composite listener closes can reach no accept() call anymore: it reaches
+     * the event loop instead of being dropped.
+     */
+    public function testErrorLeftInTheBacklogReachesTheEventLoopOnClose(): void
+    {
+        $defect = new Error('The inner listener has a defect.');
+        $listener = new FakeListener();
+        $listener->cancellationFailure = $defect;
+        $composite = new Network\CompositeListener([$listener]);
+
+        $this->cancelTheOnlyWaitingCall($composite, $listener);
+
+        $errors = self::recordEventLoopErrors(static function () use ($composite): void {
+            $composite->close();
+
+            Async\later();
+        });
+
+        static::assertSame([$defect], $errors);
+    }
+
+    /**
+     * An expected accept failure that an inner accept throws once close() has cancelled it is dropped, like the
+     * connection it could have returned is closed: it does not fail the event loop.
+     */
+    public function testExpectedFailureThatEndsAnInnerAcceptAfterCloseIsDropped(): void
+    {
+        $listener = new FakeListener();
+        $listener->cancellationFailure = new Network\Exception\RuntimeException(
+            'Failed to accept incoming connection.',
+        );
+        $composite = new Network\CompositeListener([$listener]);
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        $errors = self::recordEventLoopErrors(static function () use ($composite): void {
+            $composite->close();
+
+            // The cancelled inner accept ends in one turn of the event loop, and what it reports runs in the next.
+            Async\later();
+            Async\later();
+        });
+
+        try {
+            $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertSame([], $errors);
+        static::assertSame(0, $listener->waiting);
+    }
+
+    /**
+     * Wait in an accept() call, the only one, until the inner accept of the given listener is in flight, then cancel
+     * the call, which cancels that inner accept, and let the inner accept end.
+     */
+    private function cancelTheOnlyWaitingCall(Network\CompositeListener $composite, FakeListener $listener): void
+    {
+        $token = new Async\SignalCancellationToken();
+        $accepting = Async\run(static fn(): Network\StreamInterface => $composite->accept($token));
+
+        Async\later();
+        Async\later();
+
+        static::assertSame(1, $listener->waiting);
+
+        $token->cancel();
+
+        try {
+            $accepting->await();
+
+            static::fail('Expected CancelledException to be thrown.');
+        } catch (Async\Exception\CancelledException) {
+            static::addToAssertionCount(1);
+        }
+
+        Async\later();
+
+        static::assertSame(0, $listener->waiting);
+    }
+
+    /**
+     * Run the given operation with an event loop error handler that records every failure reaching it, and return
+     * those failures, oldest first.
+     *
+     * @param Closure(): void $operation
+     *
+     * @return list<Throwable>
+     */
+    private static function recordEventLoopErrors(Closure $operation): array
+    {
+        $errors = [];
+        $previous = EventLoop::getErrorHandler();
+        EventLoop::setErrorHandler(static function (Throwable $error) use (&$errors): void {
+            $errors[] = $error;
+        });
+
+        try {
+            $operation();
+        } finally {
+            EventLoop::setErrorHandler($previous);
+        }
+
+        return $errors;
     }
 }

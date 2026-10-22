@@ -38,6 +38,12 @@ final class FakeListener implements Network\ListenerInterface
      */
     public null|Throwable $closeFailure = null;
 
+    /**
+     * The failure a waiting accept() call throws in place of the `CancelledException` when its token is cancelled,
+     * as a listener with a defect would, or null to throw the `CancelledException`.
+     */
+    public null|Throwable $cancellationFailure = null;
+
     private bool $closed = false;
 
     /**
@@ -89,6 +95,8 @@ final class FakeListener implements Network\ListenerInterface
 
         try {
             $stream = $deferred->getAwaitable()->await($cancellation);
+        } catch (Async\Exception\CancelledException $exception) {
+            throw $this->cancellationFailure ?? $exception;
         } finally {
             $this->waiting--;
             $index = array_search($deferred, $this->acceptors, true);

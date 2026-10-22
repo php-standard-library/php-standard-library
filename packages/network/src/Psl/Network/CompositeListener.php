@@ -30,6 +30,12 @@ use function spl_object_id;
  * stopped is no longer used, and once all of them are stopped, {@see accept()}
  * throws {@see Exception\AlreadyStoppedException}.
  *
+ * When the composite listener cancels its in-flight inner accepts, only the
+ * cancellation exceptions they end with are dropped: any other error is still
+ * delivered. Once the composite listener is closed, no caller can receive an
+ * error anymore: an expected accept failure is then dropped, and anything else,
+ * a defect, reaches the event loop.
+ *
  * In-flight inner accepts are cancelled when the last waiting {@see accept()} call
  * is cancelled, and when the composite listener is closed.
  *
@@ -189,7 +195,10 @@ final class CompositeListener implements ListenerInterface
      * {@see Exception\AlreadyStoppedException}, as do later calls, and cancels the in-flight inner accepts. It then
      * closes every connection left in its backlog and every inner listener, all of which it owns. It attempts each of
      * those closes even after one fails, and throws the first failure once it has attempted them all. A connection
-     * that an inner accept returns after this is closed. Closing a closed listener does nothing.
+     * that an inner accept returns after this is closed. A failure left in the backlog, or thrown by an inner accept
+     * after this, can reach no caller anymore: an expected accept failure (IO, Network or a cancellation) is dropped,
+     * like that connection, and anything else, an `Error` included, is a defect that reaches the event loop. Closing
+     * a closed listener does nothing.
      *
      * @throws IO\Exception\RuntimeException If closing a connection of the backlog or an inner listener failed.
      * @throws Exception\RuntimeException If closing an inner listener failed with a network error.
@@ -213,7 +222,9 @@ final class CompositeListener implements ListenerInterface
 
         $failure = null;
         foreach ($backlog as $result) {
-            if (!$result instanceof StreamInterface) {
+            if ($result instanceof Throwable) {
+                self::reportUnreceivedFailure($result);
+
                 continue;
             }
 
@@ -324,11 +335,14 @@ final class CompositeListener implements ListenerInterface
                     $result = $listener->accept($acceptCancellation);
                 } catch (Exception\AlreadyStoppedException) {
                     $stopped = true;
-                } catch (Throwable $error) {
-                    // Errors caused by cancelling the accept are of no interest to anyone.
+                } catch (Async\Exception\CancelledException $error) {
+                    // The cancellation that ended an accept nobody waits for anymore is of no interest to anyone.
                     if (!$acceptCancellation->isCancelled()) {
                         $result = $error;
                     }
+                } catch (Throwable $error) {
+                    // Anything else is what the accept ended with, even after a cancellation: it is delivered as-is.
+                    $result = $error;
                 }
 
                 if (($this->pending[$i] ?? null) === $acceptCancellation) {
@@ -350,6 +364,8 @@ final class CompositeListener implements ListenerInterface
                 if ($this->closed) {
                     if ($result instanceof StreamInterface) {
                         self::closeLateConnection($result);
+                    } else {
+                        self::reportUnreceivedFailure($result);
                     }
 
                     return;
@@ -380,6 +396,30 @@ final class CompositeListener implements ListenerInterface
         } catch (IO\Exception\RuntimeException|Exception\RuntimeException) {
             // @mago-expect lint:no-empty-catch-clause - Nobody can be told of an expected close failure here (E11).
         }
+    }
+
+    /**
+     * Report a failure that no accept() call can receive anymore: one that an inner accept threw after the composite
+     * listener was closed, or one that its backlog held when it closed.
+     *
+     * A failure of an operational category that an accept throws (IO, Network, or the cancellation of an accept) is
+     * dropped, as the connection such an accept returns is closed: nobody is left to be told of it. Anything else,
+     * an `Error` included, is a defect, and must not be lost: it is thrown from an event loop callback, so that it
+     * reaches the event loop's error handler, or whoever runs the event loop.
+     */
+    private static function reportUnreceivedFailure(Throwable $failure): void
+    {
+        if (
+            $failure instanceof IO\Exception\RuntimeException
+            || $failure instanceof Exception\RuntimeException
+            || $failure instanceof Async\Exception\CancelledException
+        ) {
+            return;
+        }
+
+        Async\Scheduler::defer(static function () use ($failure): never {
+            throw $failure;
+        });
     }
 
     /**
