@@ -65,6 +65,8 @@ The handshake runs inside `accept()`, one connection at a time. A peer that conn
 
 @example('networking/tls-lazy-acceptor.php')
 
+`LazyAcceptor::accept()` waits until the whole ClientHello has arrived, whether the client sends it in one write or in several, and in one TLS record or several, and it consumes none of it: the handshake reads it afterwards. The bytes already received keep the socket readable, so inspection peeks again after a pause that starts at 10 ms and doubles up to 320 ms while nothing new arrives. A peer that stops in the middle of its ClientHello holds the call until the cancellation token ends it, so pass a token with a deadline. A malformed ClientHello throws a `HandshakeFailedException`. A ClientHello longer than 16 KiB is reported from the extensions that end within its first 16 KiB; `complete()` still runs the whole handshake.
+
 ### TLS Connection Pooling
 
 `TLS\TCPConnector` implements `TCP\ConnectorInterface`, which means it can be used with `TCP\SocketPool` to enable connection pooling for TLS connections. This avoids repeated TLS handshakes when making multiple requests to the same host:
