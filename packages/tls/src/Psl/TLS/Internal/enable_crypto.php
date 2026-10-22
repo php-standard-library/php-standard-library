@@ -10,7 +10,6 @@ use Psl\Async\NullCancellationToken;
 use Psl\Network;
 use Psl\TLS;
 use Psl\TLS\Exception\HandshakeFailedException;
-use Revolt\EventLoop;
 
 use function restore_error_handler;
 use function set_error_handler;
@@ -21,7 +20,8 @@ use function stream_socket_enable_crypto;
  *
  * This function enables crypto on a stream using Revolt's event loop for non-blocking I/O.
  * When {@see stream_socket_enable_crypto()} returns 0 (handshake in progress), it suspends
- * until the stream becomes readable, then takes the next handshake step in the same fiber.
+ * until the stream becomes readable, or a short pause ends in case the handshake waits to
+ * write (see {@see HandshakeWaiter}), then takes the next handshake step in the same fiber.
  *
  * The connection state is read in the same step that observes the completed handshake,
  * before any other fiber or event-loop callback can run. This matters for server
@@ -51,8 +51,7 @@ function enable_crypto(
     bool $server,
     CancellationTokenInterface $cancellation = new NullCancellationToken(),
 ): TLS\ConnectionState {
-    $cancellable = $cancellation->cancellable;
-    if ($cancellable) {
+    if ($cancellation->cancellable) {
         $cancellation->throwIfCancelled();
     }
 
@@ -81,33 +80,10 @@ function enable_crypto(
 
     [$result, $native] = $step();
 
-    // A step that returns 0 is in progress: wait until the socket is readable, then take the next step in this fiber.
+    // A step that returns 0 is in progress: wait for the socket, then take the next step in this fiber.
+    $waiter = new HandshakeWaiter($stream, $cancellation);
     while (0 === $result) {
-        // Each wait has its own record, which the watcher and the cancellation listener settle: the listener may run
-        // during subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already
-        // be waiting for something else.
-        $waiter = new Waiter();
-        $watcher = EventLoop::onReadable($stream, static function () use ($waiter): void {
-            $waiter->resume();
-        });
-
-        $cancellationId = null;
-
-        try {
-            if ($cancellable) {
-                $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
-                    $waiter->fail($e);
-                });
-            }
-
-            $waiter->wait();
-        } finally {
-            EventLoop::cancel($watcher);
-            if (null !== $cancellationId) {
-                $cancellation->unsubscribe($cancellationId);
-            }
-        }
-
+        $waiter->wait();
         [$result, $native] = $step();
     }
 
