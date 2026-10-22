@@ -43,6 +43,10 @@ use const E_USER_DEPRECATED;
  * the unwritten head of every short write, reports it as accepted, and sends it before
  * any later bytes.
  *
+ * Peeks need one too. The socket holds TLS records, so peeking at it would return
+ * ciphertext. A peek instead reads decrypted bytes from the connection and keeps them, and
+ * reads return those bytes before reading more.
+ *
  * @internal
  *
  * @codeCoverageIgnore
@@ -88,6 +92,14 @@ final class Stream implements TLS\StreamInterface
     private string $pending = '';
 
     /**
+     * Decrypted bytes a peek read from the connection that no read has returned yet.
+     *
+     * The socket cannot be peeked at for them: it only holds TLS records, and OpenSSL has already taken the record
+     * they came in. Reads return these bytes before anything else.
+     */
+    private string $lookahead = '';
+
+    /**
      * Serializes write() and writeAll() so that the pending record is handled by one fiber at a time.
      *
      * @var Async\Sequence<array{self, string, CancellationTokenInterface, bool}, int<0, max>>
@@ -126,22 +138,33 @@ final class Stream implements TLS\StreamInterface
         return $this->state;
     }
 
+    /**
+     * Whether the peer has ended the data: nothing a peek read is left, and the connection reached its end.
+     */
     #[Override]
     public function reachedEndOfDataSource(): bool
     {
-        return $this->inner->reachedEndOfDataSource();
+        return '' === $this->lookahead && $this->inner->reachedEndOfDataSource();
     }
 
     /**
+     * Read without waiting, starting with the bytes a peek read.
+     *
      * @param ?positive-int $maxBytes
      */
     #[Override]
     public function tryRead(null|int $maxBytes = null): string
     {
+        if ('' !== $this->lookahead) {
+            return $this->takeLookahead($maxBytes);
+        }
+
         return $this->inner->tryRead($maxBytes);
     }
 
     /**
+     * Read, waiting if necessary, starting with the bytes a peek read.
+     *
      * @param ?positive-int $maxBytes
      */
     #[Override]
@@ -149,7 +172,11 @@ final class Stream implements TLS\StreamInterface
         null|int $maxBytes = null,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): string {
-        return $this->inner->read($maxBytes, $cancellation);
+        if ('' !== $this->lookahead) {
+            return $this->takeLookahead($maxBytes);
+        }
+
+        return $this->queueBehindLookahead($this->inner->read($maxBytes, $cancellation), $maxBytes);
     }
 
     /**
@@ -220,12 +247,30 @@ final class Stream implements TLS\StreamInterface
     }
 
     /**
+     * Return up to $maxBytes decrypted bytes without consuming them, waiting until some have arrived.
+     *
+     * The bytes are read from the connection and kept: the next reads return them first. Records that carry no data,
+     * such as the TLS 1.3 session tickets a server sends after its handshake, do not end the wait. Returns an empty
+     * string once the peer has ended the data.
+     *
      * @param positive-int $maxBytes
      */
     #[Override]
     public function peek(int $maxBytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): string
     {
-        return $this->inner->peek($maxBytes, $cancellation);
+        while ('' === $this->lookahead) {
+            // A read that the socket woke returns nothing when OpenSSL took only records that carry no data, and the
+            // connection has not reached its end then. Another peek or read may fill the lookahead while this one
+            // waits; these bytes come after its bytes.
+            $bytes = $this->inner->read(null, $cancellation);
+            if ('' === $bytes && $this->inner->reachedEndOfDataSource()) {
+                break;
+            }
+
+            $this->lookahead .= $bytes;
+        }
+
+        return substr($this->lookahead, 0, $maxBytes);
     }
 
     /**
@@ -251,9 +296,13 @@ final class Stream implements TLS\StreamInterface
         return $this->inner->isClosed();
     }
 
+    /**
+     * Close the stream, after sending close_notify, and drop the bytes a peek read.
+     */
     #[Override]
     public function close(): void
     {
+        $this->lookahead = '';
         $stream = $this->inner->getStream();
         if (is_resource($stream)) {
             // Send close_notify, then let go of what the peer sent and nobody read, so that closing the socket ends
@@ -296,6 +345,43 @@ final class Stream implements TLS\StreamInterface
                 return;
             }
         }
+    }
+
+    /**
+     * Return the bytes a read waited for, unless a peek on another fiber read bytes from the connection meanwhile:
+     * those came first, so these join them, and the read returns from the front.
+     *
+     * @param ?positive-int $maxBytes
+     */
+    private function queueBehindLookahead(string $bytes, null|int $maxBytes): string
+    {
+        if ('' === $this->lookahead) {
+            return $bytes;
+        }
+
+        $this->lookahead .= $bytes;
+
+        return $this->takeLookahead($maxBytes);
+    }
+
+    /**
+     * Take up to $maxBytes from the front of the bytes a peek read; null takes them all.
+     *
+     * @param ?positive-int $maxBytes
+     */
+    private function takeLookahead(null|int $maxBytes): string
+    {
+        if (null === $maxBytes || $maxBytes >= strlen($this->lookahead)) {
+            $bytes = $this->lookahead;
+            $this->lookahead = '';
+
+            return $bytes;
+        }
+
+        $bytes = substr($this->lookahead, 0, $maxBytes);
+        $this->lookahead = substr($this->lookahead, $maxBytes);
+
+        return $bytes;
     }
 
     /**

@@ -105,6 +105,10 @@ OpenSSL encrypts a write into a TLS record before it reaches the socket. When th
 - `write()` and `writeAll()` return only once every byte they count has been handed to the socket;
 - `shutdown()` throws an `IO\Exception\RuntimeException` while a record accepted by `tryWrite()` is still pending; call `write()` or `writeAll()` first.
 
+### Peeking
+
+`peek()` on a TLS stream returns decrypted bytes, as `read()` would, without consuming them. The socket only holds TLS records, so the stream reads the bytes from the connection and keeps them; the next `read()` or `tryRead()` returns them first, and `reachedEndOfDataSource()` stays false while any are kept. A peek returns an empty string only once the peer has ended the data: records that carry no data, such as the TLS 1.3 session tickets a server sends after its handshake, do not end its wait.
+
 ### Cancellation
 
 All TLS operations that suspend (handshakes) accept a `CancellationTokenInterface`. This allows you to cancel slow or hanging handshakes:
