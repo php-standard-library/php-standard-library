@@ -9,6 +9,7 @@ use Psl\Async\Exception\CancelledException;
 use Psl\Async\NullCancellationToken;
 use Psl\Async\Scheduler;
 use Psl\DateTime\Duration;
+use Psl\IO;
 use Psl\Network;
 use WeakMap;
 
@@ -145,7 +146,7 @@ final class SocketPool implements SocketPoolInterface
         // Start idle timer
         $id = spl_object_id($stream);
         $timerId = Scheduler::delay($this->idleTimeout, function () use ($key, $id): void {
-            $this->forgetIdle($key, $id)->close();
+            self::closeExpiredConnection($this->forgetIdle($key, $id));
         });
 
         $this->idle[$key][$id] = [$stream, $timerId];
@@ -157,6 +158,8 @@ final class SocketPool implements SocketPoolInterface
      *
      * The connection leaves the pool whether it is checked out or idle, and an idle connection's timer is cancelled.
      * The connection is closed even when the pool does not know it.
+     *
+     * @throws IO\Exception\RuntimeException If closing the connection failed.
      */
     public function clear(StreamInterface $stream): void
     {
@@ -177,23 +180,42 @@ final class SocketPool implements SocketPoolInterface
     }
 
     /**
-     * Close the pool: close every idle connection, after cancelling its idle timer.
+     * Close the pool: close every idle connection, after cancelling every idle timer.
      *
-     * The connections that are checked out stay open.
+     * The pool attempts each of those closes even after one fails, and throws the first failure once it has attempted
+     * them all. The connections that are checked out stay open.
+     *
+     * @throws IO\Exception\RuntimeException If closing an idle connection failed.
      */
     public function close(): void
     {
         $this->closed = true;
 
-        foreach ($this->idle as $entries) {
-            foreach ($entries as [$stream, $timerId]) {
+        $idle = $this->idle;
+        $this->idle = [];
+        $this->idleKeys = [];
+
+        // Cancel every idle timer before closing anything, so that no failing close can leave one running.
+        foreach ($idle as $entries) {
+            foreach ($entries as [, $timerId]) {
                 Scheduler::cancel($timerId);
-                $stream->close();
             }
         }
 
-        $this->idle = [];
-        $this->idleKeys = [];
+        $failure = null;
+        foreach ($idle as $entries) {
+            foreach ($entries as [$stream]) {
+                try {
+                    $stream->close();
+                } catch (IO\Exception\RuntimeException $e) {
+                    $failure ??= $e;
+                }
+            }
+        }
+
+        if (null !== $failure) {
+            throw $failure;
+        }
     }
 
     /**
@@ -215,5 +237,20 @@ final class SocketPool implements SocketPoolInterface
         Scheduler::cancel($timerId);
 
         return $stream;
+    }
+
+    /**
+     * Close a connection whose idle timeout has passed.
+     *
+     * An event loop callback closes it, so nobody can be told that closing it failed: an expected close failure is
+     * suppressed, as a destructor would, while any other failure still reaches the event loop.
+     */
+    private static function closeExpiredConnection(StreamInterface $connection): void
+    {
+        try {
+            $connection->close();
+        } catch (IO\Exception\RuntimeException) {
+            // @mago-expect lint:no-empty-catch-clause - Nobody can be told of an expected close failure here (E11).
+        }
     }
 }

@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Psl\TCP\Tests\Unit;
 
+use Error;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
+use Psl\IO;
 use Psl\Network;
 use Psl\TCP;
 use Psl\TCP\Tests\Fixture\CallbackSnapshot;
 use Psl\TCP\Tests\Fixture\MemoryConnector;
 use Psl\TCP\Tests\Fixture\RecordingDriver;
 use Revolt\EventLoop;
+use Throwable;
 
 use function fclose;
 use function fopen;
@@ -21,6 +24,16 @@ use function spl_object_id;
 
 final class SocketPoolTest extends TestCase
 {
+    /**
+     * The idle timeout of the pool in the expiry test, in milliseconds.
+     */
+    private const int SHORT_IDLE_TIMEOUT_MILLISECONDS = 1;
+
+    /**
+     * How long the expiry test waits for the idle timeout to pass, in milliseconds.
+     */
+    private const int EXPIRY_WAIT_MILLISECONDS = 20;
+
     public function testIpv6SpellingsShareThePoolKey(): void
     {
         $resource = fopen('php://memory', 'r+');
@@ -501,6 +514,92 @@ final class SocketPoolTest extends TestCase
     }
 
     /**
+     * Closing the pool closes every idle connection, even after one of them fails to close, then throws the first
+     * failure, and leaves no idle timer behind.
+     */
+    public function testCloseClosesEveryIdleConnectionWhenOneFailsToClose(): void
+    {
+        $failure = new IO\Exception\RuntimeException('Failed to close the connection.');
+        $failing = $this->connectionWhoseCloseThrows($failure);
+        $healthy = MemoryConnector::stream(Network\Address::tcp('example.com', 80));
+        $connector = $this->createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($failing, $healthy);
+        $pool = new TCP\SocketPool($connector);
+        $before = new CallbackSnapshot();
+
+        $pool->checkout('example.com', 80);
+        $pool->checkout('example.com', 80);
+        $pool->checkin($failing);
+        $pool->checkin($healthy);
+
+        try {
+            $pool->close();
+
+            static::fail('Expected the close failure to be thrown.');
+        } catch (IO\Exception\RuntimeException $exception) {
+            static::assertSame($failure, $exception);
+        }
+
+        static::assertTrue($healthy->isClosed());
+        static::assertSame([], new CallbackSnapshot()->addedSince($before));
+
+        // Closing again does nothing, and does not throw the failure again.
+        $pool->close();
+    }
+
+    /**
+     * An `Error` that an idle connection throws from close() is a defect: closing the pool throws it as-is, and has
+     * already cancelled every idle timer.
+     */
+    public function testCloseThrowsAnErrorOfAnIdleConnectionAfterCancellingEveryIdleTimer(): void
+    {
+        $defect = new Error('The connection has a defect.');
+        $failing = $this->connectionWhoseCloseThrows($defect);
+        $healthy = MemoryConnector::stream(Network\Address::tcp('example.com', 80));
+        $connector = $this->createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($failing, $healthy);
+        $pool = new TCP\SocketPool($connector);
+        $before = new CallbackSnapshot();
+
+        $pool->checkout('example.com', 80);
+        $pool->checkout('example.com', 80);
+        $pool->checkin($failing);
+        $pool->checkin($healthy);
+
+        try {
+            $pool->close();
+
+            static::fail('Expected the Error to be thrown.');
+        } catch (Error $exception) {
+            static::assertSame($defect, $exception);
+        } finally {
+            $healthy->close();
+        }
+
+        static::assertSame([], new CallbackSnapshot()->addedSince($before));
+    }
+
+    /**
+     * A connection whose idle timeout passes is closed by an event loop callback, and an expected failure to close it
+     * does not reach the event loop, since nobody is there to be told.
+     */
+    public function testFailureToCloseAnExpiredIdleConnectionIsSuppressed(): void
+    {
+        $failing = $this->connectionWhoseCloseThrows(
+            new IO\Exception\RuntimeException('Failed to close the connection.'),
+        );
+        $connector = $this->createStub(TCP\ConnectorInterface::class);
+        $connector->method('connect')->willReturn($failing);
+        $pool = new TCP\SocketPool($connector, Duration::milliseconds(self::SHORT_IDLE_TIMEOUT_MILLISECONDS));
+
+        $pool->checkin($pool->checkout('example.com', 80));
+
+        Async\sleep(Duration::milliseconds(self::EXPIRY_WAIT_MILLISECONDS));
+
+        $pool->close();
+    }
+
+    /**
      * Check a connection out of the pool, check it in, then clear it while it is idle.
      *
      * @return TCP\StreamInterface The cleared connection.
@@ -510,6 +609,21 @@ final class SocketPoolTest extends TestCase
         $connection = $pool->checkout('example.com', 80);
         $pool->checkin($connection);
         $pool->clear($connection);
+
+        return $connection;
+    }
+
+    /**
+     * Create a connection that the pool takes as alive, and whose close() throws the given failure exactly once.
+     */
+    private function connectionWhoseCloseThrows(Throwable $failure): TCP\StreamInterface
+    {
+        $resource = fopen('php://memory', 'r+');
+        static::assertIsResource($resource);
+
+        $connection = $this->createMock(TCP\StreamInterface::class);
+        $connection->method('getStream')->willReturn($resource);
+        $connection->expects(static::once())->method('close')->willThrowException($failure);
 
         return $connection;
     }
