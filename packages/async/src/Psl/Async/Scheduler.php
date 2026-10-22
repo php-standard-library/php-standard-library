@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Psl\Async;
 
 use Closure;
+use Fiber;
 use Psl;
 use Psl\DateTime;
 use Revolt\EventLoop;
@@ -215,12 +216,24 @@ final readonly class Scheduler
     }
 
     /**
-     * Run the event loop.
+     * Run the event loop until no enabled, referenced callback is left, or until the driver is stopped.
+     *
+     * Call it from {main} only: no fiber can run the loop, and the loop's own callbacks run inside
+     * one. The check happens before the loop runs anything. Whatever the loop throws, such as
+     * Revolt's `UncaughtThrowable` for a callback failure, propagates unchanged.
+     *
+     * @throws Exception\LogicException If called inside a fiber.
      *
      * @see Driver::run()
      */
     public static function run(): void
     {
+        if (null !== Fiber::getCurrent()) {
+            throw new Exception\LogicException(
+                'Psl\Async\Scheduler::run() must be called from {main}, not inside a fiber.',
+            );
+        }
+
         EventLoop::getDriver()->run();
     }
 }

@@ -17,6 +17,8 @@ The `Async` component brings concurrency into PHP using [cooperative multitaskin
 
 `Async\main()` is the entry point for async applications. It executes a closure in the main fiber, then keeps the event loop running until all pending callbacks complete. The closure must return an integer exit code.
 
+Call it outside any fiber, from the script's own call stack (`{main}`): a function or method that the script calls may call it. Inside a fiber, such as an `Async\run()` closure or an event loop callback, it throws `Async\Exception\LogicException` before running the closure, even a closure that never returns.
+
 @example('async/async-main.php')
 
 ### Running Async Operations
@@ -167,6 +169,8 @@ The `Scheduler` is a wrapper around the Revolt event loop. It provides static me
 
 All registration methods return a string identifier that can be used with `cancel()`, `enable()`, `disable()`, `reference()`, and `unreference()`.
 
+`Scheduler::run()` runs the event loop until no enabled, referenced callback is left. Like `Async\main()`, it must be called outside any fiber, from the script's own call stack (`{main}`): inside a fiber, it throws `Async\Exception\LogicException` before the loop runs anything.
+
 See [revolt.run](https://revolt.run/) for more information on the underlying event loop.
 
 ## Cancellation
@@ -225,6 +229,7 @@ When a token fires, `CancelledException` is thrown. It carries:
 
 - **`CancelledException`** -- thrown when a cancellation token is triggered. Use `$e->getToken()` to identify the source and `$e->getPrevious()` for the cause.
 - **`CompositeException`** -- wraps multiple exceptions when several concurrent operations fail. Use `$e->getReasons()` to get all underlying exceptions.
+- **`LogicException`** -- thrown when the API is misused, such as calling `Async\main()` or `Scheduler::run()` inside a fiber.
 - **`TimeoutException`** -- used internally as the cause inside `CancelledException` when a `TimeoutCancellationToken` fires.
 - **`UnhandledAwaitableException`** -- thrown by the scheduler when a failed `Awaitable` is never awaited or handled. Use `$awaitable->ignore()` to suppress this.
 
