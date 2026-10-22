@@ -24,6 +24,8 @@ All TCP connectors implement `ConnectorInterface`, making them interchangeable a
 
 `SocketPool` reuses idle TCP connections. Checked-in connections stay alive for a configurable idle timeout before being closed.
 
+Closing the pool closes its idle connections. After that, `checkout()` throws `Network\Exception\AlreadyStoppedException`, as does a checkout whose connection was still being made, and a connection checked out before the pool closed is closed when it is checked in.
+
 @example('networking/tcp-socket-pool.php')
 
 ### Configuration

@@ -86,9 +86,12 @@ final class SocketPool implements SocketPoolInterface
     /**
      * Get a connection to the given host and port: an idle connection of the pool if one is left, or a new one.
      *
+     * A closed pool hands out no connection, and a connection still being made when the pool closes is closed.
+     *
      * @param non-empty-string $host
      * @param int<0, 65535> $port
      *
+     * @throws Network\Exception\AlreadyStoppedException If the pool is closed before or while the connection is made.
      * @throws Network\Exception\RuntimeException If the connection fails.
      * @throws CancelledException If $cancellation is cancelled while connecting.
      */
@@ -97,6 +100,10 @@ final class SocketPool implements SocketPoolInterface
         int $port,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): StreamInterface {
+        if ($this->closed) {
+            throw new Network\Exception\AlreadyStoppedException('The socket pool has been closed.');
+        }
+
         $key = Network\Address::tcp($host, $port)->toString();
 
         // Try to reuse an idle connection, the one checked in last first
@@ -116,6 +123,13 @@ final class SocketPool implements SocketPoolInterface
 
         // No idle connection available, create a new one
         $stream = $this->connector->connect($host, $port, $cancellation);
+        if ($this->closed) {
+            // The pool was closed while the connection was being made: nobody gets it.
+            self::closeUnclaimedConnection($stream);
+
+            throw new Network\Exception\AlreadyStoppedException('The socket pool has been closed.');
+        }
+
         $this->checkedOut[$stream] = $key;
 
         return $stream;
@@ -124,8 +138,11 @@ final class SocketPool implements SocketPoolInterface
     /**
      * Return a connection that {@see checkout()} handed out to the pool for reuse.
      *
-     * The connection stays idle in the pool until it is checked out again, or until the idle timeout closes it. A
-     * connection the pool does not have checked out, a foreign one or one already checked in, is left alone.
+     * The connection stays idle in the pool until it is checked out again, or until the idle timeout closes it. Once
+     * the pool is closed, a connection that comes back is closed instead. A connection the pool does not have checked
+     * out, a foreign one or one already checked in, is left alone.
+     *
+     * @throws IO\Exception\RuntimeException If the connection had to be closed, and closing it failed.
      */
     public function checkin(StreamInterface $stream): void
     {
@@ -135,6 +152,13 @@ final class SocketPool implements SocketPoolInterface
         }
 
         unset($this->checkedOut[$stream]);
+
+        if ($this->closed) {
+            // The pool owns the connection again, and keeps no connection once closed.
+            $stream->close();
+
+            return;
+        }
 
         // Verify connection is still valid before pooling
         $resource = $stream->getStream();
@@ -146,7 +170,7 @@ final class SocketPool implements SocketPoolInterface
         // Start idle timer
         $id = spl_object_id($stream);
         $timerId = Scheduler::delay($this->idleTimeout, function () use ($key, $id): void {
-            self::closeExpiredConnection($this->forgetIdle($key, $id));
+            self::closeUnclaimedConnection($this->forgetIdle($key, $id));
         });
 
         $this->idle[$key][$id] = [$stream, $timerId];
@@ -180,10 +204,11 @@ final class SocketPool implements SocketPoolInterface
     }
 
     /**
-     * Close the pool: close every idle connection, after cancelling every idle timer.
+     * Close the pool: stop handing out connections, and close every idle connection, after cancelling every idle timer.
      *
      * The pool attempts each of those closes even after one fails, and throws the first failure once it has attempted
-     * them all. The connections that are checked out stay open.
+     * them all. The connections that are checked out stay open until they are checked in, which closes them. Closing
+     * a closed pool does nothing.
      *
      * @throws IO\Exception\RuntimeException If closing an idle connection failed.
      */
@@ -240,12 +265,13 @@ final class SocketPool implements SocketPoolInterface
     }
 
     /**
-     * Close a connection whose idle timeout has passed.
+     * Close a connection that nobody is to get: one whose idle timeout has passed, or one made while the pool closed.
      *
-     * An event loop callback closes it, so nobody can be told that closing it failed: an expected close failure is
-     * suppressed, as a destructor would, while any other failure still reaches the event loop.
+     * Nobody can be told that closing it failed, either because an event loop callback closes it or because the
+     * caller is told that the pool has closed: an expected close failure is suppressed, as a destructor would, while
+     * any other failure still propagates.
      */
-    private static function closeExpiredConnection(StreamInterface $connection): void
+    private static function closeUnclaimedConnection(StreamInterface $connection): void
     {
         try {
             $connection->close();

@@ -60,21 +60,26 @@ final class Transport implements TransportInterface
      */
     private WeakMap $initialized;
 
-    private readonly TCP\SocketPoolInterface $pool;
+    /**
+     * The pool of connections to the server.
+     *
+     * {@see close()} closes it and puts a new pool in its place, so that the transport stays usable.
+     */
+    private TCP\SocketPoolInterface $pool;
+
     private readonly TLS\Connector $tlsConnector;
 
+    /**
+     * Create a transport that sends through the configured server, authenticating with $authenticator if given.
+     *
+     * No connection is made until the first send.
+     */
     public function __construct(
         private readonly TransportConfiguration $configuration,
         private readonly null|Authentication\AuthenticatorInterface $authenticator = null,
     ) {
         $this->tlsConnector = new TLS\Connector($configuration->tlsClientConfiguration);
-
-        $tcpConnector = new TCP\Connector($configuration->connectConfiguration);
-        $this->pool = new TCP\SocketPool(match ($configuration->security) {
-            Security::TLS => new TLS\TCPConnector($tcpConnector, $this->tlsConnector),
-            default => $tcpConnector,
-        });
-
+        $this->pool = $this->createPool();
         $this->initialized = new WeakMap();
     }
 
@@ -99,7 +104,9 @@ final class Transport implements TransportInterface
         SendConfiguration $sendConfiguration = new SendConfiguration(),
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): DeliveryReport {
-        $stream = $this->checkout($cancellation);
+        // The connection goes back to the pool it came from, even when close() has replaced that pool meanwhile.
+        $pool = $this->pool;
+        $stream = $this->checkout($pool, $cancellation);
 
         $connection = new Connection($stream);
         $sent = false;
@@ -117,23 +124,43 @@ final class Transport implements TransportInterface
             // Whatever ended the exchange early, cancellation included, left the session in an unknown state: close
             // the connection and stop tracking it, instead of leaving it checked out until it is garbage-collected.
             if (!$sent) {
-                $this->pool->clear($stream);
+                $pool->clear($stream);
                 $this->forgetInitialized($stream);
             }
         }
 
-        $this->pool->checkin($stream);
+        $pool->checkin($stream);
 
         return new DeliveryReport($rejectedRecipients);
     }
 
     /**
      * Close all pooled connections.
+     *
+     * The transport stays usable: a new pool takes the place of the closed one, and the next send opens a new
+     * connection through it. A send still in progress gives its connection back to the closed pool, which closes it.
      */
     public function close(): void
     {
-        $this->pool->close();
+        $pool = $this->pool;
+        $this->pool = $this->createPool();
         $this->initialized = new WeakMap();
+
+        $pool->close();
+    }
+
+    /**
+     * Create a pool of connections to the configured server, connecting through TLS when the configuration asks for
+     * implicit TLS.
+     */
+    private function createPool(): TCP\SocketPool
+    {
+        $tcpConnector = new TCP\Connector($this->configuration->connectConfiguration);
+
+        return new TCP\SocketPool(match ($this->configuration->security) {
+            Security::TLS => new TLS\TCPConnector($tcpConnector, $this->tlsConnector),
+            default => $tcpConnector,
+        });
     }
 
     /**
@@ -521,11 +548,15 @@ final class Transport implements TransportInterface
     }
 
     /**
+     * Check a connection to the configured server out of the given pool.
+     *
      * @throws Exception\ConnectionException If the connection cannot be established.
      * @throws Exception\TimeoutException If the connection times out.
      */
-    private function checkout(CancellationTokenInterface $cancellation): TCP\StreamInterface
-    {
+    private function checkout(
+        TCP\SocketPoolInterface $pool,
+        CancellationTokenInterface $cancellation,
+    ): TCP\StreamInterface {
         $port = $this->configuration->port ?? match ($this->configuration->security) {
             Security::StartTLS => 587,
             Security::TLS => 465,
@@ -533,7 +564,7 @@ final class Transport implements TransportInterface
         };
 
         try {
-            return $this->pool->checkout($this->configuration->host, $port, $cancellation);
+            return $pool->checkout($this->configuration->host, $port, $cancellation);
         } catch (CancelledException $e) {
             throw Exception\TimeoutException::forConnection($this->configuration->host, $port, $e);
         } catch (Network\Exception\RuntimeException $e) {

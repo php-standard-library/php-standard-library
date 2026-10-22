@@ -42,6 +42,11 @@ use const PHP_OS_FAMILY;
  */
 final class TransportTest extends TestCase
 {
+    /**
+     * How long a test waits for something that should already have happened, in milliseconds.
+     */
+    private const int SETTLE_TIMEOUT_MILLISECONDS = 1000;
+
     protected function setUp(): void
     {
         if (PHP_OS_FAMILY === 'Windows') {
@@ -3768,6 +3773,76 @@ final class TransportTest extends TestCase
         $server->close();
 
         static::assertSame(2, $connectCount);
+    }
+
+    /**
+     * A send still in progress when the transport closes gives its connection back to the pool it came from, which
+     * has closed and so closes the connection, instead of leaving it open with nobody to close it.
+     */
+    public function testSendInProgressWhenTheTransportClosesClosesItsConnection(): void
+    {
+        $server = TCP\listen('127.0.0.1', 0);
+        $address = $server->getLocalAddress();
+        $rsetReceived = new Async\Deferred();
+        $rsetReply = new Async\Deferred();
+
+        $serverSide = Async\run(static function () use ($server, $rsetReceived, $rsetReply): string {
+            $client = $server->accept();
+            $client->writeAll("220 mail.example.com ESMTP\r\n");
+            self::readCommand($client);
+            $client->writeAll("250 mail.example.com\r\n");
+            self::readCommand($client);
+            $client->writeAll("250 OK\r\n");
+            self::readCommand($client);
+            $client->writeAll("250 OK\r\n");
+            self::readCommand($client);
+            $client->writeAll("354 Go ahead\r\n");
+            $data = '';
+            while (!Byte\contains($data, "\r\n.\r\n")) {
+                $data .= $client->read();
+            }
+
+            $client->writeAll("250 OK\r\n");
+            self::readCommand($client);
+
+            // The transport now waits for the reply to RSET, and closes meanwhile.
+            $rsetReceived->complete(null);
+            $rsetReply->getAwaitable()->await();
+            $client->writeAll("250 OK\r\n");
+
+            try {
+                return $client->readAll(
+                    null,
+                    new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)),
+                );
+            } finally {
+                $client->close();
+            }
+        });
+
+        $transport = new Transport(new TransportConfiguration(
+            host: $address->host,
+            port: $address->port,
+            security: Security::None,
+        ));
+        $sender = new Mailbox('sender', 'example.com');
+        $recipient = new Mailbox('recipient', 'example.com');
+        $message = new Message()
+            ->withFrom($sender)
+            ->withTo($recipient)
+            ->withSubject('Test')
+            ->withContent(new Part\Text(new IO\MemoryHandle('Hello')));
+
+        $sending = Async\run(static fn() => $transport->send(new Envelope($sender, [$recipient]), $message));
+
+        $rsetReceived->getAwaitable()->await();
+        $transport->close();
+        $rsetReply->complete(null);
+
+        $sending->await();
+        static::assertSame('', $serverSide->await());
+
+        $server->close();
     }
 
     public function testCloseResetsEhloState(): void

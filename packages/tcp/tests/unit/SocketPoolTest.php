@@ -34,6 +34,11 @@ final class SocketPoolTest extends TestCase
      */
     private const int EXPIRY_WAIT_MILLISECONDS = 20;
 
+    /**
+     * How long a test waits for something that should already have happened, in milliseconds.
+     */
+    private const int SETTLE_TIMEOUT_MILLISECONDS = 1000;
+
     public function testIpv6SpellingsShareThePoolKey(): void
     {
         $resource = fopen('php://memory', 'r+');
@@ -600,6 +605,95 @@ final class SocketPoolTest extends TestCase
     }
 
     /**
+     * A closed pool hands out no connection: neither an idle one nor a new one.
+     */
+    public function testCheckoutAfterCloseThrows(): void
+    {
+        $connector = new MemoryConnector();
+        $pool = new TCP\SocketPool($connector);
+
+        $connection = $pool->checkout('example.com', 80);
+        $pool->checkin($connection);
+        $pool->close();
+
+        try {
+            $pool->checkout('example.com', 80);
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertTrue($connection->isClosed());
+        static::assertSame(1, $connector->connects);
+    }
+
+    /**
+     * A connection checked out before the pool closed is closed when it is checked in, instead of becoming idle with
+     * an idle timer; a foreign connection checked in after close is still left alone.
+     */
+    public function testConnectionCheckedInAfterCloseIsClosed(): void
+    {
+        $pool = new TCP\SocketPool(new MemoryConnector());
+        $connection = $pool->checkout('example.com', 80);
+        $foreign = MemoryConnector::stream(Network\Address::tcp('example.com', 80));
+
+        $pool->close();
+        $before = new CallbackSnapshot();
+
+        $pool->checkin($connection);
+        $pool->checkin($foreign);
+
+        static::assertTrue($connection->isClosed());
+        static::assertFalse($foreign->isClosed());
+        static::assertSame([], new CallbackSnapshot()->addedSince($before));
+
+        $foreign->close();
+    }
+
+    /**
+     * A connection that the connector returns after the pool was closed meanwhile is closed, and the checkout throws.
+     */
+    public function testConnectionMadeWhileThePoolClosesIsClosed(): void
+    {
+        $connector = new MemoryConnector();
+        $pool = new TCP\SocketPool($connector);
+
+        $made = null;
+        $connector->beforeReturn = static function (TCP\StreamInterface $stream) use ($pool, &$made): void {
+            $made = $stream;
+            $pool->close();
+        };
+
+        try {
+            $pool->checkout('example.com', 80);
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        static::assertInstanceOf(TCP\StreamInterface::class, $made);
+        static::assertTrue($made->isClosed());
+    }
+
+    /**
+     * Closing the pool while a checkout waits for a live TCP connection to be made fails that checkout, closes the
+     * connection, and leaves no event loop callback behind once the event loop has warmed up.
+     */
+    public function testCloseWhileALiveConnectionIsBeingMade(): void
+    {
+        $this->closeWhileConnecting();
+        $before = new CallbackSnapshot();
+
+        $this->closeWhileConnecting();
+
+        $after = new CallbackSnapshot();
+        static::assertSame([], $after->addedSince($before));
+        static::assertSame([], $after->grownSince($before));
+    }
+
+    /**
      * Check a connection out of the pool, check it in, then clear it while it is idle.
      *
      * @return TCP\StreamInterface The cleared connection.
@@ -611,6 +705,52 @@ final class SocketPoolTest extends TestCase
         $pool->clear($connection);
 
         return $connection;
+    }
+
+    /**
+     * Close a pool while one of its checkouts waits for a live TCP connection to be made, and check that the
+     * checkout fails with `AlreadyStoppedException` and that the server end of the connection sees it end.
+     */
+    private function closeWhileConnecting(): void
+    {
+        $listener = TCP\listen('127.0.0.1', 0);
+        $port = $listener->getLocalAddress()->port;
+        $pool = new TCP\SocketPool();
+
+        try {
+            $checkout = Async\run(static fn(): TCP\StreamInterface => $pool->checkout('127.0.0.1', $port));
+
+            // The checkout starts connecting and waits for the connection to complete; the pool closes meanwhile.
+            Async\later();
+            $pool->close();
+
+            try {
+                $checkout->await();
+
+                static::fail('Expected AlreadyStoppedException to be thrown.');
+            } catch (Network\Exception\AlreadyStoppedException) {
+                static::addToAssertionCount(1);
+            }
+
+            $server = $listener->accept(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            try {
+                static::assertSame('', $server->readAll(
+                    null,
+                    new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)),
+                ));
+            } catch (IO\Exception\RuntimeException) {
+                // A reset ends the connection too.
+                static::addToAssertionCount(1);
+            } finally {
+                $server->close();
+            }
+        } finally {
+            $listener->close();
+        }
+
+        // One more turn of the event loop, so that it is quiescent again.
+        Async\later();
     }
 
     /**
