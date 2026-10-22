@@ -21,6 +21,7 @@ use function strlen;
  * @param non-empty-string $password
  *
  * @throws Exception\AuthenticationException If authentication fails.
+ * @throws Exception\SocksException If the server's reply is not a valid RFC 1929 reply.
  * @throws CancelledException If the cancellation token is cancelled.
  *
  * @internal
@@ -48,7 +49,12 @@ function socks5_authenticate(
     $auth = "\x01" . chr($usernameLen) . $username . chr($passwordLen) . $password;
     $stream->writeAll($auth, $cancellation);
 
+    // RFC 1929, section 2: the reply carries the sub-negotiation's version, 1, then its status, 0 for success.
     $response = $stream->readFixedSize(2, $cancellation);
+    if ($response[0] !== "\x01") {
+        throw new Exception\SocksException('Invalid SOCKS5 authentication version in server response.');
+    }
+
     if ($response[1] !== "\x00") {
         throw new Exception\AuthenticationException('SOCKS5 authentication failed: invalid credentials.');
     }

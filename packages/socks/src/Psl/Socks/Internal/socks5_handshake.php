@@ -103,6 +103,11 @@ function socks5_handshake(
         throw new Exception\SocksException(namespace\reply_message($reply));
     }
 
+    // RFC 1928, section 6: the byte after the reply code is reserved, and must be 0.
+    if ($response[2] !== "\x00") {
+        throw new Exception\SocksException('Invalid reserved byte in SOCKS5 connection response.');
+    }
+
     $addressType = ord($response[3]);
     match ($addressType) {
         0x01 => $stream->readFixedSize(4, $cancellation),

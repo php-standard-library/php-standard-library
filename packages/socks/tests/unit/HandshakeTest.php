@@ -81,6 +81,50 @@ final class HandshakeTest extends TestCase
         }
     }
 
+    /**
+     * An authentication reply must carry version 1 of the RFC 1929 sub-negotiation: any other version is a protocol
+     * error, not a rejection of the credentials.
+     */
+    public function testAuthenticationReplyOfAnotherVersionIsRejected(): void
+    {
+        $stream = new ScriptedStream("\x05\x02" . "\x99\x00" . "\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00");
+
+        $failure = self::handshakeFailure($stream, new Socks\Configuration('localhost', 1080, 'user', 'pass'));
+
+        static::assertSame(Socks\Exception\SocksException::class, $failure::class);
+        static::assertSame('Invalid SOCKS5 authentication version in server response.', $failure->getMessage());
+    }
+
+    /**
+     * A connection reply whose reserved byte is not 0 is rejected.
+     */
+    public function testConnectionReplyWithANonzeroReservedByteIsRejected(): void
+    {
+        $stream = new ScriptedStream("\x05\x00" . "\x05\x00\x99\x01\x00\x00\x00\x00\x00\x00");
+
+        $failure = self::handshakeFailure($stream, new Socks\Configuration('localhost', 1080));
+
+        static::assertSame(Socks\Exception\SocksException::class, $failure::class);
+        static::assertSame('Invalid reserved byte in SOCKS5 connection response.', $failure->getMessage());
+    }
+
+    /**
+     * A method that the client did not offer is rejected: username and password without credentials, and any
+     * other method at all.
+     */
+    public function testUnofferedAuthenticationMethodIsRejected(): void
+    {
+        $failure = self::handshakeFailure(new ScriptedStream("\x05\x02"), new Socks\Configuration('localhost', 1080));
+        static::assertInstanceOf(Socks\Exception\AuthenticationException::class, $failure);
+
+        $failure = self::handshakeFailure(
+            new ScriptedStream("\x05\x01"),
+            new Socks\Configuration('localhost', 1080, 'user', 'pass'),
+        );
+        static::assertSame(Socks\Exception\SocksException::class, $failure::class);
+        static::assertSame('SOCKS5 server selected unsupported authentication method: 1.', $failure->getMessage());
+    }
+
     public function testBracketedIpv6UsesAddressType(): void
     {
         $stream = $this->createStub(Network\StreamInterface::class);
@@ -107,5 +151,21 @@ final class HandshakeTest extends TestCase
         Socks\Internal\socks5_handshake($stream, '[::1]', 443, new Socks\Configuration('localhost', 1080));
 
         static::assertSame("\x05\x01\x00\x05\x01\x00\x04" . inet_pton('::1') . pack('n', 443), $written);
+    }
+
+    /**
+     * Run a handshake that must fail, and return the exception it failed with.
+     */
+    private static function handshakeFailure(
+        ScriptedStream $stream,
+        Socks\Configuration $configuration,
+    ): Socks\Exception\SocksException {
+        try {
+            Socks\Internal\socks5_handshake($stream, '127.0.0.1', 443, $configuration);
+        } catch (Socks\Exception\SocksException $e) {
+            return $e;
+        }
+
+        static::fail('The handshake did not fail.');
     }
 }
