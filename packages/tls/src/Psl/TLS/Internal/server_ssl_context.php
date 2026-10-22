@@ -17,6 +17,10 @@ use function implode;
  * accepted connections, a stale capture from a previous handshake would otherwise be read
  * back for a client that presented none.
  *
+ * Disabled session tickets set `no_ticket`, the option PHP reads (`ext/openssl/xp_ssl.c`,
+ * `SSL_OP_NO_TICKET`), which stops TLS 1.2 tickets, and `num_tickets` to 0, which stops TLS
+ * 1.3 tickets on PHP 8.6 and later.
+ *
  * SNI certificates are passed as `array{local_cert, local_pk}` per host name, the only
  * shape PHP reads besides a single combined PEM path (`ext/openssl/xp_ssl.c`,
  * `php_openssl_enable_server_sni`). PHP loads their keys without a passphrase callback
@@ -43,8 +47,14 @@ function server_ssl_context(TLS\ServerConfiguration $serverConfiguration): array
         'capture_peer_cert_chain' => true,
         'peer_certificate' => null,
         'peer_certificate_chain' => null,
-        'session_tickets' => $serverConfiguration->sessionTickets,
+        'no_ticket' => !$serverConfiguration->sessionTickets,
     ];
+
+    if (!$serverConfiguration->sessionTickets) {
+        // Send no TLS 1.3 tickets either: `no_ticket` alone only makes them stateful. PHP 8.4 and 8.5 ignore this
+        // option, and still send OpenSSL's default number of TLS 1.3 tickets.
+        $ssl['num_tickets'] = 0;
+    }
 
     if (null !== $serverConfiguration->certificate->passphrase) {
         $ssl['passphrase'] = $serverConfiguration->certificate->passphrase;

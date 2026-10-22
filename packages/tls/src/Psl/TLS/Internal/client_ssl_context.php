@@ -11,6 +11,10 @@ use function implode;
 /**
  * Build an SSL context options array from {@see TLS\ClientConfiguration}.
  *
+ * Disabled session tickets set `no_ticket`, the option PHP reads (`ext/openssl/xp_ssl.c`,
+ * `SSL_OP_NO_TICKET`): the ClientHello then offers no TLS 1.2 session ticket. A TLS 1.3
+ * server may still send tickets after the handshake; nothing stores or reuses them.
+ *
  * @return array<string, mixed>
  *
  * @internal
@@ -26,7 +30,7 @@ function client_ssl_context(TLS\ClientConfiguration $clientConfiguration): array
         'security_level' => $clientConfiguration->securityLevel,
         'capture_peer_cert' => true,
         'capture_peer_cert_chain' => true,
-        'session_tickets' => $clientConfiguration->sessionTickets,
+        'no_ticket' => !$clientConfiguration->sessionTickets,
         'SNI_enabled' => $clientConfiguration->sniEnabled,
         'verify_depth' => $clientConfiguration->verificationDepth,
     ];
