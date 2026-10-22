@@ -6,6 +6,7 @@ namespace Psl\Socks\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
+use Psl\DateTime\Duration;
 use Psl\Socks;
 use Psl\TCP;
 
@@ -14,6 +15,11 @@ use function unpack;
 
 final class ConnectorTest extends TestCase
 {
+    /**
+     * How long the proxy waits for the client to close the connection before the test counts it as left open.
+     */
+    private const int DEADLINE_MILLISECONDS = 2_000;
+
     public function testConnectNoAuth(): void
     {
         Async\concurrently([
@@ -244,6 +250,91 @@ final class ConnectorTest extends TestCase
         ]);
     }
 
+    /**
+     * A handshake that fails closes the connection to the proxy, even though the inner connector keeps a reference
+     * to it, and the proxy sees the connection end.
+     */
+    public function testFailedHandshakeClosesTheProxyConnection(): void
+    {
+        $listener = TCP\listen('127.0.0.1', 0);
+        $proxyPort = $listener->getLocalAddress()->port;
+        $inner = new RecordingConnector();
+
+        try {
+            [$proxySaw, $failure] = Async\concurrently([
+                static function () use ($listener): string {
+                    $client = $listener->accept();
+                    $client->readFixedSize(3);
+                    $client->writeAll("\x05\xFF");
+
+                    // Everything the client sends until it closes the connection.
+                    $rest = $client->readAll(cancellation: self::deadline());
+                    $client->close();
+
+                    return 'end of stream after ' . $rest;
+                },
+                static function () use ($inner, $proxyPort): Socks\Exception\SocksException {
+                    $connector = new Socks\Connector($inner, new Socks\Configuration('127.0.0.1', $proxyPort));
+                    try {
+                        $connector->connect('example.com', 80);
+                    } catch (Socks\Exception\SocksException $e) {
+                        return $e;
+                    }
+
+                    static::fail('The handshake did not fail.');
+                },
+            ]);
+        } finally {
+            $listener->close();
+        }
+
+        static::assertStringContainsString('rejected all offered authentication methods', $failure->getMessage());
+        static::assertSame('end of stream after ', $proxySaw);
+        static::assertCount(1, $inner->streams);
+        static::assertTrue($inner->streams[0]->isClosed());
+    }
+
+    /**
+     * A handshake that is cancelled closes the connection to the proxy.
+     */
+    public function testCancelledHandshakeClosesTheProxyConnection(): void
+    {
+        $listener = TCP\listen('127.0.0.1', 0);
+        $proxyPort = $listener->getLocalAddress()->port;
+        $inner = new RecordingConnector();
+        $token = new Async\SignalCancellationToken();
+
+        try {
+            Async\concurrently([
+                static function () use ($listener, $token): void {
+                    $client = $listener->accept();
+                    $client->readFixedSize(3);
+
+                    // The proxy never replies; the client gives up.
+                    $token->cancel();
+                    $client->readAll(cancellation: self::deadline());
+                    $client->close();
+                },
+                static function () use ($inner, $proxyPort, $token): void {
+                    $connector = new Socks\Connector($inner, new Socks\Configuration('127.0.0.1', $proxyPort));
+                    $cancelled = false;
+                    try {
+                        $connector->connect('example.com', 80, $token);
+                    } catch (Async\Exception\CancelledException) {
+                        $cancelled = true;
+                    }
+
+                    static::assertTrue($cancelled, 'The handshake was not cancelled.');
+                },
+            ]);
+        } finally {
+            $listener->close();
+        }
+
+        static::assertCount(1, $inner->streams);
+        static::assertTrue($inner->streams[0]->isClosed());
+    }
+
     public function testRejectedAuthMethod(): void
     {
         $this->expectException(Socks\Exception\SocksException::class);
@@ -264,5 +355,13 @@ final class ConnectorTest extends TestCase
                 $connector->connect('example.com', 80);
             },
         ]);
+    }
+
+    /**
+     * A token that ends a wait for longer than the test allows.
+     */
+    private static function deadline(): Async\CancellationTokenInterface
+    {
+        return new Async\TimeoutCancellationToken(Duration::milliseconds(self::DEADLINE_MILLISECONDS));
     }
 }

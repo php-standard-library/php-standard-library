@@ -28,6 +28,7 @@
         "php-standard-library/tcp": "^6.0"
     },
     "require-dev": {
+        "php-standard-library/date-time": "^6.0",
         "phpunit/phpunit": "^13.0"
     },
     "conflict": {
