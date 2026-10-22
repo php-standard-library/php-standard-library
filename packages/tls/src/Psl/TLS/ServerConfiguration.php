@@ -9,6 +9,15 @@ namespace Psl\TLS;
  *
  * Used with {@see Acceptor} and {@see LazyAcceptor}.
  *
+ * SNI certificates are served by PHP's own SNI support: a client that asks for one of their
+ * host names, or for a name a `*.` wildcard key matches, receives that certificate, and every
+ * other client receives the main certificate. Two limits of that support apply. PHP cannot
+ * load an SNI certificate whose private key is protected by a passphrase, so a handshake with
+ * such a configuration fails with {@see Exception\HandshakeFailedException} before it starts;
+ * and PHP negotiates no ALPN protocol for a connection served by an SNI certificate. Where
+ * either matters, inspect the requested name with {@see LazyAcceptor} and complete the
+ * handshake with a configuration whose main certificate is the one that name needs.
+ *
  * @psalm-immutable
  *
  * @api

@@ -26,6 +26,15 @@ Use `Acceptor` to perform TLS handshakes on incoming streams:
 
 @example('networking/tls-server.php')
 
+#### SNI certificates
+
+`ServerConfiguration::withSniCertificate()` and `withSniCertificates()` map host names to certificates. A client that asks for one of those names, or for a name that a `*.example.com` key matches, receives that certificate; every other client receives the main certificate. PHP's SNI support has two limits:
+
+- it cannot load a private key protected by a passphrase, so a configuration with such an SNI certificate fails every handshake with a `HandshakeFailedException` before it starts;
+- it negotiates no ALPN protocol for a connection served by an SNI certificate.
+
+Where either matters, use `LazyAcceptor` (below) to read the requested name, and complete the handshake with a `ServerConfiguration` whose main certificate is the one that name needs: main certificates accept a passphrase and negotiate ALPN.
+
 #### Per-connection stream contexts
 
 PHP reads a server's TLS options from the stream context of the accepted stream, and captures the client's certificate into that same context. Streams returned by `stream_socket_accept()` share the listening socket's context, so without isolation the settings and captures of one connection would be visible to every other connection of the same listener.
