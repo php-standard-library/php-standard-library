@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Psl\Unix\Internal;
 
+use Psl\Network;
 use Revolt\EventLoop;
 use Revolt\EventLoop\Suspension;
 use Throwable;
@@ -43,9 +44,9 @@ final class AcceptWaiter
     /**
      * The connection that ended the wait before it suspended, returned once it would have.
      *
-     * @var null|resource
+     * @var null|array{resource, Network\Address}
      */
-    private mixed $connection = null;
+    private null|array $connection = null;
 
     /**
      * The failure that ended the wait before it suspended, thrown once it would have.
@@ -67,13 +68,13 @@ final class AcceptWaiter
      * its fiber runs again; it is skipped, and leaves the queue too.
      *
      * @param list<AcceptWaiter> $acceptors The waiting calls, oldest first.
-     * @param resource $connection The accepted socket.
+     * @param array{resource, Network\Address} $connection The accepted socket and its peer address.
      *
      * @param-out list<AcceptWaiter> $acceptors
      *
      * @return bool Whether a call took the connection; if none did, it is still the caller's.
      */
-    public static function handOver(array &$acceptors, mixed $connection): bool
+    public static function handOver(array &$acceptors, array $connection): bool
     {
         while ($acceptors !== []) {
             $acceptor = array_shift($acceptors);
@@ -104,12 +105,12 @@ final class AcceptWaiter
     /**
      * End the wait with the given connection.
      *
-     * @param resource $connection The accepted socket.
+     * @param array{resource, Network\Address} $connection The accepted socket and its peer address.
      *
      * @return bool Whether the wait took the connection; when it had already ended, the connection is still the
      *              caller's.
      */
-    public function resume(mixed $connection): bool
+    public function resume(array $connection): bool
     {
         if ($this->settled) {
             return false;
@@ -149,23 +150,23 @@ final class AcceptWaiter
      *
      * @throws Throwable The failure that settled the wait, see {@see fail()}.
      *
-     * @return resource The accepted socket.
+     * @return array{resource, Network\Address} The accepted socket and its peer address.
      */
-    public function wait(): mixed
+    public function wait(): array
     {
         if ($this->settled) {
             if (null !== $this->failure) {
                 throw $this->failure;
             }
 
-            /** @var resource */
+            /** @var array{resource, Network\Address} */
             return $this->connection;
         }
 
         $this->suspended = true;
 
         try {
-            /** @var resource */
+            /** @var array{resource, Network\Address} */
             return $this->suspension->suspend();
         } finally {
             $this->suspended = false;

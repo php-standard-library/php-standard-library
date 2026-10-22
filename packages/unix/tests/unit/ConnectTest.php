@@ -165,7 +165,8 @@ final class ConnectTest extends TestCase
             static::assertSame('unix://' . $sock, $listener->getLocalAddress()->toString());
             static::assertSame('unix://' . $sock, $server->getLocalAddress()->toString());
             static::assertSame('unix://' . $sock, $client->getPeerAddress()->toString());
-            static::assertSame('unix://' . $sock, $client->getLocalAddress()->toString());
+            // The client is unnamed: the path is its peer's.
+            static::assertSame('unix://<anonymous>', $client->getLocalAddress()->toString());
 
             $client->close();
             $server->close();

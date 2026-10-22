@@ -79,7 +79,7 @@ final class Socket
 
         $stream = Network\Internal\socket_connect("unix://{$path}", cancellation: $cancellation);
 
-        return new Internal\Stream($stream);
+        return Internal\Stream::connected($stream, $path);
     }
 
     /**

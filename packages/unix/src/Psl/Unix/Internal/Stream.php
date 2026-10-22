@@ -37,26 +37,36 @@ final class Stream implements Unix\StreamInterface
     private readonly Address $peerAddress;
 
     /**
-     * @param resource $stream
+     * Wrap a connected Unix domain socket, taking ownership of it.
+     *
+     * @param resource $stream The connected socket, which the stream closes once it is closed or destroyed.
+     * @param Address $localAddress The name the socket is bound to, or the unnamed address, see {@see unnamed_address()}.
+     * @param Address $peerAddress The name of the peer's socket, or the unnamed address.
      */
-    public function __construct(mixed $stream, null|Address $localAddress = null, null|Address $peerAddress = null)
+    public function __construct(mixed $stream, Address $localAddress, Address $peerAddress)
     {
         $this->handle = new ResourceHandle($stream, read: true, write: true, seek: false, close: true);
+        $this->localAddress = $localAddress;
+        $this->peerAddress = $peerAddress;
+    }
 
-        if (null !== $localAddress && null !== $peerAddress) {
-            $this->localAddress = $localAddress;
-            $this->peerAddress = $peerAddress;
-        } else {
-            // Unix sockets: one side may not have a name.
-            // Server-accepted: local = path, peer = unavailable.
-            // Client: local = unavailable, peer = path.
-            $local = namespace\get_address($stream, peer: false);
-            $peer = namespace\get_address($stream, peer: true);
-
-            $resolved = $local ?? $peer ?? Address::unix('<anonymous>');
-            $this->localAddress = $localAddress ?? $local ?? $resolved;
-            $this->peerAddress = $peerAddress ?? $peer ?? $resolved;
-        }
+    /**
+     * Wrap a socket that connected to the given path, taking ownership of it.
+     *
+     * The local address is the name the socket is bound to, or the unnamed address when it is not bound, as a client
+     * usually is: the path it connected to is the peer's, not its own. The peer address is the name the system reports
+     * for the peer, or the path the socket connected to when it reports none.
+     *
+     * @param resource $stream The connected socket, which the stream closes once it is closed or destroyed.
+     * @param non-empty-string $path The path the socket connected to.
+     */
+    public static function connected(mixed $stream, string $path): self
+    {
+        return new self(
+            $stream,
+            namespace\get_address($stream, peer: false) ?? namespace\unnamed_address(),
+            namespace\get_address($stream, peer: true) ?? Address::unix($path),
+        );
     }
 
     #[Override]

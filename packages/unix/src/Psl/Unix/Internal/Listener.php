@@ -38,12 +38,10 @@ final class Listener implements Unix\ListenerInterface
 
     private readonly Network\Address $localAddress;
 
-    private readonly Network\Address $peerAddress;
-
     /**
-     * Raw sockets waiting to be consumed by accept().
+     * Raw sockets waiting to be consumed by accept(), each with its peer address.
      *
-     * @var list<resource>
+     * @var list<array{resource, Network\Address}>
      */
     private array $backlog = [];
 
@@ -84,7 +82,8 @@ final class Listener implements Unix\ListenerInterface
      * watcher pauses until the next accept() call.
      *
      * An accept that fails with any error but PHP's accept failure stops the listener: every waiting accept() call
-     * fails with that error, and so does every later one.
+     * fails with that error, and so does every later one. Each connection's peer address is read right after it is
+     * accepted: the name the peer's socket is bound to, or the unnamed address, see {@see unnamed_address()}.
      *
      * @param resource $impl The listening socket, which the listener closes once it is closed or destroyed.
      * @param Network\Address $boundAddress The address the socket was bound to, reported as the local
@@ -102,8 +101,6 @@ final class Listener implements Unix\ListenerInterface
         // PHP does not report the name of a socket in the Linux abstract namespace,
         // as it starts with a NUL byte.
         $this->localAddress = namespace\get_address($impl, peer: false) ?? $boundAddress;
-
-        $this->peerAddress = Network\Address::unix('<anonymous>');
 
         // The callback must not reference the listener: the event loop would keep it alive forever, so a
         // listener that is no longer used would never be closed by `__destruct()`, and once accept() has
@@ -125,7 +122,7 @@ final class Listener implements Unix\ListenerInterface
             $capacity,
         ): void {
             while (true) {
-                $sock = @stream_socket_accept($resource, timeout: 0.0);
+                $sock = self::acceptSocket($resource);
                 if ($sock !== false) {
                     if ($acceptors !== [] && AcceptWaiter::handOver($acceptors, $sock)) {
                         continue;
@@ -203,10 +200,10 @@ final class Listener implements Unix\ListenerInterface
         }
 
         if ($this->backlog !== []) {
-            $socket = array_shift($this->backlog);
+            [$socket, $peerAddress] = array_shift($this->backlog);
             $this->backlogSize--;
 
-            return new Stream($socket, $this->localAddress, $this->peerAddress);
+            return new Stream($socket, $this->localAddress, $peerAddress);
         }
 
         $cancellable = $cancellation->cancellable;
@@ -230,7 +227,7 @@ final class Listener implements Unix\ListenerInterface
                 });
             }
 
-            $socket = $waiter->wait();
+            [$socket, $peerAddress] = $waiter->wait();
             $accepted = true;
         } finally {
             if (null !== $id) {
@@ -243,7 +240,7 @@ final class Listener implements Unix\ListenerInterface
             }
         }
 
-        return new Stream($socket, $this->localAddress, $this->peerAddress);
+        return new Stream($socket, $this->localAddress, $peerAddress);
     }
 
     /**
@@ -282,7 +279,7 @@ final class Listener implements Unix\ListenerInterface
 
         $resource = $this->impl;
         while ($this->acceptors !== [] && is_resource($resource)) {
-            $sock = @stream_socket_accept($resource, timeout: 0.0);
+            $sock = self::acceptSocket($resource);
             if ($sock === false) {
                 break;
             }
@@ -312,7 +309,7 @@ final class Listener implements Unix\ListenerInterface
             $acceptor->fail($exception);
         }
 
-        foreach ($this->backlog as $sock) {
+        foreach ($this->backlog as [$sock]) {
             if (!is_resource($sock)) {
                 continue;
             }
@@ -332,5 +329,26 @@ final class Listener implements Unix\ListenerInterface
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Accept one pending connection without blocking, together with its peer address.
+     *
+     * The peer address is read from the accepted socket, not from the address that `stream_socket_accept()` reports:
+     * PHP builds that one from a buffer the system writes only in part for an unnamed peer, so on macOS it is a
+     * string of NUL and uninitialised bytes.
+     *
+     * @param resource $listener
+     *
+     * @return false|array{resource, Network\Address} False if no connection is pending, or accepting failed.
+     */
+    private static function acceptSocket(mixed $listener): false|array
+    {
+        $socket = @stream_socket_accept($listener, timeout: 0.0);
+        if (false === $socket) {
+            return false;
+        }
+
+        return [$socket, namespace\get_address($socket, peer: true) ?? namespace\unnamed_address()];
     }
 }

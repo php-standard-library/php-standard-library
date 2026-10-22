@@ -30,5 +30,5 @@ function connect(string $path, CancellationTokenInterface $cancellation = new Nu
 
     $socket = Network\Internal\socket_connect("unix://{$path}", cancellation: $cancellation);
 
-    return new Internal\Stream($socket);
+    return Internal\Stream::connected($socket, $path);
 }

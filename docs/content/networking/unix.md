@@ -6,6 +6,10 @@ Unix domain sockets provide local inter-process communication without the overhe
 
 `Unix\connect()`, `Unix\listen()`, `Unix\Socket::bind()` and `Unix\Socket::connect()` throw `Network\Exception\InvalidArgumentException` for a socket path containing a NUL byte, which the operating system would otherwise silently truncate. A path starting with a NUL byte names a socket in the Linux abstract namespace instead, where every byte is part of the name; all four pass it through unchanged.
 
+## Addresses
+
+A Unix stream reports the names its two sockets really have. A socket bound to a path reports that path; a socket that is not bound, as a client usually is, reports the unnamed address `unix://<anonymous>`. So a client's `getPeerAddress()` is the listener's path and its `getLocalAddress()` is unnamed, and a stream that a listener accepted reports the listener's path as its local address and the client's name, or the unnamed address, as its peer address.
+
 ## Usage
 
 @example('networking/unix-echo.php')
