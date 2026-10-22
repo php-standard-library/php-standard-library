@@ -439,6 +439,8 @@ final class Stream implements TLS\StreamInterface
     }
 
     /**
+     * Wait until the socket can take more bytes, or until the cancellation token is cancelled.
+     *
      * @throws CancelledException If the cancellation token is cancelled while waiting.
      * @throws IO\Exception\AlreadyClosedException If the stream has been closed.
      */
@@ -449,29 +451,29 @@ final class Stream implements TLS\StreamInterface
             throw new IO\Exception\AlreadyClosedException('Stream handle has already been closed.');
         }
 
-        if ($cancellation->cancellable) {
+        $cancellable = $cancellation->cancellable;
+        if ($cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        $suspension = EventLoop::getSuspension();
-        $watcher = EventLoop::onWritable($resource, static function (string $watcher) use ($suspension): void {
-            EventLoop::cancel($watcher);
-            $suspension->resume();
+        // The wait has its own record, which the watcher and the cancellation listener settle: the listener may run
+        // during subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already
+        // be waiting for something else.
+        $waiter = new Waiter();
+        $watcher = EventLoop::onWritable($resource, static function () use ($waiter): void {
+            $waiter->resume();
         });
 
         $cancellationId = null;
-        if ($cancellation->cancellable) {
-            $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use (
-                $watcher,
-                $suspension,
-            ): void {
-                EventLoop::cancel($watcher);
-                $suspension->throw($e);
-            });
-        }
 
         try {
-            $suspension->suspend();
+            if ($cancellable) {
+                $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
+                    $waiter->fail($e);
+                });
+            }
+
+            $waiter->wait();
         } finally {
             EventLoop::cancel($watcher);
             if (null !== $cancellationId) {

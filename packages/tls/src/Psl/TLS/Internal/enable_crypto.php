@@ -11,8 +11,6 @@ use Psl\Network;
 use Psl\TLS;
 use Psl\TLS\Exception\HandshakeFailedException;
 use Revolt\EventLoop;
-use Revolt\EventLoop\Suspension;
-use Throwable;
 
 use function restore_error_handler;
 use function set_error_handler;
@@ -23,7 +21,7 @@ use function stream_socket_enable_crypto;
  *
  * This function enables crypto on a stream using Revolt's event loop for non-blocking I/O.
  * When {@see stream_socket_enable_crypto()} returns 0 (handshake in progress), it suspends
- * and retries when the stream becomes readable.
+ * until the stream becomes readable, then takes the next handshake step in the same fiber.
  *
  * The connection state is read in the same step that observes the completed handshake,
  * before any other fiber or event-loop callback can run. This matters for server
@@ -53,7 +51,8 @@ function enable_crypto(
     bool $server,
     CancellationTokenInterface $cancellation = new NullCancellationToken(),
 ): TLS\ConnectionState {
-    if ($cancellation->cancellable) {
+    $cancellable = $cancellation->cancellable;
+    if ($cancellable) {
         $cancellation->throwIfCancelled();
     }
 
@@ -82,71 +81,39 @@ function enable_crypto(
 
     [$result, $native] = $step();
 
+    // A step that returns 0 is in progress: wait until the socket is readable, then take the next step in this fiber.
+    while (0 === $result) {
+        // Each wait has its own record, which the watcher and the cancellation listener settle: the listener may run
+        // during subscribe(), before the wait has suspended, or after the wait has ended, when the fiber may already
+        // be waiting for something else.
+        $waiter = new Waiter();
+        $watcher = EventLoop::onReadable($stream, static function () use ($waiter): void {
+            $waiter->resume();
+        });
+
+        $cancellationId = null;
+
+        try {
+            if ($cancellable) {
+                $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
+                    $waiter->fail($e);
+                });
+            }
+
+            $waiter->wait();
+        } finally {
+            EventLoop::cancel($watcher);
+            if (null !== $cancellationId) {
+                $cancellation->unsubscribe($cancellationId);
+            }
+        }
+
+        [$result, $native] = $step();
+    }
+
     if (true === $result) {
         return namespace\extract_connection_state($stream, $server);
     }
 
-    if (false === $result) {
-        throw namespace\handshake_failure($native);
-    }
-
-    // $result === 0, handshake in progress; wait for the event loop
-    /** @var Suspension<TLS\ConnectionState> */
-    $suspension = EventLoop::getSuspension();
-
-    $watcher = '';
-    $watcher = EventLoop::onReadable($stream, static function () use (
-        &$watcher,
-        $suspension,
-        $stream,
-        $step,
-        $server,
-    ): void {
-        [$result, $native] = $step();
-
-        if (true === $result) {
-            EventLoop::cancel($watcher);
-
-            try {
-                $state = namespace\extract_connection_state($stream, $server);
-            } catch (Throwable $exception) {
-                $suspension->throw($exception);
-
-                return;
-            }
-
-            $suspension->resume($state);
-
-            return;
-        }
-
-        if (false === $result) {
-            EventLoop::cancel($watcher);
-
-            $suspension->throw(namespace\handshake_failure($native));
-
-            return;
-        }
-        // $result === 0 means handshake is still in progress, wait for more data
-    });
-
-    $cancellationId = null;
-    if ($cancellation->cancellable) {
-        $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use (
-            &$watcher,
-            $suspension,
-        ): void {
-            EventLoop::cancel($watcher);
-            $suspension->throw($e);
-        });
-    }
-
-    try {
-        return $suspension->suspend();
-    } finally {
-        EventLoop::cancel($watcher);
-        if (null !== $cancellationId) {
-            $cancellation->unsubscribe($cancellationId);
-        }
-    }
+    throw namespace\handshake_failure($native);
 }

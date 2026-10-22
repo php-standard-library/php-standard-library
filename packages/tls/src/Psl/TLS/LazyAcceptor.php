@@ -66,30 +66,29 @@ final class LazyAcceptor implements DefaultInterface
             throw new Network\Exception\RuntimeException('Stream resource is not available.');
         }
 
-        if ($cancellation->cancellable) {
+        $cancellable = $cancellation->cancellable;
+        if ($cancellable) {
             $cancellation->throwIfCancelled();
         }
 
-        // Wait for data to be available
-        $suspension = EventLoop::getSuspension();
-        $watcher = EventLoop::onReadable($resource, static function (string $watcher) use ($suspension): void {
-            EventLoop::cancel($watcher);
-            $suspension->resume(null);
+        // Wait for data to be available. The wait has its own record, which the watcher and the cancellation listener
+        // settle: the listener may run during subscribe(), before the wait has suspended, or after the wait has
+        // ended, when the fiber may already be waiting for something else.
+        $waiter = new Internal\Waiter();
+        $watcher = EventLoop::onReadable($resource, static function () use ($waiter): void {
+            $waiter->resume();
         });
 
         $cancellationId = null;
-        if ($cancellation->cancellable) {
-            $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use (
-                &$watcher,
-                $suspension,
-            ): void {
-                EventLoop::cancel($watcher);
-                $suspension->throw($e);
-            });
-        }
 
         try {
-            $suspension->suspend();
+            if ($cancellable) {
+                $cancellationId = $cancellation->subscribe(static function (CancelledException $e) use ($waiter): void {
+                    $waiter->fail($e);
+                });
+            }
+
+            $waiter->wait();
         } finally {
             EventLoop::cancel($watcher);
             if (null !== $cancellationId) {
@@ -97,8 +96,8 @@ final class LazyAcceptor implements DefaultInterface
             }
         }
 
-        // Resource may have been closed by another fiber during suspend.
-        if (!is_resource($resource)) {
+        // The stream may have been closed by another fiber while this one waited.
+        if ($stream->isClosed()) {
             throw new Network\Exception\RuntimeException('Stream closed while waiting for ClientHello.');
         }
 
