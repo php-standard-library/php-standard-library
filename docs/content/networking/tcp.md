@@ -81,7 +81,7 @@ All configuration objects are immutable and provide `with*` builder methods for 
 
 `Network\CompositeListener` accepts connections from multiple listeners concurrently through a single `accept()` call. Each inner listener has at most one accept in flight, in its own fiber, and accepted connections are handed to `accept()` callers in completion order.
 
-If an inner listener fails to accept a connection (for example, when a TLS handshake fails), `accept()` rethrows that error and the composite listener keeps accepting from every listener. Inner listeners that have been stopped are skipped, and `accept()` throws `AlreadyStoppedException` once all of them are stopped. Cancelling the last waiting `accept()` call also cancels the in-flight inner accepts, and closing the composite listener closes all inner listeners.
+If an inner listener fails to accept a connection (for example, when a TLS handshake fails), `accept()` rethrows that error and the composite listener keeps accepting from every listener. Inner listeners that have been stopped are skipped, and `accept()` throws `AlreadyStoppedException` once all of them are stopped. Cancelling the last waiting `accept()` call also cancels the in-flight inner accepts. Closing the composite listener cancels them too, makes every waiting `accept()` call throw `AlreadyStoppedException`, then closes the connections left in its backlog and all inner listeners. It attempts every one of those closes, even when one fails, and then throws the first failure.
 
 @example('networking/composite-listener.php')
 

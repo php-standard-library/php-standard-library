@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Psl\Network\Tests\Unit;
 
+use Error;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
+use Psl\IO;
 use Psl\Network;
 use Psl\Network\Tests\Fixture\FakeListener;
 
@@ -14,6 +16,11 @@ use function gc_collect_cycles;
 
 final class CompositeListenerTest extends TestCase
 {
+    /**
+     * How long a test waits for a call that should already have ended, in milliseconds.
+     */
+    private const int SETTLE_TIMEOUT_MILLISECONDS = 100;
+
     public function testInnerAcceptErrorIsThrownToTheCaller(): void
     {
         $failing = new FakeListener();
@@ -544,5 +551,201 @@ final class CompositeListenerTest extends TestCase
         static::assertTrue($server->isClosed());
 
         $client->close();
+    }
+
+    /**
+     * Closing the composite listener closes every inner listener, even after one of them fails to close, then throws
+     * the first failure.
+     */
+    public function testCloseClosesEveryInnerListenerWhenOneFailsToClose(): void
+    {
+        $failure = new IO\Exception\RuntimeException('Failed to close the listener.');
+        $failing = new FakeListener();
+        $failing->closeFailure = $failure;
+        $other = new FakeListener();
+        $composite = new Network\CompositeListener([$failing, $other]);
+
+        try {
+            $composite->close();
+
+            static::fail('Expected the close failure to be thrown.');
+        } catch (IO\Exception\RuntimeException $exception) {
+            static::assertSame($failure, $exception);
+        }
+
+        static::assertTrue($other->isClosed());
+        static::assertTrue($composite->isClosed());
+
+        // Closing again does nothing, and does not throw the failure again.
+        $composite->close();
+    }
+
+    /**
+     * A waiting accept() call learns that the composite listener stopped, even when closing an inner listener fails.
+     */
+    public function testCloseWakesUpWaitingCallsWhenAnInnerListenerFailsToClose(): void
+    {
+        $failure = new IO\Exception\RuntimeException('Failed to close the listener.');
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        static::assertSame(1, $listener->waiting);
+
+        $listener->closeFailure = $failure;
+
+        try {
+            $composite->close();
+
+            static::fail('Expected the close failure to be thrown.');
+        } catch (IO\Exception\RuntimeException $exception) {
+            static::assertSame($failure, $exception);
+        }
+
+        try {
+            $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        Async\later();
+
+        // The inner accept was cancelled too.
+        static::assertSame(0, $listener->waiting);
+    }
+
+    /**
+     * Closing the composite listener closes every connection left in its backlog, even after one of them fails to
+     * close, and every inner listener, then throws the first failure.
+     */
+    public function testCloseClosesEveryBufferedConnectionWhenOneFailsToClose(): void
+    {
+        $first = new FakeListener();
+        $second = new FakeListener();
+        $third = new FakeListener();
+        $composite = new Network\CompositeListener([$first, $second, $third]);
+
+        $failure = new IO\Exception\RuntimeException('Failed to close the connection.');
+        $failing = $this->createMock(Network\StreamInterface::class);
+        $failing->expects(static::once())->method('close')->willThrowException($failure);
+
+        [$accepted, $acceptedClient] = Network\socket_pair();
+        [$buffered, $bufferedClient] = Network\socket_pair();
+
+        // The first listener's connection goes to the caller; the other two inner accepts stay in flight, and the
+        // connections they return wait in the backlog.
+        $first->push($accepted);
+        static::assertSame($accepted, $composite->accept());
+
+        Async\later();
+
+        static::assertSame(1, $second->waiting);
+        static::assertSame(1, $third->waiting);
+
+        $second->push($failing);
+        $third->push($buffered);
+
+        Async\later();
+
+        try {
+            $composite->close();
+
+            static::fail('Expected the close failure to be thrown.');
+        } catch (IO\Exception\RuntimeException $exception) {
+            static::assertSame($failure, $exception);
+        }
+
+        static::assertTrue($buffered->isClosed());
+        static::assertFalse($accepted->isClosed());
+        static::assertTrue($first->isClosed());
+        static::assertTrue($second->isClosed());
+        static::assertTrue($third->isClosed());
+
+        $accepted->close();
+        $acceptedClient->close();
+        $bufferedClient->close();
+    }
+
+    /**
+     * An `Error` that an inner listener throws from close() is a defect: closing the composite listener throws it
+     * as-is, and has already woken up the waiting accept() calls and cancelled the in-flight inner accepts.
+     */
+    public function testCloseThrowsAnErrorOfAnInnerListenerAfterSettlingTheWaitingCalls(): void
+    {
+        $defect = new Error('The inner listener has a defect.');
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        static::assertSame(1, $listener->waiting);
+
+        $listener->closeFailure = $defect;
+
+        try {
+            $composite->close();
+
+            static::fail('Expected the Error to be thrown.');
+        } catch (Error $exception) {
+            static::assertSame($defect, $exception);
+        }
+
+        try {
+            $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        Async\later();
+
+        static::assertSame(0, $listener->waiting);
+    }
+
+    /**
+     * A connection that an inner accept returns after close() is closed, and an expected failure to close it does
+     * not reach the event loop, since nobody is there to be told.
+     */
+    public function testFailureToCloseAConnectionAcceptedAfterCloseIsSuppressed(): void
+    {
+        $listener = new FakeListener();
+        $composite = new Network\CompositeListener([$listener]);
+
+        $connection = $this->createMock(Network\StreamInterface::class);
+        $connection
+            ->expects(static::once())
+            ->method('close')
+            ->willThrowException(new IO\Exception\RuntimeException('Failed to close the connection.'));
+
+        $listener->beforeDelivery = static function () use ($composite): void {
+            $composite->close();
+        };
+
+        $accepting = Async\run($composite->accept(...));
+
+        Async\later();
+        Async\later();
+
+        $listener->push($connection);
+
+        try {
+            $accepting->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+            static::fail('Expected AlreadyStoppedException to be thrown.');
+        } catch (Network\Exception\AlreadyStoppedException) {
+            static::addToAssertionCount(1);
+        }
+
+        Async\later();
     }
 }

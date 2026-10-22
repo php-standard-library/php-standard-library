@@ -7,14 +7,26 @@ namespace Psl\TCP\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
+use Psl\IO;
 use Psl\Network;
 use Psl\TCP;
+use Psl\TCP\Tests\Fixture\CallbackSnapshot;
 use Psl\TCP\Tests\Fixture\SlowClosingListener;
 
 use function sort;
 
 final class CompositeListenerTest extends TestCase
 {
+    /**
+     * How many accept() calls wait at once in the close test.
+     */
+    private const int WAITING_ACCEPTS = 3;
+
+    /**
+     * How long a test waits for something that should already have happened, in milliseconds.
+     */
+    private const int SETTLE_TIMEOUT_MILLISECONDS = 1000;
+
     public function testAcceptsFromMultipleListeners(): void
     {
         $listener1 = TCP\listen('127.0.0.1', 18_300);
@@ -387,5 +399,121 @@ final class CompositeListenerTest extends TestCase
         }
 
         static::assertTrue($threw);
+    }
+
+    /**
+     * Closing a composite listener over live TCP listeners fails every waiting accept() call with
+     * `AlreadyStoppedException`, and leaves no event loop callback behind.
+     */
+    public function testCloseFailsEveryWaitingCallOfLiveListeners(): void
+    {
+        // A warm-up cycle first, so that whatever the event loop registers once and keeps is in the baseline.
+        $this->closeWhileCallsWait();
+        $before = new CallbackSnapshot();
+
+        $this->closeWhileCallsWait();
+
+        $after = new CallbackSnapshot();
+        static::assertSame([], $after->addedSince($before));
+        static::assertSame([], $after->grownSince($before));
+    }
+
+    /**
+     * Closing a composite listener over live TCP listeners while connections arrive leaves none of them open, wherever
+     * each connection was when the composite listener closed, and leaves no event loop callback behind.
+     */
+    public function testCloseLeavesNoConnectionOpenWhileConnectionsArrive(): void
+    {
+        // A warm-up cycle first, so that whatever the event loop registers once and keeps is in the baseline.
+        $this->closeWhileConnectionsArrive();
+        $before = new CallbackSnapshot();
+
+        $this->closeWhileConnectionsArrive();
+
+        $after = new CallbackSnapshot();
+        static::assertSame([], $after->addedSince($before));
+        static::assertSame([], $after->grownSince($before));
+    }
+
+    /**
+     * Close a composite listener over two live TCP listeners while accept() calls wait, and check that each of them
+     * fails with `AlreadyStoppedException`.
+     */
+    private function closeWhileCallsWait(): void
+    {
+        $composite = new Network\CompositeListener([TCP\listen('127.0.0.1', 0), TCP\listen('127.0.0.1', 0)]);
+
+        $calls = [];
+        for ($i = 0; $i < self::WAITING_ACCEPTS; $i++) {
+            $calls[] = Async\run($composite->accept(...));
+        }
+
+        Async\later();
+        Async\later();
+
+        $composite->close();
+
+        foreach ($calls as $call) {
+            try {
+                $call->await(new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS)));
+
+                static::fail('Expected AlreadyStoppedException to be thrown.');
+            } catch (Network\Exception\AlreadyStoppedException) {
+                static::addToAssertionCount(1);
+            }
+        }
+
+        // One more turn of the event loop, so that it is quiescent again.
+        Async\later();
+    }
+
+    /**
+     * Close a composite listener over two live TCP listeners right after a client has connected to each, and check
+     * that both connections end.
+     *
+     * One connection goes to the caller, which closes it. The inner accept of the other listener is still in flight
+     * when the composite listener closes, and may or may not have taken the other connection into the backlog: either
+     * way, that connection must be closed.
+     */
+    private function closeWhileConnectionsArrive(): void
+    {
+        $listeners = [TCP\listen('127.0.0.1', 0), TCP\listen('127.0.0.1', 0)];
+        $composite = new Network\CompositeListener($listeners);
+
+        $clients = [];
+        foreach ($listeners as $listener) {
+            $clients[] = TCP\connect('127.0.0.1', $listener->getLocalAddress()->port);
+        }
+
+        $accepted = $composite->accept();
+
+        Async\later();
+
+        $composite->close();
+        $accepted->close();
+
+        foreach ($clients as $client) {
+            $this->assertConnectionEnds($client);
+            $client->close();
+        }
+
+        // One more turn of the event loop, so that it is quiescent again.
+        Async\later();
+    }
+
+    /**
+     * Assert that the server end of the client's connection is closed: reading from the client ends, at EOF or with
+     * a reset, instead of waiting.
+     */
+    private function assertConnectionEnds(TCP\StreamInterface $client): void
+    {
+        $token = new Async\TimeoutCancellationToken(Duration::milliseconds(self::SETTLE_TIMEOUT_MILLISECONDS));
+
+        try {
+            static::assertSame('', $client->readAll(null, $token));
+        } catch (IO\Exception\RuntimeException) {
+            // A reset ends the connection too.
+            static::addToAssertionCount(1);
+        }
     }
 }

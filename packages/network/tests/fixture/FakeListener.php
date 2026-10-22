@@ -33,6 +33,11 @@ final class FakeListener implements Network\ListenerInterface
      */
     public null|Closure $beforeDelivery = null;
 
+    /**
+     * The failure close() throws, without closing the listener, or null for a close that succeeds.
+     */
+    public null|Throwable $closeFailure = null;
+
     private bool $closed = false;
 
     /**
@@ -111,9 +116,19 @@ final class FakeListener implements Network\ListenerInterface
         return $this->closed;
     }
 
+    /**
+     * Close the listener, failing every waiting accept() call with `AlreadyStoppedException`, or throw
+     * {@see FakeListener::$closeFailure} without closing it.
+     *
+     * @throws Throwable The close failure, when one is set.
+     */
     #[Override]
     public function close(): void
     {
+        if (null !== $this->closeFailure) {
+            throw $this->closeFailure;
+        }
+
         if ($this->closed) {
             return;
         }

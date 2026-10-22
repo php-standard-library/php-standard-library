@@ -8,6 +8,7 @@ use Override;
 use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
+use Psl\IO;
 use Throwable;
 
 use function array_map;
@@ -183,6 +184,15 @@ final class CompositeListener implements ListenerInterface
 
     /**
      * Close all inner listeners and stop accepting connections.
+     *
+     * The composite listener stops first: it wakes up every waiting {@see accept()} call, which throws
+     * {@see Exception\AlreadyStoppedException}, as do later calls, and cancels the in-flight inner accepts. It then
+     * closes every connection left in its backlog and every inner listener, all of which it owns. It attempts each of
+     * those closes even after one fails, and throws the first failure once it has attempted them all. A connection
+     * that an inner accept returns after this is closed. Closing a closed listener does nothing.
+     *
+     * @throws IO\Exception\RuntimeException If closing a connection of the backlog or an inner listener failed.
+     * @throws Exception\RuntimeException If closing an inner listener failed with a network error.
      */
     #[Override]
     public function close(): void
@@ -193,24 +203,38 @@ final class CompositeListener implements ListenerInterface
 
         $this->closed = true;
 
-        foreach ($this->backlog as $result) {
+        $backlog = $this->backlog;
+        $this->backlog = [];
+
+        // Settle every waiting call before closing anything, so that no failing close can leave one waiting. Do not
+        // rely on inner listeners interrupting their pending accepts when closed either.
+        $this->notifyAllSignals();
+        $this->cancelPendingAccepts();
+
+        $failure = null;
+        foreach ($backlog as $result) {
             if (!$result instanceof StreamInterface) {
                 continue;
             }
 
-            $result->close();
+            try {
+                $result->close();
+            } catch (IO\Exception\RuntimeException|Exception\RuntimeException $e) {
+                $failure ??= $e;
+            }
         }
-
-        $this->backlog = [];
 
         foreach ($this->listeners as $listener) {
-            $listener->close();
+            try {
+                $listener->close();
+            } catch (IO\Exception\RuntimeException|Exception\RuntimeException $e) {
+                $failure ??= $e;
+            }
         }
 
-        // Do not rely on inner listeners interrupting their pending accepts when closed.
-        $this->cancelPendingAccepts();
-
-        $this->notifyAllSignals();
+        if (null !== $failure) {
+            throw $failure;
+        }
     }
 
     /**
@@ -325,7 +349,7 @@ final class CompositeListener implements ListenerInterface
 
                 if ($this->closed) {
                     if ($result instanceof StreamInterface) {
-                        $result->close();
+                        self::closeLateConnection($result);
                     }
 
                     return;
@@ -340,6 +364,21 @@ final class CompositeListener implements ListenerInterface
                     $this->startPendingAccepts();
                 }
             });
+        }
+    }
+
+    /**
+     * Close a connection that an inner accept returned after the composite listener was closed.
+     *
+     * Nobody called for the connection, so nobody can be told that closing it failed: an expected close failure is
+     * suppressed, as a destructor would, while any other failure still reaches the event loop.
+     */
+    private static function closeLateConnection(StreamInterface $connection): void
+    {
+        try {
+            $connection->close();
+        } catch (IO\Exception\RuntimeException|Exception\RuntimeException) {
+            // @mago-expect lint:no-empty-catch-clause - Nobody can be told of an expected close failure here (E11).
         }
     }
 
