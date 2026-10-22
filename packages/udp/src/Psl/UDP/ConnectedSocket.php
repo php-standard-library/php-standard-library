@@ -21,7 +21,6 @@ use function socket_recv;
 use function socket_strerror;
 use function stream_set_blocking;
 use function stream_socket_get_name;
-use function stream_socket_recvfrom;
 use function stream_socket_sendto;
 
 use const MSG_PEEK;
@@ -29,7 +28,6 @@ use const PHP_OS_FAMILY;
 use const SOCKET_EAGAIN;
 use const SOCKET_EINTR;
 use const SOCKET_EWOULDBLOCK;
-use const STREAM_PEEK;
 
 /**
  * A connected UDP socket for communicating with a single peer.
@@ -58,6 +56,11 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
     private null|NativeSocket $socket;
 
     /**
+     * The receives, peeks and sends waiting on the socket, which closing it ends.
+     */
+    private readonly Internal\PendingWaits $waits;
+
+    /**
      * Wrap a connected UDP socket, taking ownership of it.
      *
      * @internal Use {@see Socket::connect()} or {@see connect()} to obtain a ConnectedSocket.
@@ -70,6 +73,7 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
         private readonly Network\Address $peerAddress,
     ) {
         $this->stream = $stream;
+        $this->waits = new Internal\PendingWaits();
         stream_set_blocking($stream, false);
         $this->socket = self::importSocket($stream);
 
@@ -91,14 +95,16 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
      * @throws Network\Exception\RuntimeException If the send fails.
      * @throws Network\Exception\InvalidArgumentException If the datagram exceeds the maximum size.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function send(string $data, CancellationTokenInterface $cancellation = new NullCancellationToken()): int
     {
         Internal\validate_payload_size($data);
         $stream = $this->getResource();
 
-        Internal\wait_writable($stream, $cancellation);
+        $this->waits->writable($stream, $cancellation);
+        $stream = $this->getResource();
 
         $result = @stream_socket_sendto($stream, $data);
         if ($result === false || $result === -1) {
@@ -122,7 +128,8 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
      *                                             the errno, such as ECONNREFUSED once the peer's port was
      *                                             unreachable, and the socket stays usable.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function receive(
         int $maxBytes,
@@ -140,9 +147,14 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
      *
      * @throws Network\Exception\RuntimeException If the peek fails. On POSIX systems with ext-sockets, its code is
      *                                             the errno, such as ECONNREFUSED once the peer's port was
-     *                                             unreachable, and the socket stays usable.
+     *                                             unreachable, and the socket stays usable. Without the extension,
+     *                                             and on Windows, a peek that finds nothing while the socket stays
+     *                                             readable fails with 0 as its code, as while an ICMP
+     *                                             port-unreachable message is pending on BSD systems, such as macOS;
+     *                                             a receive consumes such an error.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function peek(int $maxBytes, CancellationTokenInterface $cancellation = new NullCancellationToken()): string
     {
@@ -188,11 +200,13 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
     // @codeCoverageIgnoreEnd
 
     /**
-     * Close the socket. Closing a closed socket does nothing.
+     * Close the socket. Every call waiting on it fails with `AlreadyClosedException`. Closing a closed socket does
+     * nothing.
      */
     #[Override]
     public function close(): void
     {
+        $this->waits->failAll(new IO\Exception\AlreadyClosedException('UDP socket has already been closed.'));
         $this->socket = null;
         if (is_resource($this->stream)) {
             fclose($this->stream);
@@ -209,16 +223,22 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
     /**
      * Wait for a datagram, then receive it, or peek at it without consuming it.
      *
-     * With the imported socket, a receive that finds no datagram after all, as when the socket was readable only
-     * for a moment, waits again; one that fails throws with the errno, and leaves the socket usable. Without it,
-     * `stream_socket_recvfrom()` cannot tell those two apart, and a receive that returns nothing fails.
+     * A receive that finds no datagram after all, as when another receive took it first, waits again. With the
+     * imported socket, one that fails throws with the errno, and leaves the socket usable. Without it,
+     * `stream_socket_recvfrom()` cannot tell a failure from a missing datagram. A receive that returns nothing waits
+     * again if the socket is no longer readable, as after a receive that consumed an ICMP port-unreachable message,
+     * which goes unreported. It fails if the socket stays readable, as when a peek leaves that error pending on BSD
+     * systems ({@see Internal\receive_from_stream()}).
      *
      * @param positive-int $maxBytes
      * @param bool $peek Whether to leave the datagram queued.
      *
-     * @throws Network\Exception\RuntimeException If the receive fails.
+     * @throws Network\Exception\RuntimeException If the receive fails: with the imported socket, with the errno as its
+     *                                             code; without it, when the socket stays readable while the receive
+     *                                             finds nothing.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     private function read(int $maxBytes, bool $peek, CancellationTokenInterface $cancellation): string
     {
@@ -226,7 +246,9 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
         $operation = $peek ? 'peek' : 'receive';
 
         while (true) {
-            Internal\await_readable($stream, $cancellation);
+            $this->waits->readable($stream, $cancellation);
+            // The socket may have been closed once the wait had ended, before this fiber ran again.
+            $stream = $this->getResource();
 
             // A socket exists only if the guard passed when it was imported; every call into ext-sockets still sits
             // behind the guard.
@@ -251,17 +273,12 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
                 );
             }
 
-            // PHP keeps the prefix of a datagram longer than $maxBytes on Windows, as POSIX systems do, only when it is
-            // asked for the sender's address; without it, the receive fails with WSAEMSGSIZE.
-            $address = '';
-            $data = @stream_socket_recvfrom($stream, $maxBytes, $peek ? STREAM_PEEK : 0, $address);
-            if ($data === false) {
-                // @codeCoverageIgnoreStart
-                throw new Network\Exception\RuntimeException('Failed to ' . $operation . ' UDP datagram.');
-                // @codeCoverageIgnoreEnd
+            // The stream path asks for the sender's address, which keeps the prefix of a long datagram on Windows, and
+            // drops it.
+            $received = Internal\receive_from_stream($stream, $maxBytes, $peek);
+            if (null !== $received) {
+                return $received[0];
             }
-
-            return $data;
         }
     }
 

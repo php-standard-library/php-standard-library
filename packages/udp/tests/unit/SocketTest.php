@@ -397,7 +397,10 @@ final class SocketTest extends TestCase
         }
 
         try {
-            UDP\Internal\wait_writable($pair[0], new Async\TimeoutCancellationToken(Duration::milliseconds(50)));
+            new UDP\Internal\PendingWaits()->writable(
+                $pair[0],
+                new Async\TimeoutCancellationToken(Duration::milliseconds(50)),
+            );
         } finally {
             fclose($pair[0]);
             fclose($pair[1]);

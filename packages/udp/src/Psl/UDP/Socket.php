@@ -18,12 +18,10 @@ use function stream_context_create;
 use function stream_set_blocking;
 use function stream_socket_client;
 use function stream_socket_get_name;
-use function stream_socket_recvfrom;
 use function stream_socket_sendto;
 use function stream_socket_server;
 
 use const STREAM_CLIENT_CONNECT;
-use const STREAM_PEEK;
 use const STREAM_SERVER_BIND;
 
 /**
@@ -45,11 +43,19 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
     private readonly Network\Address $localAddress;
 
     /**
-     * @param resource $stream
+     * The receives, peeks and sends waiting on the socket, which closing it ends.
+     */
+    private readonly Internal\PendingWaits $waits;
+
+    /**
+     * Wrap a bound UDP socket, taking ownership of it.
+     *
+     * @param resource $stream The bound socket, which this object closes once it is closed or destroyed.
      */
     private function __construct(mixed $stream)
     {
         $this->stream = $stream;
+        $this->waits = new Internal\PendingWaits();
         stream_set_blocking($stream, false);
 
         $name = @stream_socket_get_name($stream, false);
@@ -104,7 +110,8 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
     /**
      * Connect to a remote address, returning a {@see ConnectedSocket}.
      *
-     * This socket is closed after connecting. Use the returned {@see ConnectedSocket} for further communication.
+     * This socket is closed after connecting, and the calls waiting on it fail with `AlreadyClosedException`. Use the
+     * returned {@see ConnectedSocket} for further communication.
      *
      * @param non-empty-string $host
      * @param int<0, 65535> $port
@@ -119,6 +126,7 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
         $localName = @stream_socket_get_name($oldStream, false);
         $bindto = $localName !== false ? $localName : '0.0.0.0:0';
 
+        $this->waits->failAll(new IO\Exception\AlreadyClosedException('UDP socket has already been closed.'));
         fclose($oldStream);
         $this->stream = null;
 
@@ -157,7 +165,8 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
      * @throws Network\Exception\RuntimeException If the send fails.
      * @throws Network\Exception\InvalidArgumentException If the datagram exceeds the maximum size.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function sendTo(
         string $data,
@@ -170,7 +179,8 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
         $host = str_contains($address->host, ':') ? "[{$address->host}]" : $address->host;
         $target = "{$host}:{$address->port}";
 
-        Internal\wait_writable($stream, $cancellation);
+        $this->waits->writable($stream, $cancellation);
+        $stream = $this->getResource();
 
         $result = @stream_socket_sendto($stream, $data, 0, $target);
         if ($result === false || $result === -1) {
@@ -184,61 +194,48 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
     /**
      * Receive a datagram and the sender's address.
      *
+     * The call waits until a datagram arrives. A receive that finds no datagram after the socket became readable, as
+     * when another receive took it first, waits again.
+     *
      * @param positive-int $maxBytes
      *
      * @return array{string, Network\Address} [data, sender_address]
      *
-     * @throws Network\Exception\RuntimeException If the receive fails.
+     * @throws Network\Exception\RuntimeException If the socket stays readable while the receive finds nothing twice
+     *                                             in a row, as when an error is pending on it.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function receiveFrom(
         int $maxBytes,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): array {
-        $stream = $this->getResource();
-
-        Internal\await_readable($stream, $cancellation);
-
-        $address = '';
-        $data = @stream_socket_recvfrom($stream, $maxBytes, 0, $address);
-        if ($data === false) {
-            // @codeCoverageIgnoreStart
-            throw new Network\Exception\RuntimeException('Failed to receive UDP datagram.');
-            // @codeCoverageIgnoreEnd
-        }
-
-        return [$data, Internal\parse_address($address)];
+        return $this->read($maxBytes, false, $cancellation);
     }
 
     /**
      * Peek at an incoming datagram and get the sender's address, without consuming it.
      *
+     * The call waits until a datagram arrives. A peek that finds no datagram after the socket became readable, as
+     * when a receive took it first, waits again.
+     *
      * @param positive-int $maxBytes
      *
      * @return array{string, Network\Address} [data, sender_address]
      *
-     * @throws Network\Exception\RuntimeException If the peek fails.
+     * @throws Network\Exception\RuntimeException If the socket stays readable while the peek finds nothing twice in
+     *                                             a row, as when an error is pending on it: a peek leaves the error
+     *                                             in place on BSD systems, such as macOS.
      * @throws CancelledException If the operation is cancelled.
-     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
      */
     public function peekFrom(
         int $maxBytes,
         CancellationTokenInterface $cancellation = new NullCancellationToken(),
     ): array {
-        $stream = $this->getResource();
-
-        Internal\await_readable($stream, $cancellation);
-
-        $address = '';
-        $data = @stream_socket_recvfrom($stream, $maxBytes, STREAM_PEEK, $address);
-        if ($data === false) {
-            // @codeCoverageIgnoreStart
-            throw new Network\Exception\RuntimeException('Failed to peek UDP datagram.');
-            // @codeCoverageIgnoreEnd
-        }
-
-        return [$data, Internal\parse_address($address)];
+        return $this->read($maxBytes, true, $cancellation);
     }
 
     #[Override]
@@ -266,9 +263,14 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
         return !is_resource($this->stream);
     }
 
+    /**
+     * Close the socket. Every call waiting on it fails with `AlreadyClosedException`. Closing a closed socket does
+     * nothing.
+     */
     #[Override]
     public function close(): void
     {
+        $this->waits->failAll(new IO\Exception\AlreadyClosedException('UDP socket has already been closed.'));
         if (is_resource($this->stream)) {
             fclose($this->stream);
         }
@@ -279,6 +281,39 @@ final class Socket implements Network\SocketInterface, IO\StreamHandleInterface
     public function __destruct()
     {
         $this->close();
+    }
+
+    /**
+     * Wait for a datagram, then receive it with its sender's address, or peek at it without consuming it.
+     *
+     * A receive that finds no datagram after all, as when another receive took it first, waits again; one that finds
+     * nothing while the socket stays readable fails, since waiting again would wake at once
+     * ({@see Internal\receive_from_stream()}).
+     *
+     * @param positive-int $maxBytes
+     * @param bool $peek Whether to leave the datagram queued.
+     *
+     * @return array{string, Network\Address} [data, sender_address]
+     *
+     * @throws Network\Exception\RuntimeException If the socket stays readable while the receive finds nothing.
+     * @throws CancelledException If the operation is cancelled.
+     * @throws IO\Exception\AlreadyClosedException If the socket has already been closed, or is closed while the call
+     *                                             waits.
+     */
+    private function read(int $maxBytes, bool $peek, CancellationTokenInterface $cancellation): array
+    {
+        $stream = $this->getResource();
+
+        while (true) {
+            $this->waits->readable($stream, $cancellation);
+            // The socket may have been closed once the wait had ended, before this fiber ran again.
+            $stream = $this->getResource();
+
+            $received = Internal\receive_from_stream($stream, $maxBytes, $peek);
+            if (null !== $received) {
+                return [$received[0], Internal\parse_address($received[1])];
+            }
+        }
     }
 
     /**

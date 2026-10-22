@@ -12,11 +12,11 @@ use Throwable;
  * One wait of a UDP socket for readiness: a receive or a peek waiting for a datagram, or a send waiting until the
  * socket can take one.
  *
- * Whatever ends the wait first settles it, the socket becoming ready or a cancellation, and everything after that is
- * ignored. Each wait has its own record because the event loop hands the same suspension to every wait of a fiber: a
- * cancellation listener that reached the suspension directly could end a later wait of the same fiber. A wait that
- * settles before it has suspended keeps its failure and throws it without suspending: a suspension cannot be resumed
- * before it has suspended.
+ * Whatever ends the wait first settles it, the socket becoming ready, a cancellation or the socket closing, and
+ * everything after that is ignored. Each wait has its own record because the event loop hands the same suspension to
+ * every wait of a fiber: a cancellation listener that reached the suspension directly could end a later wait of the
+ * same fiber. A wait that settles before it has suspended keeps its failure and throws it without suspending: a
+ * suspension cannot be resumed before it has suspended.
  *
  * @internal
  */
