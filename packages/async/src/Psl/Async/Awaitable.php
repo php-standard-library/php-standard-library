@@ -250,6 +250,9 @@ final readonly class Awaitable implements PromiseInterface
      *
      * Throws a `Throwable` if the operation fails.
      *
+     * Cancelling the wait does not cancel the operation, which keeps running and can be awaited again; the
+     * cancelled wait leaves nothing subscribed to the operation or to the token.
+     *
      * @throws Exception\CancelledException If the cancellation token is cancelled before the operation completes.
      *
      * @return T
@@ -287,21 +290,12 @@ final readonly class Awaitable implements PromiseInterface
             });
         }
 
-        $this->state->subscribe(
+        $stateId = $this->state->subscribe(
             /**
              * @param null|Throwable $error
              * @param null|T $value
              */
-            static function (null|Throwable $error, mixed $value) use (
-                $suspension,
-                $cancellation,
-                &$cancellationId,
-                &$resolved,
-            ): void {
-                if (null !== $cancellationId) {
-                    $cancellation->unsubscribe($cancellationId);
-                }
-
+            static function (null|Throwable $error, mixed $value) use ($suspension, &$resolved): void {
                 if ($resolved) {
                     return;
                 }
@@ -316,8 +310,18 @@ final readonly class Awaitable implements PromiseInterface
             },
         );
 
-        /** @var T */
-        return $suspension->suspend();
+        try {
+            /** @var T */
+            return $suspension->suspend();
+        } finally {
+            // After a cancellation, the operation is still pending: remove this wait's callback from it, so
+            // that neither the awaitable nor the token keeps the waiting fiber alive.
+            $this->state->unsubscribe($stateId);
+
+            if (null !== $cancellationId) {
+                $cancellation->unsubscribe($cancellationId);
+            }
+        }
     }
 
     /**

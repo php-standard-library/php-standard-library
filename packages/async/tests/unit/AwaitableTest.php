@@ -17,6 +17,9 @@ use Psl\Str;
 use Revolt\EventLoop\UncaughtThrowable;
 use RuntimeException;
 use Throwable;
+use WeakReference;
+
+use function gc_collect_cycles;
 
 final class AwaitableTest extends TestCase
 {
@@ -298,5 +301,61 @@ final class AwaitableTest extends TestCase
         })->await();
 
         static::assertSame('done', $result);
+    }
+
+    public function testCancelledAwaitDoesNotKeepTheTokenAlive(): void
+    {
+        $deferred = new Async\Deferred();
+        $token = new Async\SignalCancellationToken();
+        $reference = WeakReference::create($token);
+
+        $waiter = Async\run(static function () use ($deferred, $token): bool {
+            try {
+                $deferred->getAwaitable()->await($token);
+            } catch (Async\Exception\CancelledException) {
+                return true;
+            }
+
+            return false;
+        });
+
+        Async\later();
+        $token->cancel();
+
+        static::assertTrue($waiter->await());
+
+        unset($token, $waiter);
+        gc_collect_cycles();
+
+        // The operation is still pending, and it no longer holds the callback of the cancelled wait.
+        static::assertFalse($deferred->isComplete());
+        static::assertNull($reference->get());
+    }
+
+    public function testCancelledAwaitKeepsTheLaterFailureHandled(): void
+    {
+        $deferred = new Async\Deferred();
+        $token = new Async\SignalCancellationToken();
+
+        $waiter = Async\run(static function () use ($deferred, $token): void {
+            try {
+                $deferred->getAwaitable()->await($token);
+            } catch (Async\Exception\CancelledException) {
+                $deferred->error(new RuntimeException('failed after the wait was cancelled'));
+            }
+        });
+
+        Async\later();
+        $token->cancel();
+        $waiter->await();
+
+        unset($deferred, $waiter);
+        gc_collect_cycles();
+
+        // As before, a wait counts as handling the awaitable's failure, even once cancelled: nothing reaches
+        // the event loop.
+        Async\later();
+
+        static::addToAssertionCount(1);
     }
 }
