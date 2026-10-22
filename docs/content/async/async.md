@@ -47,6 +47,8 @@ Runs all closures concurrently and returns their results in the original order:
 
 @example('async/async-concurrently.php')
 
+No closure and no failure is dropped when the iterable repeats a key: each closure runs, and its failure is handled as it would be under a distinct key. On success, the result of the last closure with that key is returned under it.
+
 > **Warning**
 >
 > `concurrently(...)` is about kicking-off I/O functions concurrently, not about concurrent execution of code.

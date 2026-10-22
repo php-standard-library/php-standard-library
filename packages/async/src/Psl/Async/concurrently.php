@@ -9,6 +9,10 @@ use Closure;
 /**
  * Run the functions in the tasks' iterable concurrently, without waiting until the previous function has completed.
  *
+ * No function and no failure is dropped when `$tasks` repeats a key: each function runs, and its failure is
+ * handled as it would be under a distinct key. On success, the result of the last function with that key is
+ * returned under it.
+ *
  * @template Tk of array-key
  * @template Tv
  *
@@ -22,10 +26,21 @@ use Closure;
  */
 function concurrently(iterable $tasks): array
 {
+    // `$tasks` may repeat keys, which an array does not support: keep the started tasks in a list, and key the
+    // results at the end.
+    $keys = [];
     $awaitables = [];
-    foreach ($tasks as $k => $task) {
-        $awaitables[$k] = namespace\run($task);
+    foreach ($tasks as $key => $task) {
+        $keys[] = $key;
+        $awaitables[] = namespace\run($task);
     }
 
-    return namespace\all($awaitables);
+    $values = namespace\all($awaitables);
+
+    $result = [];
+    foreach ($keys as $index => $key) {
+        $result[$key] = $values[$index];
+    }
+
+    return $result;
 }
