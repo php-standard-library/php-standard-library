@@ -114,6 +114,8 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
     /**
      * Receive a datagram from the connected peer.
      *
+     * A datagram longer than $maxBytes is truncated to its first $maxBytes bytes, and the rest is discarded.
+     *
      * @param positive-int $maxBytes
      *
      * @throws Network\Exception\RuntimeException If the receive fails. On POSIX systems with ext-sockets, its code is
@@ -131,6 +133,8 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
 
     /**
      * Peek at an incoming datagram without consuming it.
+     *
+     * A datagram longer than $maxBytes is truncated to its first $maxBytes bytes, and stays queued whole.
      *
      * @param positive-int $maxBytes
      *
@@ -247,7 +251,10 @@ final class ConnectedSocket implements Network\SocketInterface, IO\StreamHandleI
                 );
             }
 
-            $data = @stream_socket_recvfrom($stream, $maxBytes, $peek ? STREAM_PEEK : 0);
+            // PHP keeps the prefix of a datagram longer than $maxBytes on Windows, as POSIX systems do, only when it is
+            // asked for the sender's address; without it, the receive fails with WSAEMSGSIZE.
+            $address = '';
+            $data = @stream_socket_recvfrom($stream, $maxBytes, $peek ? STREAM_PEEK : 0, $address);
             if ($data === false) {
                 // @codeCoverageIgnoreStart
                 throw new Network\Exception\RuntimeException('Failed to ' . $operation . ' UDP datagram.');
