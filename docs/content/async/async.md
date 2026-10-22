@@ -130,6 +130,8 @@ Both `waitFor()` and `waitForPending()` accept an optional `CancellationTokenInt
 
 `awaitAll()` accepts an optional `CancellationTokenInterface`. The task list is cleared after each `awaitAll()` call, so the group is reusable.
 
+Several fibers can call `awaitAll()` at once: every call waiting when the last task finishes gets the same exception (or the same `CompositeException`). Only exceptions are collected; an `Error` thrown by a task reaches the event loop error handler.
+
 ### WaitGroup
 
 `WaitGroup` is a counter-based synchronization primitive inspired by Go's `sync.WaitGroup`. Call `add()` before starting work, `done()` when work completes, and `wait()` to block until the counter reaches zero:

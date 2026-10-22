@@ -174,4 +174,193 @@ final class TaskGroupTest extends TestCase
 
         static::assertSame('first-second', $ref->value);
     }
+
+    public function testConcurrentJoinsGetTheSameException(): void
+    {
+        $group = new Async\TaskGroup();
+
+        $group->defer(static function (): void {
+            Async\sleep(Duration::milliseconds(1));
+
+            throw new RuntimeException('boom');
+        });
+
+        $first = Async\run(static function () use ($group): void {
+            $group->awaitAll();
+        });
+
+        $second = Async\run(static function () use ($group): void {
+            $group->awaitAll();
+        });
+
+        $exceptions = [];
+        foreach ([$first, $second] as $join) {
+            try {
+                $join->await();
+            } catch (RuntimeException $exception) {
+                $exceptions[] = $exception;
+            }
+        }
+
+        static::assertCount(2, $exceptions);
+        static::assertSame('boom', $exceptions[0]->getMessage());
+        static::assertSame($exceptions[0], $exceptions[1]);
+
+        // The outcome was taken by the two joins.
+        $group->awaitAll();
+    }
+
+    public function testConcurrentJoinsGetTheSameCompositeException(): void
+    {
+        $group = new Async\TaskGroup();
+
+        $group->defer(static function (): void {
+            Async\sleep(Duration::milliseconds(1));
+
+            throw new RuntimeException('first');
+        });
+
+        $group->defer(static function (): void {
+            Async\sleep(Duration::milliseconds(2));
+
+            throw new RuntimeException('second');
+        });
+
+        $first = Async\run(static function () use ($group): void {
+            $group->awaitAll();
+        });
+
+        $second = Async\run(static function () use ($group): void {
+            $group->awaitAll();
+        });
+
+        $exceptions = [];
+        foreach ([$first, $second] as $join) {
+            try {
+                $join->await();
+            } catch (Async\Exception\CompositeException $exception) {
+                $exceptions[] = $exception;
+            }
+        }
+
+        static::assertCount(2, $exceptions);
+        static::assertSame($exceptions[0], $exceptions[1]);
+
+        $reasons = $exceptions[0]->getReasons();
+
+        static::assertCount(2, $reasons);
+        static::assertSame('first', $reasons[0]->getMessage());
+        static::assertSame('second', $reasons[1]->getMessage());
+    }
+
+    public function testExceptionsAccumulateWhileTheGroupIsNotJoined(): void
+    {
+        $group = new Async\TaskGroup();
+
+        $group->defer(static function (): void {
+            throw new RuntimeException('first');
+        });
+
+        // The first task fails and the group becomes idle, with nobody joining it.
+        Async\later();
+
+        $group->defer(static function (): void {
+            throw new RuntimeException('second');
+        });
+
+        try {
+            $group->awaitAll();
+
+            static::fail('Expected the join to throw.');
+        } catch (Async\Exception\CompositeException $exception) {
+            $reasons = $exception->getReasons();
+
+            static::assertCount(2, $reasons);
+            static::assertSame('first', $reasons[0]->getMessage());
+            static::assertSame('second', $reasons[1]->getMessage());
+        }
+    }
+
+    public function testCancelledJoinLeavesTheOutcomeToTheJoinStillWaiting(): void
+    {
+        $group = new Async\TaskGroup();
+
+        $group->defer(static function (): void {
+            Async\sleep(Duration::milliseconds(1));
+
+            throw new RuntimeException('boom');
+        });
+
+        $token = new Async\SignalCancellationToken();
+        $cancelled = Async\run(static function () use ($group, $token): void {
+            $group->awaitAll($token);
+        });
+
+        $waiting = Async\run(static function () use ($group): void {
+            $group->awaitAll();
+        });
+
+        // Both joins wait for the task.
+        Async\later();
+        $token->cancel();
+
+        $cancellation = null;
+        try {
+            $cancelled->await();
+        } catch (Async\Exception\CancelledException $exception) {
+            $cancellation = $exception;
+        }
+
+        static::assertNotNull($cancellation);
+        static::assertSame($token, $cancellation->getToken());
+
+        $failure = null;
+        try {
+            $waiting->await();
+        } catch (RuntimeException $exception) {
+            $failure = $exception;
+        }
+
+        static::assertNotNull($failure);
+        static::assertSame('boom', $failure->getMessage());
+
+        // The outcome was taken by the join that was still waiting.
+        $group->awaitAll();
+    }
+
+    public function testTaskDeferredBeforeTheJoinsResumeBelongsToTheNextBatch(): void
+    {
+        $group = new Async\TaskGroup();
+
+        $group->defer(static function () use ($group): void {
+            Async\sleep(Duration::milliseconds(1));
+
+            // Runs after this task finishes and resumes the waiting join, but before that join runs.
+            Async\Scheduler::queue(static function () use ($group): void {
+                $group->defer(static function (): void {
+                    throw new RuntimeException('second');
+                });
+            });
+
+            throw new RuntimeException('first');
+        });
+
+        // The joins run in a fiber, which resumes through the microtask queue, after the callback above.
+        $messages = Async\run(static function () use ($group): array {
+            $messages = [];
+            for ($join = 0; $join < 2; $join++) {
+                try {
+                    $group->awaitAll();
+
+                    $messages[] = 'returned';
+                } catch (RuntimeException $exception) {
+                    $messages[] = $exception->getMessage();
+                }
+            }
+
+            return $messages;
+        })->await();
+
+        static::assertSame(['first', 'second'], $messages);
+    }
 }

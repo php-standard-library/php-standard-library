@@ -29,11 +29,16 @@ final class TaskGroup
     private int $pending = 0;
 
     /**
+     * The exceptions thrown by the tasks since a join last took them, in the order the tasks failed.
+     *
      * @var list<RootException>
      */
     private array $exceptions = [];
 
     /**
+     * The joins waiting for the running tasks; the last task to finish resumes each of them with the
+     * outcome of the batch.
+     *
      * @var list<EventLoop\Suspension>
      */
     private array $waiters = [];
@@ -58,12 +63,15 @@ final class TaskGroup
                 // @mago-expect analysis:invalid-property-assignment-value
                 $this->pending--;
 
-                if (0 === $this->pending) {
+                if (0 === $this->pending && [] !== $this->waiters) {
+                    // The joins waiting for this batch share its outcome, which is taken now: a task deferred
+                    // before they resume belongs to the next batch.
+                    $failure = $this->takeFailure();
                     $waiters = $this->waiters;
                     $this->waiters = [];
 
                     foreach ($waiters as $waiter) {
-                        $waiter->resume(null);
+                        $waiter->resume($failure);
                     }
                 }
             }
@@ -73,8 +81,15 @@ final class TaskGroup
     /**
      * Wait for all deferred tasks to complete.
      *
-     * If any tasks threw, a {@see Exception\CompositeException} is thrown
-     * containing all the exceptions, after every task has finished.
+     * If one task threw, its exception is thrown; if several tasks threw, a
+     * {@see Exception\CompositeException} containing all the exceptions is thrown,
+     * after every task has finished.
+     *
+     * Every call waiting when the last task finishes gets the same outcome: the
+     * same exception, or the same composite. That outcome is then taken from the
+     * group, so a later call returns unless new tasks fail. While no call waits,
+     * exceptions stay in the group until the next call, including those of tasks
+     * deferred after the group was idle.
      *
      * @throws Exception\CompositeException If multiple tasks failed.
      * @throws Exception\CancelledException If the cancellation token is cancelled.
@@ -101,23 +116,41 @@ final class TaskGroup
             }
 
             try {
-                $suspension->suspend();
+                /** @var null|RootException $failure */
+                $failure = $suspension->suspend();
             } finally {
                 if (null !== $id) {
                     $cancellation->unsubscribe($id);
                 }
             }
+        } else {
+            $failure = $this->takeFailure();
         }
 
+        if (null !== $failure) {
+            throw $failure;
+        }
+    }
+
+    /**
+     * Take the exceptions collected so far, leaving the group with none.
+     *
+     * @return null|RootException Null if no task failed, the exception if one task failed, or a composite
+     *                            of all the exceptions, in the order the tasks failed, if several did.
+     */
+    private function takeFailure(): null|RootException
+    {
         $exceptions = $this->exceptions;
         $this->exceptions = [];
 
-        if ([] !== $exceptions) {
-            if (1 === count($exceptions)) {
-                throw $exceptions[0];
-            }
-
-            throw new Exception\CompositeException($exceptions);
+        if ([] === $exceptions) {
+            return null;
         }
+
+        if (1 === count($exceptions)) {
+            return $exceptions[0];
+        }
+
+        return new Exception\CompositeException($exceptions);
     }
 }
