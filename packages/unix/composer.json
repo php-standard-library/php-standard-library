@@ -38,6 +38,9 @@
     "conflict": {
         "azjezz/psl": "*"
     },
+    "suggest": {
+        "ext-sockets": "Binds a Unix socket to a path before it connects (Psl\\Unix\\Socket::bind() then connect())"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {

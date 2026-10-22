@@ -46,16 +46,41 @@ final class PathLimit
      */
     public static function maximumLength(string $path): null|int
     {
-        $size = match (PHP_OS_FAMILY) {
-            'Linux', 'Solaris' => self::LINUX_SUN_PATH_SIZE,
-            'Darwin', 'BSD' => self::BSD_SUN_PATH_SIZE,
-            default => null,
-        };
-
+        $size = self::size();
         if (null === $size || str_starts_with($path, "\0")) {
             return $size;
         }
 
         return $size - self::TERMINATOR_SIZE;
+    }
+
+    /**
+     * The most bytes a name passed to ext-sockets can have on this system, or null if PSL does not know the system's
+     * limit.
+     *
+     * `socket_bind()` and `socket_connect()` keep room for a terminating NUL byte even for a name in the Linux
+     * abstract namespace, and throw a `ValueError` for a longer one (ext/sockets/sockets.c).
+     *
+     * @return null|positive-int
+     */
+    public static function maximumSocketsLength(): null|int
+    {
+        $size = self::size();
+
+        return null === $size ? null : $size - self::TERMINATOR_SIZE;
+    }
+
+    /**
+     * The size of `sun_path` on this system, or null if PSL does not know it.
+     *
+     * @return null|self::LINUX_SUN_PATH_SIZE|self::BSD_SUN_PATH_SIZE
+     */
+    private static function size(): null|int
+    {
+        return match (PHP_OS_FAMILY) {
+            'Linux', 'Solaris' => self::LINUX_SUN_PATH_SIZE,
+            'Darwin', 'BSD' => self::BSD_SUN_PATH_SIZE,
+            default => null,
+        };
     }
 }

@@ -10,6 +10,10 @@ Unix domain sockets provide local inter-process communication without the overhe
 
 A Unix stream reports the names its two sockets really have. A socket bound to a path reports that path; a socket that is not bound, as a client usually is, reports the unnamed address `unix://<anonymous>`. So a client's `getPeerAddress()` is the listener's path and its `getLocalAddress()` is unnamed, and a stream that a listener accepted reports the listener's path as its local address and the client's name, or the unnamed address, as its peer address.
 
+## Binding a Client
+
+`Unix\Socket::bind()` names a socket before it listens or connects. A client bound this way connects from that path, so the listener sees the path as the accepted stream's peer address. Binding before connecting needs ext-sockets, as PHP's streams do not bind a Unix client; without the extension, `Unix\Socket::connect()` on a bound socket throws `Network\Exception\RuntimeException` before it creates a socket. The file the bind creates stays after the socket closes, as a listener's does.
+
 ## Usage
 
 @example('networking/unix-echo.php')
