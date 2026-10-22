@@ -7,6 +7,7 @@ namespace Psl\Async\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
+use Revolt\EventLoop\UncaughtThrowable;
 use RuntimeException;
 use Throwable;
 
@@ -163,5 +164,38 @@ final class TimeoutCancellationTokenTest extends TestCase
 
         // If we got here without error, the WeakReference null check worked
         static::addToAssertionCount(1);
+    }
+
+    public function testTimeoutRunsEveryCallbackWhenOneThrows(): void
+    {
+        $token = new Async\TimeoutCancellationToken(Duration::milliseconds(1));
+        $failure = new RuntimeException('first');
+        $calls = [];
+
+        $token->subscribe(static function () use (&$calls, $failure): void {
+            $calls[] = 'first';
+
+            throw $failure;
+        });
+
+        $token->subscribe(static function () use (&$calls): void {
+            $calls[] = 'second';
+        });
+
+        // Keeps the event loop running until the token, whose timer is unreferenced, cancels.
+        $keepAlive = Async\Scheduler::delay(Duration::milliseconds(50), static function (): void {});
+
+        try {
+            Async\Scheduler::run();
+
+            static::fail('Expected the failure of the first callback to reach the event loop.');
+        } catch (UncaughtThrowable $throwable) {
+            static::assertSame($failure, $throwable->getPrevious());
+        } finally {
+            Async\Scheduler::cancel($keepAlive);
+        }
+
+        static::assertSame(['first', 'second'], $calls);
+        static::assertTrue($token->isCancelled());
     }
 }

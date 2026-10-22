@@ -249,4 +249,34 @@ final class LinkedCancellationTokenTest extends TestCase
         // If we got here without error, the WeakReference null check worked
         static::addToAssertionCount(1);
     }
+
+    public function testLinkedRunsEveryCallbackWhenOneThrows(): void
+    {
+        $signal = new Async\SignalCancellationToken();
+        $linked = new Async\LinkedCancellationToken($signal, new Async\SignalCancellationToken());
+        $failure = new RuntimeException('first');
+        $calls = [];
+
+        $linked->subscribe(static function () use (&$calls, $failure): void {
+            $calls[] = 'first';
+
+            throw $failure;
+        });
+
+        $linked->subscribe(static function () use (&$calls): void {
+            $calls[] = 'second';
+        });
+
+        $thrown = null;
+        try {
+            $signal->cancel();
+        } catch (RuntimeException $exception) {
+            $thrown = $exception;
+        }
+
+        static::assertSame($failure, $thrown);
+
+        static::assertSame(['first', 'second'], $calls);
+        static::assertTrue($linked->isCancelled());
+    }
 }

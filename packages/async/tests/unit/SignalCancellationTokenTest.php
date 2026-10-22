@@ -185,4 +185,71 @@ final class SignalCancellationTokenTest extends TestCase
 
         static::assertSame($token, $received);
     }
+
+    public function testCancelRunsEveryCallbackWhenOneThrows(): void
+    {
+        $token = new Async\SignalCancellationToken();
+        $failure = new RuntimeException('second');
+        $calls = [];
+
+        $token->subscribe(static function () use (&$calls): void {
+            $calls[] = 'first';
+        });
+
+        $token->subscribe(static function () use (&$calls, $failure): void {
+            $calls[] = 'second';
+
+            throw $failure;
+        });
+
+        $token->subscribe(static function () use (&$calls): void {
+            $calls[] = 'third';
+        });
+
+        $thrown = null;
+        try {
+            $token->cancel();
+        } catch (RuntimeException $exception) {
+            $thrown = $exception;
+        }
+
+        static::assertSame($failure, $thrown);
+
+        static::assertSame(['first', 'second', 'third'], $calls);
+        static::assertTrue($token->isCancelled());
+    }
+
+    public function testCancelRethrowsTheFailuresOfSeveralCallbacksTogether(): void
+    {
+        $token = new Async\SignalCancellationToken();
+        $first = new RuntimeException('first');
+        $third = new RuntimeException('third');
+        $calls = [];
+
+        $token->subscribe(static function () use (&$calls, $first): void {
+            $calls[] = 'first';
+
+            throw $first;
+        });
+
+        $token->subscribe(static function () use (&$calls): void {
+            $calls[] = 'second';
+        });
+
+        $token->subscribe(static function () use (&$calls, $third): void {
+            $calls[] = 'third';
+
+            throw $third;
+        });
+
+        try {
+            $token->cancel();
+
+            static::fail('Expected the failures of the first and third callbacks.');
+        } catch (Async\Exception\CompositeException $exception) {
+            static::assertSame([$first, $third], $exception->getReasons());
+        }
+
+        static::assertSame(['first', 'second', 'third'], $calls);
+    }
 }

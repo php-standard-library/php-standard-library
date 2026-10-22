@@ -5,6 +5,7 @@ declare(strict_types=1);
 (static function (): void {
     $functions = [
         'Psl\Async\Internal\next_id' => __DIR__ . '/Async/Internal/next_id.php',
+        'Psl\Async\Internal\notify_cancellation' => __DIR__ . '/Async/Internal/notify_cancellation.php',
         'Psl\Async\all' => __DIR__ . '/Async/all.php',
         'Psl\Async\any' => __DIR__ . '/Async/any.php',
         'Psl\Async\await' => __DIR__ . '/Async/await.php',

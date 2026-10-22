@@ -182,6 +182,8 @@ The base interface. Implementations provide:
 - `isCancelled(): bool` -- check cancellation state
 - `throwIfCancelled(): void` -- throw `CancelledException` if cancelled
 
+When a token is cancelled, every subscribed callback runs, even if an earlier one throws. The failure is reported once they all ran: `SignalCancellationToken::cancel()` rethrows it, and a `TimeoutCancellationToken` sends it to the event loop error handler. When several callbacks throw, their failures are reported together in a `CompositeException`.
+
 ### SignalCancellationToken
 
 Manually triggered. Call `cancel()` from any fiber to cancel all subscribed operations:

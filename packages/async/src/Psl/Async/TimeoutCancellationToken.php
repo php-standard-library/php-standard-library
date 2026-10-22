@@ -14,6 +14,10 @@ use function max;
 /**
  * A cancellation token that automatically cancels after a given duration.
  *
+ * When the token cancels, every subscribed callback runs, in subscription order, even if an earlier one
+ * throws. The failure of the only callback that threw, or a {@see Exception\CompositeException} of the
+ * failures of several, then reaches the event loop error handler.
+ *
  * @api
  */
 final class TimeoutCancellationToken implements CancellationTokenInterface
@@ -50,9 +54,8 @@ final class TimeoutCancellationToken implements CancellationTokenInterface
             $callbacks = $token->callbacks;
             $token->callbacks = [];
 
-            foreach ($callbacks as $callback) {
-                $callback($exception);
-            }
+            // The failures of the callbacks go to the event loop error handler.
+            Internal\notify_cancellation($callbacks, $exception);
         });
 
         EventLoop::unreference($this->watcher);
