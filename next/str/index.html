@@ -150,6 +150,8 @@ Str\Grapheme\length($text); // 4 (visual characters)
 
 Str\Grapheme\slice($text, 0, 3); // 'caf' (3 visual characters)
 </code></pre>
+<h2 id="deprecations"><a href="#deprecations" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Deprecations</h2>
+<p><code>Str\metaphone()</code> is deprecated because the underlying PHP <code>metaphone()</code> function is deprecated as of PHP 8.6. Use a userland phonetic matching library instead. The wrapper remains available and continues to call PHP's native function, so it does not suppress PHP 8.6 deprecation notices.</p>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/str/src/Psl/Str/">src/Psl/Str/</a> for the full API.</p>
 </article></main>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">
