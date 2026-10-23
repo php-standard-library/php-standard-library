@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### deprecations
+
+- deprecated(str): `Str\metaphone()` because the underlying PHP function is deprecated as of PHP 8.6. Use a userland phonetic matching library instead.
+
 ## 6.3.0
 
 ### features
