@@ -28,7 +28,8 @@
         "phpunit/phpunit": "^13.0"
     },
     "conflict": {
-        "azjezz/psl": "*"
+        "azjezz/psl": "*",
+        "php-standard-library/http-client": "<6.4.0"
     },
     "minimum-stability": "dev",
     "autoload": {

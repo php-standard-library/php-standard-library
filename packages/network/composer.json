@@ -31,7 +31,8 @@
         "phpunit/phpunit": "^13.0"
     },
     "conflict": {
-        "azjezz/psl": "*"
+        "azjezz/psl": "*",
+        "php-standard-library/http-client": "<6.4.0"
     },
     "suggest": {
         "ext-sockets": "Reports the errno of a failed TCP connect, which is 0 without the extension"
