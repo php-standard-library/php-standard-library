@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Psl\DNSSEC\Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+use function file_get_contents;
+use function json_decode;
+
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * Pins the version constraints of the split package on the PSL packages whose
+ * symbols it uses: a symbol introduced in a later release than the constraint's
+ * lower bound makes the split package fail at runtime in an installation that
+ * holds an older release of the dependency.
+ */
+final class ComposerRequirementsTest extends TestCase
+{
+    /**
+     * `DNS\Record\DNAMERecord` and `DNS\Record\RecordType::DNAME`, which the alias
+     * validation uses, first ship in dns 6.4.0.
+     */
+    public function testDnsRequirementCoversTheDnameRecord(): void
+    {
+        static::assertSame('^6.4', self::requirements()['php-standard-library/dns']);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function requirements(): array
+    {
+        /** @var array{require: array<string, string>} $manifest */
+        $manifest = json_decode(
+            (string) file_get_contents(__DIR__ . '/../../composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        return $manifest['require'];
+    }
+}
