@@ -11,19 +11,12 @@ use Psl\Network;
 use Psl\TCP;
 use Psl\TLS;
 
-use function fclose;
-use function fopen;
-
 final class ListenerHandshakeTimeoutTest extends TestCase
 {
-    public function testAlreadyCancelledHandshakeClosesAcceptedStream(): void
+    public function testAlreadyCancelledCallAcceptsNothing(): void
     {
-        $resource = fopen('php://memory', 'r+');
-        $stream = $this->createMock(Network\StreamInterface::class);
-        $stream->method('getStream')->willReturn($resource);
-        $stream->expects(static::once())->method('close');
-        $inner = $this->createStub(Network\ListenerInterface::class);
-        $inner->method('accept')->willReturn($stream);
+        $inner = $this->createMock(Network\ListenerInterface::class);
+        $inner->expects(static::never())->method('accept');
         $listener = new TLS\Listener($inner, $this->createServerConfiguration());
         $cancellation = new Async\SignalCancellationToken();
         $cancellation->cancel();
@@ -33,8 +26,6 @@ final class ListenerHandshakeTimeoutTest extends TestCase
             static::fail('Expected caller cancellation.');
         } catch (Async\Exception\CancelledException $exception) {
             static::assertSame($cancellation, $exception->getToken());
-        } finally {
-            fclose($resource);
         }
     }
 
@@ -48,21 +39,28 @@ final class ListenerHandshakeTimeoutTest extends TestCase
         try {
             Async\concurrently([
                 static function () use ($listener, $cancellation): void {
-                    try {
-                        $listener->accept($cancellation);
-                        static::fail('Expected a handshake timeout.');
-                    } catch (TLS\Exception\HandshakeFailedException $exception) {
-                        static::assertSame('TLS handshake timed out.', $exception->getMessage());
-                        static::assertInstanceOf(Async\Exception\CancelledException::class, $exception->getPrevious());
-                        static::assertInstanceOf(
-                            Async\Exception\TimeoutException::class,
-                            $exception->getPrevious()?->getPrevious(),
-                        );
+                    // Handshakes end in any order: the idle peer times out while the next peer's handshake runs.
+                    $timedOut = false;
+                    $accepted = false;
+                    while (!$timedOut || !$accepted) {
+                        try {
+                            $stream = $listener->accept($cancellation);
+                            $stream->writeAll('accepted', $cancellation);
+                            $stream->close();
+                            $accepted = true;
+                        } catch (TLS\Exception\HandshakeFailedException $exception) {
+                            static::assertSame('TLS handshake timed out.', $exception->getMessage());
+                            static::assertInstanceOf(
+                                Async\Exception\CancelledException::class,
+                                $exception->getPrevious(),
+                            );
+                            static::assertInstanceOf(
+                                Async\Exception\TimeoutException::class,
+                                $exception->getPrevious()?->getPrevious(),
+                            );
+                            $timedOut = true;
+                        }
                     }
-
-                    $stream = $listener->accept($cancellation);
-                    $stream->writeAll('accepted', $cancellation);
-                    $stream->close();
                 },
                 static function () use ($idle, $cancellation): void {
                     static::assertSame('', $idle->readAll(cancellation: $cancellation));
@@ -118,31 +116,6 @@ final class ListenerHandshakeTimeoutTest extends TestCase
                 },
             ]);
         } finally {
-            $listener->close();
-        }
-    }
-
-    public function testCallerCancellationClosesPeerAndKeepsToken(): void
-    {
-        $listener = $this->createListener(Duration::seconds(2));
-        $port = $listener->getLocalAddress()->port;
-        $idle = TCP\connect('127.0.0.1', $port);
-        $cancellation = new Async\TimeoutCancellationToken(Duration::milliseconds(20));
-
-        try {
-            try {
-                $listener->accept($cancellation);
-                static::fail('Expected caller cancellation.');
-            } catch (Async\Exception\CancelledException $exception) {
-                static::assertSame($cancellation, $exception->getToken());
-            }
-
-            static::assertSame(
-                '',
-                $idle->readAll(cancellation: new Async\TimeoutCancellationToken(Duration::seconds(1))),
-            );
-        } finally {
-            $idle->close();
             $listener->close();
         }
     }

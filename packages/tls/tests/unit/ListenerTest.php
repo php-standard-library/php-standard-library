@@ -117,6 +117,23 @@ final class ListenerTest extends TestCase
         ]);
     }
 
+    public function testRejectsAPendingHandshakeLimitBelowOne(): void
+    {
+        $tcpListener = TCP\listen('127.0.0.1', 0);
+
+        try {
+            new TLS\Listener($tcpListener, $this->createServerConfig(), maxPendingHandshakes: 0);
+            static::fail('Expected the limit to be rejected.');
+        } catch (Network\Exception\InvalidArgumentException $exception) {
+            static::assertSame(
+                'Expected $maxPendingHandshakes to be a positive integer, 0 given.',
+                $exception->getMessage(),
+            );
+        } finally {
+            $tcpListener->close();
+        }
+    }
+
     private function createServerConfig(): TLS\ServerConfiguration
     {
         $certFile = __DIR__ . '/../../fixture/certs/server.crt';
