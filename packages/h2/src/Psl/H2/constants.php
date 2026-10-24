@@ -151,6 +151,46 @@ const DEFAULT_MAX_CONCURRENT_STREAMS = 2_147_483_647;
 const DEFAULT_MAX_HEADER_LIST_SIZE = PHP_INT_MAX;
 
 /**
+ * The default limit on the size of a field block received from the peer, in octets, before HPACK decoding.
+ *
+ * A HEADERS or PUSH_PROMISE frame without END_HEADERS is followed by CONTINUATION frames, and the
+ * fragments of all of them are buffered until the block is complete, since a field block can only be
+ * decoded whole. A peer that never sets END_HEADERS would make the connection buffer without bound,
+ * so {@see Configuration::$maxHeaderBlockSize} closes the connection with PROTOCOL_ERROR once the
+ * fragments of one block would exceed this many bytes. A block that arrives whole, in one frame
+ * that carries END_HEADERS, is not buffered, and SETTINGS_MAX_FRAME_SIZE bounds it instead. The
+ * limit is a local one that is never advertised; 0 lifts it.
+ *
+ * Value: 65,536 octets (64 KiB), four frames of the default maximum frame size.
+ *
+ * @link https://datatracker.ietf.org/doc/html/rfc9113#section-10.5.1
+ *
+ * @api
+ */
+const DEFAULT_MAX_HEADER_BLOCK_SIZE = 65_536;
+
+/**
+ * The default limit on the size of a field section received from the peer, in octets, once decoded,
+ * when the local SETTINGS_MAX_HEADER_LIST_SIZE ({@see Setting::MaxHeaderListSize}) is not configured.
+ *
+ * HPACK lets one byte of a field block stand for a dynamic table entry of up to 4 KiB, so a field
+ * block within {@see DEFAULT_MAX_HEADER_BLOCK_SIZE} can still decode to a field section many times
+ * larger. The decoder measures each field as its name length plus its value length plus 32 octets,
+ * as RFC 9113 Section 6.5.2 defines, and fails the block with COMPRESSION_ERROR when the total
+ * exceeds the limit. Unlike a configured SETTINGS_MAX_HEADER_LIST_SIZE, this default is enforced
+ * without being advertised, which Section 6.5.2 permits; configure the setting to advertise a limit
+ * or, with {@see DEFAULT_MAX_HEADER_LIST_SIZE}, to lift it.
+ *
+ * Value: 65,536 octets (64 KiB).
+ *
+ * @link https://datatracker.ietf.org/doc/html/rfc9113#section-6.5.2
+ * @link https://datatracker.ietf.org/doc/html/rfc9113#section-10.5.1
+ *
+ * @api
+ */
+const DEFAULT_MAX_RECEIVED_HEADER_LIST_SIZE = 65_536;
+
+/**
  * The maximum flow-control window size, in octets.
  *
  * This is the largest value that a flow-control window can reach. A WINDOW_UPDATE frame

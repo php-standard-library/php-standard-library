@@ -23,13 +23,17 @@ final readonly class ClientConfiguration implements DefaultInterface
     /**
      * @param array<positive-int, non-negative-int> $settings Local settings overrides (setting ID => value).
      * @param null|RateLimiter $rateLimiter Optional rate limiter for incoming frames.
-     * @param int $maxHeaderBlockSize Maximum accumulated header block size in bytes (0 = unlimited).
+     * @param int<0, max> $maxHeaderBlockSize Maximum accumulated header block size in bytes before HPACK decoding,
+     *                                      {@see DEFAULT_MAX_HEADER_BLOCK_SIZE} (64 KiB) by default. Once the fragments of
+     *                                      one received field block would exceed it, the connection closes with
+     *                                      PROTOCOL_ERROR before buffering them; 0 lifts the limit, which lets a peer that
+     *                                      never ends a field block make the connection buffer without bound.
      * @param positive-int $writeBufferThreshold Buffered write data is flushed when it reaches this size in bytes.
      */
     public function __construct(
         public array $settings = [],
         public null|RateLimiter $rateLimiter = null,
-        public int $maxHeaderBlockSize = 0,
+        public int $maxHeaderBlockSize = namespace\DEFAULT_MAX_HEADER_BLOCK_SIZE,
         public int $writeBufferThreshold = 65_536,
     ) {}
 
@@ -60,7 +64,8 @@ final readonly class ClientConfiguration implements DefaultInterface
     /**
      * Return a new configuration with the given maximum header block size.
      *
-     * @param int<0, max> $maxHeaderBlockSize 0 for unlimited.
+     * @param int<0, max> $maxHeaderBlockSize The most bytes the fragments of one received field block may add up to,
+     *                                      {@see DEFAULT_MAX_HEADER_BLOCK_SIZE} by default; 0 for unlimited.
      */
     public function withMaxHeaderBlockSize(int $maxHeaderBlockSize): self
     {

@@ -9,6 +9,8 @@ use Psl\H2\RateLimiter;
 use Psl\H2\ServerConfiguration;
 use Psl\H2\Setting;
 
+use const Psl\H2\DEFAULT_MAX_HEADER_BLOCK_SIZE;
+
 final class ServerConfigurationTest extends TestCase
 {
     public function testDefaults(): void
@@ -17,7 +19,7 @@ final class ServerConfigurationTest extends TestCase
 
         static::assertSame([], $config->settings);
         static::assertNull($config->rateLimiter);
-        static::assertSame(0, $config->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $config->maxHeaderBlockSize);
         static::assertNull($config->maxReceiveWindowSize);
         static::assertSame(65_536, $config->writeBufferThreshold);
     }
@@ -30,7 +32,7 @@ final class ServerConfigurationTest extends TestCase
         static::assertSame([], $config->settings);
         static::assertSame([Setting::MaxConcurrentStreams->value => 100], $new->settings);
         static::assertNull($new->rateLimiter);
-        static::assertSame(0, $new->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $new->maxHeaderBlockSize);
         static::assertNull($new->maxReceiveWindowSize);
         static::assertSame(65_536, $new->writeBufferThreshold);
     }
@@ -60,7 +62,7 @@ final class ServerConfigurationTest extends TestCase
         $config = new ServerConfiguration();
         $new = $config->withMaxHeaderBlockSize(8192);
 
-        static::assertSame(0, $config->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $config->maxHeaderBlockSize);
         static::assertSame(8192, $new->maxHeaderBlockSize);
     }
 
@@ -114,7 +116,7 @@ final class ServerConfigurationTest extends TestCase
         $modified = $original->withMaxHeaderBlockSize(1024);
 
         static::assertNotSame($original, $modified);
-        static::assertSame(0, $original->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $original->maxHeaderBlockSize);
         static::assertSame(1024, $modified->maxHeaderBlockSize);
     }
 }

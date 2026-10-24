@@ -9,6 +9,8 @@ use Psl\H2\ClientConfiguration;
 use Psl\H2\RateLimiter;
 use Psl\H2\Setting;
 
+use const Psl\H2\DEFAULT_MAX_HEADER_BLOCK_SIZE;
+
 final class ClientConfigurationTest extends TestCase
 {
     public function testDefaults(): void
@@ -17,7 +19,7 @@ final class ClientConfigurationTest extends TestCase
 
         static::assertSame([], $config->settings);
         static::assertNull($config->rateLimiter);
-        static::assertSame(0, $config->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $config->maxHeaderBlockSize);
         static::assertSame(65_536, $config->writeBufferThreshold);
     }
 
@@ -29,7 +31,7 @@ final class ClientConfigurationTest extends TestCase
         static::assertSame([], $config->settings);
         static::assertSame([Setting::EnablePush->value => 0], $new->settings);
         static::assertNull($new->rateLimiter);
-        static::assertSame(0, $new->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $new->maxHeaderBlockSize);
         static::assertSame(65_536, $new->writeBufferThreshold);
     }
 
@@ -58,7 +60,7 @@ final class ClientConfigurationTest extends TestCase
         $config = new ClientConfiguration();
         $new = $config->withMaxHeaderBlockSize(8192);
 
-        static::assertSame(0, $config->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $config->maxHeaderBlockSize);
         static::assertSame(8192, $new->maxHeaderBlockSize);
     }
 
@@ -92,7 +94,7 @@ final class ClientConfigurationTest extends TestCase
         $modified = $original->withMaxHeaderBlockSize(1024);
 
         static::assertNotSame($original, $modified);
-        static::assertSame(0, $original->maxHeaderBlockSize);
+        static::assertSame(DEFAULT_MAX_HEADER_BLOCK_SIZE, $original->maxHeaderBlockSize);
         static::assertSame(1024, $modified->maxHeaderBlockSize);
     }
 }

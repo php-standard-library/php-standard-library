@@ -63,6 +63,8 @@ use const PHP_INT_MAX;
 use const Psl\H2\DEFAULT_HEADER_TABLE_SIZE;
 use const Psl\H2\DEFAULT_INITIAL_WINDOW_SIZE;
 use const Psl\H2\DEFAULT_MAX_FRAME_SIZE;
+use const Psl\H2\DEFAULT_MAX_HEADER_BLOCK_SIZE;
+use const Psl\H2\DEFAULT_MAX_RECEIVED_HEADER_LIST_SIZE;
 use const Psl\H2\MAX_FRAME_SIZE_UPPER_BOUND;
 use const Psl\H2\MAX_STREAM_ID;
 use const Psl\H2\MAX_WINDOW_SIZE;
@@ -205,13 +207,14 @@ final class StateMachine
      * @param bool $isClient Whether this endpoint acts as a client or server.
      * @param array<positive-int, non-negative-int> $localSettings Local settings overrides (setting ID => value).
      * @param null|RateLimiter $rateLimiter Optional rate limiter for incoming frames.
-     * @param int $maxHeaderBlockSize Maximum accumulated header block size in bytes (0 = unlimited).
+     * @param int<0, max> $maxHeaderBlockSize Maximum accumulated header block size in bytes before HPACK decoding,
+     *                                        {@see DEFAULT_MAX_HEADER_BLOCK_SIZE} by default; 0 for unlimited.
      */
     public function __construct(
         private readonly bool $isClient,
         array $localSettings = [],
         null|RateLimiter $rateLimiter = null,
-        int $maxHeaderBlockSize = 0,
+        int $maxHeaderBlockSize = DEFAULT_MAX_HEADER_BLOCK_SIZE,
         private readonly null|BDPEstimator $bdpEstimator = null,
     ) {
         $this->settings = new SettingsRegistry($localSettings);
@@ -240,7 +243,16 @@ final class StateMachine
             $this->hpackEncoder->resize($headerTableSize);
         }
 
-        $this->hpackDecoder = new Decoder(DEFAULT_HEADER_TABLE_SIZE, $maxHeaderListSize);
+        // The RFC's initial value of SETTINGS_MAX_HEADER_LIST_SIZE is unlimited, and a field block within the
+        // block size limit can still decode to a field section many times larger. A configured value is
+        // advertised and enforced as given; without one, the decoder enforces a bounded default that the
+        // preface does not advertise, which RFC 9113 Section 6.5.2 permits.
+        $this->hpackDecoder = new Decoder(
+            DEFAULT_HEADER_TABLE_SIZE,
+            isset($localSettings[Setting::MaxHeaderListSize->value])
+                ? $maxHeaderListSize
+                : DEFAULT_MAX_RECEIVED_HEADER_LIST_SIZE,
+        );
         $this->hpackDecoder->resize(max(DEFAULT_HEADER_TABLE_SIZE, $headerTableSize));
         $this->nextStreamIdentifier = $this->isClient ? 1 : 2;
     }

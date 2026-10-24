@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Psl\H2\Tests\Unit\Internal;
 
 use PHPUnit\Framework\TestCase;
+use Psl\H2\ErrorCode;
 use Psl\H2\Exception\ProtocolException;
 use Psl\H2\Internal\HeaderBlockAssembler;
 
 use function str_repeat;
+use function strlen;
+
+use const Psl\H2\DEFAULT_MAX_HEADER_BLOCK_SIZE;
 
 final class HeaderBlockAssemblerTest extends TestCase
 {
@@ -150,5 +154,57 @@ final class HeaderBlockAssemblerTest extends TestCase
         static::assertTrue($endStream);
         static::assertFalse($isPushPromise);
         static::assertSame(0, $promisedStreamId);
+    }
+
+    public function testDefaultLimitRefusesTheFragmentThatWouldExceedSixtyFourKibibytes(): void
+    {
+        $assembler = new HeaderBlockAssembler();
+        $assembler->startHeaders(1, str_repeat('a', DEFAULT_MAX_HEADER_BLOCK_SIZE), false);
+
+        try {
+            $assembler->append('b');
+            static::fail('Expected the default limit to refuse the fragment.');
+        } catch (ProtocolException $error) {
+            static::assertSame(
+                'HTTP/2 connection error: Header block size exceeds maximum of '
+                . DEFAULT_MAX_HEADER_BLOCK_SIZE
+                . ' bytes.',
+                $error->getMessage(),
+            );
+            static::assertSame(ErrorCode::ProtocolError, $error->errorCode);
+            static::assertFalse($assembler->isActive());
+        }
+    }
+
+    public function testZeroLiftsTheLimit(): void
+    {
+        $assembler = new HeaderBlockAssembler(0);
+        $assembler->startHeaders(1, str_repeat('a', DEFAULT_MAX_HEADER_BLOCK_SIZE), false);
+        $assembler->append(str_repeat('b', DEFAULT_MAX_HEADER_BLOCK_SIZE));
+
+        [$buffer] = $assembler->complete();
+
+        static::assertSame(2 * DEFAULT_MAX_HEADER_BLOCK_SIZE, strlen($buffer));
+    }
+
+    public function testARefusedFragmentIsNotBuffered(): void
+    {
+        $assembler = new HeaderBlockAssembler(10);
+        $assembler->startHeaders(1, 'short', false);
+
+        try {
+            $assembler->append('this-makes-it-too-long');
+            static::fail('Expected the limit to refuse the fragment.');
+        } catch (ProtocolException) {
+            static::assertFalse($assembler->isActive());
+        }
+
+        $assembler->startHeaders(3, 'next', true);
+        $assembler->append('block');
+
+        [$buffer, $endStream] = $assembler->complete();
+
+        static::assertSame('nextblock', $buffer);
+        static::assertTrue($endStream);
     }
 }

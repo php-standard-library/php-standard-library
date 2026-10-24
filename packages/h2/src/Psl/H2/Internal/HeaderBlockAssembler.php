@@ -8,8 +8,14 @@ use Psl\H2\Exception\ProtocolException;
 
 use function strlen;
 
+use const Psl\H2\DEFAULT_MAX_HEADER_BLOCK_SIZE;
+
 /**
  * Reassembles CONTINUATION frames into complete header blocks.
+ *
+ * The fragments of one block are buffered until END_HEADERS arrives. A fragment that would take the buffer past the
+ * size limit is refused before it is buffered, and the block is discarded, so the buffer never holds more than the
+ * limit.
  *
  * @internal
  */
@@ -31,10 +37,11 @@ final class HeaderBlockAssembler
     private int $promisedStreamId = 0;
 
     /**
-     * @param int $maxBufferSize Maximum accumulated header block size in bytes (0 = unlimited).
+     * @param int<0, max> $maxBufferSize Maximum accumulated header block size in bytes,
+     *                                   {@see DEFAULT_MAX_HEADER_BLOCK_SIZE} by default; 0 for unlimited.
      */
     public function __construct(
-        private readonly int $maxBufferSize = 0,
+        private readonly int $maxBufferSize = DEFAULT_MAX_HEADER_BLOCK_SIZE,
     ) {}
 
     /**
@@ -56,40 +63,40 @@ final class HeaderBlockAssembler
     /**
      * @param int<0, max> $streamId
      *
-     * @throws ProtocolException If the accumulated header block exceeds the maximum size.
+     * @throws ProtocolException If the fragment exceeds the maximum size; nothing is buffered then.
      */
     public function startHeaders(int $streamId, string $fragment, bool $endStream): void
     {
+        $this->reset();
+        $this->checkBufferSize($fragment);
         $this->streamId = $streamId;
         $this->buffer = $fragment;
         $this->endStream = $endStream;
-        $this->isPushPromise = false;
-        $this->promisedStreamId = 0;
-        $this->checkBufferSize();
     }
 
     /**
      * @param int<0, max> $streamId
      *
-     * @throws ProtocolException If the accumulated header block exceeds the maximum size.
+     * @throws ProtocolException If the fragment exceeds the maximum size; nothing is buffered then.
      */
     public function startPushPromise(int $streamId, int $promisedStreamId, string $fragment): void
     {
+        $this->reset();
+        $this->checkBufferSize($fragment);
         $this->streamId = $streamId;
         $this->buffer = $fragment;
-        $this->endStream = false;
         $this->isPushPromise = true;
         $this->promisedStreamId = $promisedStreamId;
-        $this->checkBufferSize();
     }
 
     /**
-     * @throws ProtocolException If the accumulated header block exceeds the maximum size.
+     * @throws ProtocolException If the accumulated header block would exceed the maximum size; the fragment is not
+     *                           buffered then, and the block being assembled is discarded.
      */
     public function append(string $fragment): void
     {
+        $this->checkBufferSize($fragment);
         $this->buffer .= $fragment;
-        $this->checkBufferSize();
     }
 
     /**
@@ -116,11 +123,13 @@ final class HeaderBlockAssembler
     }
 
     /**
-     * @throws ProtocolException If accumulated buffer exceeds the configured maximum.
+     * Refuse a fragment that would take the buffer past the configured maximum, before it is buffered.
+     *
+     * @throws ProtocolException If the buffer and the fragment together exceed the configured maximum.
      */
-    private function checkBufferSize(): void
+    private function checkBufferSize(string $fragment): void
     {
-        if ($this->maxBufferSize > 0 && strlen($this->buffer) > $this->maxBufferSize) {
+        if ($this->maxBufferSize > 0 && (strlen($this->buffer) + strlen($fragment)) > $this->maxBufferSize) {
             $this->reset();
 
             throw ProtocolException::forConnectionError(
