@@ -33,6 +33,8 @@ Filesystem\delete_file($tmp);
 
 Both `File\read()` and `File\write()` automatically acquire a lock (shared for reads, exclusive for writes) and release it when done.
 
+A path containing a NUL byte can never exist: opening it for reading throws `NotFoundException`, and opening it for writing throws `InvalidArgumentException`.
+
 ## Write Modes
 
 When opening a file for writing, you choose a `WriteMode` that controls how the file pointer is positioned and whether the file must already exist:
@@ -111,7 +113,7 @@ Filesystem\delete_file($datFile);
 
 ## File Locking
 
-File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected.
+File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected. Only `release()` reports a failure to release it, such as a handle that was closed first; a lock that is garbage collected does not throw.
 
 - **`LockType::Shared`** -- Multiple processes can hold a shared lock simultaneously. Use for reads.
 - **`LockType::Exclusive`** -- Only one process can hold an exclusive lock. Use for writes.

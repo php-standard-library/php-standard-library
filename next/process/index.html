@@ -136,6 +136,7 @@ $signal = $status-&gt;getTerminationSignal();
 IO\write_line('Termination signal: %s', $signal !== null ? $signal-&gt;name : 'none');
 </code></pre>
 <h3 id="environment-variables"><a href="#environment-variables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Environment Variables</h3>
+<p>The child process starts with a copy of the parent's environment. <code>withEnvironmentVariable()</code> and <code>withEnvironmentVariables()</code> add or override variables, <code>withoutEnvironmentVariable()</code> removes a variable even when it is inherited, and <code>withClearedEnvironment()</code> starts the child from an empty environment, so only variables set afterwards are passed to it. When PHP runs under the <code>cli</code> or <code>phpdbg</code> SAPI, a command that leaves the environment unchanged passes the parent's environment on as is. Otherwise the inherited variables are copied from <code>getenv()</code>, which does not list variables whose name contains a space, <code>.</code> or <code>[</code>. Under php-fpm and php-cgi, <code>getenv()</code> can also list the request's FastCGI parameters, such as the <code>fastcgi_param</code> values set by the web server and the <code>HTTP_*</code> request headers, so the child inherits those too; <code>withoutEnvironmentVariable()</code> and <code>withClearedEnvironment()</code> keep them from it.</p>
 <pre><code class="language-php">use Psl\IO;
 use Psl\Process\Command;
 

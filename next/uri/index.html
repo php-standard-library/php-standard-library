@@ -56,7 +56,11 @@ IO\write_line('%s', $uri-&gt;fragment ?? '&lt;unknown&gt;');
 
 // &quot;https://example.com:443/bar?q=1#frag&quot;
 IO\write_line('%s', $uri-&gt;toString());
+
+// Prefix a path segment that contains a colon with &quot;./&quot;.
+IO\write_line('%s', URI\parse('./:segment')-&gt;path); // &quot;./:segment&quot;
 </code></pre>
+<p>A relative path cannot contain a literal colon in its first segment. Add <code>./</code> before that segment, or encode the colon as <code>%3A</code>, as required by <a href="https://datatracker.ietf.org/doc/html/rfc3986#section-4.2">RFC 3986 Section 4.2</a>.</p>
 <p>Normalization is applied eagerly: scheme and host are lowercased, percent-encoding is normalized (unreserved characters decoded, hex digits uppercased), and dot segments (<code>/../</code>, <code>/./</code>) are removed.</p>
 <h2 id="reference-resolution"><a href="#reference-resolution" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reference Resolution</h2>
 <p>Resolve relative references against a base URI per RFC 3986 Section 5:</p>

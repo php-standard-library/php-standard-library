@@ -49,7 +49,7 @@ Filesystem\create_directory($dir);
 Filesystem\create_directory($dir, 0o755);
 IO\write_line('Directory created: %s', Filesystem\is_directory($dir) ? 'yes' : 'no');
 
-// Create a temporary file
+// Create a private temporary file without reusing an existing name.
 $tmp = Filesystem\create_temporary_file();
 IO\write_line('Temp file: %s', $tmp);
 
@@ -61,6 +61,8 @@ Filesystem\delete_file($tmp);
 Filesystem\delete_file($tmp2);
 Filesystem\delete_directory($base, recursive: true);
 ```
+
+`create_temporary_file()` creates a new file exclusively with permissions `0600`. If a name already exists, it tries another name without changing the existing file. It adds 16 random hexadecimal characters to the prefix to keep names short enough for Unix socket paths under macOS's temporary directory.
 
 ## Copying and Deleting
 
@@ -217,5 +219,7 @@ try {
     IO\write_line('Caught NotFileException: path exists but is not a file');
 }
 ```
+
+A path containing a NUL byte can never exist. Predicates such as `exists()` and `is_file()` return `false` for it, and `canonicalize()` returns `null`. Passing such a path where an existing node is expected, such as to `file_size()` or as the directory of `create_temporary_file()`, throws `NotFoundException`. Passing it as a node to create, such as the destination of `copy()` or the path given to `create_file()`, throws `InvalidArgumentException`.
 
 See [src/Psl/Filesystem/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/filesystem/src/Psl/Filesystem/) for the full API.

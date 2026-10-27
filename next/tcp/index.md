@@ -36,12 +36,18 @@ Async\concurrently([
 All TCP connectors implement `ConnectorInterface`, making them interchangeable and composable. The built-in connectors are:
 
 - **`Connector`** -- the default connector wrapping `TCP\connect()`.
-- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure.
+- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 - **`StaticConnector`** -- redirects all connections to a fixed host and port (useful for testing).
+
+### Connect failures
+
+`TCP\connect()` throws `Network\Exception\RuntimeException` when the connection cannot be made. With `ext-sockets` installed, its code is the operating system's error number, such as `ECONNREFUSED` for a refused connection; without the extension it is 0 for a connection that fails after the socket was created. The `network` package lists `ext-sockets` as a suggestion.
 
 ### SocketPool
 
 `SocketPool` reuses idle TCP connections. Checked-in connections stay alive for a configurable idle timeout before being closed.
+
+Closing the pool closes its idle connections. After that, `checkout()` throws `Network\Exception\AlreadyStoppedException`, as does a checkout whose connection was still being made, and a connection checked out before the pool closed is closed when it is checked in.
 
 ```php
 use Psl\Async;
@@ -358,7 +364,9 @@ $listener->close();
 
 ### Composite Listener
 
-`Network\CompositeListener` accepts connections from multiple listeners concurrently through a single `accept()` call. Each inner listener runs its own accept loop in a separate fiber, and connections are funneled through a shared channel. Closing the composite listener closes all inner listeners.
+`Network\CompositeListener` accepts connections from multiple listeners concurrently through a single `accept()` call. Each inner listener has at most one accept in flight, in its own fiber, and accepted connections are handed to `accept()` callers in completion order.
+
+If an inner listener fails to accept a connection (for example, when a TLS handshake fails), `accept()` rethrows that error and the composite listener keeps accepting from every listener. Inner listeners that have been stopped are skipped, and `accept()` throws `AlreadyStoppedException` once all of them are stopped. Cancelling the last waiting `accept()` call also cancels the in-flight inner accepts. Closing the composite listener cancels them too, makes every waiting `accept()` call throw `AlreadyStoppedException`, then closes the connections left in its backlog and all inner listeners. It attempts every one of those closes, even when one fails, and then throws the first failure. An error that a cancelled inner accept throws still reaches the next `accept()` call, unless it is that cancellation. Once the composite listener is closed, no call can receive one: an IO, Network or cancellation exception is then dropped, and anything else, such as an `Error`, reaches the event loop.
 
 ```php
 use Psl\Async;

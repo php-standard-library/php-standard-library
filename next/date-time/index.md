@@ -92,6 +92,8 @@ $parsed = DateTime\Duration::fromIso8601('PT1H45M');
 IO\write_line('Parsed: %s', $parsed->toString());
 ```
 
+`plusDays()`, `plusWeeks()`, `plusMonths()`, `plusYears()` (and their `minus*()` counterparts) are calendar arithmetic: they move the date and keep the wall-clock time, even across daylight saving time changes. In `Europe/London`, `2024-03-30 12:00` plus one day is `2024-03-31 12:00`, only 23 hours later. Add a `Duration` when you need an exact amount of elapsed time.
+
 ## Period
 
 `Period` represents a calendar-based period (years, months, days). Unlike `Duration`, a period's actual time length depends on context - a month can be 28-31 days, and a day can be 23-25 hours due to DST. Months automatically normalize into years, but days are never normalized:

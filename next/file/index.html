@@ -60,6 +60,7 @@ IO\write_line('After truncate: %s', File\read($tmp));
 Filesystem\delete_file($tmp);
 </code></pre>
 <p>Both <code>File\read()</code> and <code>File\write()</code> automatically acquire a lock (shared for reads, exclusive for writes) and release it when done.</p>
+<p>A path containing a NUL byte can never exist: opening it for reading throws <code>NotFoundException</code>, and opening it for writing throws <code>InvalidArgumentException</code>.</p>
 <h2 id="write-modes"><a href="#write-modes" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Write Modes</h2>
 <p>When opening a file for writing, you choose a <code>WriteMode</code> that controls how the file pointer is positioned and whether the file must already exist:</p>
 <table>
@@ -148,7 +149,7 @@ Filesystem\delete_file($outputFile);
 Filesystem\delete_file($datFile);
 </code></pre>
 <h2 id="file-locking"><a href="#file-locking" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>File Locking</h2>
-<p>File handles support advisory locking via <code>lock()</code> and <code>tryLock()</code>. The returned <code>Lock</code> object is released by calling <code>release()</code> or when it is garbage collected.</p>
+<p>File handles support advisory locking via <code>lock()</code> and <code>tryLock()</code>. The returned <code>Lock</code> object is released by calling <code>release()</code> or when it is garbage collected. Only <code>release()</code> reports a failure to release it, such as a handle that was closed first; a lock that is garbage collected does not throw.</p>
 <ul>
 <li><strong><code>LockType::Shared</code></strong> -- Multiple processes can hold a shared lock simultaneously. Use for reads.</li>
 <li><strong><code>LockType::Exclusive</code></strong> -- Only one process can hold an exclusive lock. Use for writes.</li>

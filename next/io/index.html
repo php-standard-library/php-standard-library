@@ -132,6 +132,8 @@ try {
     IO\write_line('Caught: %s', $e-&gt;getMessage());
 }
 </code></pre>
+<h3 id="end-of-data"><a href="#end-of-data" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>End of Data</h3>
+<p>When nothing is buffered and the end has not been seen yet, <code>Reader::reachedEndOfDataSource()</code> reads from the underlying handle to find out, waiting for data if necessary. Pass it a cancellation token to bound that wait. It returns <code>false</code> if that read brings no data without reaching the end, or fails with an I/O error, which a later read reports. <code>Reader::readAll()</code> uses the token it is given for that check too, and if it throws, whether it is cancelled, hits an I/O error or gets any other exception from the underlying handle, the bytes it already read stay buffered for the next call.</p>
 <h2 id="spool"><a href="#spool" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Spool</h2>
 <p><code>IO\spool()</code> creates a handle that writes to memory until a threshold is reached (default 2MB), then transparently spools to a temporary file on disk. This is useful when buffering data of unknown size without risking excessive memory usage.</p>
 <pre><code class="language-php">use Psl\IO;
@@ -260,7 +262,8 @@ $handle-&gt;reachedEndOfDataSource(); // true
 $inner-&gt;tryRead(); // ' world'
 </code></pre>
 <h3 id="boundedreadhandle"><a href="#boundedreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>BoundedReadHandle</h3>
-<p><code>BoundedReadHandle</code> reads up to N bytes from the underlying handle. Unlike <code>TruncatedReadHandle</code>, it peeks past the limit to check for overflow. If the underlying handle has more data, an <code>IO\Exception\RuntimeException</code> is thrown. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).</p>
+<p><code>BoundedReadHandle</code> reads up to N bytes from the underlying handle. Unlike <code>TruncatedReadHandle</code>, it peeks past the limit to check for overflow. If the underlying handle has more data, an <code>IO\Exception\LimitExceededException</code> is thrown; it is an <code>IO\Exception\RuntimeException</code> whose <code>$limit</code> property holds the limit. Once an overflow has been seen, every later read throws the same exception without reading from the underlying handle again. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).</p>
+<p>At the limit, <code>read()</code> waits for the next byte before deciding, and <code>tryRead()</code> returns an empty string while nothing is available yet. The handle reports EOF only when the underlying handle does, so bytes that arrive later still count as overflow.</p>
 <pre><code class="language-php">use Psl\IO;
 
 // Enforce a maximum of 5 bytes -- throw if the source has more
@@ -275,8 +278,16 @@ $handle-&gt;read(5); // 'hello'
 
 try {
     $handle-&gt;read(); // throws -- underlying handle has more data
-} catch (IO\Exception\RuntimeException $e) {
-    $e-&gt;getMessage(); // 'Response body exceeded the configured limit of 5 bytes.'
+} catch (IO\Exception\LimitExceededException $e) {
+    $e-&gt;getMessage(); // 'Data exceeded the configured limit of 5 bytes.'
+    $e-&gt;limit; // 5
+}
+
+// The overflow is latched: later reads throw it again without reading any further
+try {
+    $handle-&gt;read();
+} catch (IO\Exception\LimitExceededException $e) {
+    $e-&gt;limit; // 5
 }
 </code></pre>
 <h3 id="fixedlengthreadhandle"><a href="#fixedlengthreadhandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>FixedLengthReadHandle</h3>
@@ -315,7 +326,7 @@ $writer-&gt;seek(0);
 $writer-&gt;readAll(); // 'outgoing data'
 </code></pre>
 <h3 id="teewritehandle"><a href="#teewritehandle" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TeeWriteHandle</h3>
-<p><code>TeeWriteHandle</code> writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements <code>BufferedWriteHandleInterface</code> -- call <code>flush()</code> to explicitly drain any pending data to the second handle. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.</p>
+<p><code>TeeWriteHandle</code> writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements <code>BufferedWriteHandleInterface</code> -- call <code>flush()</code> to explicitly drain any pending data to the second handle. If a write to the second handle fails, the bytes it has not reported accepting stay pending, and a retried <code>flush()</code> writes only those. A write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a <code>flush()</code> retried after a timeout on such a handle can repeat those bytes. Writes made concurrently from several fibers never lose or repeat bytes, but they are not serialized: when the second handle takes one write's bytes in several parts, another write's bytes can come between them, and the two handles then hold the bytes in different orders. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.</p>
 <pre><code class="language-php">use Psl\IO;
 
 // Write to two handles simultaneously -- useful for logging, hashing, or mirroring

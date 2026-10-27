@@ -75,7 +75,7 @@ Filesystem\create_directory($dir);
 Filesystem\create_directory($dir, 0o755);
 IO\write_line('Directory created: %s', Filesystem\is_directory($dir) ? 'yes' : 'no');
 
-// Create a temporary file
+// Create a private temporary file without reusing an existing name.
 $tmp = Filesystem\create_temporary_file();
 IO\write_line('Temp file: %s', $tmp);
 
@@ -87,6 +87,7 @@ Filesystem\delete_file($tmp);
 Filesystem\delete_file($tmp2);
 Filesystem\delete_directory($base, recursive: true);
 </code></pre>
+<p><code>create_temporary_file()</code> creates a new file exclusively with permissions <code>0600</code>. If a name already exists, it tries another name without changing the existing file. It adds 16 random hexadecimal characters to the prefix to keep names short enough for Unix socket paths under macOS's temporary directory.</p>
 <h2 id="copying-and-deleting"><a href="#copying-and-deleting" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Copying and Deleting</h2>
 <pre><code class="language-php">use Psl\File;
 use Psl\Filesystem;
@@ -224,6 +225,7 @@ try {
     IO\write_line('Caught NotFileException: path exists but is not a file');
 }
 </code></pre>
+<p>A path containing a NUL byte can never exist. Predicates such as <code>exists()</code> and <code>is_file()</code> return <code>false</code> for it, and <code>canonicalize()</code> returns <code>null</code>. Passing such a path where an existing node is expected, such as to <code>file_size()</code> or as the directory of <code>create_temporary_file()</code>, throws <code>NotFoundException</code>. Passing it as a node to create, such as the destination of <code>copy()</code> or the path given to <code>create_file()</code>, throws <code>InvalidArgumentException</code>.</p>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/filesystem/src/Psl/Filesystem/">src/Psl/Filesystem/</a> for the full API.</p>
 </article></main>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">

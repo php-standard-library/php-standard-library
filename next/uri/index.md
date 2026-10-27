@@ -27,7 +27,12 @@ IO\write_line('%s', $uri->fragment ?? '<unknown>');
 
 // "https://example.com:443/bar?q=1#frag"
 IO\write_line('%s', $uri->toString());
+
+// Prefix a path segment that contains a colon with "./".
+IO\write_line('%s', URI\parse('./:segment')->path); // "./:segment"
 ```
+
+A relative path cannot contain a literal colon in its first segment. Add `./` before that segment, or encode the colon as `%3A`, as required by [RFC 3986 Section 4.2](https://datatracker.ietf.org/doc/html/rfc3986#section-4.2).
 
 Normalization is applied eagerly: scheme and host are lowercased, percent-encoding is normalized (unreserved characters decoded, hex digits uppercased), and dot segments (`/../`, `/./`) are removed.
 

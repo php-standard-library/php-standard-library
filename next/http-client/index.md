@@ -54,6 +54,8 @@ $tx->response->body?->readAll();
 
 ## Concurrent Requests
 
+An HTTP/2 stream error fails only that request. Other requests on the same connection keep running, and the client can reuse the session.
+
 Use `Async\concurrently()` to send multiple requests in parallel over the same client. HTTP/2 connections are automatically multiplexed.
 
 ```php
@@ -61,6 +63,9 @@ use Psl\Async;
 use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
+
+// HTTP/2 queues requests at the peer limit until an active stream closes.
+// Cancellation interrupts these waits; close an unread body to cancel its stream.
 
 $client = new Client\Client();
 
@@ -87,11 +92,17 @@ $transactions['posts']->response->body?->readAll();
 
 `RedirectClient` wraps any client and automatically follows 3xx redirects with credential stripping on cross-origin hops and method rewriting per RFC 9110.
 
+Redirects that preserve the request body, including 307 and 308, resend it. A seekable body is restored to its original position before each resend. A non-seekable body is resent only if it was never read, as when an `Expect: 100-continue` upload is pre-empted by the redirect; once read, it throws `Exception\RequestException`. A failure reading the body's position is also reported as `Exception\RequestException`.
+
+Location values follow RFC 3986 resolution. A URL inside a query or fragment does not make the reference absolute. A scheme without an authority, such as `https:login`, is rejected as an invalid URL. Only `http` and `https` targets are followed; a redirect to any other scheme, such as `ftp://`, throws `Exception\ProtocolException`.
+
 ```php
 use Psl\HTTP\Client;
 use Psl\HTTP\Message;
+use Psl\IO;
 use Psl\URL;
 
+// Location values such as /login?next=https://x resolve against the current URL.
 $client = new Client\RedirectClient(new Client\Client(), maxRedirects: 5, autoReferrer: true);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://httpbin.org/redirect/3'));
@@ -99,11 +110,29 @@ $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https
 $tx = $client->send($request);
 
 $tx->response->status;
+
+// A seekable body lets RedirectClient resend it after a 307 or 308 response.
+$upload = new Message\Request(
+    method: Message\METHOD_POST,
+    url: URL\parse('https://httpbin.org/redirect-to?url=/post&status_code=307'),
+    body: new IO\MemoryHandle('payload'),
+);
+
+$client->send($upload);
+
+// 301 and 302 preserve PUT and its body; only POST changes to GET.
+$client->send(new Message\Request(
+    method: Message\METHOD_PUT,
+    url: URL\parse('https://httpbin.org/redirect-to?url=/put&status_code=302'),
+    body: new IO\MemoryHandle('payload'),
+));
 ```
+
+For 301 and 302, only POST changes to GET. Other methods keep their body and method. For 303, all methods except GET and HEAD change to GET. A body that survives a redirect must be seekable so the client can return to its original position.
 
 ## Retries
 
-`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff.
+`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 
 ```php
 use Psl\DateTime\Duration;
@@ -138,12 +167,14 @@ use Psl\URL;
 
 $configuration = new Client\ClientConfiguration(
     maxResponseHeaderSize: 16_384,
+    // HTTP/2 enforces this limit as DATA arrives, even before the body is read.
     maxResponseBodySize: 50_000_000,
     baseUrl: URL\parse('https://api.example.com/v2'),
     tlsConfiguration: new TLS\ClientConfiguration(minimumVersion: TLS\Version::Tls12),
     protocolVersions: [ProtocolVersion::V20, ProtocolVersion::V11],
 );
 
+// The pool keeps connections with different TLS or proxy settings separate.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: null, requestTarget: '/users');
@@ -185,12 +216,16 @@ use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
 
+// The preset also blocks shared, reserved, documentation, multicast, translation,
+// 6to4, Teredo, discard-only, and deprecated site-local ranges. Unix sockets have
+// no peer IP and do not undergo these checks. Behind a proxy the check sees the proxy.
 $client = new Client\Client(middleware: [Client\Middleware\DeniedDestinationsMiddleware::forPrivateNetworkRanges()]);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));
 $tx = $client->send($request);
 
-$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://169.254.169.254/metadata'));
+// IPv4-mapped IPv6 receives the same checks as its IPv4 address.
+$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://[::ffff:169.254.169.254]/metadata'));
 $tx = $client->send($request);
 ```
 
@@ -249,6 +284,7 @@ $configuration = new Client\ClientConfiguration(
     ),
 );
 
+// CONNECT leaves all bytes after the proxy headers for the tunnel.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));
@@ -257,7 +293,11 @@ $tx = $client->send($request);
 $tx->response->status;
 ```
 
+CONNECT reads stop at the end of the proxy headers, leaving any following tunnel bytes on the stream. The CONNECT status code must be exactly three digits followed by a space or the line end, so a value such as `2000` is rejected rather than read as `200`.
+
 ## HTTP/2 over Plaintext (h2c)
+
+For HTTP/2 requests, the client drops `connection`, `keep-alive`, `proxy-connection`, `transfer-encoding`, `upgrade`, and each field named in `Connection`. It maps the host to `:authority` and keeps `te` only when its value is `trailers` (case-insensitive). The same filter applies to request trailers. Invalid initial field values fail the request before its HEADERS are sent and leave the session usable. Invalid trailers reset only their stream, so other requests can still use the session.
 
 For servers that support HTTP/2 without TLS, set `protocolVersions` to only `ProtocolVersion::V20`. The client uses prior-knowledge mode per RFC 9113 Section 3.4 - it sends the HTTP/2 connection preface directly on the TCP connection, skipping TLS and ALPN negotiation entirely.
 
@@ -270,6 +310,10 @@ $client = new Client\Client(
     configuration: new Client\ClientConfiguration(protocolVersions: [Message\ProtocolVersion::V20]),
 );
 
+// A failed exchange is retried at most once, and only if the body is absent or rewinds.
+// REFUSED_STREAM or a GOAWAY above the stream retries any method (provably unprocessed);
+// a connection-level failure before any response retries GET/HEAD/OPTIONS/TRACE or an
+// Idempotency-Key request.
 $tx = $client->send(new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://localhost:8080/')));
 
 $tx->response->protocolVersion; // ProtocolVersion::V20
@@ -427,7 +471,8 @@ $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https
 $tx = $client->send($request, new Client\SendConfiguration(onInformationalResponse: static function (Message\Response $response): void {
     // This fires after the client-level callback for each 1xx response
     if ($response->status === 100) {
-        // Server acknowledged Expect: 100-continue, body will be sent
+        // HTTP/1 limits each exchange to 16 informational responses.
+        // Send the body after 100 Continue, or after a one-second wait.
     }
 }));
 
@@ -472,6 +517,7 @@ The following fields are overridable per-request:
 | `socksConfiguration` | No (client-only) |
 | `unixSocket` | No (client-only) |
 | `h2ClientConfiguration` | No (client-only) |
+| `expectContinueTimeout` | No (client-only) |
 
 > The `onInformationalResponse` callback receives special treatment: when both the client and send configuration define one, they are composed into a single callback that invokes the client-level callback first, then the per-request callback.
 
@@ -558,6 +604,8 @@ $tx = $client->send(new Message\Request(method: Message\METHOD_GET, url: URL\par
 $tx->response->status;
 ```
 
+`DeniedDestinationsMiddleware::forPrivateNetworkRanges()` also blocks current-network, shared, reserved, benchmarking, documentation (IPv4 TEST-NET-1/2/3 and IPv6 2001:db8::/32, 3fff::/20), multicast, IPv6 translation and 6to4, Teredo, discard-only, IPv4-compatible, and deprecated site-local ranges. IPv4-mapped IPv6 addresses use the same checks as IPv4, including exact deny-list entries. Bracketed IPv6 peer addresses are accepted. Unix sockets have no peer IP and skip these checks. The check inspects the resolved peer address, so behind an HTTP or SOCKS proxy it sees the proxy's address, not the ultimate target.
+
 ## HTTP/1.0 Mode
 
 Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. Connection: close is implicit per RFC 1945, so each request uses a separate TCP connection. Keep-alive and chunked transfer encoding are not available. Trailers are not supported.
@@ -587,6 +635,12 @@ $tx->response->body?->readAll();
 
 Request trailers are sent via `Request::$trailers`, an `Awaitable<FieldMap>` that resolves after the body. Response trailers are available via `Response::$trailers`, which resolves after the response body is fully consumed.
 
+`Expect: 100-continue` waits for an interim response before sending the body, up to `ClientConfiguration::$expectContinueTimeout` (one second by default). The client accepts HTTP/1.0 and HTTP/1.1 interim responses, reads all their fields, and sends the body once. A final response received within the wait suppresses the body and disables connection reuse.
+
+HTTP/1 responses reject malformed Content-Length, whitespace before a field colon, obsolete folded fields, unsupported protocol upgrades, and a bare CR, LF or NUL in a header or trailer value. At most 16 informational responses are accepted per exchange. Chunk size lines, extensions, and total trailers use `maxResponseHeaderSize`; CONNECT status lines and total headers each have an 8192-byte limit. I/O errors while reading a close-delimited body propagate to the caller. Every `Connection` field is read, so a `close` token in any of them ends reuse. A connection cannot be reused when a response carries both Transfer-Encoding and Content-Length, or when an HTTP/1.0 response used Transfer-Encoding.
+
+HTTP/1 requests reject, with `RequestException`, a method that is not a token, a request target containing spaces, tabs, control bytes or non-ASCII, a field name that is not a token, a field value with control bytes other than HTAB, and more than one Host field. Explicit `Transfer-Encoding: chunked` uses chunk framing. A `Content-Length` must match the bytes read from the body. HTTP/1.0 never gets chunked framing added: a body there must declare a Content-Length, and Transfer-Encoding and trailers are rejected. Trailers also require chunked framing under HTTP/1.1, so they are rejected alongside a Content-Length. The same method, target and Content-Length checks run on the HTTP/2 path, and HTTP/2 field names and values are validated as they are encoded, so a request cannot smuggle framing through an HTTP/2-to-HTTP/1 downgrade. These checks also apply to `Expect: 100-continue`.
+
 Trailers require chunked transfer encoding (HTTP/1.1) or HTTP/2 DATA frames. They are not available with HTTP/1.0. Declare expected trailer field names using the `Trailer` header.
 
 ```php
@@ -599,6 +653,7 @@ use Psl\URL;
 $client = new Client\Client();
 
 // Sending request trailers using an Awaitable<FieldMap>.
+// Invalid trailer names and CR/LF in fields throw RequestException in HTTP/1.
 // Trailers are sent after the body with chunked transfer encoding (H1) or after DATA frames (H2).
 $deferred = new Async\Deferred();
 $request = new Message\Request(
@@ -631,9 +686,19 @@ if ($tx->response->trailers !== null) {
 
 The default `PooledConnector` manages connection reuse across requests:
 
+Pool entries also require matching SNI hosts, TLS settings, HTTP and SOCKS proxy settings, Unix socket paths, resolved HTTP versions, and H2 settings. Requests with different transport or security settings cannot share a connection. Unix H2 sessions reuse connections only within the same pool entry.
+
 - **HTTP/1.x**: Idle connections are pooled per origin (scheme + host + port) with LIFO checkout. When a request completes and the body is fully consumed, the underlying TCP/TLS stream is returned to the pool. A global cap of 256 idle connections and a per-host cap of 32 prevent unbounded memory growth.
 - **HTTP/2**: A single multiplexed connection per origin is shared across concurrent requests. Each request opens one HTTP/2 stream on the shared connection. If the connection is closed (GOAWAY frame or connection error), it is removed and a new connection is established on the next request.
 - **Connection coalescing**: When multiple fibers concurrently request connections to the same HTTPS origin, the first fiber performs the TLS handshake. If HTTP/2 is negotiated, waiting fibers reuse the session instead of opening redundant connections. If HTTP/1.1 is negotiated, waiting fibers establish their own connections.
+
+HTTP/2 retries a failed exchange at most once, and only when the body is absent or rewinds to its original position. Two cases qualify. First, when the peer proves it did not process the request: REFUSED_STREAM, a stream above GOAWAY's last-stream-id, or no HEADERS written yet. Any method, including POST, retries then (RFC 9113 Section 8.7). Second, when the request is replayable, meaning GET, HEAD, OPTIONS or TRACE or an `Idempotency-Key` header, and the session failed at the connection level before any response headers arrived, such as a closed connection, an I/O error, or a GOAWAY followed by close (RFC 9110 Section 9.2.2, matching Go `net/http`). A stream reset with a code other than REFUSED_STREAM, and any failure after response headers arrive, never replay.
+
+HTTP/2 limits concurrent outgoing streams to the smaller of the client's `maxConcurrentStreams` and the peer's SETTINGS_MAX_CONCURRENT_STREAMS. The client's own value applies from the first request; the peer's lowers it once received. A stream holds its slot until it closes, including while its response body is still arriving.
+
+HTTP/2 checks `maxResponseBodySize` as DATA frames arrive and cancels a stream that exceeds it, even if its body is unread. The same limit bounds each stream's buffer, and a value of `0` means unlimited, as for HTTP/1. Flow-control windows still update on receipt because the h2 API cannot defer updates until reads. A `:status` that is not three digits in 100-999 is a stream error, and at most 16 interim (1xx) responses are accepted per stream, as for HTTP/1.
+
+Cancellation interrupts stream-slot waits and uploads, including stalled flow-control windows. Cancelling a request or closing its response body early sends RST_STREAM(CANCEL) and frees its stream slot. A request waiting for a pooled connection can cancel its own wait without cancelling the shared connection attempt.
 
 ## Pool Release and Finalize
 
@@ -664,6 +729,7 @@ try {
 } catch (Client\Exception\RequestException $e) {
     IO\write_line('Invalid request: %s', $e->getMessage());
 } catch (Client\Exception\ProtocolException $e) {
+    // HTTP/1 status codes must have exactly three digits in the range 100-999.
     IO\write_line('Bad response: %s', $e->getMessage());
 } catch (Client\Exception\TooManyRedirectsException $e) {
     IO\write_line('Redirect loop: %s', $e->getMessage());
@@ -675,6 +741,8 @@ try {
     IO\write_line('Request cancelled');
 }
 ```
+
+HTTP/1 status codes must contain exactly three digits and fall within 100-999; codes 600-999 remain accepted.
 
 ## Exception Hierarchy
 
@@ -711,6 +779,6 @@ try {
 | RFC 8297 | 103 Early Hints informational responses |
 | RFC 3986 | URI resolution for base URL and redirect Location headers |
 | RFC 1928 | SOCKS5 proxy protocol |
-| RFC 7231 | Historical redirect method rewriting (301/302 to GET) |
+| RFC 9110 | Redirect method rewriting (301/302 POST to GET, 303 to GET except HEAD) |
 
 See [src/Psl/HTTP/Client/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/http-message/src/Psl/HTTP/Client/) for the full API.

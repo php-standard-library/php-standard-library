@@ -63,11 +63,14 @@ Async\concurrently([
 <p>All TCP connectors implement <code>ConnectorInterface</code>, making them interchangeable and composable. The built-in connectors are:</p>
 <ul>
 <li><strong><code>Connector</code></strong> -- the default connector wrapping <code>TCP\connect()</code>.</li>
-<li><strong><code>RetryConnector</code></strong> -- wraps any connector with exponential backoff retry on failure.</li>
+<li><strong><code>RetryConnector</code></strong> -- wraps any connector with exponential backoff retry on failure. Failures implementing <code>Network\Exception\NonRetryableExceptionInterface</code>, such as a rejected TLS certificate (<code>TLS\Exception\PeerVerificationException</code>), are rethrown at once.</li>
 <li><strong><code>StaticConnector</code></strong> -- redirects all connections to a fixed host and port (useful for testing).</li>
 </ul>
+<h3 id="connect-failures"><a href="#connect-failures" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Connect failures</h3>
+<p><code>TCP\connect()</code> throws <code>Network\Exception\RuntimeException</code> when the connection cannot be made. With <code>ext-sockets</code> installed, its code is the operating system's error number, such as <code>ECONNREFUSED</code> for a refused connection; without the extension it is 0 for a connection that fails after the socket was created. The <code>network</code> package lists <code>ext-sockets</code> as a suggestion.</p>
 <h3 id="socketpool"><a href="#socketpool" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SocketPool</h3>
 <p><code>SocketPool</code> reuses idle TCP connections. Checked-in connections stay alive for a configurable idle timeout before being closed.</p>
+<p>Closing the pool closes its idle connections. After that, <code>checkout()</code> throws <code>Network\Exception\AlreadyStoppedException</code>, as does a checkout whose connection was still being made, and a connection checked out before the pool closed is closed when it is checked in.</p>
 <pre><code class="language-php">use Psl\Async;
 use Psl\TCP;
 
@@ -350,7 +353,8 @@ while (true) {
 $listener-&gt;close();
 </code></pre>
 <h3 id="composite-listener"><a href="#composite-listener" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Composite Listener</h3>
-<p><code>Network\CompositeListener</code> accepts connections from multiple listeners concurrently through a single <code>accept()</code> call. Each inner listener runs its own accept loop in a separate fiber, and connections are funneled through a shared channel. Closing the composite listener closes all inner listeners.</p>
+<p><code>Network\CompositeListener</code> accepts connections from multiple listeners concurrently through a single <code>accept()</code> call. Each inner listener has at most one accept in flight, in its own fiber, and accepted connections are handed to <code>accept()</code> callers in completion order.</p>
+<p>If an inner listener fails to accept a connection (for example, when a TLS handshake fails), <code>accept()</code> rethrows that error and the composite listener keeps accepting from every listener. Inner listeners that have been stopped are skipped, and <code>accept()</code> throws <code>AlreadyStoppedException</code> once all of them are stopped. Cancelling the last waiting <code>accept()</code> call also cancels the in-flight inner accepts. Closing the composite listener cancels them too, makes every waiting <code>accept()</code> call throw <code>AlreadyStoppedException</code>, then closes the connections left in its backlog and all inner listeners. It attempts every one of those closes, even when one fails, and then throws the first failure. An error that a cancelled inner accept throws still reaches the next <code>accept()</code> call, unless it is that cancellation. Once the composite listener is closed, no call can receive one: an IO, Network or cancellation exception is then dropped, and anything else, such as an <code>Error</code>, reaches the event loop.</p>
 <pre><code class="language-php">use Psl\Async;
 use Psl\IO;
 use Psl\Network;

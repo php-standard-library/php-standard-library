@@ -64,6 +64,7 @@ use Psl\IO;
 $cwd = Env\current_dir();
 IO\write_line('Current directory: %s', $cwd);
 </code></pre>
+<p>A directory containing the NUL character is rejected with an <code>Env\Exception\RuntimeException</code>, as is any other directory that cannot be entered.</p>
 <h3 id="system-paths"><a href="#system-paths" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>System Paths</h3>
 <pre><code class="language-php">use Psl\Env;
 use Psl\IO;

@@ -41,6 +41,8 @@ $cwd = Env\current_dir();
 IO\write_line('Current directory: %s', $cwd);
 ```
 
+A directory containing the NUL character is rejected with an `Env\Exception\RuntimeException`, as is any other directory that cannot be entered.
+
 ### System Paths
 
 ```php

@@ -37,7 +37,7 @@
 <p>It provides the abstraction layer that protocol-specific components build on top of, ensuring a consistent API across transport types.</p>
 <h2 id="core-concepts"><a href="#core-concepts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Core Concepts</h2>
 <h3 id="address"><a href="#address" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Address</h3>
-<p><code>Address</code> is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port.</p>
+<p><code>Address</code> is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port. IPv6 hosts have no brackets in <code>host</code>; <code>toString()</code> adds them around the host. Both <code>::1</code> and <code>[::1]</code> inputs produce the same address.</p>
 <pre><code class="language-php">use Psl\Network\Address;
 
 $tcp = Address::tcp('127.0.0.1', 8080);
@@ -45,6 +45,10 @@ $udp = Address::udp('0.0.0.0', 9999);
 $unix = Address::unix('/tmp/my-app.sock');
 
 echo $tcp-&gt;toString(); // &quot;tcp://127.0.0.1:8080&quot;
+
+$ipv6 = Address::tcp('::1', 8080);
+echo $ipv6-&gt;host; // &quot;::1&quot;
+echo $ipv6-&gt;toString(); // &quot;tcp://[::1]:8080&quot;
 </code></pre>
 <h3 id="streaminterface"><a href="#streaminterface" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>StreamInterface</h3>
 <p><code>StreamInterface</code> is the core type for connected network streams (TCP, Unix, TLS). It is a bidirectional stream that supports reading, writing, peeking, and shutting down the write side of a connection.</p>

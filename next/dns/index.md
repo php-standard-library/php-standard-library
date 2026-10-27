@@ -1,6 +1,6 @@
 # DNS
 
-The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. All resolvers are non-blocking and composable via the decorator pattern.
+The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. Resolvers can wrap one another to combine their features. Queries use non-blocking I/O; resolving a nameserver hostname uses a blocking system lookup.
 
 ## Basic Usage
 
@@ -46,15 +46,24 @@ $resolver = new DNS\SystemResolver(
 
 Resolvers can be composed for different strategies: direct UDP/TCP, fallback on truncation, racing multiple nameservers, DNS-over-TLS, or DNS-over-HTTPS.
 
+`FallbackResolver` tries the next resolver after a transport or protocol failure, SERVFAIL, or REFUSED. It returns NXDOMAIN at once because the response answers the query. It returns other response codes, including FORMERR, and propagates invalid input and cancellation. Use `SplitHorizonResolver` to route static names separately from public DNS.
+
+`UDPResolver` supports IPv4 and IPv6 nameserver addresses and hostnames with IPv4 addresses. It resolves each hostname once per query through the system resolver, then uses that address to send the query and check the reply source. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
+
+`TCPResolver` also checks the response question and closes the connection if the name, type, or class does not match.
+
 ```php
 use Psl\DNS;
 use Psl\TCP;
 use Psl\TLS;
 
-// UDP resolver (standard DNS, port 53)
+// UDP rejects a wrong ID or question, so fallback can try TCP.
 $udp = new DNS\UDPResolver('8.8.8.8');
 
-// TCP resolver with connection pooling
+// Hostnames use a blocking system IPv4 lookup once per query.
+$localUdp = new DNS\UDPResolver('localhost');
+
+// TCP pools connections and rejects replies with a different question.
 $tcp = new DNS\TCPResolver('8.8.8.8');
 
 // DNS-over-TLS (port 853)
@@ -67,7 +76,8 @@ $dot = new DNS\TCPResolver(
 // DNS-over-HTTPS (RFC 8484)
 $doh = new DNS\HTTPSResolver('https://1.1.1.1/dns-query');
 
-// UDP with automatic TCP fallback on truncated responses
+// Retry TCP after truncation, transport errors, SERVFAIL, or REFUSED.
+// NXDOMAIN ends the query without a TCP retry.
 $fallback = new DNS\FallbackResolver([$udp, $tcp]);
 
 // Race multiple nameservers, return the fastest response
@@ -79,7 +89,7 @@ $racing = new DNS\RacingResolver([
 
 ## Record Types
 
-Over 20 DNS record types are supported. Responses provide typed access via `getAnswerRecords()` and `getFirstAnswerRecord()`.
+Over 20 DNS record types are supported. Responses provide typed access via `getAnswerRecords()` and `getFirstAnswerRecord()`. Response codes include `YXRRSET`, `NXRRSET`, and `BADCOOKIE`. Unknown codes raise `ProtocolException`.
 
 ```php
 use Psl\DNS;
@@ -116,19 +126,28 @@ foreach ($ptr->getAnswerRecords(Record\PTRRecord::class) as $record) {
 
 ## Caching
 
-`CachedResolver` wraps any resolver with TTL-aware caching. Cache TTL is derived from the minimum record TTL in each response.
+`CachedResolver` wraps any resolver with TTL-aware caching. Positive answers use the lowest answer TTL. NXDOMAIN and NODATA responses require an SOA record and use the lower of its TTL and SOA MINIMUM, as defined by RFC 2308. CNAME records can shorten that TTL. Responses with a zero TTL and negative responses without an SOA record are not cached.
+
+Cached records carry only their remaining TTL, capped by the response cache lifetime. This also applies to authority and additional records; OPT flags do not age.
+
+SERVFAIL, REFUSED, DNS runtime errors, and timeouts are cached for five seconds by default, per [RFC 9520 section 3.2](https://www.rfc-editor.org/rfc/rfc9520.html#section-3.2). The optional `failureTtl` constructor argument accepts 1..300 seconds. Cache hits return the same response code or throw the cached exception. Caller cancellation, including a caller deadline, is not cached; a caller deadline does not prove that resolution has failed. Put this cache outside fallback or racing resolvers so they can try all servers before it stores a failure.
+
+Cookies and padding do not change the cache key. Other EDNS options, including Client Subnet, keep separate cache entries.
 
 ```php
 use Psl\Cache;
 use Psl\DNS;
 
 // Wrap any resolver with caching
-$resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStore());
+$resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStore(), failureTtl: 5);
 
 // First query hits the network
 $response = $resolver->query('example.com', DNS\Record\RecordType::A);
 
-// Second query returns from cache (TTL-aware)
+// Cached records carry their remaining TTL.
+// A positive TTL lets the second query use the cache.
+// SERVFAIL, REFUSED, DNS runtime errors and timeouts use the five-second failure TTL.
+// Zero-TTL answers require a new query.
 $cached = $resolver->query('example.com', DNS\Record\RecordType::A);
 ```
 
@@ -200,7 +219,9 @@ $addresses = $hosts->lookup('localhost');
 
 ## EDNS0 Options
 
-Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID.
+Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID. `ECSOption` rejects source and scope prefixes outside 0..32 for IPv4 or 0..128 for IPv6 when encoding.
+
+`UDPResolver` and `FallbackResolver` return `BadCookie` to the caller. They do not retry with the server cookie. Per [RFC 7873 section 5.3](https://www.rfc-editor.org/rfc/rfc7873.html#section-5.3), callers can retry once with the returned server cookie after checking that the client cookie matches, or retry over TCP to the same nameserver. Bound retries to avoid a loop if the server keeps returning BADCOOKIE.
 
 ```php
 use Psl\DNS;
@@ -211,6 +232,8 @@ use Psl\SecureRandom;
 
 $resolver = new DNS\SystemResolver();
 
+// ECS source and scope prefixes must fit the address: 0..32 for IPv4, 0..128 for IPv6.
+// Scope must be 0 in queries.
 // Query with EDNS0 options
 $response = $resolver->query('example.com', RecordType::A, ednsOptions: [
     new EDNS\CookieOption(clientCookie: SecureRandom\bytes(8)),
@@ -249,7 +272,7 @@ $response = $cached->query('example.com', DNS\Record\RecordType::A);
 
 ## Blocking System Resolver
 
-`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Useful as a lightweight fallback behind a `StaticResolver`, or in environments where async DNS is unnecessary.
+`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Use it where async DNS is unnecessary. `SplitHorizonResolver` can route known names to a `StaticResolver` and all other names to this resolver.
 
 Supports A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT, CAA, and NAPTR record types. EDNS0 options are ignored. Queries for unsupported types return NXDOMAIN.
 
@@ -393,8 +416,10 @@ $public = new DNS\RacingResolver([
     ]),
 ]);
 
-// 4. Static overrides first, then public nameservers
-$base = new DNS\FallbackResolver([$static, $public]);
+// 4. Route static names locally and other names to public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 5. Route corporate domains to internal DNS, everything else to public
 $routed = new DNS\SplitHorizonResolver(routes: [
@@ -407,7 +432,7 @@ $searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.interna
 // 7. Check the hosts file before any network query
 $hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
 
-// 8. Cache everything on top
+// 8. Cache positive and negative answers with a positive TTL
 $resolver = new DNS\CachedResolver($hostsAware, $cache);
 
 // 9. Profit!

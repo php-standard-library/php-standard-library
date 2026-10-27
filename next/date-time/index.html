@@ -111,6 +111,7 @@ IO\write_line('ISO 8601: %s', $duration-&gt;toIso8601()); // PT2H30M15S
 $parsed = DateTime\Duration::fromIso8601('PT1H45M');
 IO\write_line('Parsed: %s', $parsed-&gt;toString());
 </code></pre>
+<p><code>plusDays()</code>, <code>plusWeeks()</code>, <code>plusMonths()</code>, <code>plusYears()</code> (and their <code>minus*()</code> counterparts) are calendar arithmetic: they move the date and keep the wall-clock time, even across daylight saving time changes. In <code>Europe/London</code>, <code>2024-03-30 12:00</code> plus one day is <code>2024-03-31 12:00</code>, only 23 hours later. Add a <code>Duration</code> when you need an exact amount of elapsed time.</p>
 <h2 id="period"><a href="#period" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Period</h2>
 <p><code>Period</code> represents a calendar-based period (years, months, days). Unlike <code>Duration</code>, a period's actual time length depends on context - a month can be 28-31 days, and a day can be 23-25 hours due to DST. Months automatically normalize into years, but days are never normalized:</p>
 <pre><code class="language-php">use Psl\DateTime;

@@ -152,7 +152,7 @@ IO\write_line('From: %s', $from);
 $plain = EncodedWord\encode('Hello, World!');
 IO\write_line('Plain: %s', $plain);
 </code></pre>
-<p><code>encode()</code> accepts an optional <code>$charset</code> parameter of type <code>Psl\Str\Encoding</code> (default <code>Encoding::Utf8</code>). <code>decode()</code> handles charset conversion automatically, and per RFC 2047 §6.2, whitespace between adjacent encoded-words is removed.</p>
+<p><code>encode()</code> accepts an optional <code>$charset</code> parameter of type <code>Psl\Str\Encoding</code> (default <code>Encoding::Utf8</code>). <code>decode()</code> handles charset conversion automatically, and per RFC 2047 §6.2, linear whitespace (spaces, tabs and line breaks) between adjacent encoded-words is removed.</p>
 <h2 id="streaming-io-handles"><a href="#streaming-io-handles" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Streaming IO Handles</h2>
 <p>Each encoding namespace (Base64, Hex, QuotedPrintable) provides four IO handle decorators that transparently encode or decode data as it flows through:</p>
 <ul>
@@ -161,7 +161,9 @@ IO\write_line('Plain: %s', $plain);
 <li><strong><code>EncodingWriteHandle</code></strong> accepts raw data via write(); encodes and writes to the inner handle</li>
 <li><strong><code>DecodingWriteHandle</code></strong> accepts encoded data via write(); decodes and writes to the inner handle</li>
 </ul>
-<p>Write handles have a <code>flush()</code> method to encode/decode any remaining buffered data.</p>
+<p>Write handles accept all the data passed to <code>write()</code> and <code>tryWrite()</code>. <code>write()</code> waits until the inner handle has accepted the output, and passes its cancellation token on; <code>tryWrite()</code> never waits, and output that the inner handle does not accept right away stays pending, in order, until the next <code>write()</code> delivers it (<code>write('')</code> delivers it without new data). Writes made concurrently from several fibers never lose or repeat output, but they are not serialized: when the inner handle takes one write's output in several parts, another write's output can come between them. Write handles other than <code>Hex\EncodingWriteHandle</code> have a <code>flush()</code> method to encode/decode any remaining buffered data; call it once all data has been written.</p>
+<p>The Base64 encoding handles produce exactly the same output as <code>Base64\encode()</code> with the same variant and padding: only the <code>Mime</code> variant wraps lines (with CRLF between lines, not after the last one), and padding is only emitted at the end of the stream. Likewise, the Base64 decoding handles accept and reject exactly what <code>Base64\decode()</code> does: only the <code>Mime</code> variant ignores whitespace.</p>
+<p>The QuotedPrintable encoding handles accept the same <code>$maxLineLength</code> and <code>$lineEnding</code> parameters as <code>QuotedPrintable\encode()</code>, and produce exactly the same output; the decoding handles produce exactly what <code>QuotedPrintable\decode()</code> does, keeping hard line breaks as they appear in the input.</p>
 <p>This bridges <code>Psl\IO</code> with <code>Psl\Encoding</code>, allowing you to compose encoding into any IO pipeline:</p>
 <pre><code class="language-php">use Psl\Encoding\Base64;
 use Psl\IO;

@@ -6,6 +6,8 @@ The `SMTP` component implements an RFC 5321 SMTP client with connection pooling,
 
 The `Transport` handles the full SMTP lifecycle: connection, EHLO, TLS, authentication, message transmission, and connection reuse. Pass an `Envelope` (derived from message headers) and a `MessageInterface` to send.
 
+For envelope addresses, the transport lowercases and NFC-normalizes domain labels, then encodes each Unicode label as Punycode with the `xn--` prefix. Domain literals stay unchanged. It rejects encoded labels longer than 63 bytes with `TransmissionException`. This handles case and canonical Unicode forms, but does not apply the full UTS #46 mapping. Non-ASCII envelope local parts and transmitted message headers require SMTPUTF8; the transport throws `TransmissionException` before MAIL FROM when the server lacks it (RFC 6531 section 3.2). The check uses the serialized headers, including nested MIME part and embedded message headers, so removed Bcc fields and ASCII encoded-words do not require SMTPUTF8. Without server support, multipart and embedded message bodies spool to memory and then disk before MAIL FROM; these sends wait for EOF so all headers can be checked. Body text alone does not require SMTPUTF8.
+
 ```php
 use Psl\IO;
 use Psl\Message\Address\Mailbox;
@@ -21,7 +23,11 @@ $transport = new Transport(
 );
 
 $sender = new Mailbox('alice', 'example.com', 'Alice');
-$recipient = new Mailbox('bob', 'example.com');
+// Lowercasing and NFC normalization produce bob@xn--bcher-kva.example.
+// Encoded domain labels must fit in 63 bytes.
+// Non-ASCII local parts and transmitted headers require SMTPUTF8.
+// Without it, multipart and embedded message bodies spool before MAIL FROM.
+$recipient = new Mailbox('bob', 'BÜCHER.EXAMPLE');
 
 $message = new Message()
     ->withFrom($sender)
@@ -95,7 +101,7 @@ $config = $config
 
 ## Send Configuration
 
-`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery.
+`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery. When `requireTls` is true, the transport throws `TransmissionException` before sending MAIL FROM if the server does not advertise REQUIRETLS or the connection uses `Security::None` (RFC 8689 section 4.2.1). The transport keeps EHLO capabilities when it reuses a pooled connection.
 
 ```php
 use Psl\DateTime\DateTime;
@@ -111,7 +117,8 @@ $config = new SendConfiguration()
     ->withDsnReturn('FULL')
     ->withDsnEnvelopeId('msg-001')
     ->withDsnNotify('SUCCESS,FAILURE')
-    // Require TLS for the entire delivery chain (RFC 8689)
+    // Require TLS for the entire delivery chain (RFC 8689).
+    // Sending requires TLS and throws if the server lacks REQUIRETLS.
     ->withRequireTls(true)
     // Message priority (RFC 6710 / STANAG 4406)
     ->withPriority(Priority::Urgent)
@@ -169,9 +176,13 @@ if ($report->hasRejections()) {
 $transport->close();
 ```
 
+## Errors
+
+Every failure of the exchange is an `SMTP\Exception\RuntimeException`. A connection that fails during the exchange, for example because the server resets it, throws `ConnectionException`, with the IO or Network exception as its previous exception. A failure to read the message content is not a failure of the connection: the IO exception passes through unchanged. After a failure or a cancellation, the transport closes the pooled connection, and the next send opens a new one.
+
 ## Async and Cancellation
 
-The transport is fully async-capable. Use `Async\concurrently` to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts.
+The transport is fully async-capable. Use `Async\concurrently` to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts. Once the connection is open, a cancelled send throws `Async\Exception\CancelledException` unchanged.
 
 ```php
 use Psl\Async;

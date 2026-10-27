@@ -80,6 +80,7 @@ foreach ($range as $value) {
     }
 }
 </code></pre>
+<p>A <code>BetweenRange</code> iterator always stops at its upper bound, even when that bound is <code>PHP_INT_MAX</code>. A <code>FromRange</code> iterator has nowhere to go after yielding <code>PHP_INT_MAX</code>, so advancing it further throws <code>Range\Exception\OverflowException</code>.</p>
 <h3 id="manipulating-bounds"><a href="#manipulating-bounds" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Manipulating Bounds</h3>
 <p>Ranges can be combined with new bounds to create different range types:</p>
 <pre><code class="language-php">use Psl\Range;

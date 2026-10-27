@@ -35,11 +35,28 @@
         <main id="content" tabindex="-1"><article id="rendered"><h1>H2</h1><div class="install-box-wrapper"><div class="install-box">composer require php-standard-library/h2</div></div>
 <p>The <code>H2</code> component implements the HTTP/2 binary framing protocol (RFC 9113) on top of PSL's IO handles. It is a building block for higher-level components like HTTP clients and servers, not an HTTP implementation itself. The protocol is implemented in full - if the RFC defines it, H2 supports it.</p>
 <h2 id="architecture"><a href="#architecture" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Architecture</h2>
+<p>If <code>readEvent()</code> throws <code>H2\Exception\StreamException</code>, H2 has sent RST_STREAM for that stream. The connection remains usable: catch the error and keep reading so other streams can finish. Connection errors still close the connection with GOAWAY (RFC 9113 Section 5.4).</p>
+<pre><code class="language-php">use Psl\H2;
+
+/** @var H2\ConnectionInterface $connection */
+
+while ($connection-&gt;isConnected()) {
+    try {
+        $events = $connection-&gt;readEvent();
+        // Handle events for the active streams.
+    } catch (H2\Exception\StreamException $error) {
+        // HEADERS after the peer ended its side report ErrorCode::StreamClosed here.
+        // H2 sent RST_STREAM for $error-&gt;streamId. Keep reading other streams.
+        continue;
+    }
+}
+</code></pre>
 <p>H2 connections take a <code>Psl\IO\ReadHandleInterface &amp; Psl\IO\WriteHandleInterface</code> instance. That could be a TCP stream, a TLS connection, a Unix socket, or anything else that implements those interfaces. H2 does not care about the transport.</p>
 <p>PSL's IO and Async components are built on top of <a href="https://github.com/revoltphp/event-loop">Revolt</a>. H2 is concurrent by design: operations like <code>waitForSendWindow()</code> suspend the current fiber and let the event loop run until a WINDOW_UPDATE arrives. Multiple streams on the same connection run in parallel through fibers.</p>
 <p>To use H2 with other event loop libraries like ReactPHP, use <a href="https://github.com/revoltphp/event-loop-adapter-react">revoltphp/event-loop-adapter-react</a> and wrap your stream in a class implementing <code>ReadHandleInterface &amp; WriteHandleInterface</code>.</p>
 <h2 id="client-and-server"><a href="#client-and-server" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Client and Server</h2>
 <p>Connections are split into <code>ClientConnection</code> and <code>ServerConnection</code>, each implementing their role-specific interface. Both share common operations (sending headers, data, ping, goaway) via <code>ConnectionInterface</code>.</p>
+<p><code>sendHeaders()</code>, <code>sendHeadersWithStatus()</code>, and <code>sendPushPromise()</code> reject connection-specific fields (<code>connection</code>, <code>keep-alive</code>, <code>proxy-connection</code>, <code>transfer-encoding</code>, and <code>upgrade</code>) and <code>te</code> values other than <code>trailers</code> (case-insensitive) with <code>H2\Exception\StreamException</code>. They also reject values with CR, LF, NUL, or leading or trailing spaces or tabs, and names that are empty or contain bytes outside the token set, such as spaces, control characters, or non-ASCII. They check before HPACK encoding, so callers can correct the fields and retry.</p>
 <pre><code class="language-php">use Psl\H2;
 use Psl\H2\Event;
 use Psl\HPACK\Header;
@@ -71,6 +88,9 @@ $client-&gt;sendHeaders(
         new Header(':path', '/hello'),
         new Header(':scheme', 'https'),
         new Header(':authority', 'example.com'),
+        // The te value is case-insensitive; other connection-specific fields cause StreamException.
+        // Values with CR, LF, NUL, or leading or trailing spaces or tabs also fail before sending.
+        new Header('te', 'Trailers'),
     ],
     endStream: true,
 );
@@ -89,9 +109,22 @@ foreach ($events as $event) {
 
     $server-&gt;sendData($event-&gt;streamId, 'Hello, World!', endStream: true);
 }
+
+// A lower receive frame-size limit takes effect when the peer acknowledges it.
+$client-&gt;sendSettings([H2\Setting::MaxFrameSize-&gt;value =&gt; 16_384]);
+
+// The decoder also waits for ACK before enforcing a lower table-size limit.
+$client-&gt;sendSettings([H2\Setting::HeaderTableSize-&gt;value =&gt; 1024]);
 </code></pre>
+<p>After a graceful <code>goAway()</code>, keep reading while accepted streams finish.
+H2 decodes and discards racing headers and push promises above the last
+accepted peer stream so the shared HPACK table stays in sync. It discards
+DATA and stream control frames on those streams too, while returning
+connection flow-control credit for the full DATA payload, including padding.</p>
 <h2 id="flow-control"><a href="#flow-control" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Flow Control</h2>
-<p><code>sendData()</code> sends a single frame and requires the caller to manage flow control windows. For large payloads, use <code>sendAllData()</code> which automatically splits data into window-sized chunks and waits for WINDOW_UPDATE frames.</p>
+<p><code>sendData()</code> splits data at the peer's frame-size limit and requires the caller to provide enough flow-control window for the whole payload. For large payloads, use <code>sendAllData()</code> which automatically splits data into window-sized chunks and waits for WINDOW_UPDATE frames.</p>
+<p><code>waitForSendWindow()</code> and <code>sendAllData()</code> throw <code>H2\Exception\StreamException</code> if the stream closes, resets, or finishes sending while they wait. GOAWAY, transport EOF, or a read failure fails all waiters with <code>H2\Exception\ConnectionException</code>. Cancelling a read leaves the connection usable.</p>
+<p>A WINDOW_UPDATE that would push a stream's send window above 2^31-1 is a stream error (RFC 9113 Section 6.9.1). <code>readEvent()</code> sends <code>RST_STREAM(FLOW_CONTROL_ERROR)</code> and throws <code>H2\Exception\StreamException</code> with that stream ID, so the caller can fail the affected request. The connection stays usable.</p>
 <pre><code class="language-php">use Psl\H2;
 use Psl\HPACK\Header;
 use Psl\Str;
@@ -107,12 +140,21 @@ $client-&gt;sendHeaders($streamId, [
     new Header(':authority', 'example.com'),
 ]);
 
-// sendAllData handles flow control - no manual window management needed
+// sendData splits frames but requires enough window for the whole payload.
+// sendAllData also waits for flow-control window updates.
+// It throws H2\Exception\StreamException if the stream closes while waiting.
+// GOAWAY, EOF, or a read failure instead throws H2\Exception\ConnectionException.
 $largePayload = Str\repeat('data', 10_000);
 $client-&gt;sendAllData($streamId, $largePayload, endStream: true);
 </code></pre>
+<p>H2 decodes a complete field block before reporting a stream-state error.
+HEADERS received after the peer ends its side cause <code>STREAM_CLOSED</code> for
+that stream. HEADERS on a locally reserved push stream cause a connection
+<code>PROTOCOL_ERROR</code>.</p>
+<p><code>goAway()</code> accepts a <code>lastStreamId</code>. A graceful shutdown can first announce <code>MAX_STREAM_ID</code> (2^31-1) and later send the real last stream (RFC 9113 Section 6.8). Peer streams at or below the announced value are still accepted and processed; streams above it are decoded for HPACK state and discarded. A second <code>goAway()</code> never raises the announced value.</p>
 <h2 id="server-push"><a href="#server-push" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Server Push</h2>
 <p>Server push is part of the HTTP/2 specification, so H2 implements it. Whether higher-level code chooses to use it is an application-level decision. <code>sendPushPromise()</code> sends pushes, <code>rejectPush()</code> declines them.</p>
+<p>Clients reject promised requests unless they use GET or HEAD, include a non-empty <code>:authority</code>, and declare no content. H2 checks the associated stream and decodes the full field block before rejecting a promised request. Since H2 accepts any IO handle, callers must verify that the server is authoritative for the promised origin before using its response; use <code>resetStream($promisedStreamId, H2\ErrorCode::ProtocolError)</code> if it is not.</p>
 <pre><code class="language-php">use Psl\H2;
 use Psl\HPACK\Header;
 
@@ -135,6 +177,9 @@ $server-&gt;sendHeadersWithStatus($pushStreamId, '200', [
     new Header('content-type', 'text/css'),
 ]);
 $server-&gt;sendData($pushStreamId, 'body { color: red; }', endStream: true);
+
+// Check the promised origin against the server's authority before using a push.
+// Reset an unauthorized promised stream with H2\ErrorCode::ProtocolError.
 
 // Client can reject unwanted pushes
 $client-&gt;rejectPush($pushStreamId);
@@ -182,7 +227,24 @@ $server-&gt;sendOrigin([
 ]);
 </code></pre>
 <h2 id="configuration"><a href="#configuration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Configuration</h2>
+<p>H2 allows 100 resets caused by peer errors per 10-second window by default.
+The next error ends the connection with <code>ENHANCE_YOUR_CALM</code>. This counts
+malformed streams, refused streams and stream-window overflows. It does not
+count calls to <code>resetStream()</code> made by the application.</p>
+<p>Set <code>RateLimiter::STREAM_ERROR_RESET</code> in <code>Configuration::rateLimiter</code> to
+change this limit. Passing a limiter without that key disables it. The
+incoming <code>RST_STREAM</code> limit remains a separate counter.</p>
+<pre><code class="language-php">
+// Allow up to 50 resets caused by peer errors in each 10-second window.
+$configuration = new H2\Configuration(rateLimiter: new H2\RateLimiter([
+    H2\RateLimiter::STREAM_ERROR_RESET =&gt; [50, Duration::seconds(10)],
+]));
+</code></pre>
+<p>A field block arrives as a HEADERS or PUSH_PROMISE frame followed by CONTINUATION frames, and can only be decoded once END_HEADERS arrives. <code>Configuration::$maxHeaderBlockSize</code> bounds the fragments buffered for one block, 64 KiB by default (<code>DEFAULT_MAX_HEADER_BLOCK_SIZE</code>): a peer that never ends a block, or sends a larger one, gets a <code>PROTOCOL_ERROR</code> connection error before the fragment that would exceed the limit is buffered; a block that arrives whole in one frame is not buffered, and <code>SETTINGS_MAX_FRAME_SIZE</code> bounds it instead. <code>0</code> lifts the limit. The decoded field section is bounded separately. A <code>SETTINGS_MAX_HEADER_LIST_SIZE</code> given in <code>Configuration::$settings</code> is advertised and enforced; without one, the decoder enforces 64 KiB (<code>DEFAULT_MAX_RECEIVED_HEADER_LIST_SIZE</code>) without advertising it, as RFC 9113 Section 6.5.2 permits, since one byte of a block can stand for a 4 KiB table entry. A block that decodes to more fails with <code>COMPRESSION_ERROR</code>. Pass <code>DEFAULT_MAX_HEADER_LIST_SIZE</code> as the setting to lift that limit. <code>MAX_CONCURRENT_STREAMS</code> keeps the RFC's unlimited initial value; a server should set it.</p>
 <p>The unified <code>Configuration</code> class replaces the deprecated <code>ServerConfiguration</code> and <code>ClientConfiguration</code>. It provides immutable builder patterns with <code>with*</code> methods and supports BDP auto-tuning for both client and server connections. When <code>maxReceiveWindowSize</code> is set, the connection dynamically sizes its receive window based on measured throughput and RTT using PING round-trips. Both <code>ClientConnection</code> and <code>ServerConnection</code> accept the new <code>Configuration</code> alongside their legacy types for backwards compatibility.</p>
+<p><code>sendSettings()</code> tracks frame-size changes in send order. A lower <code>MAX_FRAME_SIZE</code> takes effect after the peer acknowledges that SETTINGS frame. H2 accepts advertised increases while their ACK is pending.</p>
+<p>Local <code>MAX_CONCURRENT_STREAMS</code> and <code>INITIAL_WINDOW_SIZE</code> changes also take effect when their SETTINGS frame is acknowledged. The peer-stream limit and the initial receive window of new streams switch on that ACK, and the receive windows of open streams move by the difference, as RFC 9113 Section 6.9.2 requires.</p>
+<p>The same ACK ordering applies to the decoder's <code>HEADER_TABLE_SIZE</code> limit. A reduction waits for its ACK; H2 accepts an advertised increase while its ACK is pending. The outbound encoder starts at no more than the peer's default 4096-byte table, regardless of the larger receive limit configured locally. It grows only when the peer advertises a larger limit.</p>
 <h2 id="extension-frames"><a href="#extension-frames" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Extension Frames</h2>
 <p>Beyond the core 10 frame types, the component supports:</p>
 <ul>
@@ -191,6 +253,18 @@ $server-&gt;sendOrigin([
 <li><strong>PRIORITY_UPDATE</strong> (0x10) -- RFC 9218 extensible priority scheme</li>
 </ul>
 <p>Unknown frame types are silently ignored per the RFC, ensuring forward compatibility.</p>
+<p>Invalid payload sizes use <code>FRAME_SIZE_ERROR</code> (RFC 9113 Sections 4.2 and 6). H2 resets an active stream for a malformed PRIORITY frame; other size errors close the connection. Excess padding still uses <code>PROTOCOL_ERROR</code>.</p>
+<pre><code class="language-php">use Psl\H2;
+use Psl\H2\Frame;
+
+$invalidPing = new Frame\RawFrame(Frame\FrameType::Ping-&gt;value, 0, 0, 'short');
+try {
+    Frame\PingFrame::fromRaw($invalidPing);
+} catch (H2\Exception\ProtocolException $error) {
+    // fromRaw() reports the same code that a connection sends in GOAWAY.
+    assert($error-&gt;errorCode === H2\ErrorCode::FrameSizeError, 'Invalid payload sizes use FRAME_SIZE_ERROR.');
+}
+</code></pre>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/h2/src/Psl/H2/">src/Psl/H2/</a> for the full API.</p>
 </article></main>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">

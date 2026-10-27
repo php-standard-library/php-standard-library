@@ -162,6 +162,8 @@ $dict = Type\dict(Type\string(), Type\shape([
 ]));
 </code></pre>
 <p>Use <code>non_empty_dict()</code> to require at least one entry.</p>
+<h4 id="iterable----arrays-and-traversables"><a href="#iterable----arrays-and-traversables" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>iterable -- Arrays and Traversables</h4>
+<p><code>iterable()</code> accepts arrays and <code>Traversable</code> values whose keys and values match the given types. <code>assert()</code> and <code>coerce()</code> iterate the value and return a validated, re-iterable copy of it. Since a <code>Generator</code> cannot be rewound, <code>matches()</code> never iterates one: it returns <code>false</code> for a <code>Generator</code> unless both the key and value types are <code>mixed()</code>.</p>
 <h3 id="nullability-and-optionality"><a href="#nullability-and-optionality" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Nullability and Optionality</h3>
 <ul>
 <li><strong><code>nullable(TypeInterface $inner)</code></strong> -- Allows <code>null</code> alongside the inner type</li>

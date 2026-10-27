@@ -112,7 +112,45 @@ foreach ($headers as $header) {
 </code></pre>
 <h2 id="table-management"><a href="#table-management" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Table Management</h2>
 <p>The dynamic table size can be adjusted at runtime via <code>resize()</code>. This is typically driven by the HTTP/2 SETTINGS_HEADER_TABLE_SIZE parameter negotiated between peers.</p>
+<p><code>Decoder::resize()</code> changes the allowed table-size limit. Raising that limit leaves the peer's chosen size unchanged until the peer sends an HPACK table-size update. Lowering the limit evicts entries only if the chosen size exceeds it.</p>
+<pre><code class="language-php">use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder();
+$decoder = new HPACK\Decoder();
+
+// Allow the peer to select a larger table.
+$decoder-&gt;resize(8192);
+
+// The encoder selects that size and sends its update in the next block.
+$encoder-&gt;resize(8192);
+$encoded = $encoder-&gt;encode([new HPACK\Header(':method', 'GET')]);
+
+foreach ($decoder-&gt;decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header-&gt;name, $header-&gt;value);
+}
+</code></pre>
 <p>The maximum decompressed header list size is configurable via the constructor or <code>setMaxHeaderListSize()</code>. Headers that exceed this limit throw <code>HeaderListSizeException</code>.</p>
+<p>If <code>encode()</code> or <code>encodeWithStatus()</code> rejects an oversized header list, it leaves the dynamic table and pending size updates unchanged. You can retry with a smaller list on the same encoder. A rejected call may consume its input iterator, so pass a fresh iterator when retrying.</p>
+<pre><code class="language-php">use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder(maxHeaderListSize: 64);
+$decoder = new HPACK\Decoder();
+
+try {
+    $encoded = $encoder-&gt;encode([
+        new HPACK\Header(':method', 'GET'),
+        new HPACK\Header('x-extra', 'optional'),
+    ]);
+} catch (HPACK\Exception\HeaderListSizeException) {
+    $encoded = $encoder-&gt;encode([new HPACK\Header(':method', 'GET')]);
+}
+
+foreach ($decoder-&gt;decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header-&gt;name, $header-&gt;value);
+}
+</code></pre>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/hpack/src/Psl/HPACK/">src/Psl/HPACK/</a> for the full API.</p>
 </article></main>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">

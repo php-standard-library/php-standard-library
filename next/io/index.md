@@ -125,6 +125,10 @@ try {
 }
 ```
 
+### End of Data
+
+When nothing is buffered and the end has not been seen yet, `Reader::reachedEndOfDataSource()` reads from the underlying handle to find out, waiting for data if necessary. Pass it a cancellation token to bound that wait. It returns `false` if that read brings no data without reaching the end, or fails with an I/O error, which a later read reports. `Reader::readAll()` uses the token it is given for that check too, and if it throws, whether it is cancelled, hits an I/O error or gets any other exception from the underlying handle, the bytes it already read stay buffered for the next call.
+
 ## Spool
 
 `IO\spool()` creates a handle that writes to memory until a threshold is reached (default 2MB), then transparently spools to a temporary file on disk. This is useful when buffering data of unknown size without risking excessive memory usage.
@@ -287,7 +291,9 @@ $inner->tryRead(); // ' world'
 
 ### BoundedReadHandle
 
-`BoundedReadHandle` reads up to N bytes from the underlying handle. Unlike `TruncatedReadHandle`, it peeks past the limit to check for overflow. If the underlying handle has more data, an `IO\Exception\RuntimeException` is thrown. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).
+`BoundedReadHandle` reads up to N bytes from the underlying handle. Unlike `TruncatedReadHandle`, it peeks past the limit to check for overflow. If the underlying handle has more data, an `IO\Exception\LimitExceededException` is thrown; it is an `IO\Exception\RuntimeException` whose `$limit` property holds the limit. Once an overflow has been seen, every later read throws the same exception without reading from the underlying handle again. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).
+
+At the limit, `read()` waits for the next byte before deciding, and `tryRead()` returns an empty string while nothing is available yet. The handle reports EOF only when the underlying handle does, so bytes that arrive later still count as overflow.
 
 ```php
 use Psl\IO;
@@ -304,8 +310,16 @@ $handle->read(5); // 'hello'
 
 try {
     $handle->read(); // throws -- underlying handle has more data
-} catch (IO\Exception\RuntimeException $e) {
-    $e->getMessage(); // 'Response body exceeded the configured limit of 5 bytes.'
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->getMessage(); // 'Data exceeded the configured limit of 5 bytes.'
+    $e->limit; // 5
+}
+
+// The overflow is latched: later reads throw it again without reading any further
+try {
+    $handle->read();
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->limit; // 5
 }
 ```
 
@@ -354,7 +368,7 @@ $writer->readAll(); // 'outgoing data'
 
 ### TeeWriteHandle
 
-`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
+`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. If a write to the second handle fails, the bytes it has not reported accepting stay pending, and a retried `flush()` writes only those. A write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes. Writes made concurrently from several fibers never lose or repeat bytes, but they are not serialized: when the second handle takes one write's bytes in several parts, another write's bytes can come between them, and the two handles then hold the bytes in different orders. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
 
 ```php
 use Psl\IO;

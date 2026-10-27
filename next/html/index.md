@@ -77,4 +77,6 @@ Html\decode('&lt;p&gt;Hello&lt;/p&gt;', Html\Encoding::ShiftJis);
 
 The `Encoding` enum supports UTF-8, ISO-8859-1, ISO-8859-15, Windows-1251, Windows-1252, Big5, GB2312, Shift_JIS, EUC-JP, KOI8-R, and several other character sets.
 
+Both `encode()` and `encode_special_characters()` replace byte sequences that are invalid in the selected encoding with the Unicode replacement character instead of returning an empty string: U+FFFD itself for UTF-8, and the `&#xFFFD;` character reference for the other encodings. `encode()` and `decode()` use the HTML 4.01 entity table, while `encode_special_characters()` and `decode_special_characters()` use the HTML5 one (so a single quote is written as `&apos;` rather than `&#039;`).
+
 See [src/Psl/Html/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/html/src/Psl/Html/) for the full API.

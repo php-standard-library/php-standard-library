@@ -2129,6 +2129,10 @@ $dict = Type\dict(Type\string(), Type\shape([
 
 Use `non_empty_dict()` to require at least one entry.
 
+#### iterable -- Arrays and Traversables
+
+`iterable()` accepts arrays and `Traversable` values whose keys and values match the given types. `assert()` and `coerce()` iterate the value and return a validated, re-iterable copy of it. Since a `Generator` cannot be rewound, `matches()` never iterates one: it returns `false` for a `Generator` unless both the key and value types are `mixed()`.
+
 ### Nullability and Optionality
 
 - **`nullable(TypeInterface $inner)`** -- Allows `null` alongside the inner type
@@ -2419,6 +2423,8 @@ IO\write_error_line('Done!');
 
 `Async\main()` is the entry point for async applications. It executes a closure in the main fiber, then keeps the event loop running until all pending callbacks complete. The closure must return an integer exit code.
 
+Call it outside any fiber, from the script's own call stack (`{main}`): a function or method that the script calls may call it. Inside a fiber, such as an `Async\run()` closure or an event loop callback, it throws `Async\Exception\LogicException` before running the closure, even a closure that never returns.
+
 ```php
 use Psl\Async;
 use Psl\DateTime\Duration;
@@ -2542,6 +2548,8 @@ $results = Async\concurrently([
     },
 ]);
 ```
+
+No closure and no failure is dropped when the iterable repeats a key: each closure runs, and its failure is handled as it would be under a distinct key. On success, the result of the last closure with that key is returned under it.
 
 > **Warning**
 >
@@ -2801,6 +2809,8 @@ IO\write_line('Order: %s', Psl\Str\join($results, ', ')); // "fast, slow"
 
 `awaitAll()` accepts an optional `CancellationTokenInterface`. The task list is cleared after each `awaitAll()` call, so the group is reusable.
 
+Several fibers can call `awaitAll()` at once: every call waiting when the last task finishes gets the same exception (or the same `CompositeException`). Only exceptions are collected; an `Error` thrown by a task reaches the event loop error handler.
+
 ### WaitGroup
 
 `WaitGroup` is a counter-based synchronization primitive inspired by Go's `sync.WaitGroup`. Call `add()` before starting work, `done()` when work completes, and `wait()` to block until the counter reaches zero:
@@ -2873,6 +2883,8 @@ The `Scheduler` is a wrapper around the Revolt event loop. It provides static me
 
 All registration methods return a string identifier that can be used with `cancel()`, `enable()`, `disable()`, `reference()`, and `unreference()`.
 
+`Scheduler::run()` runs the event loop until no enabled, referenced callback is left. Like `Async\main()`, it must be called outside any fiber, from the script's own call stack (`{main}`): inside a fiber, it throws `Async\Exception\LogicException` before the loop runs anything.
+
 See [revolt.run](https://revolt.run/) for more information on the underlying event loop.
 
 ## Cancellation
@@ -2887,6 +2899,8 @@ The base interface. Implementations provide:
 - `unsubscribe(string $id): void` -- remove a callback
 - `isCancelled(): bool` -- check cancellation state
 - `throwIfCancelled(): void` -- throw `CancelledException` if cancelled
+
+When a token is cancelled, every subscribed callback runs, even if an earlier one throws. The failure is reported once they all ran: `SignalCancellationToken::cancel()` rethrows it, and a `TimeoutCancellationToken` sends it to the event loop error handler. When several callbacks throw, their failures are reported together in a `CompositeException`.
 
 ### SignalCancellationToken
 
@@ -3025,6 +3039,7 @@ When a token fires, `CancelledException` is thrown. It carries:
 
 - **`CancelledException`** -- thrown when a cancellation token is triggered. Use `$e->getToken()` to identify the source and `$e->getPrevious()` for the cause.
 - **`CompositeException`** -- wraps multiple exceptions when several concurrent operations fail. Use `$e->getReasons()` to get all underlying exceptions.
+- **`LogicException`** -- thrown when the API is misused, such as calling `Async\main()` or `Scheduler::run()` inside a fiber.
 - **`TimeoutException`** -- used internally as the cause inside `CancelledException` when a `TimeoutCancellationToken` fires.
 - **`UnhandledAwaitableException`** -- thrown by the scheduler when a failed `Awaitable` is never awaited or handled. Use `$awaitable->ignore()` to suppress this.
 
@@ -3836,6 +3851,8 @@ foreach ($range as $value) {
 }
 ```
 
+A `BetweenRange` iterator always stops at its upper bound, even when that bound is `PHP_INT_MAX`. A `FromRange` iterator has nowhere to go after yielding `PHP_INT_MAX`, so advancing it further throws `Range\Exception\OverflowException`.
+
 ### Manipulating Bounds
 
 Ranges can be combined with new bounds to create different range types:
@@ -4428,7 +4445,7 @@ $plain = EncodedWord\encode('Hello, World!');
 IO\write_line('Plain: %s', $plain);
 ```
 
-`encode()` accepts an optional `$charset` parameter of type `Psl\Str\Encoding` (default `Encoding::Utf8`). `decode()` handles charset conversion automatically, and per RFC 2047 §6.2, whitespace between adjacent encoded-words is removed.
+`encode()` accepts an optional `$charset` parameter of type `Psl\Str\Encoding` (default `Encoding::Utf8`). `decode()` handles charset conversion automatically, and per RFC 2047 §6.2, linear whitespace (spaces, tabs and line breaks) between adjacent encoded-words is removed.
 
 ## Streaming IO Handles
 
@@ -4439,7 +4456,11 @@ Each encoding namespace (Base64, Hex, QuotedPrintable) provides four IO handle d
 - **`EncodingWriteHandle`** accepts raw data via write(); encodes and writes to the inner handle
 - **`DecodingWriteHandle`** accepts encoded data via write(); decodes and writes to the inner handle
 
-Write handles have a `flush()` method to encode/decode any remaining buffered data.
+Write handles accept all the data passed to `write()` and `tryWrite()`. `write()` waits until the inner handle has accepted the output, and passes its cancellation token on; `tryWrite()` never waits, and output that the inner handle does not accept right away stays pending, in order, until the next `write()` delivers it (`write('')` delivers it without new data). Writes made concurrently from several fibers never lose or repeat output, but they are not serialized: when the inner handle takes one write's output in several parts, another write's output can come between them. Write handles other than `Hex\EncodingWriteHandle` have a `flush()` method to encode/decode any remaining buffered data; call it once all data has been written.
+
+The Base64 encoding handles produce exactly the same output as `Base64\encode()` with the same variant and padding: only the `Mime` variant wraps lines (with CRLF between lines, not after the last one), and padding is only emitted at the end of the stream. Likewise, the Base64 decoding handles accept and reject exactly what `Base64\decode()` does: only the `Mime` variant ignores whitespace.
+
+The QuotedPrintable encoding handles accept the same `$maxLineLength` and `$lineEnding` parameters as `QuotedPrintable\encode()`, and produce exactly the same output; the decoding handles produce exactly what `QuotedPrintable\decode()` does, keeping hard line breaks as they appear in the input.
 
 This bridges `Psl\IO` with `Psl\Encoding`, allowing you to compose encoding into any IO pipeline:
 
@@ -4553,6 +4574,8 @@ Html\decode('&lt;p&gt;Hello&lt;/p&gt;', Html\Encoding::ShiftJis);
 ```
 
 The `Encoding` enum supports UTF-8, ISO-8859-1, ISO-8859-15, Windows-1251, Windows-1252, Big5, GB2312, Shift_JIS, EUC-JP, KOI8-R, and several other character sets.
+
+Both `encode()` and `encode_special_characters()` replace byte sequences that are invalid in the selected encoding with the Unicode replacement character instead of returning an empty string: U+FFFD itself for UTF-8, and the `&#xFFFD;` character reference for the other encodings. `encode()` and `decode()` use the HTML 4.01 entity table, while `encode_special_characters()` and `decode_special_characters()` use the HTML5 one (so a single quote is written as `&apos;` rather than `&#039;`).
 
 See [src/Psl/Html/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/html/src/Psl/Html/) for the full API.
 
@@ -4861,7 +4884,7 @@ $output->seek(0);
 IO\write_line('Result: %s', $output->readAll());
 ```
 
-`flush()` accepts an optional `CancellationTokenInterface` parameter, so you can set a timeout on the finalization when writing to network handles.
+`flush()` accepts an optional `CancellationTokenInterface` parameter, so you can set a timeout on the finalization when writing to network handles. If it is cancelled or the inner handle fails, calling `flush()` again does not finalize the stream a second time, and does not write again the output the inner handle reported accepting. It does write again what the interrupted write wrote without reporting it: a write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes.
 
 See [src/Psl/Compression/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/compression/src/Psl/Compression/) for the full API.
 
@@ -4901,6 +4924,8 @@ Filesystem\delete_file($tmp);
 ```
 
 Both `File\read()` and `File\write()` automatically acquire a lock (shared for reads, exclusive for writes) and release it when done.
+
+A path containing a NUL byte can never exist: opening it for reading throws `NotFoundException`, and opening it for writing throws `InvalidArgumentException`.
 
 ## Write Modes
 
@@ -4980,7 +5005,7 @@ Filesystem\delete_file($datFile);
 
 ## File Locking
 
-File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected.
+File handles support advisory locking via `lock()` and `tryLock()`. The returned `Lock` object is released by calling `release()` or when it is garbage collected. Only `release()` reports a failure to release it, such as a handle that was closed first; a lock that is garbage collected does not throw.
 
 - **`LockType::Shared`** -- Multiple processes can hold a shared lock simultaneously. Use for reads.
 - **`LockType::Exclusive`** -- Only one process can hold an exclusive lock. Use for writes.
@@ -5131,7 +5156,7 @@ Filesystem\create_directory($dir);
 Filesystem\create_directory($dir, 0o755);
 IO\write_line('Directory created: %s', Filesystem\is_directory($dir) ? 'yes' : 'no');
 
-// Create a temporary file
+// Create a private temporary file without reusing an existing name.
 $tmp = Filesystem\create_temporary_file();
 IO\write_line('Temp file: %s', $tmp);
 
@@ -5143,6 +5168,8 @@ Filesystem\delete_file($tmp);
 Filesystem\delete_file($tmp2);
 Filesystem\delete_directory($base, recursive: true);
 ```
+
+`create_temporary_file()` creates a new file exclusively with permissions `0600`. If a name already exists, it tries another name without changing the existing file. It adds 16 random hexadecimal characters to the prefix to keep names short enough for Unix socket paths under macOS's temporary directory.
 
 ## Copying and Deleting
 
@@ -5300,6 +5327,8 @@ try {
 }
 ```
 
+A path containing a NUL byte can never exist. Predicates such as `exists()` and `is_file()` return `false` for it, and `canonicalize()` returns `null`. Passing such a path where an existing node is expected, such as to `file_size()` or as the directory of `create_temporary_file()`, throws `NotFoundException`. Passing it as a node to create, such as the destination of `copy()` or the path given to `create_file()`, throws `InvalidArgumentException`.
+
 See [src/Psl/Filesystem/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/filesystem/src/Psl/Filesystem/) for the full API.
 
 ---
@@ -5430,6 +5459,10 @@ try {
     IO\write_line('Caught: %s', $e->getMessage());
 }
 ```
+
+### End of Data
+
+When nothing is buffered and the end has not been seen yet, `Reader::reachedEndOfDataSource()` reads from the underlying handle to find out, waiting for data if necessary. Pass it a cancellation token to bound that wait. It returns `false` if that read brings no data without reaching the end, or fails with an I/O error, which a later read reports. `Reader::readAll()` uses the token it is given for that check too, and if it throws, whether it is cancelled, hits an I/O error or gets any other exception from the underlying handle, the bytes it already read stay buffered for the next call.
 
 ## Spool
 
@@ -5593,7 +5626,9 @@ $inner->tryRead(); // ' world'
 
 ### BoundedReadHandle
 
-`BoundedReadHandle` reads up to N bytes from the underlying handle. Unlike `TruncatedReadHandle`, it peeks past the limit to check for overflow. If the underlying handle has more data, an `IO\Exception\RuntimeException` is thrown. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).
+`BoundedReadHandle` reads up to N bytes from the underlying handle. Unlike `TruncatedReadHandle`, it peeks past the limit to check for overflow. If the underlying handle has more data, an `IO\Exception\LimitExceededException` is thrown; it is an `IO\Exception\RuntimeException` whose `$limit` property holds the limit. Once an overflow has been seen, every later read throws the same exception without reading from the underlying handle again. Use this when exceeding the limit is a violation (e.g., HTTP response body size limits).
+
+At the limit, `read()` waits for the next byte before deciding, and `tryRead()` returns an empty string while nothing is available yet. The handle reports EOF only when the underlying handle does, so bytes that arrive later still count as overflow.
 
 ```php
 use Psl\IO;
@@ -5610,8 +5645,16 @@ $handle->read(5); // 'hello'
 
 try {
     $handle->read(); // throws -- underlying handle has more data
-} catch (IO\Exception\RuntimeException $e) {
-    $e->getMessage(); // 'Response body exceeded the configured limit of 5 bytes.'
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->getMessage(); // 'Data exceeded the configured limit of 5 bytes.'
+    $e->limit; // 5
+}
+
+// The overflow is latched: later reads throw it again without reading any further
+try {
+    $handle->read();
+} catch (IO\Exception\LimitExceededException $e) {
+    $e->limit; // 5
 }
 ```
 
@@ -5660,7 +5703,7 @@ $writer->readAll(); // 'outgoing data'
 
 ### TeeWriteHandle
 
-`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
+`TeeWriteHandle` writes to two handles simultaneously. If the second handle is slower, data is buffered internally and drained on subsequent writes. It implements `BufferedWriteHandleInterface` -- call `flush()` to explicitly drain any pending data to the second handle. If a write to the second handle fails, the bytes it has not reported accepting stay pending, and a retried `flush()` writes only those. A write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes. Writes made concurrently from several fibers never lose or repeat bytes, but they are not serialized: when the second handle takes one write's bytes in several parts, another write's bytes can come between them, and the two handles then hold the bytes in different orders. This is useful for mirroring output to a log, computing a hash while streaming, or duplicating data to two destinations.
 
 ```php
 use Psl\IO;
@@ -5834,6 +5877,8 @@ IO\write_line('Termination signal: %s', $signal !== null ? $signal->name : 'none
 
 ### Environment Variables
 
+The child process starts with a copy of the parent's environment. `withEnvironmentVariable()` and `withEnvironmentVariables()` add or override variables, `withoutEnvironmentVariable()` removes a variable even when it is inherited, and `withClearedEnvironment()` starts the child from an empty environment, so only variables set afterwards are passed to it. When PHP runs under the `cli` or `phpdbg` SAPI, a command that leaves the environment unchanged passes the parent's environment on as is. Otherwise the inherited variables are copied from `getenv()`, which does not list variables whose name contains a space, `.` or `[`. Under php-fpm and php-cgi, `getenv()` can also list the request's FastCGI parameters, such as the `fastcgi_param` values set by the web server and the `HTTP_*` request headers, so the child inherits those too; `withoutEnvironmentVariable()` and `withClearedEnvironment()` keep them from it.
+
 ```php
 use Psl\IO;
 use Psl\Process\Command;
@@ -5975,7 +6020,7 @@ try {
 - **`FailedExecutionException`** -- the command exited with a non-zero status. Provides `getCommand()`, `getOutput()`, and `getErrorOutput()` for inspection.
 - **`PossibleAttackException`** -- the command or an argument contains a NULL byte, indicating a potential injection attack.
 - **`CancelledException`** -- the command was cancelled via the cancellation token.
-- **`RuntimeException`** -- the working directory does not exist, or the process could not be created.
+- **`RuntimeException`** -- the working directory does not exist or contains a NULL byte, an environment variable name or value is invalid (for example, it contains a NULL byte), or the process could not be created.
 
 ```php
 use Psl\IO;
@@ -5998,7 +6043,9 @@ See [src/Psl/Shell/](https://github.com/php-standard-library/php-standard-librar
 
 The `CIDR` component provides utilities for working with CIDR (Classless Inter-Domain Routing) notation. It supports both IPv4 and IPv6 addresses.
 
-IPv4 addresses are internally normalized to IPv4-mapped IPv6 for unified comparison, so mixed-family matching works transparently.
+Containment requires the same address family. IPv6 blocks do not contain IPv4 addresses, and IPv4 blocks do not contain IPv4-mapped IPv6 addresses. Callers that need mapped matching must convert the candidate address first.
+
+The constructor accepts host bits and masks them to the network prefix. For example, `192.168.1.5/24` denotes the same block as `192.168.1.0/24`.
 
 ## Usage
 
@@ -6036,6 +6083,11 @@ use Psl\CIDR;
 $private = new CIDR\Block('10.0.0.0/8');
 $private->contains('10.1.2.3'); // true
 $private->contains('172.16.0.1'); // false
+$private->contains('::ffff:10.1.2.3'); // false: different address family
+
+$subnet = new CIDR\Block('192.168.1.5/24'); // Masks host bits to 192.168.1.0/24.
+$subnet->contains('192.168.1.0'); // true
+$subnet->contains('192.168.1.255'); // true
 ```
 
 ### IPv6
@@ -6331,7 +6383,12 @@ IO\write_line('%s', $uri->fragment ?? '<unknown>');
 
 // "https://example.com:443/bar?q=1#frag"
 IO\write_line('%s', $uri->toString());
+
+// Prefix a path segment that contains a colon with "./".
+IO\write_line('%s', URI\parse('./:segment')->path); // "./:segment"
 ```
+
+A relative path cannot contain a literal colon in its first segment. Add `./` before that segment, or encode the colon as `%3A`, as required by [RFC 3986 Section 4.2](https://datatracker.ietf.org/doc/html/rfc3986#section-4.2).
 
 Normalization is applied eagerly: scheme and host are lowercased, percent-encoding is normalized (unreserved characters decoded, hex digits uppercased), and dot segments (`/../`, `/./`) are removed.
 
@@ -6508,7 +6565,7 @@ It provides the abstraction layer that protocol-specific components build on top
 
 ### Address
 
-`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port.
+`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port. IPv6 hosts have no brackets in `host`; `toString()` adds them around the host. Both `::1` and `[::1]` inputs produce the same address.
 
 ```php
 use Psl\Network\Address;
@@ -6518,6 +6575,10 @@ $udp = Address::udp('0.0.0.0', 9999);
 $unix = Address::unix('/tmp/my-app.sock');
 
 echo $tcp->toString(); // "tcp://127.0.0.1:8080"
+
+$ipv6 = Address::tcp('::1', 8080);
+echo $ipv6->host; // "::1"
+echo $ipv6->toString(); // "tcp://[::1]:8080"
 ```
 
 ### StreamInterface
@@ -6726,12 +6787,18 @@ Async\concurrently([
 All TCP connectors implement `ConnectorInterface`, making them interchangeable and composable. The built-in connectors are:
 
 - **`Connector`** -- the default connector wrapping `TCP\connect()`.
-- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure.
+- **`RetryConnector`** -- wraps any connector with exponential backoff retry on failure. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 - **`StaticConnector`** -- redirects all connections to a fixed host and port (useful for testing).
+
+### Connect failures
+
+`TCP\connect()` throws `Network\Exception\RuntimeException` when the connection cannot be made. With `ext-sockets` installed, its code is the operating system's error number, such as `ECONNREFUSED` for a refused connection; without the extension it is 0 for a connection that fails after the socket was created. The `network` package lists `ext-sockets` as a suggestion.
 
 ### SocketPool
 
 `SocketPool` reuses idle TCP connections. Checked-in connections stay alive for a configurable idle timeout before being closed.
+
+Closing the pool closes its idle connections. After that, `checkout()` throws `Network\Exception\AlreadyStoppedException`, as does a checkout whose connection was still being made, and a connection checked out before the pool closed is closed when it is checked in.
 
 ```php
 use Psl\Async;
@@ -7048,7 +7115,9 @@ $listener->close();
 
 ### Composite Listener
 
-`Network\CompositeListener` accepts connections from multiple listeners concurrently through a single `accept()` call. Each inner listener runs its own accept loop in a separate fiber, and connections are funneled through a shared channel. Closing the composite listener closes all inner listeners.
+`Network\CompositeListener` accepts connections from multiple listeners concurrently through a single `accept()` call. Each inner listener has at most one accept in flight, in its own fiber, and accepted connections are handed to `accept()` callers in completion order.
+
+If an inner listener fails to accept a connection (for example, when a TLS handshake fails), `accept()` rethrows that error and the composite listener keeps accepting from every listener. Inner listeners that have been stopped are skipped, and `accept()` throws `AlreadyStoppedException` once all of them are stopped. Cancelling the last waiting `accept()` call also cancels the in-flight inner accepts. Closing the composite listener cancels them too, makes every waiting `accept()` call throw `AlreadyStoppedException`, then closes the connections left in its backlog and all inner listeners. It attempts every one of those closes, even when one fails, and then throws the first failure. An error that a cancelled inner accept throws still reaches the next `accept()` call, unless it is that cancellation. Once the composite listener is closed, no call can receive one: an IO, Network or cancellation exception is then dropped, and anything else, such as an `Error`, reaches the event loop.
 
 ```php
 use Psl\Async;
@@ -7153,6 +7222,8 @@ $keyFile = '/etc/ssl/private/server.key';
 $cert = TLS\Certificate::create($certFile, $keyFile);
 $acceptor = new TLS\Acceptor(TLS\ServerConfiguration::create($cert)->withAlpnProtocols(['h2', 'http/1.1']));
 
+// With ext-sockets, every accepted connection owns a private stream context, so the TLS
+// options and peer certificate of one connection can never be observed by another.
 $listener = TCP\listen('0.0.0.0', 8443);
 
 while (true) {
@@ -7162,6 +7233,29 @@ while (true) {
     $tls->close();
 }
 ```
+
+#### SNI certificates
+
+`ServerConfiguration::withSniCertificate()` and `withSniCertificates()` map host names to certificates. A client that asks for one of those names, or for a name that a `*.example.com` key matches, receives that certificate; every other client receives the main certificate. PHP's SNI support has two limits:
+
+- it cannot load a private key protected by a passphrase, so a configuration with such an SNI certificate fails every handshake with a `HandshakeFailedException` before it starts;
+- it negotiates no ALPN protocol for a connection served by an SNI certificate.
+
+Where either matters, use `LazyAcceptor` (below) to read the requested name, and complete the handshake with a `ServerConfiguration` whose main certificate is the one that name needs: main certificates accept a passphrase and negotiate ALPN.
+
+#### Per-connection stream contexts
+
+PHP reads a server's TLS options from the stream context of the accepted stream, and captures the client's certificate into that same context. Streams returned by `stream_socket_accept()` share the listening socket's context, so without isolation the settings and captures of one connection would be visible to every other connection of the same listener.
+
+`TCP\listen()` therefore accepts connections through `ext-sockets` (`socket_accept()` and `socket_export_stream()`) when the extension is available, which gives every accepted connection a private stream context. Installing `ext-sockets` is recommended for TLS servers; it is listed as a suggestion by the `tcp` and `tls` packages.
+
+Without `ext-sockets`, accepted streams share the listener's context. PSL still guarantees that a client which presents no certificate is never reported with another client's identity: the captured peer certificate is reset before each handshake, and read and removed in the same step that completes it. What cannot be undone on a shared context is a trust setting written by an earlier handshake, whether by another `ServerConfiguration` or by a client handshake on a stream of the same listener: if a stream's context already carries `cafile`, `capath`, `verify_peer`, `verify_peer_name`, `peer_fingerprint`, `allow_self_signed` or `verify_depth`, and the configuration used for it does not set that option, the handshake is refused with a `Network\Exception\RuntimeException` instead of silently trusting what the earlier handshake trusted. A stale `allow_self_signed`, for example, would accept any self-signed client certificate and report it as the peer. Other optional settings (`ciphers`, `alpnProtocols`, `sniCertificates`, a key passphrase, disabled TLS 1.3 session tickets) of an earlier configuration also remain in effect for a later configuration that omits them. Use one listener per `ServerConfiguration` in that setup, or install `ext-sockets`.
+
+The captured `peer_certificate` and `peer_certificate_chain` options are removed from the stream context after a server handshake; read the peer certificate from `StreamInterface::getState()` instead of the raw context.
+
+#### Session tickets
+
+`sessionTickets: false`, on either configuration, turns TLS session tickets off. A client then offers no TLS 1.2 session ticket; a TLS 1.3 server may still send tickets after the handshake, which nothing stores or reuses. A server issues no TLS 1.2 ticket, and on PHP 8.6 and later no TLS 1.3 ticket either; PHP 8.4 and 8.5 cannot turn TLS 1.3 tickets off, so a server there still sends OpenSSL's default of two.
 
 ### TLS Listener
 
@@ -7198,6 +7292,10 @@ while (true) {
 
 $listener->close();
 ```
+
+Each accepted connection gets a handshake deadline, 10 seconds by default, which the optional third constructor argument (`handshakeTimeout`, a `Duration`) changes. A connection that fails its handshake or exceeds the deadline is closed; an exceeded deadline surfaces as a `HandshakeFailedException` whose previous exception is the `CancelledException` that ended the handshake. The deadline starts once the inner listener has accepted the connection, independently of the token passed to `accept()`.
+
+Handshakes run concurrently. While an `accept()` call waits, the listener takes connections from the inner listener and runs each handshake in a fiber of its own, up to the optional fourth constructor argument (`maxPendingHandshakes`, 256 by default) at a time; while that many are pending it takes no further connection, so the inner listener's backlog, and then the operating system's, hold the ones that arrive. `accept()` returns the next connection whose handshake completes, in completion order: a peer that connects and then stays silent holds only its own slot until its deadline passes. A handshake that fails or times out closes its connection, and its `HandshakeFailedException` is delivered to the next `accept()` call, as when handshakes ran one at a time; a server that wants connections only catches it and calls `accept()` again. Cancelling an `accept()` call ends that call only: pending handshakes finish or time out on their own, and their outcomes wait for the next call, while no further connection is taken from the inner listener until a call waits again. `close()` cancels every pending handshake, which closes those connections, closes the connections whose handshakes completed for nobody, makes every waiting `accept()` call throw `AlreadyStoppedException`, and closes the inner listener.
 
 ### SNI-Based Virtual Hosting (LazyAcceptor)
 
@@ -7237,6 +7335,8 @@ while (true) {
     // ... handle connection
 }
 ```
+
+`LazyAcceptor::accept()` waits until the whole ClientHello has arrived, whether the client sends it in one write or in several, and in one TLS record or several, and it consumes none of it: the handshake reads it afterwards. The bytes already received keep the socket readable, so inspection peeks again after a pause that starts at 10 ms and doubles up to 320 ms while nothing new arrives. A peer that stops in the middle of its ClientHello holds the call until the cancellation token ends it, so pass a token with a deadline. A malformed ClientHello throws a `HandshakeFailedException`. A ClientHello longer than 16 KiB is reported from the extensions that end within its first 16 KiB; `complete()` still runs the whole handshake.
 
 ### TLS Connection Pooling
 
@@ -7298,6 +7398,12 @@ $config = TLS\ClientConfiguration::default()->withPeerFingerprints([
 $tls = TLS\connect('api.example.com', 443, $config);
 ```
 
+Pins are SHA-256 fingerprints of the peer's leaf certificate, in hexadecimal; letter case and `:` separators are ignored. They are checked after the handshake, on top of the chain and name verification configured by the other options. A certificate that matches none of the pins closes the connection and throws `PeerVerificationException`.
+
+### Verification Failures
+
+A handshake that fails because the peer's certificate was rejected, by chain verification (unknown authority, expired or self-signed certificate), by peer name verification, or by a pin, throws `TLS\Exception\PeerVerificationException`. It extends `HandshakeFailedException`, so existing handlers keep matching, and it implements `Network\Exception\NonRetryableExceptionInterface`: `TCP\RetryConnector` and `HTTP\Client\RetryClient` rethrow it at once instead of repeating a handshake that the same certificate will fail again. Other handshake failures, such as a reset connection or a peer that does not speak TLS, remain plain `HandshakeFailedException`s and are retried as before. Both carry the native error in their message.
+
 ### STARTTLS (Upgrade Mid-Connection)
 
 ```php
@@ -7348,6 +7454,18 @@ if ($state->peerCertificate !== null) {
 
 $tls->close();
 ```
+
+### Writes and TLS records
+
+OpenSSL encrypts a write into a TLS record before it reaches the socket. When the socket is not writable, PHP reports the write as short although that record is already committed and must be sent, unchanged, before any other bytes. TLS streams handle this for you: a short `tryWrite()` counts up to one record (16 KiB) of the unwritten remainder as accepted and sends it before the bytes of any later write, so a `tryWrite()` followed by a write of different bytes, or a cancelled `writeAll()` followed by another write, never corrupts the stream. Consequences:
+
+- `tryWrite()` returns `0` while that record cannot be sent yet, and while a `write()` or `writeAll()` is in progress on another fiber;
+- `write()` and `writeAll()` return only once every byte they count has been handed to the socket;
+- `shutdown()` throws an `IO\Exception\RuntimeException` while a record accepted by `tryWrite()` is still pending; call `write()` or `writeAll()` first.
+
+### Peeking
+
+`peek()` on a TLS stream returns decrypted bytes, as `read()` would, without consuming them. The socket only holds TLS records, so the stream reads the bytes from the connection and keeps them; the next `read()` or `tryRead()` returns them first, and `reachedEndOfDataSource()` stays false while any are kept. A peek returns an empty string only once the peer has ended the data: records that carry no data, such as the TLS 1.3 session tickets a server sends after its handshake, do not end its wait.
 
 ### Cancellation
 
@@ -7421,7 +7539,9 @@ Async\concurrently([
 
 ### Unconnected vs. Connected Sockets
 
-An unconnected `Socket` can send to and receive from any address using `sendTo()` and `receiveFrom()`. When you call `connect()` on it, the original socket is closed and a `ConnectedSocket` is returned. The connected socket uses simpler `send()` and `receive()` methods since the peer is fixed.
+An unconnected `Socket` can send to and receive from any address using `sendTo()` and `receiveFrom()`. When you call `connect()` on it, a `ConnectedSocket` is returned and the `Socket` object is closed. The connected socket uses simpler `send()` and `receive()` methods since the peer is fixed.
+
+With ext-sockets, `connect()` connects the same OS socket in place, so the connected socket keeps the socket's options, its local address and port, and the datagrams already queued on it. It connects to the address a new socket would: an IP literal, or the first address of a host name, in the system's order, that the socket's family reaches (an IPv4 socket skips IPv6 addresses). An IPv6 socket bound to `::` reaches an IPv4 address through its IPv4-mapped form, such as `::ffff:127.0.0.1`, which its local address then shows. Without the extension, a new socket bound to the same local address takes its place: it starts without those options and queued datagrams, and another process may take the port in between. The same replacement, by an IPv4 socket on a new port, runs for an IPv4 address on an IPv6 socket that is IPv6-only or bound to any address but `::`, and a connect that fails in place is replaced too, so it fails, or succeeds, as it does without the extension. An IPv4 socket cannot connect to an IPv6 address.
 
 ```php
 use Psl\Async;
@@ -7451,7 +7571,7 @@ Async\concurrently([
 ]);
 ```
 
-You can also create a connected socket directly:
+You can also create a connected socket directly. `UDP\connect()` selects the local socket family from the target, so IPv6 targets work without an explicit local bind:
 
 ```php
 use Psl\Async;
@@ -7475,6 +7595,12 @@ Async\concurrently([
     },
 ]);
 ```
+
+### Receive Errors
+
+On POSIX systems with ext-sockets, a `ConnectedSocket` receives through the extension, so a failed `receive()` or `peek()` throws `Network\Exception\RuntimeException` with the errno as its code, such as `ECONNREFUSED` once the peer's port was unreachable. The socket stays usable, and the next receive waits for the next datagram. Without the extension, and on Windows, such a failure cannot be told apart from a missing datagram: a `receive()` consumes it and waits again, so bound it with a cancellation token. A `peek()` leaves the error pending on BSD systems, such as macOS, and the socket stays readable: the peek then throws `Network\Exception\RuntimeException` with 0 as its code, as every peek does until a receive consumes the error.
+
+A receive or peek that finds no datagram after its socket became readable, as when another receive took the datagram first, waits for the next one. Closing a socket fails every call waiting on it with `IO\Exception\AlreadyClosedException`.
 
 ### Configuration
 
@@ -7549,6 +7675,16 @@ See [src/Psl/UDP/](https://github.com/php-standard-library/php-standard-library/
 The `Unix` component provides a non-blocking API for Unix domain socket connections, built on top of PSL's IO and Network abstractions.
 
 Unix domain sockets provide local inter-process communication without the overhead of TCP's network stack. Not available on Windows.
+
+`Unix\connect()`, `Unix\listen()`, `Unix\Socket::bind()` and `Unix\Socket::connect()` throw `Network\Exception\InvalidArgumentException` for a socket path containing a NUL byte, which the operating system would otherwise silently truncate. A path starting with a NUL byte names a socket in the Linux abstract namespace instead, where every byte is part of the name; all four pass it through unchanged. They also throw it for a path longer than the system can hold, which PHP would otherwise cut short: 103 bytes on macOS and the BSDs, 107 on Linux, where a name in the abstract namespace may have 108, its leading NUL byte included.
+
+## Addresses
+
+A Unix stream reports the names its two sockets really have. A socket bound to a path reports that path; a socket that is not bound, as a client usually is, reports the unnamed address `unix://<anonymous>`. So a client's `getPeerAddress()` is the listener's path and its `getLocalAddress()` is unnamed, and a stream that a listener accepted reports the listener's path as its local address and the client's name, or the unnamed address, as its peer address.
+
+## Binding a Client
+
+`Unix\Socket::bind()` names a socket before it listens or connects. A client bound this way connects from that path, so the listener sees the path as the accepted stream's peer address. Binding before connecting needs ext-sockets, as PHP's streams do not bind a Unix client; without the extension, `Unix\Socket::connect()` on a bound socket throws `Network\Exception\RuntimeException` before it creates a socket. The file the bind creates stays after the socket closes, as a listener's does.
 
 ## Usage
 
@@ -7723,7 +7859,7 @@ See [src/Psl/Unix/](https://github.com/php-standard-library/php-standard-library
 
 # DNS
 
-The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. All resolvers are non-blocking and composable via the decorator pattern.
+The `DNS` component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS-over-HTTPS, system configuration detection, hosts file support, and search domain expansion. Resolvers can wrap one another to combine their features. Queries use non-blocking I/O; resolving a nameserver hostname uses a blocking system lookup.
 
 ## Basic Usage
 
@@ -7769,15 +7905,24 @@ $resolver = new DNS\SystemResolver(
 
 Resolvers can be composed for different strategies: direct UDP/TCP, fallback on truncation, racing multiple nameservers, DNS-over-TLS, or DNS-over-HTTPS.
 
+`FallbackResolver` tries the next resolver after a transport or protocol failure, SERVFAIL, or REFUSED. It returns NXDOMAIN at once because the response answers the query. It returns other response codes, including FORMERR, and propagates invalid input and cancellation. Use `SplitHorizonResolver` to route static names separately from public DNS.
+
+`UDPResolver` supports IPv4 and IPv6 nameserver addresses and hostnames with IPv4 addresses. It resolves each hostname once per query through the system resolver, then uses that address to send the query and check the reply source. It checks the response question against the query name, type, and class. Name matching ignores case. It checks the transaction ID before decoding records. A wrong ID or question raises `ProtocolException`, so `FallbackResolver` can try TCP. Error replies may omit the question only when they contain no records.
+
+`TCPResolver` also checks the response question and closes the connection if the name, type, or class does not match.
+
 ```php
 use Psl\DNS;
 use Psl\TCP;
 use Psl\TLS;
 
-// UDP resolver (standard DNS, port 53)
+// UDP rejects a wrong ID or question, so fallback can try TCP.
 $udp = new DNS\UDPResolver('8.8.8.8');
 
-// TCP resolver with connection pooling
+// Hostnames use a blocking system IPv4 lookup once per query.
+$localUdp = new DNS\UDPResolver('localhost');
+
+// TCP pools connections and rejects replies with a different question.
 $tcp = new DNS\TCPResolver('8.8.8.8');
 
 // DNS-over-TLS (port 853)
@@ -7790,7 +7935,8 @@ $dot = new DNS\TCPResolver(
 // DNS-over-HTTPS (RFC 8484)
 $doh = new DNS\HTTPSResolver('https://1.1.1.1/dns-query');
 
-// UDP with automatic TCP fallback on truncated responses
+// Retry TCP after truncation, transport errors, SERVFAIL, or REFUSED.
+// NXDOMAIN ends the query without a TCP retry.
 $fallback = new DNS\FallbackResolver([$udp, $tcp]);
 
 // Race multiple nameservers, return the fastest response
@@ -7802,7 +7948,7 @@ $racing = new DNS\RacingResolver([
 
 ## Record Types
 
-Over 20 DNS record types are supported. Responses provide typed access via `getAnswerRecords()` and `getFirstAnswerRecord()`.
+Over 20 DNS record types are supported. Responses provide typed access via `getAnswerRecords()` and `getFirstAnswerRecord()`. Response codes include `YXRRSET`, `NXRRSET`, and `BADCOOKIE`. Unknown codes raise `ProtocolException`.
 
 ```php
 use Psl\DNS;
@@ -7839,19 +7985,28 @@ foreach ($ptr->getAnswerRecords(Record\PTRRecord::class) as $record) {
 
 ## Caching
 
-`CachedResolver` wraps any resolver with TTL-aware caching. Cache TTL is derived from the minimum record TTL in each response.
+`CachedResolver` wraps any resolver with TTL-aware caching. Positive answers use the lowest answer TTL. NXDOMAIN and NODATA responses require an SOA record and use the lower of its TTL and SOA MINIMUM, as defined by RFC 2308. CNAME records can shorten that TTL. Responses with a zero TTL and negative responses without an SOA record are not cached.
+
+Cached records carry only their remaining TTL, capped by the response cache lifetime. This also applies to authority and additional records; OPT flags do not age.
+
+SERVFAIL, REFUSED, DNS runtime errors, and timeouts are cached for five seconds by default, per [RFC 9520 section 3.2](https://www.rfc-editor.org/rfc/rfc9520.html#section-3.2). The optional `failureTtl` constructor argument accepts 1..300 seconds. Cache hits return the same response code or throw the cached exception. Caller cancellation, including a caller deadline, is not cached; a caller deadline does not prove that resolution has failed. Put this cache outside fallback or racing resolvers so they can try all servers before it stores a failure.
+
+Cookies and padding do not change the cache key. Other EDNS options, including Client Subnet, keep separate cache entries.
 
 ```php
 use Psl\Cache;
 use Psl\DNS;
 
 // Wrap any resolver with caching
-$resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStore());
+$resolver = new DNS\CachedResolver(new DNS\SystemResolver(), new Cache\LocalStore(), failureTtl: 5);
 
 // First query hits the network
 $response = $resolver->query('example.com', DNS\Record\RecordType::A);
 
-// Second query returns from cache (TTL-aware)
+// Cached records carry their remaining TTL.
+// A positive TTL lets the second query use the cache.
+// SERVFAIL, REFUSED, DNS runtime errors and timeouts use the five-second failure TTL.
+// Zero-TTL answers require a new query.
 $cached = $resolver->query('example.com', DNS\Record\RecordType::A);
 ```
 
@@ -7923,7 +8078,9 @@ $addresses = $hosts->lookup('localhost');
 
 ## EDNS0 Options
 
-Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID.
+Pass EDNS0 options to any query for features like DNS cookies, client subnet hints, padding, and NSID. `ECSOption` rejects source and scope prefixes outside 0..32 for IPv4 or 0..128 for IPv6 when encoding.
+
+`UDPResolver` and `FallbackResolver` return `BadCookie` to the caller. They do not retry with the server cookie. Per [RFC 7873 section 5.3](https://www.rfc-editor.org/rfc/rfc7873.html#section-5.3), callers can retry once with the returned server cookie after checking that the client cookie matches, or retry over TCP to the same nameserver. Bound retries to avoid a loop if the server keeps returning BADCOOKIE.
 
 ```php
 use Psl\DNS;
@@ -7934,6 +8091,8 @@ use Psl\SecureRandom;
 
 $resolver = new DNS\SystemResolver();
 
+// ECS source and scope prefixes must fit the address: 0..32 for IPv4, 0..128 for IPv6.
+// Scope must be 0 in queries.
 // Query with EDNS0 options
 $response = $resolver->query('example.com', RecordType::A, ednsOptions: [
     new EDNS\CookieOption(clientCookie: SecureRandom\bytes(8)),
@@ -7972,7 +8131,7 @@ $response = $cached->query('example.com', DNS\Record\RecordType::A);
 
 ## Blocking System Resolver
 
-`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Useful as a lightweight fallback behind a `StaticResolver`, or in environments where async DNS is unnecessary.
+`BlockingSystemResolver` wraps PHP's built-in `dns_get_record()` for synchronous DNS resolution with zero overhead. No event loop, no fibers, no connection pooling. Use it where async DNS is unnecessary. `SplitHorizonResolver` can route known names to a `StaticResolver` and all other names to this resolver.
 
 Supports A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT, CAA, and NAPTR record types. EDNS0 options are ignored. Queries for unsupported types return NXDOMAIN.
 
@@ -8116,8 +8275,10 @@ $public = new DNS\RacingResolver([
     ]),
 ]);
 
-// 4. Static overrides first, then public nameservers
-$base = new DNS\FallbackResolver([$static, $public]);
+// 4. Route static names locally and other names to public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 5. Route corporate domains to internal DNS, everything else to public
 $routed = new DNS\SplitHorizonResolver(routes: [
@@ -8130,7 +8291,7 @@ $searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.interna
 // 7. Check the hosts file before any network query
 $hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
 
-// 8. Cache everything on top
+// 8. Cache positive and negative answers with a positive TTL
 $resolver = new DNS\CachedResolver($hostsAware, $cache);
 
 // 9. Profit!
@@ -8223,7 +8384,9 @@ $inner = new DNS\SystemResolver(dnssec: true);
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 $resolver = new DNSSEC\SecureResolver($inner, $trustChain);
 
-// Queries are validated: signatures, trust chain, NSEC proofs
+// Verify each answer, alias link, and NSEC/NSEC3/SOA proof RRset.
+// Strip unrelated answer records. NXDOMAIN must prove the final target absent.
+// Wildcard answers also need a signed proof that no closer name exists.
 $response = $resolver->query('example.com', RecordType::A);
 
 // Throws SignatureFailedException, BrokenTrustChainException,
@@ -8234,11 +8397,19 @@ $response = $resolver->query('example.com', RecordType::A);
 
 Every DNSSEC-signed response includes RRSIG records alongside the answer records. Each RRSIG contains a cryptographic signature over a set of records, the signer's identity, and the key tag to locate the corresponding DNSKEY.
 
-When `SecureResolver` receives a response, it verifies that the RRSIG signatures are valid using the zone's public keys (DNSKEY records). If any signature is invalid or expired, `SignatureFailedException` is thrown.
+`SecureResolver` requires signature coverage for each answer RRset in a signed zone, including every CNAME or DNAME in the query's alias chain. It checks each RRset with the keys of the zone that owns it. A parent zone's key cannot sign data below a signed child delegation. Missing signatures raise `InvalidProofException`; invalid or expired signatures raise `SignatureFailedException`.
+
+A signed DNAME also proves an unsigned CNAME when the CNAME matches the DNAME substitution. The resolver rejects wildcard-expanded DNAMEs, alias loops, and substitutions longer than the DNS name limit. The resolver strips unrelated answer RRsets and their signatures so callers receive only the queried data and its alias chain. Each RRset uses class IN; the DNS wire decoder rejects other record classes except the EDNS OPT pseudo-record.
+
+`StaticTrustChainResolver` uses the nearest configured ancestor zone for names below a zone apex. A more specific entry takes precedence, including an unsigned delegation.
+
+Wildcard-expanded answers also need a signed NSEC or NSEC3 proof that no closer name prevents the expansion. NSEC3 Opt-Out clears AD because the proof can span unsigned delegations.
 
 ## DS/DNSKEY: Trust Chain
 
 DNSSEC trust is established through a chain from the DNS root to the target zone. Each parent zone contains a DS (Delegation Signer) record that is a cryptographic hash of the child zone's DNSKEY. By verifying each link in the chain, `TrustChainResolver` proves that the zone's keys are authorized by the parent, all the way up to the root trust anchor.
+
+DS denial marks a name Insecure only when it proves an unsigned delegation. Names within a signed zone, including empty nonterminals, keep the parent zone's validated keys.
 
 The walk for `example.com` goes: root (.) DNSKEY > `com.` DS > `com.` DNSKEY > `example.com.` DS > `example.com.` DNSKEY.
 
@@ -8246,11 +8417,13 @@ The walk for `example.com` goes: root (.) DNSKEY > `com.` DS > `com.` DNSKEY > `
 
 When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records list the names that DO exist in sorted order, proving there is no name between them. NSEC3 records do the same but with hashed names to prevent zone enumeration.
 
-`SecureResolver` validates these proofs automatically. If the proof is missing or invalid, `InvalidProofException` is thrown.
+`SecureResolver` checks every NSEC, NSEC3, and SOA RRset in a signed response with the queried zone's keys. Each RRset needs at least one valid signature with the same owner and covered type. Only verified records reach the denial checks. Missing proof records raise `UnsignedResponseException` or `InvalidProofException`; unsigned or invalid proof RRsets raise `SignatureFailedException`.
+
+For NXDOMAIN after a CNAME or DNAME, the resolver checks each alias link, then requires a denial proof for the final target. A signed alias alone does not prove that its target is absent. A target in an unsigned zone clears AD.
 
 ## Trust Anchors
 
-`TrustChainResolver` uses the IANA root KSK as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
+`TrustChainResolver` uses both IANA root keys, KSK-2017 (20326) and KSK-2024 (38696), as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
 
 ```php
 use Psl\DateTime\Duration;
@@ -8261,7 +8434,7 @@ use Psl\DNSSEC;
 
 $inner = new DNS\SystemResolver(dnssec: true);
 
-// Default: uses IANA root KSK, walks the DS/DNSKEY chain via DNS queries
+// Default: uses IANA root KSK-2017 and KSK-2024, walks the DS/DNSKEY chain via DNS queries
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 
 // Fully offline: pre-loaded DNSKEY records per zone, no network queries
@@ -8403,8 +8576,10 @@ $public = new DNSSEC\SecureResolver(
     new DNSSEC\CachedTrustChainResolver(new DNSSEC\TrustChainResolver($public), $cache),
 );
 
-// 5. Static overrides first, then DNSSEC-validated public DNS
-$base = new DNS\FallbackResolver([$static, $public]);
+// 5. Route static names locally and other names to validated public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 6. Route corporate domains to internal DNS (unvalidated),
 //    everything else to static + DNSSEC-validated public
@@ -8418,7 +8593,7 @@ $searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.interna
 // 8. Check the hosts file before any network query
 $hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
 
-// 9. Cache everything on top
+// 9. Cache positive and negative answers with a positive TTL
 $resolver = new DNS\CachedResolver($hostsAware, $cache);
 
 // 10. Profit!
@@ -8464,6 +8639,25 @@ The `H2` component implements the HTTP/2 binary framing protocol (RFC 9113) on t
 
 ## Architecture
 
+If `readEvent()` throws `H2\Exception\StreamException`, H2 has sent RST_STREAM for that stream. The connection remains usable: catch the error and keep reading so other streams can finish. Connection errors still close the connection with GOAWAY (RFC 9113 Section 5.4).
+
+```php
+use Psl\H2;
+
+/** @var H2\ConnectionInterface $connection */
+
+while ($connection->isConnected()) {
+    try {
+        $events = $connection->readEvent();
+        // Handle events for the active streams.
+    } catch (H2\Exception\StreamException $error) {
+        // HEADERS after the peer ended its side report ErrorCode::StreamClosed here.
+        // H2 sent RST_STREAM for $error->streamId. Keep reading other streams.
+        continue;
+    }
+}
+```
+
 H2 connections take a `Psl\IO\ReadHandleInterface & Psl\IO\WriteHandleInterface` instance. That could be a TCP stream, a TLS connection, a Unix socket, or anything else that implements those interfaces. H2 does not care about the transport.
 
 PSL's IO and Async components are built on top of [Revolt](https://github.com/revoltphp/event-loop). H2 is concurrent by design: operations like `waitForSendWindow()` suspend the current fiber and let the event loop run until a WINDOW_UPDATE arrives. Multiple streams on the same connection run in parallel through fibers.
@@ -8473,6 +8667,8 @@ To use H2 with other event loop libraries like ReactPHP, use [revoltphp/event-lo
 ## Client and Server
 
 Connections are split into `ClientConnection` and `ServerConnection`, each implementing their role-specific interface. Both share common operations (sending headers, data, ping, goaway) via `ConnectionInterface`.
+
+`sendHeaders()`, `sendHeadersWithStatus()`, and `sendPushPromise()` reject connection-specific fields (`connection`, `keep-alive`, `proxy-connection`, `transfer-encoding`, and `upgrade`) and `te` values other than `trailers` (case-insensitive) with `H2\Exception\StreamException`. They also reject values with CR, LF, NUL, or leading or trailing spaces or tabs, and names that are empty or contain bytes outside the token set, such as spaces, control characters, or non-ASCII. They check before HPACK encoding, so callers can correct the fields and retry.
 
 ```php
 use Psl\H2;
@@ -8506,6 +8702,9 @@ $client->sendHeaders(
         new Header(':path', '/hello'),
         new Header(':scheme', 'https'),
         new Header(':authority', 'example.com'),
+        // The te value is case-insensitive; other connection-specific fields cause StreamException.
+        // Values with CR, LF, NUL, or leading or trailing spaces or tabs also fail before sending.
+        new Header('te', 'Trailers'),
     ],
     endStream: true,
 );
@@ -8524,11 +8723,27 @@ foreach ($events as $event) {
 
     $server->sendData($event->streamId, 'Hello, World!', endStream: true);
 }
+
+// A lower receive frame-size limit takes effect when the peer acknowledges it.
+$client->sendSettings([H2\Setting::MaxFrameSize->value => 16_384]);
+
+// The decoder also waits for ACK before enforcing a lower table-size limit.
+$client->sendSettings([H2\Setting::HeaderTableSize->value => 1024]);
 ```
+
+After a graceful `goAway()`, keep reading while accepted streams finish.
+H2 decodes and discards racing headers and push promises above the last
+accepted peer stream so the shared HPACK table stays in sync. It discards
+DATA and stream control frames on those streams too, while returning
+connection flow-control credit for the full DATA payload, including padding.
 
 ## Flow Control
 
-`sendData()` sends a single frame and requires the caller to manage flow control windows. For large payloads, use `sendAllData()` which automatically splits data into window-sized chunks and waits for WINDOW_UPDATE frames.
+`sendData()` splits data at the peer's frame-size limit and requires the caller to provide enough flow-control window for the whole payload. For large payloads, use `sendAllData()` which automatically splits data into window-sized chunks and waits for WINDOW_UPDATE frames.
+
+`waitForSendWindow()` and `sendAllData()` throw `H2\Exception\StreamException` if the stream closes, resets, or finishes sending while they wait. GOAWAY, transport EOF, or a read failure fails all waiters with `H2\Exception\ConnectionException`. Cancelling a read leaves the connection usable.
+
+A WINDOW_UPDATE that would push a stream's send window above 2^31-1 is a stream error (RFC 9113 Section 6.9.1). `readEvent()` sends `RST_STREAM(FLOW_CONTROL_ERROR)` and throws `H2\Exception\StreamException` with that stream ID, so the caller can fail the affected request. The connection stays usable.
 
 ```php
 use Psl\H2;
@@ -8546,14 +8761,26 @@ $client->sendHeaders($streamId, [
     new Header(':authority', 'example.com'),
 ]);
 
-// sendAllData handles flow control - no manual window management needed
+// sendData splits frames but requires enough window for the whole payload.
+// sendAllData also waits for flow-control window updates.
+// It throws H2\Exception\StreamException if the stream closes while waiting.
+// GOAWAY, EOF, or a read failure instead throws H2\Exception\ConnectionException.
 $largePayload = Str\repeat('data', 10_000);
 $client->sendAllData($streamId, $largePayload, endStream: true);
 ```
 
+H2 decodes a complete field block before reporting a stream-state error.
+HEADERS received after the peer ends its side cause `STREAM_CLOSED` for
+that stream. HEADERS on a locally reserved push stream cause a connection
+`PROTOCOL_ERROR`.
+
+`goAway()` accepts a `lastStreamId`. A graceful shutdown can first announce `MAX_STREAM_ID` (2^31-1) and later send the real last stream (RFC 9113 Section 6.8). Peer streams at or below the announced value are still accepted and processed; streams above it are decoded for HPACK state and discarded. A second `goAway()` never raises the announced value.
+
 ## Server Push
 
 Server push is part of the HTTP/2 specification, so H2 implements it. Whether higher-level code chooses to use it is an application-level decision. `sendPushPromise()` sends pushes, `rejectPush()` declines them.
+
+Clients reject promised requests unless they use GET or HEAD, include a non-empty `:authority`, and declare no content. H2 checks the associated stream and decodes the full field block before rejecting a promised request. Since H2 accepts any IO handle, callers must verify that the server is authoritative for the promised origin before using its response; use `resetStream($promisedStreamId, H2\ErrorCode::ProtocolError)` if it is not.
 
 ```php
 use Psl\H2;
@@ -8578,6 +8805,9 @@ $server->sendHeadersWithStatus($pushStreamId, '200', [
     new Header('content-type', 'text/css'),
 ]);
 $server->sendData($pushStreamId, 'body { color: red; }', endStream: true);
+
+// Check the promised origin against the server's authority before using a push.
+// Reset an unauthorized promised stream with H2\ErrorCode::ProtocolError.
 
 // Client can reject unwanted pushes
 $client->rejectPush($pushStreamId);
@@ -8635,7 +8865,32 @@ $server->sendOrigin([
 
 ## Configuration
 
+H2 allows 100 resets caused by peer errors per 10-second window by default.
+The next error ends the connection with `ENHANCE_YOUR_CALM`. This counts
+malformed streams, refused streams and stream-window overflows. It does not
+count calls to `resetStream()` made by the application.
+
+Set `RateLimiter::STREAM_ERROR_RESET` in `Configuration::rateLimiter` to
+change this limit. Passing a limiter without that key disables it. The
+incoming `RST_STREAM` limit remains a separate counter.
+
+```php
+
+// Allow up to 50 resets caused by peer errors in each 10-second window.
+$configuration = new H2\Configuration(rateLimiter: new H2\RateLimiter([
+    H2\RateLimiter::STREAM_ERROR_RESET => [50, Duration::seconds(10)],
+]));
+```
+
+A field block arrives as a HEADERS or PUSH_PROMISE frame followed by CONTINUATION frames, and can only be decoded once END_HEADERS arrives. `Configuration::$maxHeaderBlockSize` bounds the fragments buffered for one block, 64 KiB by default (`DEFAULT_MAX_HEADER_BLOCK_SIZE`): a peer that never ends a block, or sends a larger one, gets a `PROTOCOL_ERROR` connection error before the fragment that would exceed the limit is buffered; a block that arrives whole in one frame is not buffered, and `SETTINGS_MAX_FRAME_SIZE` bounds it instead. `0` lifts the limit. The decoded field section is bounded separately. A `SETTINGS_MAX_HEADER_LIST_SIZE` given in `Configuration::$settings` is advertised and enforced; without one, the decoder enforces 64 KiB (`DEFAULT_MAX_RECEIVED_HEADER_LIST_SIZE`) without advertising it, as RFC 9113 Section 6.5.2 permits, since one byte of a block can stand for a 4 KiB table entry. A block that decodes to more fails with `COMPRESSION_ERROR`. Pass `DEFAULT_MAX_HEADER_LIST_SIZE` as the setting to lift that limit. `MAX_CONCURRENT_STREAMS` keeps the RFC's unlimited initial value; a server should set it.
+
 The unified `Configuration` class replaces the deprecated `ServerConfiguration` and `ClientConfiguration`. It provides immutable builder patterns with `with*` methods and supports BDP auto-tuning for both client and server connections. When `maxReceiveWindowSize` is set, the connection dynamically sizes its receive window based on measured throughput and RTT using PING round-trips. Both `ClientConnection` and `ServerConnection` accept the new `Configuration` alongside their legacy types for backwards compatibility.
+
+`sendSettings()` tracks frame-size changes in send order. A lower `MAX_FRAME_SIZE` takes effect after the peer acknowledges that SETTINGS frame. H2 accepts advertised increases while their ACK is pending.
+
+Local `MAX_CONCURRENT_STREAMS` and `INITIAL_WINDOW_SIZE` changes also take effect when their SETTINGS frame is acknowledged. The peer-stream limit and the initial receive window of new streams switch on that ACK, and the receive windows of open streams move by the difference, as RFC 9113 Section 6.9.2 requires.
+
+The same ACK ordering applies to the decoder's `HEADER_TABLE_SIZE` limit. A reduction waits for its ACK; H2 accepts an advertised increase while its ACK is pending. The outbound encoder starts at no more than the peer's default 4096-byte table, regardless of the larger receive limit configured locally. It grows only when the peer advertises a larger limit.
 
 ## Extension Frames
 
@@ -8646,6 +8901,21 @@ Beyond the core 10 frame types, the component supports:
 - **PRIORITY_UPDATE** (0x10) -- RFC 9218 extensible priority scheme
 
 Unknown frame types are silently ignored per the RFC, ensuring forward compatibility.
+
+Invalid payload sizes use `FRAME_SIZE_ERROR` (RFC 9113 Sections 4.2 and 6). H2 resets an active stream for a malformed PRIORITY frame; other size errors close the connection. Excess padding still uses `PROTOCOL_ERROR`.
+
+```php
+use Psl\H2;
+use Psl\H2\Frame;
+
+$invalidPing = new Frame\RawFrame(Frame\FrameType::Ping->value, 0, 0, 'short');
+try {
+    Frame\PingFrame::fromRaw($invalidPing);
+} catch (H2\Exception\ProtocolException $error) {
+    // fromRaw() reports the same code that a connection sends in GOAWAY.
+    assert($error->errorCode === H2\ErrorCode::FrameSizeError, 'Invalid payload sizes use FRAME_SIZE_ERROR.');
+}
+```
 
 See [src/Psl/H2/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/h2/src/Psl/H2/) for the full API.
 
@@ -8747,7 +9017,51 @@ foreach ($headers as $header) {
 
 The dynamic table size can be adjusted at runtime via `resize()`. This is typically driven by the HTTP/2 SETTINGS_HEADER_TABLE_SIZE parameter negotiated between peers.
 
+`Decoder::resize()` changes the allowed table-size limit. Raising that limit leaves the peer's chosen size unchanged until the peer sends an HPACK table-size update. Lowering the limit evicts entries only if the chosen size exceeds it.
+
+```php
+use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder();
+$decoder = new HPACK\Decoder();
+
+// Allow the peer to select a larger table.
+$decoder->resize(8192);
+
+// The encoder selects that size and sends its update in the next block.
+$encoder->resize(8192);
+$encoded = $encoder->encode([new HPACK\Header(':method', 'GET')]);
+
+foreach ($decoder->decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header->name, $header->value);
+}
+```
+
 The maximum decompressed header list size is configurable via the constructor or `setMaxHeaderListSize()`. Headers that exceed this limit throw `HeaderListSizeException`.
+
+If `encode()` or `encodeWithStatus()` rejects an oversized header list, it leaves the dynamic table and pending size updates unchanged. You can retry with a smaller list on the same encoder. A rejected call may consume its input iterator, so pass a fresh iterator when retrying.
+
+```php
+use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder(maxHeaderListSize: 64);
+$decoder = new HPACK\Decoder();
+
+try {
+    $encoded = $encoder->encode([
+        new HPACK\Header(':method', 'GET'),
+        new HPACK\Header('x-extra', 'optional'),
+    ]);
+} catch (HPACK\Exception\HeaderListSizeException) {
+    $encoded = $encoder->encode([new HPACK\Header(':method', 'GET')]);
+}
+
+foreach ($decoder->decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header->name, $header->value);
+}
+```
 
 See [src/Psl/HPACK/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/hpack/src/Psl/HPACK/) for the full API.
 
@@ -8809,6 +9123,8 @@ $tx->response->body?->readAll();
 
 ## Concurrent Requests
 
+An HTTP/2 stream error fails only that request. Other requests on the same connection keep running, and the client can reuse the session.
+
 Use `Async\concurrently()` to send multiple requests in parallel over the same client. HTTP/2 connections are automatically multiplexed.
 
 ```php
@@ -8816,6 +9132,9 @@ use Psl\Async;
 use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
+
+// HTTP/2 queues requests at the peer limit until an active stream closes.
+// Cancellation interrupts these waits; close an unread body to cancel its stream.
 
 $client = new Client\Client();
 
@@ -8842,11 +9161,17 @@ $transactions['posts']->response->body?->readAll();
 
 `RedirectClient` wraps any client and automatically follows 3xx redirects with credential stripping on cross-origin hops and method rewriting per RFC 9110.
 
+Redirects that preserve the request body, including 307 and 308, resend it. A seekable body is restored to its original position before each resend. A non-seekable body is resent only if it was never read, as when an `Expect: 100-continue` upload is pre-empted by the redirect; once read, it throws `Exception\RequestException`. A failure reading the body's position is also reported as `Exception\RequestException`.
+
+Location values follow RFC 3986 resolution. A URL inside a query or fragment does not make the reference absolute. A scheme without an authority, such as `https:login`, is rejected as an invalid URL. Only `http` and `https` targets are followed; a redirect to any other scheme, such as `ftp://`, throws `Exception\ProtocolException`.
+
 ```php
 use Psl\HTTP\Client;
 use Psl\HTTP\Message;
+use Psl\IO;
 use Psl\URL;
 
+// Location values such as /login?next=https://x resolve against the current URL.
 $client = new Client\RedirectClient(new Client\Client(), maxRedirects: 5, autoReferrer: true);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://httpbin.org/redirect/3'));
@@ -8854,11 +9179,29 @@ $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https
 $tx = $client->send($request);
 
 $tx->response->status;
+
+// A seekable body lets RedirectClient resend it after a 307 or 308 response.
+$upload = new Message\Request(
+    method: Message\METHOD_POST,
+    url: URL\parse('https://httpbin.org/redirect-to?url=/post&status_code=307'),
+    body: new IO\MemoryHandle('payload'),
+);
+
+$client->send($upload);
+
+// 301 and 302 preserve PUT and its body; only POST changes to GET.
+$client->send(new Message\Request(
+    method: Message\METHOD_PUT,
+    url: URL\parse('https://httpbin.org/redirect-to?url=/put&status_code=302'),
+    body: new IO\MemoryHandle('payload'),
+));
 ```
+
+For 301 and 302, only POST changes to GET. Other methods keep their body and method. For 303, all methods except GET and HEAD change to GET. A body that survives a redirect must be seekable so the client can return to its original position.
 
 ## Retries
 
-`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff.
+`RetryClient` wraps any client and retries idempotent requests on transport-level failures with exponential backoff. Failures implementing `Network\Exception\NonRetryableExceptionInterface`, such as a rejected TLS certificate (`TLS\Exception\PeerVerificationException`), are rethrown at once.
 
 ```php
 use Psl\DateTime\Duration;
@@ -8893,12 +9236,14 @@ use Psl\URL;
 
 $configuration = new Client\ClientConfiguration(
     maxResponseHeaderSize: 16_384,
+    // HTTP/2 enforces this limit as DATA arrives, even before the body is read.
     maxResponseBodySize: 50_000_000,
     baseUrl: URL\parse('https://api.example.com/v2'),
     tlsConfiguration: new TLS\ClientConfiguration(minimumVersion: TLS\Version::Tls12),
     protocolVersions: [ProtocolVersion::V20, ProtocolVersion::V11],
 );
 
+// The pool keeps connections with different TLS or proxy settings separate.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: null, requestTarget: '/users');
@@ -8940,12 +9285,16 @@ use Psl\HTTP\Client;
 use Psl\HTTP\Message;
 use Psl\URL;
 
+// The preset also blocks shared, reserved, documentation, multicast, translation,
+// 6to4, Teredo, discard-only, and deprecated site-local ranges. Unix sockets have
+// no peer IP and do not undergo these checks. Behind a proxy the check sees the proxy.
 $client = new Client\Client(middleware: [Client\Middleware\DeniedDestinationsMiddleware::forPrivateNetworkRanges()]);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));
 $tx = $client->send($request);
 
-$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://169.254.169.254/metadata'));
+// IPv4-mapped IPv6 receives the same checks as its IPv4 address.
+$request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://[::ffff:169.254.169.254]/metadata'));
 $tx = $client->send($request);
 ```
 
@@ -9004,6 +9353,7 @@ $configuration = new Client\ClientConfiguration(
     ),
 );
 
+// CONNECT leaves all bytes after the proxy headers for the tunnel.
 $client = new Client\Client(configuration: $configuration);
 
 $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https://example.com'));
@@ -9012,7 +9362,11 @@ $tx = $client->send($request);
 $tx->response->status;
 ```
 
+CONNECT reads stop at the end of the proxy headers, leaving any following tunnel bytes on the stream. The CONNECT status code must be exactly three digits followed by a space or the line end, so a value such as `2000` is rejected rather than read as `200`.
+
 ## HTTP/2 over Plaintext (h2c)
+
+For HTTP/2 requests, the client drops `connection`, `keep-alive`, `proxy-connection`, `transfer-encoding`, `upgrade`, and each field named in `Connection`. It maps the host to `:authority` and keeps `te` only when its value is `trailers` (case-insensitive). The same filter applies to request trailers. Invalid initial field values fail the request before its HEADERS are sent and leave the session usable. Invalid trailers reset only their stream, so other requests can still use the session.
 
 For servers that support HTTP/2 without TLS, set `protocolVersions` to only `ProtocolVersion::V20`. The client uses prior-knowledge mode per RFC 9113 Section 3.4 - it sends the HTTP/2 connection preface directly on the TCP connection, skipping TLS and ALPN negotiation entirely.
 
@@ -9025,6 +9379,10 @@ $client = new Client\Client(
     configuration: new Client\ClientConfiguration(protocolVersions: [Message\ProtocolVersion::V20]),
 );
 
+// A failed exchange is retried at most once, and only if the body is absent or rewinds.
+// REFUSED_STREAM or a GOAWAY above the stream retries any method (provably unprocessed);
+// a connection-level failure before any response retries GET/HEAD/OPTIONS/TRACE or an
+// Idempotency-Key request.
 $tx = $client->send(new Message\Request(method: Message\METHOD_GET, url: URL\parse('http://localhost:8080/')));
 
 $tx->response->protocolVersion; // ProtocolVersion::V20
@@ -9182,7 +9540,8 @@ $request = new Message\Request(method: Message\METHOD_GET, url: URL\parse('https
 $tx = $client->send($request, new Client\SendConfiguration(onInformationalResponse: static function (Message\Response $response): void {
     // This fires after the client-level callback for each 1xx response
     if ($response->status === 100) {
-        // Server acknowledged Expect: 100-continue, body will be sent
+        // HTTP/1 limits each exchange to 16 informational responses.
+        // Send the body after 100 Continue, or after a one-second wait.
     }
 }));
 
@@ -9227,6 +9586,7 @@ The following fields are overridable per-request:
 | `socksConfiguration` | No (client-only) |
 | `unixSocket` | No (client-only) |
 | `h2ClientConfiguration` | No (client-only) |
+| `expectContinueTimeout` | No (client-only) |
 
 > The `onInformationalResponse` callback receives special treatment: when both the client and send configuration define one, they are composed into a single callback that invokes the client-level callback first, then the per-request callback.
 
@@ -9313,6 +9673,8 @@ $tx = $client->send(new Message\Request(method: Message\METHOD_GET, url: URL\par
 $tx->response->status;
 ```
 
+`DeniedDestinationsMiddleware::forPrivateNetworkRanges()` also blocks current-network, shared, reserved, benchmarking, documentation (IPv4 TEST-NET-1/2/3 and IPv6 2001:db8::/32, 3fff::/20), multicast, IPv6 translation and 6to4, Teredo, discard-only, IPv4-compatible, and deprecated site-local ranges. IPv4-mapped IPv6 addresses use the same checks as IPv4, including exact deny-list entries. Bracketed IPv6 peer addresses are accepted. Unix sockets have no peer IP and skip these checks. The check inspects the resolved peer address, so behind an HTTP or SOCKS proxy it sees the proxy's address, not the ultimate target.
+
 ## HTTP/1.0 Mode
 
 Setting `protocolVersions` to `[ProtocolVersion::V10]` sends HTTP/1.0 requests. Connection: close is implicit per RFC 1945, so each request uses a separate TCP connection. Keep-alive and chunked transfer encoding are not available. Trailers are not supported.
@@ -9342,6 +9704,12 @@ $tx->response->body?->readAll();
 
 Request trailers are sent via `Request::$trailers`, an `Awaitable<FieldMap>` that resolves after the body. Response trailers are available via `Response::$trailers`, which resolves after the response body is fully consumed.
 
+`Expect: 100-continue` waits for an interim response before sending the body, up to `ClientConfiguration::$expectContinueTimeout` (one second by default). The client accepts HTTP/1.0 and HTTP/1.1 interim responses, reads all their fields, and sends the body once. A final response received within the wait suppresses the body and disables connection reuse.
+
+HTTP/1 responses reject malformed Content-Length, whitespace before a field colon, obsolete folded fields, unsupported protocol upgrades, and a bare CR, LF or NUL in a header or trailer value. At most 16 informational responses are accepted per exchange. Chunk size lines, extensions, and total trailers use `maxResponseHeaderSize`; CONNECT status lines and total headers each have an 8192-byte limit. I/O errors while reading a close-delimited body propagate to the caller. Every `Connection` field is read, so a `close` token in any of them ends reuse. A connection cannot be reused when a response carries both Transfer-Encoding and Content-Length, or when an HTTP/1.0 response used Transfer-Encoding.
+
+HTTP/1 requests reject, with `RequestException`, a method that is not a token, a request target containing spaces, tabs, control bytes or non-ASCII, a field name that is not a token, a field value with control bytes other than HTAB, and more than one Host field. Explicit `Transfer-Encoding: chunked` uses chunk framing. A `Content-Length` must match the bytes read from the body. HTTP/1.0 never gets chunked framing added: a body there must declare a Content-Length, and Transfer-Encoding and trailers are rejected. Trailers also require chunked framing under HTTP/1.1, so they are rejected alongside a Content-Length. The same method, target and Content-Length checks run on the HTTP/2 path, and HTTP/2 field names and values are validated as they are encoded, so a request cannot smuggle framing through an HTTP/2-to-HTTP/1 downgrade. These checks also apply to `Expect: 100-continue`.
+
 Trailers require chunked transfer encoding (HTTP/1.1) or HTTP/2 DATA frames. They are not available with HTTP/1.0. Declare expected trailer field names using the `Trailer` header.
 
 ```php
@@ -9354,6 +9722,7 @@ use Psl\URL;
 $client = new Client\Client();
 
 // Sending request trailers using an Awaitable<FieldMap>.
+// Invalid trailer names and CR/LF in fields throw RequestException in HTTP/1.
 // Trailers are sent after the body with chunked transfer encoding (H1) or after DATA frames (H2).
 $deferred = new Async\Deferred();
 $request = new Message\Request(
@@ -9386,9 +9755,19 @@ if ($tx->response->trailers !== null) {
 
 The default `PooledConnector` manages connection reuse across requests:
 
+Pool entries also require matching SNI hosts, TLS settings, HTTP and SOCKS proxy settings, Unix socket paths, resolved HTTP versions, and H2 settings. Requests with different transport or security settings cannot share a connection. Unix H2 sessions reuse connections only within the same pool entry.
+
 - **HTTP/1.x**: Idle connections are pooled per origin (scheme + host + port) with LIFO checkout. When a request completes and the body is fully consumed, the underlying TCP/TLS stream is returned to the pool. A global cap of 256 idle connections and a per-host cap of 32 prevent unbounded memory growth.
 - **HTTP/2**: A single multiplexed connection per origin is shared across concurrent requests. Each request opens one HTTP/2 stream on the shared connection. If the connection is closed (GOAWAY frame or connection error), it is removed and a new connection is established on the next request.
 - **Connection coalescing**: When multiple fibers concurrently request connections to the same HTTPS origin, the first fiber performs the TLS handshake. If HTTP/2 is negotiated, waiting fibers reuse the session instead of opening redundant connections. If HTTP/1.1 is negotiated, waiting fibers establish their own connections.
+
+HTTP/2 retries a failed exchange at most once, and only when the body is absent or rewinds to its original position. Two cases qualify. First, when the peer proves it did not process the request: REFUSED_STREAM, a stream above GOAWAY's last-stream-id, or no HEADERS written yet. Any method, including POST, retries then (RFC 9113 Section 8.7). Second, when the request is replayable, meaning GET, HEAD, OPTIONS or TRACE or an `Idempotency-Key` header, and the session failed at the connection level before any response headers arrived, such as a closed connection, an I/O error, or a GOAWAY followed by close (RFC 9110 Section 9.2.2, matching Go `net/http`). A stream reset with a code other than REFUSED_STREAM, and any failure after response headers arrive, never replay.
+
+HTTP/2 limits concurrent outgoing streams to the smaller of the client's `maxConcurrentStreams` and the peer's SETTINGS_MAX_CONCURRENT_STREAMS. The client's own value applies from the first request; the peer's lowers it once received. A stream holds its slot until it closes, including while its response body is still arriving.
+
+HTTP/2 checks `maxResponseBodySize` as DATA frames arrive and cancels a stream that exceeds it, even if its body is unread. The same limit bounds each stream's buffer, and a value of `0` means unlimited, as for HTTP/1. Flow-control windows still update on receipt because the h2 API cannot defer updates until reads. A `:status` that is not three digits in 100-999 is a stream error, and at most 16 interim (1xx) responses are accepted per stream, as for HTTP/1.
+
+Cancellation interrupts stream-slot waits and uploads, including stalled flow-control windows. Cancelling a request or closing its response body early sends RST_STREAM(CANCEL) and frees its stream slot. A request waiting for a pooled connection can cancel its own wait without cancelling the shared connection attempt.
 
 ## Pool Release and Finalize
 
@@ -9419,6 +9798,7 @@ try {
 } catch (Client\Exception\RequestException $e) {
     IO\write_line('Invalid request: %s', $e->getMessage());
 } catch (Client\Exception\ProtocolException $e) {
+    // HTTP/1 status codes must have exactly three digits in the range 100-999.
     IO\write_line('Bad response: %s', $e->getMessage());
 } catch (Client\Exception\TooManyRedirectsException $e) {
     IO\write_line('Redirect loop: %s', $e->getMessage());
@@ -9430,6 +9810,8 @@ try {
     IO\write_line('Request cancelled');
 }
 ```
+
+HTTP/1 status codes must contain exactly three digits and fall within 100-999; codes 600-999 remain accepted.
 
 ## Exception Hierarchy
 
@@ -9466,7 +9848,7 @@ try {
 | RFC 8297 | 103 Early Hints informational responses |
 | RFC 3986 | URI resolution for base URL and redirect Location headers |
 | RFC 1928 | SOCKS5 proxy protocol |
-| RFC 7231 | Historical redirect method rewriting (301/302 to GET) |
+| RFC 9110 | Redirect method rewriting (301/302 POST to GET, 303 to GET except HEAD) |
 
 See [src/Psl/HTTP/Client/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/http-message/src/Psl/HTTP/Client/) for the full API.
 
@@ -9742,6 +10124,8 @@ use Psl\IO;
 use Psl\Message;
 use Psl\MIME\Part;
 
+// Header values must not contain CR, LF, or NUL.
+// Mailbox quotes and escapes display names for use in headers.
 // Addresses accept strings, Mailbox, or AddressList
 $message = new Message\Message()
     ->withFrom('Alice <alice@example.com>')
@@ -9756,6 +10140,15 @@ $message->to; // AddressList
 $message->subject; // "Hello from PSL"
 $message->messageId; // MessageId
 $message->content; // PartInterface (the text part)
+
+// Groups quote punctuation in their names and preserve member display names.
+$team = new Message\Address\Group('Team: Europe', [
+    new Message\Address\Mailbox('alice', 'example.com', 'Doe, Alice'),
+]);
+$team->toString(); // '"Team: Europe": "Doe, Alice" <alice@example.com>;'
+
+// An ASCII local part lets the header use an A-label domain without SMTPUTF8.
+new Message\Address\Mailbox('sender', 'münchen.de')->toString(); // sender@xn--mnchen-3ya.de
 ```
 
 ## Multipart Bodies
@@ -9793,7 +10186,9 @@ $message = new Message\Message()
 
 ## Serialization and Parsing
 
-`serialize()` produces a streaming RFC 5322 representation. `parse()` accepts a string or a `ReadHandleInterface` for streaming input from network sockets.
+`serialize()` produces a streaming RFC 5322 representation for transmission. It omits `Bcc` and `Resent-Bcc` headers so blind recipients stay private. The message keeps those headers, and `Envelope::fromMessage()` still includes its Bcc recipients. Derive the envelope before serializing; a parsed wire copy cannot recover blind recipients. `parse()` accepts a string or a `ReadHandleInterface` for streaming input from network sockets.
+
+The parsers accept obsolete whitespace before header colons. They skip fields with invalid names or CR, LF, or NUL in unfolded values, and keep the other fields and the body. `parse()` throws `ParsingException` when no usable headers remain. Parsed address headers skip malformed entries, so one bad address does not hide valid recipients. `AddressList::parse()` and `Group::parse()` are strict by default; pass `lenient: true` to skip malformed entries.
 
 ```php
 use Psl\IO;
@@ -9803,8 +10198,12 @@ use Psl\MIME\Part;
 $message = new Message\Message()
     ->withFrom('alice@example.com')
     ->withTo('bob@example.com')
+    ->withBcc('secret@example.com')
     ->withSubject('Round trip')
     ->withContent(new Part\Text(new IO\MemoryHandle('Hello!')));
+
+// Keep blind recipients in the envelope; omit them from the wire headers.
+$envelope = Message\Envelope::fromMessage($message);
 
 // Serialize to a streaming handle (headers + body)
 $handle = Message\serialize($message);
@@ -9815,6 +10214,11 @@ $parsed = Message\parse($handle);
 $parsed->subject; // "Round trip"
 $parsed->from?->mailboxes()[0]?->address; // "alice@example.com"
 $parsed->content->body()->readAll(); // encoded body content
+
+// Received headers keep usable fields and recipients.
+$received = Message\parse("Subject : hello\r\nTo: alice@example.com, invalid\r\n\r\nbody");
+$received->subject; // "hello"
+$received->to?->toString(); // "alice@example.com"
 ```
 
 ## Reply, Reply All, Forward
@@ -9875,7 +10279,13 @@ The `Address` namespace provides RFC 5322 compliant address parsing:
 - `Group` represents a named group of mailboxes (`display-name : mailbox-list ;`)
 - `AddressList` holds an ordered list of mailboxes and groups, with merge and exclude operations
 
-All address types support RFC 2047 encoded-word display names for non-ASCII characters.
+All address types support RFC 2047 encoded-word display names for non-ASCII characters. `Mailbox` accepts dot-atom or quoted local parts and dot-atom or domain-literal domains, including UTF-8 addresses. It escapes quotes and backslashes in display names, and parentheses and backslashes in comments. `Group` also quotes ASCII display names with punctuation and preserves quoted colons and commas when parsing.
+
+When the local part is ASCII, address headers use lowercase, NFC-normalized A-label domains (`sender@münchen.de` becomes `sender@xn--mnchen-3ya.de`). Each encoded label must fit in 63 bytes. This uses the same normalization as SMTP, without full UTS #46 mapping. Domain literals and addresses with UTF-8 local parts stay unchanged; UTF-8 local parts still need SMTPUTF8. Raw values passed to `withHeader()` also stay unchanged.
+
+Direct `Mailbox` construction rejects leading, trailing, or repeated dots in unquoted local parts, obsolete mixed quoted words, and a final domain dot. `Mailbox::parse()` accepts these forms: it quotes legacy local parts, joins obsolete quoted words, and removes the final domain dot. For example, `user.@ezweb.ne.jp` becomes `"user."@ezweb.ne.jp`, and `"john".doe@example.com` becomes `"john.doe"@example.com`.
+
+Header construction rejects CR, LF, and NUL in names and values, mailbox fields, subjects, comments, message IDs, content IDs, and MIME parameters. `MIME\Headers` also rejects empty names, spaces, colons, and non-ASCII bytes in names. Pass unfolded values; the serializer handles line folding.
 
 ## RFC Compliance
 
@@ -9892,7 +10302,7 @@ See [src/Psl/Message/](https://github.com/php-standard-library/php-standard-libr
 
 # MIME
 
-The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing - all without filesystem coupling or temporary files.
+The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing.
 
 ## Media Types
 
@@ -9995,7 +10405,7 @@ $mixed->addPart(
 
 ### Form Data
 
-`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads.
+`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads. Parts added with `addPart()` get a `form-data` disposition that keeps the part's filename, and are sent as raw bytes: RFC 7578 deprecates Content-Transfer-Encoding, so the base64 or quoted-printable encoding of `Part\Data` and `Part\Text` is undone.
 
 ```php
 use Psl\IO;
@@ -10025,7 +10435,13 @@ use Psl\MIME\MultiPart\Parser;
 
 $body = "--boundary\r\nContent-Type: text/plain\r\n\r\nHello\r\n--boundary\r\nContent-Type: text/html\r\n\r\n<b>World</b>\r\n--boundary--\r\n";
 
-$parser = new Parser(boundary: 'boundary', maxParts: 100, maxPartSize: 10_000_000, spoolThreshold: 2_097_152);
+$parser = new Parser(
+    boundary: 'boundary',
+    maxParts: 100,
+    maxPartSize: 10_000_000,
+    spoolThreshold: 2_097_152,
+    maxHeaderSize: 16_384,
+);
 
 foreach ($parser->parse(new IO\MemoryHandle($body)) as $part) {
     IO\write_line('%s: %s', $part->mediaType->essence(), $part->body()->readAll());
@@ -10034,7 +10450,9 @@ foreach ($parser->parse(new IO\MemoryHandle($body)) as $part) {
 
 ## S/MIME Cryptography
 
-Sign, verify, encrypt, and decrypt using CMS (RFC 5652) - entirely in-memory without temporary files or `openssl_pkcs7_*` functions.
+Sign, verify, encrypt, and decrypt using CMS (RFC 5652). Chain verification requires explicit trust anchors and uses OpenSSL to check certificate validity, purpose, and chains through embedded intermediates. An empty trust list rejects every certificate, including self-signed certificates. Pass `verifyCertificateChain: false` only to check the signature without establishing trust.
+
+Verification uses OpenSSL to select the signer certificate using X.509 name comparison rules. It writes certificates and signer metadata to private temporary directories and removes them after each check. Plaintext stays in memory. Signing, encryption, and decryption need no temporary files.
 
 ```php
 use Psl\MIME\SMIME;
@@ -10042,7 +10460,8 @@ use Psl\MIME\SMIME;
 // Signing requires a certificate and private key in PEM format.
 // Verification can optionally check the certificate chain against trusted CAs.
 // Encryption requires the recipient's certificate; decryption requires their private key.
-// All operations are in-memory -- no temporary files or openssl_pkcs7_* calls.
+// Verification uses temporary certificate and signer metadata files, then removes them.
+// Plaintext stays in memory. Chain verification needs explicit trust anchors.
 
 /** @var string $certPem */
 /** @var string $keyPem */
@@ -10119,6 +10538,8 @@ Detect MIME types from content bytes using magic signatures, RIFF sub-formats, I
 
 See [src/Psl/MIME/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/mime/src/Psl/MIME/) for the full API.
 
+Received message and multipart headers may use whitespace before the colon. The parsers skip fields with invalid names or CR, LF, or NUL in unfolded values. `Headers::fromPairs()` and `Headers::with()` stay strict. `Parameters::parse()` reports unsafe decoded values with `ParameterParsingException`.
+
 ---
 
 # SMTP
@@ -10128,6 +10549,8 @@ The `SMTP` component implements an RFC 5321 SMTP client with connection pooling,
 ## Sending a Message
 
 The `Transport` handles the full SMTP lifecycle: connection, EHLO, TLS, authentication, message transmission, and connection reuse. Pass an `Envelope` (derived from message headers) and a `MessageInterface` to send.
+
+For envelope addresses, the transport lowercases and NFC-normalizes domain labels, then encodes each Unicode label as Punycode with the `xn--` prefix. Domain literals stay unchanged. It rejects encoded labels longer than 63 bytes with `TransmissionException`. This handles case and canonical Unicode forms, but does not apply the full UTS #46 mapping. Non-ASCII envelope local parts and transmitted message headers require SMTPUTF8; the transport throws `TransmissionException` before MAIL FROM when the server lacks it (RFC 6531 section 3.2). The check uses the serialized headers, including nested MIME part and embedded message headers, so removed Bcc fields and ASCII encoded-words do not require SMTPUTF8. Without server support, multipart and embedded message bodies spool to memory and then disk before MAIL FROM; these sends wait for EOF so all headers can be checked. Body text alone does not require SMTPUTF8.
 
 ```php
 use Psl\IO;
@@ -10144,7 +10567,11 @@ $transport = new Transport(
 );
 
 $sender = new Mailbox('alice', 'example.com', 'Alice');
-$recipient = new Mailbox('bob', 'example.com');
+// Lowercasing and NFC normalization produce bob@xn--bcher-kva.example.
+// Encoded domain labels must fit in 63 bytes.
+// Non-ASCII local parts and transmitted headers require SMTPUTF8.
+// Without it, multipart and embedded message bodies spool before MAIL FROM.
+$recipient = new Mailbox('bob', 'BÜCHER.EXAMPLE');
 
 $message = new Message()
     ->withFrom($sender)
@@ -10218,7 +10645,7 @@ $config = $config
 
 ## Send Configuration
 
-`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery.
+`SendConfiguration` controls per-send MAIL FROM extension parameters: DSN notifications, REQUIRETLS, message priority, delivery deadlines, and deferred delivery. When `requireTls` is true, the transport throws `TransmissionException` before sending MAIL FROM if the server does not advertise REQUIRETLS or the connection uses `Security::None` (RFC 8689 section 4.2.1). The transport keeps EHLO capabilities when it reuses a pooled connection.
 
 ```php
 use Psl\DateTime\DateTime;
@@ -10234,7 +10661,8 @@ $config = new SendConfiguration()
     ->withDsnReturn('FULL')
     ->withDsnEnvelopeId('msg-001')
     ->withDsnNotify('SUCCESS,FAILURE')
-    // Require TLS for the entire delivery chain (RFC 8689)
+    // Require TLS for the entire delivery chain (RFC 8689).
+    // Sending requires TLS and throws if the server lacks REQUIRETLS.
     ->withRequireTls(true)
     // Message priority (RFC 6710 / STANAG 4406)
     ->withPriority(Priority::Urgent)
@@ -10292,9 +10720,13 @@ if ($report->hasRejections()) {
 $transport->close();
 ```
 
+## Errors
+
+Every failure of the exchange is an `SMTP\Exception\RuntimeException`. A connection that fails during the exchange, for example because the server resets it, throws `ConnectionException`, with the IO or Network exception as its previous exception. A failure to read the message content is not a failure of the connection: the IO exception passes through unchanged. After a failure or a cancellation, the transport closes the pooled connection, and the next send opens a new one.
+
 ## Async and Cancellation
 
-The transport is fully async-capable. Use `Async\concurrently` to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts.
+The transport is fully async-capable. Use `Async\concurrently` to send multiple messages in parallel with automatic connection pooling. Use cancellation tokens for timeouts. Once the connection is open, a cancelled send throws `Async\Exception\CancelledException` unchanged.
 
 ```php
 use Psl\Async;
@@ -10717,7 +11149,7 @@ $app->on(Event\Key::class, static function (Event\Key $event, EventState $_state
 });
 
 $app->on(Event\Mouse::class, static function (Event\Mouse $_event, EventState $_state): void {
-    // $_event->kind (Press, Release, Drag, ScrollUp, ScrollDown, Move)
+    // $_event->kind (Press, Release, Drag, ScrollUp, ScrollDown, ScrollLeft, ScrollRight, Move)
     // $_event->column, $_event->row
 });
 
@@ -11143,7 +11575,7 @@ use Psl\IO;
 $key = Symmetric\generate_key();
 $streamEncryptor = new Symmetric\StreamEncryptor($key);
 
-// Encrypt a stream in chunks (useful for large files)
+// Encrypt in chunks, filling short reads until the source reaches EOF.
 $source = new IO\MemoryHandle('This is a large message that will be encrypted in chunks.');
 $encrypted = new IO\MemoryHandle();
 
@@ -11158,7 +11590,7 @@ $decrypted->seek(0);
 IO\write_line('Decrypted: %s', $decrypted->readAll());
 ```
 
-The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk individually and detects reordering or truncation.
+The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk and detects reordering or truncation. Encryption fills each chunk across short reads and marks the final chunk only at EOF. The source must reach EOF before encryption can finish. Chunk sizes must be between 1 byte and `Symmetric\MAX_CHUNK_BYTES` (16 MiB).
 
 ## Asymmetric Encryption
 
@@ -11635,6 +12067,8 @@ IO\write_line('Algorithm: %s', $info['algorithm']->name);
 IO\write_line('Cost: %d', $info['options']['cost'] ?? '<unknown>');
 ```
 
+If the string is not a hash created by one of the supported algorithms, `get_information()` throws `Password\Exception\InvalidArgumentException`. Bcrypt hashes with the `$2a$` or `$2b$` prefix, which other bcrypt implementations produce, are reported as `Algorithm::Bcrypt`; `needs_rehash()` returns `true` for them, so they are rehashed into PHP's `$2y$` form after the next successful `verify()`.
+
 ## Algorithm
 
 The `Password\Algorithm` enum provides four cases:
@@ -11992,6 +12426,8 @@ $parsed = DateTime\Duration::fromIso8601('PT1H45M');
 IO\write_line('Parsed: %s', $parsed->toString());
 ```
 
+`plusDays()`, `plusWeeks()`, `plusMonths()`, `plusYears()` (and their `minus*()` counterparts) are calendar arithmetic: they move the date and keep the wall-clock time, even across daylight saving time changes. In `Europe/London`, `2024-03-30 12:00` plus one day is `2024-03-31 12:00`, only 23 hours later. Add a `Duration` when you need an exact amount of elapsed time.
+
 ## Period
 
 `Period` represents a calendar-based period (years, months, days). Unlike `Duration`, a period's actual time length depends on context - a month can be 28-31 days, and a day can be 23-25 hours due to DST. Months automatically normalize into years, but days are never normalized:
@@ -12281,6 +12717,8 @@ use Psl\IO;
 $cwd = Env\current_dir();
 IO\write_line('Current directory: %s', $cwd);
 ```
+
+A directory containing the NUL character is rejected with an `Env\Exception\RuntimeException`, as is any other directory that cannot be entered.
 
 ### System Paths
 
@@ -12633,7 +13071,11 @@ Async\concurrently([
 
 ## TTL Expiration
 
-Entries with a TTL are proactively cleaned up via an event loop timer, not lazily on access. The timer activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration.
+A `null` TTL means no expiration. A zero TTL expires immediately: `compute()` or `update()` returns its result, but later reads cannot reuse it.
+
+An expired entry is never returned: it is removed when it is accessed, and an event loop timer also sweeps expired entries proactively so they do not linger in memory. The timer runs every 3 seconds by default (configurable with the `$cleanupInterval` constructor argument), activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration. It never keeps the event loop running on its own.
+
+`LocalStore` may keep expired entries until the next access or cleanup sweep. Those entries use cache slots and may evict older entries until removed.
 
 ## NullStore
 

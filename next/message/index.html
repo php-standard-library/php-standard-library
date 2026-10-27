@@ -40,6 +40,8 @@
 use Psl\Message;
 use Psl\MIME\Part;
 
+// Header values must not contain CR, LF, or NUL.
+// Mailbox quotes and escapes display names for use in headers.
 // Addresses accept strings, Mailbox, or AddressList
 $message = new Message\Message()
     -&gt;withFrom('Alice &lt;alice@example.com&gt;')
@@ -54,6 +56,15 @@ $message-&gt;to; // AddressList
 $message-&gt;subject; // &quot;Hello from PSL&quot;
 $message-&gt;messageId; // MessageId
 $message-&gt;content; // PartInterface (the text part)
+
+// Groups quote punctuation in their names and preserve member display names.
+$team = new Message\Address\Group('Team: Europe', [
+    new Message\Address\Mailbox('alice', 'example.com', 'Doe, Alice'),
+]);
+$team-&gt;toString(); // '&quot;Team: Europe&quot;: &quot;Doe, Alice&quot; &lt;alice@example.com&gt;;'
+
+// An ASCII local part lets the header use an A-label domain without SMTPUTF8.
+new Message\Address\Mailbox('sender', 'münchen.de')-&gt;toString(); // sender@xn--mnchen-3ya.de
 </code></pre>
 <h2 id="multipart-bodies"><a href="#multipart-bodies" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Multipart Bodies</h2>
 <p>The message body is a <code>PartInterface</code> from the MIME component. Compose any MIME structure using <code>Part\Text</code>, <code>Part\Data</code>, and the multipart types.</p>
@@ -85,7 +96,8 @@ $message = new Message\Message()
     -&gt;withContent($mixed);
 </code></pre>
 <h2 id="serialization-and-parsing"><a href="#serialization-and-parsing" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Serialization and Parsing</h2>
-<p><code>serialize()</code> produces a streaming RFC 5322 representation. <code>parse()</code> accepts a string or a <code>ReadHandleInterface</code> for streaming input from network sockets.</p>
+<p><code>serialize()</code> produces a streaming RFC 5322 representation for transmission. It omits <code>Bcc</code> and <code>Resent-Bcc</code> headers so blind recipients stay private. The message keeps those headers, and <code>Envelope::fromMessage()</code> still includes its Bcc recipients. Derive the envelope before serializing; a parsed wire copy cannot recover blind recipients. <code>parse()</code> accepts a string or a <code>ReadHandleInterface</code> for streaming input from network sockets.</p>
+<p>The parsers accept obsolete whitespace before header colons. They skip fields with invalid names or CR, LF, or NUL in unfolded values, and keep the other fields and the body. <code>parse()</code> throws <code>ParsingException</code> when no usable headers remain. Parsed address headers skip malformed entries, so one bad address does not hide valid recipients. <code>AddressList::parse()</code> and <code>Group::parse()</code> are strict by default; pass <code>lenient: true</code> to skip malformed entries.</p>
 <pre><code class="language-php">use Psl\IO;
 use Psl\Message;
 use Psl\MIME\Part;
@@ -93,8 +105,12 @@ use Psl\MIME\Part;
 $message = new Message\Message()
     -&gt;withFrom('alice@example.com')
     -&gt;withTo('bob@example.com')
+    -&gt;withBcc('secret@example.com')
     -&gt;withSubject('Round trip')
     -&gt;withContent(new Part\Text(new IO\MemoryHandle('Hello!')));
+
+// Keep blind recipients in the envelope; omit them from the wire headers.
+$envelope = Message\Envelope::fromMessage($message);
 
 // Serialize to a streaming handle (headers + body)
 $handle = Message\serialize($message);
@@ -105,6 +121,11 @@ $parsed = Message\parse($handle);
 $parsed-&gt;subject; // &quot;Round trip&quot;
 $parsed-&gt;from?-&gt;mailboxes()[0]?-&gt;address; // &quot;alice@example.com&quot;
 $parsed-&gt;content-&gt;body()-&gt;readAll(); // encoded body content
+
+// Received headers keep usable fields and recipients.
+$received = Message\parse(&quot;Subject : hello\r\nTo: alice@example.com, invalid\r\n\r\nbody&quot;);
+$received-&gt;subject; // &quot;hello&quot;
+$received-&gt;to?-&gt;toString(); // &quot;alice@example.com&quot;
 </code></pre>
 <h2 id="reply-reply-all-forward"><a href="#reply-reply-all-forward" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Reply, Reply All, Forward</h2>
 <p>Factory methods derive threading headers (In-Reply-To, References) and address fields from an original message per RFC 5322.</p>
@@ -155,7 +176,10 @@ $envelope-&gt;recipients; // [bob, carol, dave] (To + Cc + Bcc flattened)
 <li><code>Group</code> represents a named group of mailboxes (<code>display-name : mailbox-list ;</code>)</li>
 <li><code>AddressList</code> holds an ordered list of mailboxes and groups, with merge and exclude operations</li>
 </ul>
-<p>All address types support RFC 2047 encoded-word display names for non-ASCII characters.</p>
+<p>All address types support RFC 2047 encoded-word display names for non-ASCII characters. <code>Mailbox</code> accepts dot-atom or quoted local parts and dot-atom or domain-literal domains, including UTF-8 addresses. It escapes quotes and backslashes in display names, and parentheses and backslashes in comments. <code>Group</code> also quotes ASCII display names with punctuation and preserves quoted colons and commas when parsing.</p>
+<p>When the local part is ASCII, address headers use lowercase, NFC-normalized A-label domains (<code>sender@münchen.de</code> becomes <code>sender@xn--mnchen-3ya.de</code>). Each encoded label must fit in 63 bytes. This uses the same normalization as SMTP, without full UTS #46 mapping. Domain literals and addresses with UTF-8 local parts stay unchanged; UTF-8 local parts still need SMTPUTF8. Raw values passed to <code>withHeader()</code> also stay unchanged.</p>
+<p>Direct <code>Mailbox</code> construction rejects leading, trailing, or repeated dots in unquoted local parts, obsolete mixed quoted words, and a final domain dot. <code>Mailbox::parse()</code> accepts these forms: it quotes legacy local parts, joins obsolete quoted words, and removes the final domain dot. For example, <code>user.@ezweb.ne.jp</code> becomes <code>&quot;user.&quot;@ezweb.ne.jp</code>, and <code>&quot;john&quot;.doe@example.com</code> becomes <code>&quot;john.doe&quot;@example.com</code>.</p>
+<p>Header construction rejects CR, LF, and NUL in names and values, mailbox fields, subjects, comments, message IDs, content IDs, and MIME parameters. <code>MIME\Headers</code> also rejects empty names, spaces, colons, and non-ASCII bytes in names. Pass unfolded values; the serializer handles line folding.</p>
 <h2 id="rfc-compliance"><a href="#rfc-compliance" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>RFC Compliance</h2>
 <table>
 <thead>

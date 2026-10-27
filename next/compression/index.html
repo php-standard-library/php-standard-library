@@ -86,7 +86,7 @@ $writer-&gt;flush(new Async\TimeoutCancellationToken(Duration::seconds(5)));
 $output-&gt;seek(0);
 IO\write_line('Result: %s', $output-&gt;readAll());
 </code></pre>
-<p><code>flush()</code> accepts an optional <code>CancellationTokenInterface</code> parameter, so you can set a timeout on the finalization when writing to network handles.</p>
+<p><code>flush()</code> accepts an optional <code>CancellationTokenInterface</code> parameter, so you can set a timeout on the finalization when writing to network handles. If it is cancelled or the inner handle fails, calling <code>flush()</code> again does not finalize the stream a second time, and does not write again the output the inner handle reported accepting. It does write again what the interrupted write wrote without reporting it: a write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a <code>flush()</code> retried after a timeout on such a handle can repeat those bytes.</p>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/compression/src/Psl/Compression/">src/Psl/Compression/</a> for the full API.</p>
 </article></main>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/monokai-sublime.min.css">

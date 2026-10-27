@@ -18,7 +18,9 @@ $inner = new DNS\SystemResolver(dnssec: true);
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 $resolver = new DNSSEC\SecureResolver($inner, $trustChain);
 
-// Queries are validated: signatures, trust chain, NSEC proofs
+// Verify each answer, alias link, and NSEC/NSEC3/SOA proof RRset.
+// Strip unrelated answer records. NXDOMAIN must prove the final target absent.
+// Wildcard answers also need a signed proof that no closer name exists.
 $response = $resolver->query('example.com', RecordType::A);
 
 // Throws SignatureFailedException, BrokenTrustChainException,
@@ -29,11 +31,19 @@ $response = $resolver->query('example.com', RecordType::A);
 
 Every DNSSEC-signed response includes RRSIG records alongside the answer records. Each RRSIG contains a cryptographic signature over a set of records, the signer's identity, and the key tag to locate the corresponding DNSKEY.
 
-When `SecureResolver` receives a response, it verifies that the RRSIG signatures are valid using the zone's public keys (DNSKEY records). If any signature is invalid or expired, `SignatureFailedException` is thrown.
+`SecureResolver` requires signature coverage for each answer RRset in a signed zone, including every CNAME or DNAME in the query's alias chain. It checks each RRset with the keys of the zone that owns it. A parent zone's key cannot sign data below a signed child delegation. Missing signatures raise `InvalidProofException`; invalid or expired signatures raise `SignatureFailedException`.
+
+A signed DNAME also proves an unsigned CNAME when the CNAME matches the DNAME substitution. The resolver rejects wildcard-expanded DNAMEs, alias loops, and substitutions longer than the DNS name limit. The resolver strips unrelated answer RRsets and their signatures so callers receive only the queried data and its alias chain. Each RRset uses class IN; the DNS wire decoder rejects other record classes except the EDNS OPT pseudo-record.
+
+`StaticTrustChainResolver` uses the nearest configured ancestor zone for names below a zone apex. A more specific entry takes precedence, including an unsigned delegation.
+
+Wildcard-expanded answers also need a signed NSEC or NSEC3 proof that no closer name prevents the expansion. NSEC3 Opt-Out clears AD because the proof can span unsigned delegations.
 
 ## DS/DNSKEY: Trust Chain
 
 DNSSEC trust is established through a chain from the DNS root to the target zone. Each parent zone contains a DS (Delegation Signer) record that is a cryptographic hash of the child zone's DNSKEY. By verifying each link in the chain, `TrustChainResolver` proves that the zone's keys are authorized by the parent, all the way up to the root trust anchor.
+
+DS denial marks a name Insecure only when it proves an unsigned delegation. Names within a signed zone, including empty nonterminals, keep the parent zone's validated keys.
 
 The walk for `example.com` goes: root (.) DNSKEY > `com.` DS > `com.` DNSKEY > `example.com.` DS > `example.com.` DNSKEY.
 
@@ -41,11 +51,13 @@ The walk for `example.com` goes: root (.) DNSKEY > `com.` DS > `com.` DNSKEY > `
 
 When a domain does not exist (NXDOMAIN), the server must prove it. NSEC records list the names that DO exist in sorted order, proving there is no name between them. NSEC3 records do the same but with hashed names to prevent zone enumeration.
 
-`SecureResolver` validates these proofs automatically. If the proof is missing or invalid, `InvalidProofException` is thrown.
+`SecureResolver` checks every NSEC, NSEC3, and SOA RRset in a signed response with the queried zone's keys. Each RRset needs at least one valid signature with the same owner and covered type. Only verified records reach the denial checks. Missing proof records raise `UnsignedResponseException` or `InvalidProofException`; unsigned or invalid proof RRsets raise `SignatureFailedException`.
+
+For NXDOMAIN after a CNAME or DNAME, the resolver checks each alias link, then requires a denial proof for the final target. A signed alias alone does not prove that its target is absent. A target in an unsigned zone clears AD.
 
 ## Trust Anchors
 
-`TrustChainResolver` uses the IANA root KSK as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
+`TrustChainResolver` uses both IANA root keys, KSK-2017 (20326) and KSK-2024 (38696), as its trust anchor by default. For fully offline environments, `StaticTrustChainResolver` accepts pre-loaded DNSKEY records per zone, bypassing all network queries for trust chain resolution.
 
 ```php
 use Psl\DateTime\Duration;
@@ -56,7 +68,7 @@ use Psl\DNSSEC;
 
 $inner = new DNS\SystemResolver(dnssec: true);
 
-// Default: uses IANA root KSK, walks the DS/DNSKEY chain via DNS queries
+// Default: uses IANA root KSK-2017 and KSK-2024, walks the DS/DNSKEY chain via DNS queries
 $trustChain = new DNSSEC\TrustChainResolver($inner);
 
 // Fully offline: pre-loaded DNSKEY records per zone, no network queries
@@ -198,8 +210,10 @@ $public = new DNSSEC\SecureResolver(
     new DNSSEC\CachedTrustChainResolver(new DNSSEC\TrustChainResolver($public), $cache),
 );
 
-// 5. Static overrides first, then DNSSEC-validated public DNS
-$base = new DNS\FallbackResolver([$static, $public]);
+// 5. Route static names locally and other names to validated public DNS
+$base = new DNS\SplitHorizonResolver(routes: [
+    new DNS\Route(['db.internal', 'cache.internal'], $static),
+], default: $public);
 
 // 6. Route corporate domains to internal DNS (unvalidated),
 //    everything else to static + DNSSEC-validated public
@@ -213,7 +227,7 @@ $searched = new DNS\SearchDomainResolver($routed, ['corp.internal', 'dev.interna
 // 8. Check the hosts file before any network query
 $hostsAware = new DNS\HostsFileResolver($searched, HostsFile::load());
 
-// 9. Cache everything on top
+// 9. Cache positive and negative answers with a positive TTL
 $resolver = new DNS\CachedResolver($hostsAware, $cache);
 
 // 10. Profit!

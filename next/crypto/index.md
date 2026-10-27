@@ -60,7 +60,7 @@ use Psl\IO;
 $key = Symmetric\generate_key();
 $streamEncryptor = new Symmetric\StreamEncryptor($key);
 
-// Encrypt a stream in chunks (useful for large files)
+// Encrypt in chunks, filling short reads until the source reaches EOF.
 $source = new IO\MemoryHandle('This is a large message that will be encrypted in chunks.');
 $encrypted = new IO\MemoryHandle();
 
@@ -75,7 +75,7 @@ $decrypted->seek(0);
 IO\write_line('Decrypted: %s', $decrypted->readAll());
 ```
 
-The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk individually and detects reordering or truncation.
+The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk and detects reordering or truncation. Encryption fills each chunk across short reads and marks the final chunk only at EOF. The source must reach EOF before encryption can finish. Chunk sizes must be between 1 byte and `Symmetric\MAX_CHUNK_BYTES` (16 MiB).
 
 ## Asymmetric Encryption
 

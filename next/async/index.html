@@ -64,6 +64,7 @@ IO\write_error_line('Done!');
 <h2 id="core-concepts"><a href="#core-concepts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Core Concepts</h2>
 <h3 id="entry-point"><a href="#entry-point" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Entry Point</h3>
 <p><code>Async\main()</code> is the entry point for async applications. It executes a closure in the main fiber, then keeps the event loop running until all pending callbacks complete. The closure must return an integer exit code.</p>
+<p>Call it outside any fiber, from the script's own call stack (<code>{main}</code>): a function or method that the script calls may call it. Inside a fiber, such as an <code>Async\run()</code> closure or an event loop callback, it throws <code>Async\Exception\LogicException</code> before running the closure, even a closure that never returns.</p>
 <pre><code class="language-php">use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\IO;
@@ -167,6 +168,7 @@ $results = Async\concurrently([
     },
 ]);
 </code></pre>
+<p>No closure and no failure is dropped when the iterable repeats a key: each closure runs, and its failure is handled as it would be under a distinct key. On success, the result of the last closure with that key is returned under it.</p>
 <blockquote>
 <p><strong>Warning</strong></p>
 <p><code>concurrently(...)</code> is about kicking-off I/O functions concurrently, not about concurrent execution of code.
@@ -376,6 +378,7 @@ $group-&gt;awaitAll();
 IO\write_line('Order: %s', Psl\Str\join($results, ', ')); // &quot;fast, slow&quot;
 </code></pre>
 <p><code>awaitAll()</code> accepts an optional <code>CancellationTokenInterface</code>. The task list is cleared after each <code>awaitAll()</code> call, so the group is reusable.</p>
+<p>Several fibers can call <code>awaitAll()</code> at once: every call waiting when the last task finishes gets the same exception (or the same <code>CompositeException</code>). Only exceptions are collected; an <code>Error</code> thrown by a task reaches the event loop error handler.</p>
 <h3 id="waitgroup"><a href="#waitgroup" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>WaitGroup</h3>
 <p><code>WaitGroup</code> is a counter-based synchronization primitive inspired by Go's <code>sync.WaitGroup</code>. Call <code>add()</code> before starting work, <code>done()</code> when work completes, and <code>wait()</code> to block until the counter reaches zero:</p>
 <pre><code class="language-php">use Psl\Async;
@@ -436,6 +439,7 @@ get_message()-&gt;await(); // 'hello'
 <li><code>Scheduler::queue($callback)</code> -- queue a microtask</li>
 </ul>
 <p>All registration methods return a string identifier that can be used with <code>cancel()</code>, <code>enable()</code>, <code>disable()</code>, <code>reference()</code>, and <code>unreference()</code>.</p>
+<p><code>Scheduler::run()</code> runs the event loop until no enabled, referenced callback is left. Like <code>Async\main()</code>, it must be called outside any fiber, from the script's own call stack (<code>{main}</code>): inside a fiber, it throws <code>Async\Exception\LogicException</code> before the loop runs anything.</p>
 <p>See <a href="https://revolt.run/">revolt.run</a> for more information on the underlying event loop.</p>
 <h2 id="cancellation"><a href="#cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancellation</h2>
 <p>Cancellation tokens allow you to cancel in-flight async operations from external code. Every suspension point in PSL (<code>await()</code>, <code>read()</code>, <code>write()</code>, <code>waitFor()</code>, <code>connect()</code>, etc.) accepts an optional <code>CancellationTokenInterface</code>.</p>
@@ -447,6 +451,7 @@ get_message()-&gt;await(); // 'hello'
 <li><code>isCancelled(): bool</code> -- check cancellation state</li>
 <li><code>throwIfCancelled(): void</code> -- throw <code>CancelledException</code> if cancelled</li>
 </ul>
+<p>When a token is cancelled, every subscribed callback runs, even if an earlier one throws. The failure is reported once they all ran: <code>SignalCancellationToken::cancel()</code> rethrows it, and a <code>TimeoutCancellationToken</code> sends it to the event loop error handler. When several callbacks throw, their failures are reported together in a <code>CompositeException</code>.</p>
 <h3 id="signalcancellationtoken"><a href="#signalcancellationtoken" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SignalCancellationToken</h3>
 <p>Manually triggered. Call <code>cancel()</code> from any fiber to cancel all subscribed operations:</p>
 <pre><code class="language-php">use Psl\Async;
@@ -564,6 +569,7 @@ try {
 <ul>
 <li><strong><code>CancelledException</code></strong> -- thrown when a cancellation token is triggered. Use <code>$e-&gt;getToken()</code> to identify the source and <code>$e-&gt;getPrevious()</code> for the cause.</li>
 <li><strong><code>CompositeException</code></strong> -- wraps multiple exceptions when several concurrent operations fail. Use <code>$e-&gt;getReasons()</code> to get all underlying exceptions.</li>
+<li><strong><code>LogicException</code></strong> -- thrown when the API is misused, such as calling <code>Async\main()</code> or <code>Scheduler::run()</code> inside a fiber.</li>
 <li><strong><code>TimeoutException</code></strong> -- used internally as the cause inside <code>CancelledException</code> when a <code>TimeoutCancellationToken</code> fires.</li>
 <li><strong><code>UnhandledAwaitableException</code></strong> -- thrown by the scheduler when a failed <code>Awaitable</code> is never awaited or handled. Use <code>$awaitable-&gt;ignore()</code> to suppress this.</li>
 </ul>

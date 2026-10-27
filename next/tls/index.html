@@ -78,6 +78,8 @@ $keyFile = '/etc/ssl/private/server.key';
 $cert = TLS\Certificate::create($certFile, $keyFile);
 $acceptor = new TLS\Acceptor(TLS\ServerConfiguration::create($cert)-&gt;withAlpnProtocols(['h2', 'http/1.1']));
 
+// With ext-sockets, every accepted connection owns a private stream context, so the TLS
+// options and peer certificate of one connection can never be observed by another.
 $listener = TCP\listen('0.0.0.0', 8443);
 
 while (true) {
@@ -87,6 +89,20 @@ while (true) {
     $tls-&gt;close();
 }
 </code></pre>
+<h4 id="sni-certificates"><a href="#sni-certificates" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SNI certificates</h4>
+<p><code>ServerConfiguration::withSniCertificate()</code> and <code>withSniCertificates()</code> map host names to certificates. A client that asks for one of those names, or for a name that a <code>*.example.com</code> key matches, receives that certificate; every other client receives the main certificate. PHP's SNI support has two limits:</p>
+<ul>
+<li>it cannot load a private key protected by a passphrase, so a configuration with such an SNI certificate fails every handshake with a <code>HandshakeFailedException</code> before it starts;</li>
+<li>it negotiates no ALPN protocol for a connection served by an SNI certificate.</li>
+</ul>
+<p>Where either matters, use <code>LazyAcceptor</code> (below) to read the requested name, and complete the handshake with a <code>ServerConfiguration</code> whose main certificate is the one that name needs: main certificates accept a passphrase and negotiate ALPN.</p>
+<h4 id="per-connection-stream-contexts"><a href="#per-connection-stream-contexts" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Per-connection stream contexts</h4>
+<p>PHP reads a server's TLS options from the stream context of the accepted stream, and captures the client's certificate into that same context. Streams returned by <code>stream_socket_accept()</code> share the listening socket's context, so without isolation the settings and captures of one connection would be visible to every other connection of the same listener.</p>
+<p><code>TCP\listen()</code> therefore accepts connections through <code>ext-sockets</code> (<code>socket_accept()</code> and <code>socket_export_stream()</code>) when the extension is available, which gives every accepted connection a private stream context. Installing <code>ext-sockets</code> is recommended for TLS servers; it is listed as a suggestion by the <code>tcp</code> and <code>tls</code> packages.</p>
+<p>Without <code>ext-sockets</code>, accepted streams share the listener's context. PSL still guarantees that a client which presents no certificate is never reported with another client's identity: the captured peer certificate is reset before each handshake, and read and removed in the same step that completes it. What cannot be undone on a shared context is a trust setting written by an earlier handshake, whether by another <code>ServerConfiguration</code> or by a client handshake on a stream of the same listener: if a stream's context already carries <code>cafile</code>, <code>capath</code>, <code>verify_peer</code>, <code>verify_peer_name</code>, <code>peer_fingerprint</code>, <code>allow_self_signed</code> or <code>verify_depth</code>, and the configuration used for it does not set that option, the handshake is refused with a <code>Network\Exception\RuntimeException</code> instead of silently trusting what the earlier handshake trusted. A stale <code>allow_self_signed</code>, for example, would accept any self-signed client certificate and report it as the peer. Other optional settings (<code>ciphers</code>, <code>alpnProtocols</code>, <code>sniCertificates</code>, a key passphrase, disabled TLS 1.3 session tickets) of an earlier configuration also remain in effect for a later configuration that omits them. Use one listener per <code>ServerConfiguration</code> in that setup, or install <code>ext-sockets</code>.</p>
+<p>The captured <code>peer_certificate</code> and <code>peer_certificate_chain</code> options are removed from the stream context after a server handshake; read the peer certificate from <code>StreamInterface::getState()</code> instead of the raw context.</p>
+<h4 id="session-tickets"><a href="#session-tickets" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Session tickets</h4>
+<p><code>sessionTickets: false</code>, on either configuration, turns TLS session tickets off. A client then offers no TLS 1.2 session ticket; a TLS 1.3 server may still send tickets after the handshake, which nothing stores or reuses. A server issues no TLS 1.2 ticket, and on PHP 8.6 and later no TLS 1.3 ticket either; PHP 8.4 and 8.5 cannot turn TLS 1.3 tickets off, so a server there still sends OpenSSL's default of two.</p>
 <h3 id="tls-listener"><a href="#tls-listener" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TLS Listener</h3>
 <p><code>TLS\Listener</code> wraps any <code>Network\ListenerInterface</code> and automatically performs TLS handshakes on accepted connections. This is the simplest way to build a TLS server:</p>
 <pre><code class="language-php">use Psl\Async;
@@ -119,6 +135,8 @@ while (true) {
 
 $listener-&gt;close();
 </code></pre>
+<p>Each accepted connection gets a handshake deadline, 10 seconds by default, which the optional third constructor argument (<code>handshakeTimeout</code>, a <code>Duration</code>) changes. A connection that fails its handshake or exceeds the deadline is closed; an exceeded deadline surfaces as a <code>HandshakeFailedException</code> whose previous exception is the <code>CancelledException</code> that ended the handshake. The deadline starts once the inner listener has accepted the connection, independently of the token passed to <code>accept()</code>.</p>
+<p>Handshakes run concurrently. While an <code>accept()</code> call waits, the listener takes connections from the inner listener and runs each handshake in a fiber of its own, up to the optional fourth constructor argument (<code>maxPendingHandshakes</code>, 256 by default) at a time; while that many are pending it takes no further connection, so the inner listener's backlog, and then the operating system's, hold the ones that arrive. <code>accept()</code> returns the next connection whose handshake completes, in completion order: a peer that connects and then stays silent holds only its own slot until its deadline passes. A handshake that fails or times out closes its connection, and its <code>HandshakeFailedException</code> is delivered to the next <code>accept()</code> call, as when handshakes ran one at a time; a server that wants connections only catches it and calls <code>accept()</code> again. Cancelling an <code>accept()</code> call ends that call only: pending handshakes finish or time out on their own, and their outcomes wait for the next call, while no further connection is taken from the inner listener until a call waits again. <code>close()</code> cancels every pending handshake, which closes those connections, closes the connections whose handshakes completed for nobody, makes every waiting <code>accept()</code> call throw <code>AlreadyStoppedException</code>, and closes the inner listener.</p>
 <h3 id="sni-based-virtual-hosting-lazyacceptor"><a href="#sni-based-virtual-hosting-lazyacceptor" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>SNI-Based Virtual Hosting (LazyAcceptor)</h3>
 <p><code>LazyAcceptor</code> peeks at the TLS ClientHello before completing the handshake. This lets you inspect the client's SNI hostname and choose the appropriate <code>ServerConfiguration</code> dynamically:</p>
 <pre><code class="language-php">use Psl\TCP;
@@ -154,6 +172,7 @@ while (true) {
     // ... handle connection
 }
 </code></pre>
+<p><code>LazyAcceptor::accept()</code> waits until the whole ClientHello has arrived, whether the client sends it in one write or in several, and in one TLS record or several, and it consumes none of it: the handshake reads it afterwards. The bytes already received keep the socket readable, so inspection peeks again after a pause that starts at 10 ms and doubles up to 320 ms while nothing new arrives. A peer that stops in the middle of its ClientHello holds the call until the cancellation token ends it, so pass a token with a deadline. A malformed ClientHello throws a <code>HandshakeFailedException</code>. A ClientHello longer than 16 KiB is reported from the extensions that end within its first 16 KiB; <code>complete()</code> still runs the whole handshake.</p>
 <h3 id="tls-connection-pooling"><a href="#tls-connection-pooling" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TLS Connection Pooling</h3>
 <p><code>TLS\TCPConnector</code> implements <code>TCP\ConnectorInterface</code>, which means it can be used with <code>TCP\SocketPool</code> to enable connection pooling for TLS connections. This avoids repeated TLS handshakes when making multiple requests to the same host:</p>
 <pre><code class="language-php">use Psl\TCP;
@@ -203,6 +222,9 @@ $config = TLS\ClientConfiguration::default()-&gt;withPeerFingerprints([
 
 $tls = TLS\connect('api.example.com', 443, $config);
 </code></pre>
+<p>Pins are SHA-256 fingerprints of the peer's leaf certificate, in hexadecimal; letter case and <code>:</code> separators are ignored. They are checked after the handshake, on top of the chain and name verification configured by the other options. A certificate that matches none of the pins closes the connection and throws <code>PeerVerificationException</code>.</p>
+<h3 id="verification-failures"><a href="#verification-failures" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Verification Failures</h3>
+<p>A handshake that fails because the peer's certificate was rejected, by chain verification (unknown authority, expired or self-signed certificate), by peer name verification, or by a pin, throws <code>TLS\Exception\PeerVerificationException</code>. It extends <code>HandshakeFailedException</code>, so existing handlers keep matching, and it implements <code>Network\Exception\NonRetryableExceptionInterface</code>: <code>TCP\RetryConnector</code> and <code>HTTP\Client\RetryClient</code> rethrow it at once instead of repeating a handshake that the same certificate will fail again. Other handshake failures, such as a reset connection or a peer that does not speak TLS, remain plain <code>HandshakeFailedException</code>s and are retried as before. Both carry the native error in their message.</p>
 <h3 id="starttls-upgrade-mid-connection"><a href="#starttls-upgrade-mid-connection" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>STARTTLS (Upgrade Mid-Connection)</h3>
 <pre><code class="language-php">use Psl\IO;
 use Psl\TCP;
@@ -248,6 +270,15 @@ if ($state-&gt;peerCertificate !== null) {
 
 $tls-&gt;close();
 </code></pre>
+<h3 id="writes-and-tls-records"><a href="#writes-and-tls-records" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Writes and TLS records</h3>
+<p>OpenSSL encrypts a write into a TLS record before it reaches the socket. When the socket is not writable, PHP reports the write as short although that record is already committed and must be sent, unchanged, before any other bytes. TLS streams handle this for you: a short <code>tryWrite()</code> counts up to one record (16 KiB) of the unwritten remainder as accepted and sends it before the bytes of any later write, so a <code>tryWrite()</code> followed by a write of different bytes, or a cancelled <code>writeAll()</code> followed by another write, never corrupts the stream. Consequences:</p>
+<ul>
+<li><code>tryWrite()</code> returns <code>0</code> while that record cannot be sent yet, and while a <code>write()</code> or <code>writeAll()</code> is in progress on another fiber;</li>
+<li><code>write()</code> and <code>writeAll()</code> return only once every byte they count has been handed to the socket;</li>
+<li><code>shutdown()</code> throws an <code>IO\Exception\RuntimeException</code> while a record accepted by <code>tryWrite()</code> is still pending; call <code>write()</code> or <code>writeAll()</code> first.</li>
+</ul>
+<h3 id="peeking"><a href="#peeking" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Peeking</h3>
+<p><code>peek()</code> on a TLS stream returns decrypted bytes, as <code>read()</code> would, without consuming them. The socket only holds TLS records, so the stream reads the bytes from the connection and keeps them; the next <code>read()</code> or <code>tryRead()</code> returns them first, and <code>reachedEndOfDataSource()</code> stays false while any are kept. A peek returns an empty string only once the peer has ended the data: records that carry no data, such as the TLS 1.3 session tickets a server sends after its handshake, do not end its wait.</p>
 <h3 id="cancellation"><a href="#cancellation" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Cancellation</h3>
 <p>All TLS operations that suspend (handshakes) accept a <code>CancellationTokenInterface</code>. This allows you to cancel slow or hanging handshakes:</p>
 <ul>

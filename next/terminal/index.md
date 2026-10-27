@@ -120,7 +120,7 @@ $app->on(Event\Key::class, static function (Event\Key $event, EventState $_state
 });
 
 $app->on(Event\Mouse::class, static function (Event\Mouse $_event, EventState $_state): void {
-    // $_event->kind (Press, Release, Drag, ScrollUp, ScrollDown, Move)
+    // $_event->kind (Press, Release, Drag, ScrollUp, ScrollDown, ScrollLeft, ScrollRight, Move)
     // $_event->column, $_event->row
 });
 

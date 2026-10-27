@@ -1,6 +1,6 @@
 # MIME
 
-The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing - all without filesystem coupling or temporary files.
+The `MIME` component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and related standards. It provides media type parsing, MIME part construction, multipart body streaming, content sniffing, S/MIME cryptography, and DKIM signing.
 
 ## Media Types
 
@@ -103,7 +103,7 @@ $mixed->addPart(
 
 ### Form Data
 
-`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads.
+`Form` builds multipart/form-data bodies per RFC 7578, for HTML form submissions and file uploads. Parts added with `addPart()` get a `form-data` disposition that keeps the part's filename, and are sent as raw bytes: RFC 7578 deprecates Content-Transfer-Encoding, so the base64 or quoted-printable encoding of `Part\Data` and `Part\Text` is undone.
 
 ```php
 use Psl\IO;
@@ -133,7 +133,13 @@ use Psl\MIME\MultiPart\Parser;
 
 $body = "--boundary\r\nContent-Type: text/plain\r\n\r\nHello\r\n--boundary\r\nContent-Type: text/html\r\n\r\n<b>World</b>\r\n--boundary--\r\n";
 
-$parser = new Parser(boundary: 'boundary', maxParts: 100, maxPartSize: 10_000_000, spoolThreshold: 2_097_152);
+$parser = new Parser(
+    boundary: 'boundary',
+    maxParts: 100,
+    maxPartSize: 10_000_000,
+    spoolThreshold: 2_097_152,
+    maxHeaderSize: 16_384,
+);
 
 foreach ($parser->parse(new IO\MemoryHandle($body)) as $part) {
     IO\write_line('%s: %s', $part->mediaType->essence(), $part->body()->readAll());
@@ -142,7 +148,9 @@ foreach ($parser->parse(new IO\MemoryHandle($body)) as $part) {
 
 ## S/MIME Cryptography
 
-Sign, verify, encrypt, and decrypt using CMS (RFC 5652) - entirely in-memory without temporary files or `openssl_pkcs7_*` functions.
+Sign, verify, encrypt, and decrypt using CMS (RFC 5652). Chain verification requires explicit trust anchors and uses OpenSSL to check certificate validity, purpose, and chains through embedded intermediates. An empty trust list rejects every certificate, including self-signed certificates. Pass `verifyCertificateChain: false` only to check the signature without establishing trust.
+
+Verification uses OpenSSL to select the signer certificate using X.509 name comparison rules. It writes certificates and signer metadata to private temporary directories and removes them after each check. Plaintext stays in memory. Signing, encryption, and decryption need no temporary files.
 
 ```php
 use Psl\MIME\SMIME;
@@ -150,7 +158,8 @@ use Psl\MIME\SMIME;
 // Signing requires a certificate and private key in PEM format.
 // Verification can optionally check the certificate chain against trusted CAs.
 // Encryption requires the recipient's certificate; decryption requires their private key.
-// All operations are in-memory -- no temporary files or openssl_pkcs7_* calls.
+// Verification uses temporary certificate and signer metadata files, then removes them.
+// Plaintext stays in memory. Chain verification needs explicit trust anchors.
 
 /** @var string $certPem */
 /** @var string $keyPem */
@@ -226,3 +235,5 @@ Detect MIME types from content bytes using magic signatures, RIFF sub-formats, I
 | RFC 9110 | Content negotiation (Accept header) |
 
 See [src/Psl/MIME/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/mime/src/Psl/MIME/) for the full API.
+
+Received message and multipart headers may use whitespace before the colon. The parsers skip fields with invalid names or CR, LF, or NUL in unfolded values. `Headers::fromPairs()` and `Headers::with()` stay strict. `Parameters::parse()` reports unsafe decoded values with `ParameterParsingException`.

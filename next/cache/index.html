@@ -100,7 +100,9 @@ Async\concurrently([
 <h2 id="lru-eviction"><a href="#lru-eviction" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>LRU Eviction</h2>
 <p><code>LocalStore</code> maintains a bounded cache with configurable maximum size. When full, the least recently used entry is evicted. Accessed entries are promoted to most-recently-used.</p>
 <h2 id="ttl-expiration"><a href="#ttl-expiration" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>TTL Expiration</h2>
-<p>Entries with a TTL are proactively cleaned up via an event loop timer, not lazily on access. The timer activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration.</p>
+<p>A <code>null</code> TTL means no expiration. A zero TTL expires immediately: <code>compute()</code> or <code>update()</code> returns its result, but later reads cannot reuse it.</p>
+<p>An expired entry is never returned: it is removed when it is accessed, and an event loop timer also sweeps expired entries proactively so they do not linger in memory. The timer runs every 3 seconds by default (configurable with the <code>$cleanupInterval</code> constructor argument), activates when TTL'd entries exist and disables itself when none remain, adding zero overhead when no entries have expiration. It never keeps the event loop running on its own.</p>
+<p><code>LocalStore</code> may keep expired entries until the next access or cleanup sweep. Those entries use cache slots and may evict older entries until removed.</p>
 <h2 id="nullstore"><a href="#nullstore" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>NullStore</h2>
 <p><code>NullStore</code> implements <code>StoreInterface</code> but never caches - every <code>compute()</code> invokes the computer, every <code>get()</code> throws. Useful for testing or disabling caching without changing calling code.</p>
 <p>See <a href="https://github.com/php-standard-library/php-standard-library/tree/next/packages/cache/src/Psl/Cache/">src/Psl/Cache/</a> for the full API.</p>

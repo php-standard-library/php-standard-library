@@ -94,6 +94,50 @@ foreach ($headers as $header) {
 
 The dynamic table size can be adjusted at runtime via `resize()`. This is typically driven by the HTTP/2 SETTINGS_HEADER_TABLE_SIZE parameter negotiated between peers.
 
+`Decoder::resize()` changes the allowed table-size limit. Raising that limit leaves the peer's chosen size unchanged until the peer sends an HPACK table-size update. Lowering the limit evicts entries only if the chosen size exceeds it.
+
+```php
+use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder();
+$decoder = new HPACK\Decoder();
+
+// Allow the peer to select a larger table.
+$decoder->resize(8192);
+
+// The encoder selects that size and sends its update in the next block.
+$encoder->resize(8192);
+$encoded = $encoder->encode([new HPACK\Header(':method', 'GET')]);
+
+foreach ($decoder->decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header->name, $header->value);
+}
+```
+
 The maximum decompressed header list size is configurable via the constructor or `setMaxHeaderListSize()`. Headers that exceed this limit throw `HeaderListSizeException`.
+
+If `encode()` or `encodeWithStatus()` rejects an oversized header list, it leaves the dynamic table and pending size updates unchanged. You can retry with a smaller list on the same encoder. A rejected call may consume its input iterator, so pass a fresh iterator when retrying.
+
+```php
+use Psl\HPACK;
+use Psl\IO;
+
+$encoder = new HPACK\Encoder(maxHeaderListSize: 64);
+$decoder = new HPACK\Decoder();
+
+try {
+    $encoded = $encoder->encode([
+        new HPACK\Header(':method', 'GET'),
+        new HPACK\Header('x-extra', 'optional'),
+    ]);
+} catch (HPACK\Exception\HeaderListSizeException) {
+    $encoded = $encoder->encode([new HPACK\Header(':method', 'GET')]);
+}
+
+foreach ($decoder->decode($encoded) as $header) {
+    IO\write_line('%s: %s', $header->name, $header->value);
+}
+```
 
 See [src/Psl/HPACK/](https://github.com/php-standard-library/php-standard-library/tree/next/packages/hpack/src/Psl/HPACK/) for the full API.

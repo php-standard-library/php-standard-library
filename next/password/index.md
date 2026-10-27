@@ -92,6 +92,8 @@ IO\write_line('Algorithm: %s', $info['algorithm']->name);
 IO\write_line('Cost: %d', $info['options']['cost'] ?? '<unknown>');
 ```
 
+If the string is not a hash created by one of the supported algorithms, `get_information()` throws `Password\Exception\InvalidArgumentException`. Bcrypt hashes with the `$2a$` or `$2b$` prefix, which other bcrypt implementations produce, are reported as `Algorithm::Bcrypt`; `needs_rehash()` returns `true` for them, so they are rehashed into PHP's `$2y$` form after the next successful `verify()`.
+
 ## Algorithm
 
 The `Password\Algorithm` enum provides four cases:

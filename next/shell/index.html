@@ -124,7 +124,7 @@ try {
 <li><strong><code>FailedExecutionException</code></strong> -- the command exited with a non-zero status. Provides <code>getCommand()</code>, <code>getOutput()</code>, and <code>getErrorOutput()</code> for inspection.</li>
 <li><strong><code>PossibleAttackException</code></strong> -- the command or an argument contains a NULL byte, indicating a potential injection attack.</li>
 <li><strong><code>CancelledException</code></strong> -- the command was cancelled via the cancellation token.</li>
-<li><strong><code>RuntimeException</code></strong> -- the working directory does not exist, or the process could not be created.</li>
+<li><strong><code>RuntimeException</code></strong> -- the working directory does not exist or contains a NULL byte, an environment variable name or value is invalid (for example, it contains a NULL byte), or the process could not be created.</li>
 </ul>
 <pre><code class="language-php">use Psl\IO;
 use Psl\Shell;

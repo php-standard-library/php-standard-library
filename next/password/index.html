@@ -105,6 +105,7 @@ $info = Password\get_information($hash);
 IO\write_line('Algorithm: %s', $info['algorithm']-&gt;name);
 IO\write_line('Cost: %d', $info['options']['cost'] ?? '&lt;unknown&gt;');
 </code></pre>
+<p>If the string is not a hash created by one of the supported algorithms, <code>get_information()</code> throws <code>Password\Exception\InvalidArgumentException</code>. Bcrypt hashes with the <code>$2a$</code> or <code>$2b$</code> prefix, which other bcrypt implementations produce, are reported as <code>Algorithm::Bcrypt</code>; <code>needs_rehash()</code> returns <code>true</code> for them, so they are rehashed into PHP's <code>$2y$</code> form after the next successful <code>verify()</code>.</p>
 <h2 id="algorithm"><a href="#algorithm" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Algorithm</h2>
 <p>The <code>Password\Algorithm</code> enum provides four cases:</p>
 <ul>

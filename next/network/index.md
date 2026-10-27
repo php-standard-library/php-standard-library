@@ -8,7 +8,7 @@ It provides the abstraction layer that protocol-specific components build on top
 
 ### Address
 
-`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port.
+`Address` is an immutable value object representing a network address. It carries a scheme (TCP, UDP, or Unix), a host, and an optional port. IPv6 hosts have no brackets in `host`; `toString()` adds them around the host. Both `::1` and `[::1]` inputs produce the same address.
 
 ```php
 use Psl\Network\Address;
@@ -18,6 +18,10 @@ $udp = Address::udp('0.0.0.0', 9999);
 $unix = Address::unix('/tmp/my-app.sock');
 
 echo $tcp->toString(); // "tcp://127.0.0.1:8080"
+
+$ipv6 = Address::tcp('::1', 8080);
+echo $ipv6->host; // "::1"
+echo $ipv6->toString(); // "tcp://[::1]:8080"
 ```
 
 ### StreamInterface

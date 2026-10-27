@@ -80,7 +80,7 @@ use Psl\IO;
 $key = Symmetric\generate_key();
 $streamEncryptor = new Symmetric\StreamEncryptor($key);
 
-// Encrypt a stream in chunks (useful for large files)
+// Encrypt in chunks, filling short reads until the source reaches EOF.
 $source = new IO\MemoryHandle('This is a large message that will be encrypted in chunks.');
 $encrypted = new IO\MemoryHandle();
 
@@ -94,7 +94,7 @@ $streamEncryptor-&gt;copyOpened($encrypted, $decrypted);
 $decrypted-&gt;seek(0);
 IO\write_line('Decrypted: %s', $decrypted-&gt;readAll());
 </code></pre>
-<p>The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk individually and detects reordering or truncation.</p>
+<p>The stream format uses XChaCha20-Poly1305 secretstream, which authenticates each chunk and detects reordering or truncation. Encryption fills each chunk across short reads and marks the final chunk only at EOF. The source must reach EOF before encryption can finish. Chunk sizes must be between 1 byte and <code>Symmetric\MAX_CHUNK_BYTES</code> (16 MiB).</p>
 <h2 id="asymmetric-encryption"><a href="#asymmetric-encryption" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Asymmetric Encryption</h2>
 <p><code>Crypto\Asymmetric</code> provides public-key encryption using X25519. Each party has a key pair consisting of a secret key and a public key.</p>
 <h3 id="sealed-boxes-anonymous-sender"><a href="#sealed-boxes-anonymous-sender" class="heading-permalink" aria-hidden="true" tabindex="-1" title="Permalink"></a>Sealed Boxes (Anonymous Sender)</h3>

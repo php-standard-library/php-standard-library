@@ -38,6 +38,8 @@ IO\write_error_line('Done!');
 
 `Async\main()` is the entry point for async applications. It executes a closure in the main fiber, then keeps the event loop running until all pending callbacks complete. The closure must return an integer exit code.
 
+Call it outside any fiber, from the script's own call stack (`{main}`): a function or method that the script calls may call it. Inside a fiber, such as an `Async\run()` closure or an event loop callback, it throws `Async\Exception\LogicException` before running the closure, even a closure that never returns.
+
 ```php
 use Psl\Async;
 use Psl\DateTime\Duration;
@@ -161,6 +163,8 @@ $results = Async\concurrently([
     },
 ]);
 ```
+
+No closure and no failure is dropped when the iterable repeats a key: each closure runs, and its failure is handled as it would be under a distinct key. On success, the result of the last closure with that key is returned under it.
 
 > **Warning**
 >
@@ -420,6 +424,8 @@ IO\write_line('Order: %s', Psl\Str\join($results, ', ')); // "fast, slow"
 
 `awaitAll()` accepts an optional `CancellationTokenInterface`. The task list is cleared after each `awaitAll()` call, so the group is reusable.
 
+Several fibers can call `awaitAll()` at once: every call waiting when the last task finishes gets the same exception (or the same `CompositeException`). Only exceptions are collected; an `Error` thrown by a task reaches the event loop error handler.
+
 ### WaitGroup
 
 `WaitGroup` is a counter-based synchronization primitive inspired by Go's `sync.WaitGroup`. Call `add()` before starting work, `done()` when work completes, and `wait()` to block until the counter reaches zero:
@@ -492,6 +498,8 @@ The `Scheduler` is a wrapper around the Revolt event loop. It provides static me
 
 All registration methods return a string identifier that can be used with `cancel()`, `enable()`, `disable()`, `reference()`, and `unreference()`.
 
+`Scheduler::run()` runs the event loop until no enabled, referenced callback is left. Like `Async\main()`, it must be called outside any fiber, from the script's own call stack (`{main}`): inside a fiber, it throws `Async\Exception\LogicException` before the loop runs anything.
+
 See [revolt.run](https://revolt.run/) for more information on the underlying event loop.
 
 ## Cancellation
@@ -506,6 +514,8 @@ The base interface. Implementations provide:
 - `unsubscribe(string $id): void` -- remove a callback
 - `isCancelled(): bool` -- check cancellation state
 - `throwIfCancelled(): void` -- throw `CancelledException` if cancelled
+
+When a token is cancelled, every subscribed callback runs, even if an earlier one throws. The failure is reported once they all ran: `SignalCancellationToken::cancel()` rethrows it, and a `TimeoutCancellationToken` sends it to the event loop error handler. When several callbacks throw, their failures are reported together in a `CompositeException`.
 
 ### SignalCancellationToken
 
@@ -644,6 +654,7 @@ When a token fires, `CancelledException` is thrown. It carries:
 
 - **`CancelledException`** -- thrown when a cancellation token is triggered. Use `$e->getToken()` to identify the source and `$e->getPrevious()` for the cause.
 - **`CompositeException`** -- wraps multiple exceptions when several concurrent operations fail. Use `$e->getReasons()` to get all underlying exceptions.
+- **`LogicException`** -- thrown when the API is misused, such as calling `Async\main()` or `Scheduler::run()` inside a fiber.
 - **`TimeoutException`** -- used internally as the cause inside `CancelledException` when a `TimeoutCancellationToken` fires.
 - **`UnhandledAwaitableException`** -- thrown by the scheduler when a failed `Awaitable` is never awaited or handled. Use `$awaitable->ignore()` to suppress this.
 
