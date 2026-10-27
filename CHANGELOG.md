@@ -2,8 +2,6 @@
 
 ## 6.4.0
 
-Unreleased.
-
 ### security
 
 - fix(dns): require the question of a `UDPResolver` or `TCPResolver` response to match the query's name, type and class (ignoring case), and check the UDP transaction ID before parsing any record, so an answer to a different query is rejected with `ProtocolException` instead of being accepted; a mismatched TCP reply also closes the pooled connection
@@ -36,6 +34,10 @@ Unreleased.
 - fix(tcp, tls): stop accepted connections from sharing TLS context state, which reported a client that presented no certificate with the previous client's `PeerCertificate`, kept verifying client certificates against the CA of an earlier `ServerConfiguration`, and let an `allow_self_signed` left by a client handshake on the same listener accept any self-signed client certificate as the peer. With ext-sockets, which tcp now suggests, each accepted connection gets its own context; without it, a server upgrade throws `Network\Exception\RuntimeException` naming the option for a stream that inherited a trust option the current configuration does not set (`cafile`, `capath`, `verify_peer`, `verify_peer_name`, `peer_fingerprint`, `allow_self_signed` or `verify_depth`). Server handshakes no longer leave `peer_certificate` and `peer_certificate_chain` in the stream context; read the peer certificate from `TLS\StreamInterface::getState()`.
 - fix(tls): give the handshake in `TLS\Listener::accept()` its own deadline, 10 seconds by default and configurable with the new `$handshakeTimeout` constructor argument (a `Psl\DateTime\Duration`), so a peer that connects and sends nothing can no longer block the listener forever; a failed or timed-out handshake throws `HandshakeFailedException` and closes the connection
 - fix(tls): run the handshakes of `TLS\Listener` concurrently, each in a fiber of its own with its own deadline, up to the new optional `$maxPendingHandshakes` constructor argument (256 by default) at a time, and return connections from `accept()` in the order their handshakes complete, so a peer that connects and sends nothing holds only its own slot until its deadline passes instead of every later connection; while the limit is reached, no further connection is taken from the inner listener. A failed or timed-out handshake still closes its connection and is reported to the next `accept()` call as `HandshakeFailedException`. Cancelling an `accept()` call now ends that call only and leaves the pending handshakes to their deadlines, and `close()` cancels every pending handshake, closes the connections whose handshakes completed for nobody and fails every waiting call with `AlreadyStoppedException`
+
+### features
+
+- feat(vec): add `Vec\intersect()`, which returns the values of the first iterable that are present in every other iterable as a list, without their keys, comparing values by their string representation like `Dict\intersect()` - [#812](https://github.com/php-standard-library/php-standard-library/pull/812) by @shadowhand
 
 ### fixes
 
@@ -93,7 +95,7 @@ Unreleased.
 - fix(dns): reject EDNS Client Subnet source and scope prefix lengths outside the address family's range with `InvalidArgumentException`, instead of emitting warnings or encoding a scope of 256 as 0
 - fix(dns): reject truncated NAPTR records with `ProtocolException` instead of reading past the end of the packet with warnings and deprecations
 - fix(dns): trim exactly the whitespace that the resolv.conf, hosts file and ipconfig parsers match, so form feeds and vertical tabs are handled the same way on every PHP version and NUL bytes are no longer stripped
-- fix(dnssec): trust both IANA root keys, KSK-2017 (tag 20326) and KSK-2024 (tag 38696), each with its own SHA-256 digest, so a root DNSKEY RRset signed by either key validates
+- fix(dnssec): trust both IANA root keys, KSK-2017 (tag 20326) and KSK-2024 (tag 38696), each with its own SHA-256 digest, so a root DNSKEY RRset signed by either key validates - [#809](https://github.com/php-standard-library/php-standard-library/pull/809) by @loganaden
 - fix(dnssec): reject malformed DNSKEY data from the network (RSA keys with an empty exponent or modulus, invalid Ed448 or ECDSA keys) without emitting PHP warnings or deprecations that could escape validation error handling
 - fix(dnssec): encode TXT string lengths without `chr()` when building canonical RDATA, avoiding a PHP 8.5 deprecation for user-constructed `TXTRecord` strings longer than 255 bytes
 - fix(dnssec, http-client, tcp, tls): require the PSL packages whose 6.4.0 symbols they use at `^6.4`: dnssec requires dns `^6.4` for `DNAMERecord` and `RecordType::DNAME`, http-client requires h2 `^6.4` for `StreamException::$streamId`, and http-client, tcp and tls require network `^6.4` for `NonRetryableExceptionInterface`, so Composer can no longer install them next to a 6.3.0 release of the dependency that lacks those symbols
@@ -253,7 +255,6 @@ Unreleased.
 - fix(terminal): drop the events of mouse buttons 8 to 11 (back, forward and two more) instead of reporting them as left, middle and right button events
 - fix(tls): keep the record OpenSSL committed during a short TLS write and send it before any later bytes, instead of silently corrupting the byte stream when a caller wrote other bytes after `tryWrite()` returned 0 or cancelled a `writeAll()`. `write()` and `writeAll()` are now serialized, and `shutdown()` throws while such a record is pending.
 - fix(tls): check `ClientConfiguration::$peerFingerprints` against the SHA-256 fingerprint of the captured peer certificate after the handshake, since handing them to PHP made every pinned handshake fail, even with a matching pin
-- fix(tls, tcp, http-client): throw the new `TLS\Exception\PeerVerificationException` when certificate chain, name or pin verification fails, and stop `TCP\RetryConnector` and `HTTP\Client\RetryClient` from retrying it through the new `Network\Exception\NonRetryableExceptionInterface`. Handshake failure messages now include PHP's error, and `HandshakeFailedException` is no longer final.
 - fix(tls): destroy and close TLS streams that are no longer referenced, instead of keeping them and their socket open until the cycle collector runs
 - fix(tls): write large buffers in linear time in `writeAll()` instead of copying the unwritten remainder after every write
 - fix(tls): read and discard up to 1 MiB of unread bytes, such as TLS 1.3 session tickets, after sending close_notify on `close()`, so the peer sees an orderly end of the stream instead of a reset that drops the last bytes written
@@ -262,11 +263,13 @@ Unreleased.
 - fix(tls): make `LazyAcceptor::accept()` wait for the whole ClientHello, joined across TLS records, before inspecting it, instead of parsing whatever had arrived, which reported a ClientHello still on its way or split across records with no server name and no protocols, or failed to parse it. Malformed input throws `HandshakeFailedException` with a reason, an ALPN or SNI extension cut by the 16 KiB inspection limit is reported as null instead of cut short, and a peer that stops in the middle of its ClientHello holds the call until its token ends it.
 - fix(tls): make `peek()` on a TLS stream return the decrypted bytes the next read returns, instead of the raw TLS records, including on SMTP connections upgraded with STARTTLS; the peeked bytes are kept in the stream, so code that reads the raw resource after a peek no longer finds them there
 - fix(tls): keep a handshake going when OpenSSL waits to write the rest of its flight, such as a ClientHello larger than the socket buffers, instead of hanging until its token ends it, or forever without one: as PHP 8.4 and 8.5 cannot tell which way a handshake waits, each wait between handshake steps also ends after a short pause (10 ms, doubling up to 320 ms)
+- fix(tls, tcp, http-client): throw the new `TLS\Exception\PeerVerificationException` when certificate chain, name or pin verification fails, and stop `TCP\RetryConnector` and `HTTP\Client\RetryClient` from retrying it through the new `Network\Exception\NonRetryableExceptionInterface`. Handshake failure messages now include PHP's error, and `HandshakeFailedException` is no longer final.
 - fix(type): reject NAN, INF and out-of-range floats in `Type\int()`, `uint()`, `positive_int()` and `int_range()` coercion without the PHP 8.5 cast warning
 - fix(type): reject NAN and infinite floats in `Type\numeric_string()` coercion instead of returning "NAN", "INF" or "-INF"
 - fix(type): return the slow-path result when `Type\shape()` coercion falls back after an element fails, instead of a shape missing that element and every one after it
 - fix(type): throw `InvariantViolationException` from `Type\int_range()` when the minimum is greater than the maximum, instead of building a type that matches nothing
 - fix(type): stop `Type\iterable()->matches()` from consuming generators: it now returns false for a generator, unless both types are `mixed()`, and leaves it untouched, while `always_assert()` and `json_decoded()` validate generators through `assert()`
+- fix(type): allow interface names in `Type\class_string()` when no class is specified - [#802](https://github.com/php-standard-library/php-standard-library/issues/802)
 - fix(udp): report why a receive or peek on a `ConnectedSocket` failed, such as after an ICMP port-unreachable message, with the errno as the exception code and the system's text for it in the message, where the code was 0, on POSIX systems with ext-sockets, which the udp package now suggests; the socket stays usable for the next datagram
 - fix(udp): return the prefix of a datagram longer than the buffer from `ConnectedSocket::receive()` and `peek()` on Windows, as on every other platform, instead of throwing
 - fix(udp): connect a bound `UDP\Socket` in place with ext-sockets, so the `ConnectedSocket` that `connect()` returns keeps the bound socket's options, such as `SO_BROADCAST`, its queued datagrams and its port, instead of a new socket bound to the old address, which another socket could take in between. A connect that cannot be made in place, such as from a socket bound to an IPv6 address to an IPv4 one, still uses a new socket, and a socket bound to `::` that connects to an IPv4 address now keeps its port, with the IPv4-mapped form of the source address, such as `::ffff:127.0.0.1`, as its local address.
@@ -284,7 +287,11 @@ Unreleased.
 
 ### deprecations
 
-- deprecated(str): `Str\metaphone()` because the underlying PHP function is deprecated as of PHP 8.6. Use a userland phonetic matching library instead.
+- deprecated(str): `Str\metaphone()` because the underlying PHP function is deprecated as of PHP 8.6. Use a userland phonetic matching library instead - [#811](https://github.com/php-standard-library/php-standard-library/pull/811) by @simPod
+
+### other
+
+- chore: allow PHP 8.6 (`~8.4.0 || ~8.5.0 || ~8.6.0`) in the root and every package's `composer.json` - [#810](https://github.com/php-standard-library/php-standard-library/pull/810) by @simPod
 
 ## 6.3.0
 
@@ -295,7 +302,6 @@ Unreleased.
 ### fixes
 
 - fix(http-client): validate all `Transfer-Encoding` response fields and reject invalid or unsupported transfer codings instead of falling back to `Content-Length` - [#806](https://github.com/php-standard-library/php-standard-library/pull/806)
-- fix(type): allow interface names in `Type\class_string()` when no class is specified - [#802](https://github.com/php-standard-library/php-standard-library/issues/802)
 
 ## 6.2.1
 
