@@ -25,7 +25,7 @@
         "ext-sodium": "*",
         "php-standard-library/foundation": "^6.0",
         "php-standard-library/hash": "^6.0",
-        "php-standard-library/io": "^6.0",
+        "php-standard-library/io": "^6.4",
         "php-standard-library/secure-random": "^6.0"
     },
     "require-dev": {

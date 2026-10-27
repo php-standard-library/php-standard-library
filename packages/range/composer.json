@@ -21,7 +21,7 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/iter": "^6.0"
+        "php-standard-library/iter": "^6.4"
     },
     "require-dev": {
         "php-standard-library/math": "^6.0",

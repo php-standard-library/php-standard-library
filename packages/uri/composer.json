@@ -22,7 +22,7 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/ip": "^6.0"
+        "php-standard-library/ip": "^6.4"
     },
     "require-dev": {
         "php-standard-library/str": "^6.0",

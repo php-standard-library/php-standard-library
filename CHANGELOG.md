@@ -292,6 +292,7 @@
 ### other
 
 - chore: allow PHP 8.6 (`~8.4.0 || ~8.5.0 || ~8.6.0`) in the root and every package's `composer.json` - [#810](https://github.com/php-standard-library/php-standard-library/pull/810) by @simPod
+- chore: require `^6.4` of every PSL package that changed in 6.4.0 (108 constraints in 35 packages), so updating any package also brings in the bug and security fixes of the PSL packages it depends on
 
 ## 6.3.0
 

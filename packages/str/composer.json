@@ -25,7 +25,7 @@
         "ext-mbstring": "*",
         "php-standard-library/default": "^6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/range": "^6.0"
+        "php-standard-library/range": "^6.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^13.0"

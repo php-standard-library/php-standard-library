@@ -21,10 +21,10 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
-        "php-standard-library/async": "^6.0",
+        "php-standard-library/async": "^6.4",
         "php-standard-library/default": "^6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/process": "^6.0"
+        "php-standard-library/process": "^6.4"
     },
     "require-dev": {
         "php-standard-library/date-time": "^6.0",

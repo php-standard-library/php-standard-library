@@ -22,8 +22,8 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
-        "php-standard-library/async": "^6.0",
-        "php-standard-library/channel": "^6.0",
+        "php-standard-library/async": "^6.4",
+        "php-standard-library/channel": "^6.4",
         "php-standard-library/foundation": "^6.0",
         "php-standard-library/result": "^6.0",
         "revolt/event-loop": "^1.0.8"

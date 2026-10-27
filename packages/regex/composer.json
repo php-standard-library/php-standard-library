@@ -22,7 +22,7 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/type": "^6.0"
+        "php-standard-library/type": "^6.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^13.0"

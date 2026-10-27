@@ -23,13 +23,13 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "ext-openssl": "*",
-        "php-standard-library/async": "^6.0",
-        "php-standard-library/date-time": "^6.0",
+        "php-standard-library/async": "^6.4",
+        "php-standard-library/date-time": "^6.4",
         "php-standard-library/default": "^6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/io": "^6.0",
+        "php-standard-library/io": "^6.4",
         "php-standard-library/network": "^6.4",
-        "php-standard-library/tcp": "^6.0",
+        "php-standard-library/tcp": "^6.4",
         "revolt/event-loop": "^1.0.8"
     },
     "require-dev": {

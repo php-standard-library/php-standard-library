@@ -22,12 +22,12 @@
     "homepage": "https://php-standard-library.dev",
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
-        "php-standard-library/async": "^6.0",
-        "php-standard-library/cidr": "^6.0",
-        "php-standard-library/date-time": "^6.0",
+        "php-standard-library/async": "^6.4",
+        "php-standard-library/cidr": "^6.4",
+        "php-standard-library/date-time": "^6.4",
         "php-standard-library/default": "^6.0",
-        "php-standard-library/io": "^6.0",
-        "php-standard-library/ip": "^6.0",
+        "php-standard-library/io": "^6.4",
+        "php-standard-library/ip": "^6.4",
         "php-standard-library/network": "^6.4",
         "revolt/event-loop": "^1.0.8"
     },

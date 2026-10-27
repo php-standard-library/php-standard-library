@@ -23,9 +23,9 @@
     "require": {
         "php": "~8.4.0 || ~8.5.0 || ~8.6.0",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/ip": "^6.0",
+        "php-standard-library/ip": "^6.4",
         "php-standard-library/punycode": "^6.0",
-        "php-standard-library/uri": "^6.2"
+        "php-standard-library/uri": "^6.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^13.0"
