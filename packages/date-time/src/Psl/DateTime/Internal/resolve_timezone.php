@@ -21,6 +21,8 @@ use function str_starts_with;
  *
  * - aliases and backward-compatible links of a supported zone, e.g. "US/Eastern" (America/New_York),
  *   "Asia/Calcutta" (Asia/Kolkata), or "Etc/UTC" (UTC), using ICU's equivalent identifiers;
+ * - the System V names that observe daylight saving time, e.g. "CET" (Europe/Brussels) or "EST5EDT"
+ *   (America/New_York), which are links since tzdata 2024b, whatever the ICU data of this build;
  * - fixed offsets, e.g. "+00:00" (UTC), "Etc/GMT+5" (-05:00), or "EST" (-05:00), when an offset
  *   case exists for them.
  *
@@ -34,6 +36,21 @@ function resolve_timezone(string $identifier): null|Timezone
     if (null !== $timezone) {
         // A zone newer than the ICU data of this build cannot be used, and ICU knows no equivalent of it.
         return null !== namespace\create_intl_timezone($timezone) ? $timezone : null;
+    }
+
+    $timezone = match ($identifier) {
+        'CET', 'MET' => Timezone::EuropeBrussels,
+        'CST6CDT' => Timezone::AmericaChicago,
+        'EET' => Timezone::EuropeAthens,
+        'EST5EDT' => Timezone::AmericaNewYork,
+        'MST7MDT' => Timezone::AmericaDenver,
+        'PST8PDT' => Timezone::AmericaLosAngeles,
+        'WET' => Timezone::EuropeLisbon,
+        default => null,
+    };
+
+    if (null !== $timezone) {
+        return $timezone;
     }
 
     if (str_starts_with($identifier, '+') || str_starts_with($identifier, '-')) {

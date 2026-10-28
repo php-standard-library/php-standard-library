@@ -16,11 +16,13 @@ use Psl\DateTime\Exception\RuntimeException;
 use Psl\DateTime\Timestamp;
 use Psl\DateTime\Timezone;
 
-use function date;
 use function date_default_timezone_set;
 use function in_array;
+use function intdiv;
 use function sprintf;
 use function str_starts_with;
+
+use const Psl\DateTime\MILLISECONDS_PER_SECOND;
 
 final class TimezoneTest extends TestCase
 {
@@ -70,10 +72,36 @@ final class TimezoneTest extends TestCase
         static::assertSame($expected, DateTime::now()->getTimezone());
     }
 
+    /**
+     * @return iterable<array{string, Timezone}>
+     */
+    public static function provideSystemVNames(): iterable
+    {
+        yield ['CET', Timezone::EuropeBrussels];
+        yield ['MET', Timezone::EuropeBrussels];
+        yield ['EET', Timezone::EuropeAthens];
+        yield ['WET', Timezone::EuropeLisbon];
+        yield ['CST6CDT', Timezone::AmericaChicago];
+        yield ['EST5EDT', Timezone::AmericaNewYork];
+        yield ['MST7MDT', Timezone::AmericaDenver];
+        yield ['PST8PDT', Timezone::AmericaLosAngeles];
+    }
+
+    #[DataProvider('provideSystemVNames')]
+    public function testDefaultResolvesSystemVNamesWhateverTheIcuData(string $identifier, Timezone $expected): void
+    {
+        // Links since tzdata 2024b; ICU data that predates it (e.g. ICU 74) has them as zones of their own.
+        date_default_timezone_set($identifier);
+
+        static::assertSame($expected, Timezone::default());
+        static::assertSame($expected, Timezone::fromIntl(IntlTimeZone::createTimeZone($identifier)));
+    }
+
     public function testDefaultResolvesEveryIdentifierOfTheTimezoneDatabase(): void
     {
         foreach (DateTimeZone::listIdentifiers(DateTimeZone::ALL_WITH_BC) as $identifier) {
-            if ('Etc/Unknown' === IntlTimeZone::createTimeZone($identifier)->getID()) {
+            $intlTimezone = IntlTimeZone::createTimeZone($identifier);
+            if ('Etc/Unknown' === $intlTimezone->getID()) {
                 // Newer than the ICU data of this build; see testDefaultRejectsAZoneUnknownToIcu().
                 continue;
             }
@@ -81,10 +109,15 @@ final class TimezoneTest extends TestCase
             date_default_timezone_set($identifier);
             $timezone = Timezone::default();
 
-            // The resolved zone has PHP's offsets, in winter and in summer (2021-01-15 and 2021-07-15).
+            // The resolved zone has the offsets ICU gives the identifier, in winter and in summer (2021-01-15 and
+            // 2021-07-15). PHP's own offsets are no reference: PHP may read another tzdata release than the ICU
+            // data of this build (Ubuntu's PHP reads the system tzdata, while its ICU 74 has tzdata 2023c), and
+            // tzdata 2023d corrected the past offsets of Antarctica/Casey and Antarctica/Vostok.
             foreach ([1_610_712_000, 1_626_350_400] as $seconds) {
+                $intlTimezone->getOffset($seconds * MILLISECONDS_PER_SECOND, false, $rawOffset, $dstOffset);
+
                 static::assertSame(
-                    (int) date('Z', $seconds),
+                    intdiv($rawOffset + $dstOffset, MILLISECONDS_PER_SECOND),
                     (int) $timezone->getOffset(Timestamp::fromParts($seconds))->getTotalSeconds(),
                     sprintf('"%s" resolved to "%s".', $identifier, $timezone->value),
                 );
