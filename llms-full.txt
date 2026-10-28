@@ -6,119 +6,119 @@ Install everything with `composer require php-standard-library/php-standard-libr
 
 ## Basics
 
-- [Dict](https://php-standard-library.dev/6.4.1/dict/index.md): The Dict component provides functions for creating and transforming associative arrays (array<Tk,...
-- [Foundation](https://php-standard-library.dev/6.4.1/foundation/index.md): The Foundation package provides the base exceptions, Ref, and invariant() utilities used across a...
-- [Fun](https://php-standard-library.dev/6.4.1/fun/index.md): The Fun component provides functional programming utilities for composing, decorating, and contro...
-- [Iter](https://php-standard-library.dev/6.4.1/iter/index.md): The Iter component provides utility functions for inspecting and reducing iterables. Unlike Vec a...
-- [Math](https://php-standard-library.dev/6.4.1/math/index.md): The Math component provides mathematical functions with strict typing and predictable error handl...
-- [Str](https://php-standard-library.dev/6.4.1/str/index.md): The Str component provides Unicode-aware string functions that replace PHP's mb_* and standard st...
-- [Vec](https://php-standard-library.dev/6.4.1/vec/index.md): The Vec component provides functions for creating and transforming sequential, 0-indexed arrays (...
+- [Dict](https://php-standard-library.dev/6.4.2/dict/index.md): The Dict component provides functions for creating and transforming associative arrays (array<Tk,...
+- [Foundation](https://php-standard-library.dev/6.4.2/foundation/index.md): The Foundation package provides the base exceptions, Ref, and invariant() utilities used across a...
+- [Fun](https://php-standard-library.dev/6.4.2/fun/index.md): The Fun component provides functional programming utilities for composing, decorating, and contro...
+- [Iter](https://php-standard-library.dev/6.4.2/iter/index.md): The Iter component provides utility functions for inspecting and reducing iterables. Unlike Vec a...
+- [Math](https://php-standard-library.dev/6.4.2/math/index.md): The Math component provides mathematical functions with strict typing and predictable error handl...
+- [Str](https://php-standard-library.dev/6.4.2/str/index.md): The Str component provides Unicode-aware string functions that replace PHP's mb_* and standard st...
+- [Vec](https://php-standard-library.dev/6.4.2/vec/index.md): The Vec component provides functions for creating and transforming sequential, 0-indexed arrays (...
 
 ## Types & Error Handling
 
-- [Comparison](https://php-standard-library.dev/6.4.1/comparison/index.md): The Comparison component provides interfaces and functions for comparing values in a type-safe, c...
-- [Default](https://php-standard-library.dev/6.4.1/default/index.md): The Default component introduces a uniform approach for classes within PSL to provide and utilize...
-- [EitherOrBoth](https://php-standard-library.dev/6.4.1/either-or-both/index.md): Unlike Either (which carries a loose "one vs the other" convention where Right is the happy path)...
-- [Either](https://php-standard-library.dev/6.4.1/either/index.md): The Either component represents a value that is one of two possible types: Left or Right. Unlike ...
-- [Option](https://php-standard-library.dev/6.4.1/option/index.md): The Option component represents a value that may or may not be present. It replaces nullable type...
-- [Result](https://php-standard-library.dev/6.4.1/result/index.md): The Result component represents a computation that either succeeded or failed. Instead of letting...
-- [Type](https://php-standard-library.dev/6.4.1/type/index.md): The Type component provides a set of functions to ensure that a given value is of a specific type...
+- [Comparison](https://php-standard-library.dev/6.4.2/comparison/index.md): The Comparison component provides interfaces and functions for comparing values in a type-safe, c...
+- [Default](https://php-standard-library.dev/6.4.2/default/index.md): The Default component introduces a uniform approach for classes within PSL to provide and utilize...
+- [EitherOrBoth](https://php-standard-library.dev/6.4.2/either-or-both/index.md): Unlike Either (which carries a loose "one vs the other" convention where Right is the happy path)...
+- [Either](https://php-standard-library.dev/6.4.2/either/index.md): The Either component represents a value that is one of two possible types: Left or Right. Unlike ...
+- [Option](https://php-standard-library.dev/6.4.2/option/index.md): The Option component represents a value that may or may not be present. It replaces nullable type...
+- [Result](https://php-standard-library.dev/6.4.2/result/index.md): The Result component represents a computation that either succeeded or failed. Instead of letting...
+- [Type](https://php-standard-library.dev/6.4.2/type/index.md): The Type component provides a set of functions to ensure that a given value is of a specific type...
 
 ## Async
 
-- [Async](https://php-standard-library.dev/6.4.1/async/index.md): The Async component brings concurrency into PHP using cooperative multitasking.
-- [Channel](https://php-standard-library.dev/6.4.1/channel/index.md): The Channel component provides message-passing channels for async communication, inspired by Go's...
-- [Promise](https://php-standard-library.dev/6.4.1/promise/index.md): The Promise component provides a promise interface for deferred computations. A promise represent...
+- [Async](https://php-standard-library.dev/6.4.2/async/index.md): The Async component brings concurrency into PHP using cooperative multitasking.
+- [Channel](https://php-standard-library.dev/6.4.2/channel/index.md): The Channel component provides message-passing channels for async communication, inspired by Go's...
+- [Promise](https://php-standard-library.dev/6.4.2/promise/index.md): The Promise component provides a promise interface for deferred computations. A promise represent...
 
 ## Collections
 
-- [Collection](https://php-standard-library.dev/6.4.1/collection/index.md): The Collection component provides generic, object-oriented collection types as an alternative to ...
-- [DataStructure](https://php-standard-library.dev/6.4.1/data-structure/index.md): The DataStructure component provides three classic data structures: Queue (FIFO), Stack (LIFO), a...
-- [Graph](https://php-standard-library.dev/6.4.1/graph/index.md): The Graph component provides immutable graph data structures and algorithms for working with dire...
-- [Range](https://php-standard-library.dev/6.4.1/range/index.md): The Range component provides a way to create a range of integer values.
-- [Tree](https://php-standard-library.dev/6.4.1/tree/index.md): The Tree component provides immutable tree data structures and operations for hierarchical data m...
+- [Collection](https://php-standard-library.dev/6.4.2/collection/index.md): The Collection component provides generic, object-oriented collection types as an alternative to ...
+- [DataStructure](https://php-standard-library.dev/6.4.2/data-structure/index.md): The DataStructure component provides three classic data structures: Queue (FIFO), Stack (LIFO), a...
+- [Graph](https://php-standard-library.dev/6.4.2/graph/index.md): The Graph component provides immutable graph data structures and algorithms for working with dire...
+- [Range](https://php-standard-library.dev/6.4.2/range/index.md): The Range component provides a way to create a range of integer values.
+- [Tree](https://php-standard-library.dev/6.4.2/tree/index.md): The Tree component provides immutable tree data structures and operations for hierarchical data m...
 
 ## Text & Encoding
 
-- [Binary](https://php-standard-library.dev/6.4.1/binary/index.md): The Binary component provides typed functions and classes for encoding and decoding binary data, ...
-- [Encoding](https://php-standard-library.dev/6.4.1/encoding/index.md): The Encoding component provides functions for encoding and decoding binary data to and from text-...
-- [Html](https://php-standard-library.dev/6.4.1/html/index.md): The Html component provides functions for encoding, decoding, and stripping HTML entities. It wra...
-- [Json](https://php-standard-library.dev/6.4.1/json/index.md): The Json component provides JSON encoding and decoding that throws typed exceptions instead of re...
-- [Punycode](https://php-standard-library.dev/6.4.1/punycode/index.md): The Punycode component provides RFC 3492 Punycode encoding and decoding, the standard algorithm f...
-- [Regex](https://php-standard-library.dev/6.4.1/regex/index.md): The Regex component provides type-safe regular expression functions. PHP's preg_* functions retur...
+- [Binary](https://php-standard-library.dev/6.4.2/binary/index.md): The Binary component provides typed functions and classes for encoding and decoding binary data, ...
+- [Encoding](https://php-standard-library.dev/6.4.2/encoding/index.md): The Encoding component provides functions for encoding and decoding binary data to and from text-...
+- [Html](https://php-standard-library.dev/6.4.2/html/index.md): The Html component provides functions for encoding, decoding, and stripping HTML entities. It wra...
+- [Json](https://php-standard-library.dev/6.4.2/json/index.md): The Json component provides JSON encoding and decoding that throws typed exceptions instead of re...
+- [Punycode](https://php-standard-library.dev/6.4.2/punycode/index.md): The Punycode component provides RFC 3492 Punycode encoding and decoding, the standard algorithm f...
+- [Regex](https://php-standard-library.dev/6.4.2/regex/index.md): The Regex component provides type-safe regular expression functions. PHP's preg_* functions retur...
 
 ## I/O
 
-- [Compression](https://php-standard-library.dev/6.4.1/compression/index.md): The Compression component provides streaming compression and decompression abstractions for IO ha...
-- [File](https://php-standard-library.dev/6.4.1/file/index.md): The File component provides typed file handles for reading and writing files. It builds on the IO...
-- [Filesystem](https://php-standard-library.dev/6.4.1/filesystem/index.md): The Filesystem component provides type-safe functions for common file system operations. It repla...
-- [IO](https://php-standard-library.dev/6.4.1/io/index.md): The IO component provides handle-based I/O abstractions. Instead of reaching for global functions...
-- [Process](https://php-standard-library.dev/6.4.1/process/index.md): The Process component provides a typed, non-blocking API for spawning and managing child processe...
-- [Shell](https://php-standard-library.dev/6.4.1/shell/index.md): The Shell component provides a single function, Shell\execute(), for running external commands an...
+- [Compression](https://php-standard-library.dev/6.4.2/compression/index.md): The Compression component provides streaming compression and decompression abstractions for IO ha...
+- [File](https://php-standard-library.dev/6.4.2/file/index.md): The File component provides typed file handles for reading and writing files. It builds on the IO...
+- [Filesystem](https://php-standard-library.dev/6.4.2/filesystem/index.md): The Filesystem component provides type-safe functions for common file system operations. It repla...
+- [IO](https://php-standard-library.dev/6.4.2/io/index.md): The IO component provides handle-based I/O abstractions. Instead of reaching for global functions...
+- [Process](https://php-standard-library.dev/6.4.2/process/index.md): The Process component provides a typed, non-blocking API for spawning and managing child processe...
+- [Shell](https://php-standard-library.dev/6.4.2/shell/index.md): The Shell component provides a single function, Shell\execute(), for running external commands an...
 
 ## Identifiers
 
-- [CIDR](https://php-standard-library.dev/6.4.1/cidr/index.md): The CIDR component provides utilities for working with CIDR (Classless Inter-Domain Routing) nota...
-- [IP](https://php-standard-library.dev/6.4.1/ip/index.md): The IP component provides an immutable, binary-backed value object for working with IPv4 and IPv6...
-- [IRI](https://php-standard-library.dev/6.4.1/iri/index.md): The IRI component provides RFC 3987 compliant Internationalized Resource Identifier parsing with ...
-- [URI](https://php-standard-library.dev/6.4.1/uri/index.md): The URI component provides RFC 3986 compliant parsing, normalization, reference resolution, and R...
-- [URL](https://php-standard-library.dev/6.4.1/url/index.md): The URL component provides a strict URL type that guarantees a scheme and authority are always pr...
+- [CIDR](https://php-standard-library.dev/6.4.2/cidr/index.md): The CIDR component provides utilities for working with CIDR (Classless Inter-Domain Routing) nota...
+- [IP](https://php-standard-library.dev/6.4.2/ip/index.md): The IP component provides an immutable, binary-backed value object for working with IPv4 and IPv6...
+- [IRI](https://php-standard-library.dev/6.4.2/iri/index.md): The IRI component provides RFC 3987 compliant Internationalized Resource Identifier parsing with ...
+- [URI](https://php-standard-library.dev/6.4.2/uri/index.md): The URI component provides RFC 3986 compliant parsing, normalization, reference resolution, and R...
+- [URL](https://php-standard-library.dev/6.4.2/url/index.md): The URL component provides a strict URL type that guarantees a scheme and authority are always pr...
 
 ## Networking
 
-- [Network](https://php-standard-library.dev/6.4.1/network/index.md): The Network component defines the shared interfaces and types used by all networking components (...
-- [Socks](https://php-standard-library.dev/6.4.1/socks/index.md): The Socks component provides a SOCKS5 proxy connector that tunnels TCP connections through a SOCK...
-- [TCP](https://php-standard-library.dev/6.4.1/tcp/index.md): The TCP component provides a non-blocking API for TCP client and server connections, built on top...
-- [TLS](https://php-standard-library.dev/6.4.1/tls/index.md): The TLS component provides a transport-agnostic API for TLS encryption. It operates on Network\St...
-- [UDP](https://php-standard-library.dev/6.4.1/udp/index.md): The UDP component provides a non-blocking API for sending and receiving datagrams over UDP.
-- [Unix](https://php-standard-library.dev/6.4.1/unix/index.md): The Unix component provides a non-blocking API for Unix domain socket connections, built on top o...
+- [Network](https://php-standard-library.dev/6.4.2/network/index.md): The Network component defines the shared interfaces and types used by all networking components (...
+- [Socks](https://php-standard-library.dev/6.4.2/socks/index.md): The Socks component provides a SOCKS5 proxy connector that tunnels TCP connections through a SOCK...
+- [TCP](https://php-standard-library.dev/6.4.2/tcp/index.md): The TCP component provides a non-blocking API for TCP client and server connections, built on top...
+- [TLS](https://php-standard-library.dev/6.4.2/tls/index.md): The TLS component provides a transport-agnostic API for TLS encryption. It operates on Network\St...
+- [UDP](https://php-standard-library.dev/6.4.2/udp/index.md): The UDP component provides a non-blocking API for sending and receiving datagrams over UDP.
+- [Unix](https://php-standard-library.dev/6.4.2/unix/index.md): The Unix component provides a non-blocking API for Unix domain socket connections, built on top o...
 
 ## Protocols
 
-- [DNS](https://php-standard-library.dev/6.4.1/dns/index.md): The DNS component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS...
-- [DNSSEC](https://php-standard-library.dev/6.4.1/dnssec/index.md): The DNSSEC component adds full DNSSEC validation to DNS resolution. It is a standalone package (p...
-- [H2](https://php-standard-library.dev/6.4.1/h2/index.md): The H2 component implements the HTTP/2 binary framing protocol (RFC 9113) on top of PSL's IO hand...
-- [HPACK](https://php-standard-library.dev/6.4.1/hpack/index.md): The HPACK component implements RFC 7541 header compression for HTTP/2. It provides an Encoder and...
-- [HTTP Client](https://php-standard-library.dev/6.4.1/http-client/index.md): The HTTP Client component provides an async HTTP client with connection pooling, HTTP/2 multiplex...
-- [HTTP Message](https://php-standard-library.dev/6.4.1/http-message/index.md): The HTTP Message component provides version-agnostic HTTP message abstractions. Requests, respons...
-- [Message](https://php-standard-library.dev/6.4.1/message/index.md): The Message component implements RFC 5322 Internet Message construction, parsing, and serializati...
-- [MIME](https://php-standard-library.dev/6.4.1/mime/index.md): The MIME component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and relat...
-- [SMTP](https://php-standard-library.dev/6.4.1/smtp/index.md): The SMTP component implements an RFC 5321 SMTP client with connection pooling, TLS, authenticatio...
+- [DNS](https://php-standard-library.dev/6.4.2/dns/index.md): The DNS component provides async DNS resolution with connection pooling, EDNS0, DNS-over-TLS, DNS...
+- [DNSSEC](https://php-standard-library.dev/6.4.2/dnssec/index.md): The DNSSEC component adds full DNSSEC validation to DNS resolution. It is a standalone package (p...
+- [H2](https://php-standard-library.dev/6.4.2/h2/index.md): The H2 component implements the HTTP/2 binary framing protocol (RFC 9113) on top of PSL's IO hand...
+- [HPACK](https://php-standard-library.dev/6.4.2/hpack/index.md): The HPACK component implements RFC 7541 header compression for HTTP/2. It provides an Encoder and...
+- [HTTP Client](https://php-standard-library.dev/6.4.2/http-client/index.md): The HTTP Client component provides an async HTTP client with connection pooling, HTTP/2 multiplex...
+- [HTTP Message](https://php-standard-library.dev/6.4.2/http-message/index.md): The HTTP Message component provides version-agnostic HTTP message abstractions. Requests, respons...
+- [Message](https://php-standard-library.dev/6.4.2/message/index.md): The Message component implements RFC 5322 Internet Message construction, parsing, and serializati...
+- [MIME](https://php-standard-library.dev/6.4.2/mime/index.md): The MIME component implements the Multipurpose Internet Mail Extensions (RFC 2045-2049) and relat...
+- [SMTP](https://php-standard-library.dev/6.4.2/smtp/index.md): The SMTP component implements an RFC 5321 SMTP client with connection pooling, TLS, authenticatio...
 
 ## Terminal
 
-- [Ansi](https://php-standard-library.dev/6.4.1/ansi/index.md): The Ansi component provides pure functions for constructing ANSI escape sequences -- text styling...
-- [Terminal](https://php-standard-library.dev/6.4.1/terminal/index.md): The Terminal component provides a full-featured TUI (Terminal User Interface) framework built on ...
+- [Ansi](https://php-standard-library.dev/6.4.2/ansi/index.md): The Ansi component provides pure functions for constructing ANSI escape sequences -- text styling...
+- [Terminal](https://php-standard-library.dev/6.4.2/terminal/index.md): The Terminal component provides a full-featured TUI (Terminal User Interface) framework built on ...
 
 ## Security
 
-- [Crypto](https://php-standard-library.dev/6.4.1/crypto/index.md): The Crypto component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL...
-- [Hash](https://php-standard-library.dev/6.4.1/hash/index.md): The Hash component provides cryptographic and non-cryptographic hashing through a type-safe API. ...
-- [Password](https://php-standard-library.dev/6.4.1/password/index.md): The Password component provides secure password hashing and verification. It wraps PHP's password...
-- [PseudoRandom](https://php-standard-library.dev/6.4.1/pseudo-random/index.md): The PseudoRandom component provides fast pseudo-random number generation using PHP's Mersenne Twi...
-- [RandomSequence](https://php-standard-library.dev/6.4.1/random-sequence/index.md): The RandomSequence component provides object-oriented random number sequences behind a common Seq...
-- [SecureRandom](https://php-standard-library.dev/6.4.1/secure-random/index.md): The SecureRandom component provides cryptographically secure random data generation. It wraps PHP...
+- [Crypto](https://php-standard-library.dev/6.4.2/crypto/index.md): The Crypto component provides a comprehensive cryptography toolkit built on libsodium and OpenSSL...
+- [Hash](https://php-standard-library.dev/6.4.2/hash/index.md): The Hash component provides cryptographic and non-cryptographic hashing through a type-safe API. ...
+- [Password](https://php-standard-library.dev/6.4.2/password/index.md): The Password component provides secure password hashing and verification. It wraps PHP's password...
+- [PseudoRandom](https://php-standard-library.dev/6.4.2/pseudo-random/index.md): The PseudoRandom component provides fast pseudo-random number generation using PHP's Mersenne Twi...
+- [RandomSequence](https://php-standard-library.dev/6.4.2/random-sequence/index.md): The RandomSequence component provides object-oriented random number sequences behind a common Seq...
+- [SecureRandom](https://php-standard-library.dev/6.4.2/secure-random/index.md): The SecureRandom component provides cryptographically secure random data generation. It wraps PHP...
 
 ## System
 
-- [DateTime](https://php-standard-library.dev/6.4.1/date-time/index.md): The DateTime component provides immutable, timezone-aware date and time types. It replaces PHP's ...
-- [Env](https://php-standard-library.dev/6.4.1/env/index.md): The Env component provides functions for inspecting and modifying the process environment. It cov...
-- [Locale](https://php-standard-library.dev/6.4.1/locale/index.md): The Locale component provides a backed enum containing 700+ locale identifiers (such as en_US, fr...
-- [OS](https://php-standard-library.dev/6.4.1/os/index.md): The OS component provides type-safe operating system detection. Instead of comparing raw strings ...
-- [Runtime](https://php-standard-library.dev/6.4.1/runtime/index.md): The Runtime component provides introspection into the PHP runtime environment. It exposes version...
+- [DateTime](https://php-standard-library.dev/6.4.2/date-time/index.md): The DateTime component provides immutable, timezone-aware date and time types. It replaces PHP's ...
+- [Env](https://php-standard-library.dev/6.4.2/env/index.md): The Env component provides functions for inspecting and modifying the process environment. It cov...
+- [Locale](https://php-standard-library.dev/6.4.2/locale/index.md): The Locale component provides a backed enum containing 700+ locale identifiers (such as en_US, fr...
+- [OS](https://php-standard-library.dev/6.4.2/os/index.md): The OS component provides type-safe operating system detection. Instead of comparing raw strings ...
+- [Runtime](https://php-standard-library.dev/6.4.2/runtime/index.md): The Runtime component provides introspection into the PHP runtime environment. It exposes version...
 
 ## Other
 
-- [Cache](https://php-standard-library.dev/6.4.1/cache/index.md): The Cache component provides an async-safe in-memory LRU cache with per-key atomicity. It prevent...
-- [Class](https://php-standard-library.dev/6.4.1/class/index.md): The Class component provides type-safe wrappers around PHP's built-in class reflection and existe...
-- [Interface](https://php-standard-library.dev/6.4.1/interface/index.md): The Interface component provides type-safe wrappers around PHP's built-in interface reflection an...
-- [Interoperability](https://php-standard-library.dev/6.4.1/interoperability/index.md): The Interoperability component provides a set of interfaces for converting between PSL types and ...
-- [Observer](https://php-standard-library.dev/6.4.1/observer/index.md): The Observer component provides two interfaces for the classic Observer design pattern. A subject...
-- [Trait](https://php-standard-library.dev/6.4.1/trait/index.md): The Trait component provides type-safe wrappers around PHP's built-in trait reflection and existe...
+- [Cache](https://php-standard-library.dev/6.4.2/cache/index.md): The Cache component provides an async-safe in-memory LRU cache with per-key atomicity. It prevent...
+- [Class](https://php-standard-library.dev/6.4.2/class/index.md): The Class component provides type-safe wrappers around PHP's built-in class reflection and existe...
+- [Interface](https://php-standard-library.dev/6.4.2/interface/index.md): The Interface component provides type-safe wrappers around PHP's built-in interface reflection an...
+- [Interoperability](https://php-standard-library.dev/6.4.2/interoperability/index.md): The Interoperability component provides a set of interfaces for converting between PSL types and ...
+- [Observer](https://php-standard-library.dev/6.4.2/observer/index.md): The Observer component provides two interfaces for the classic Observer design pattern. A subject...
+- [Trait](https://php-standard-library.dev/6.4.2/trait/index.md): The Trait component provides type-safe wrappers around PHP's built-in trait reflection and existe...
 
 ## Tools
 
-- [Detect Packages](https://php-standard-library.dev/6.4.1/detect-packages/index.md): The detect-packages command scans PHP source directories for PSL namespace usage and reports whic...
+- [Detect Packages](https://php-standard-library.dev/6.4.2/detect-packages/index.md): The detect-packages command scans PHP source directories for PSL namespace usage and reports whic...
 
 ---
 
@@ -285,7 +285,7 @@ Dict\group_by([1, 2, 3, 4, 5], static function (int $n): null|string {
 // ['odd' => [3, 5], 'even' => [4]]
 ```
 
-See [src/Psl/Dict/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/dict/src/Psl/Dict/) for the full API.
+See [src/Psl/Dict/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/dict/src/Psl/Dict/) for the full API.
 
 ---
 
@@ -326,7 +326,7 @@ echo $counter->value; // 8
 
 `Ref` is a generic mutable reference wrapper. It exists because PHP closures capture variables by value by default. Wrapping a value in `Ref` lets you share mutable state across closures without using `&` references.
 
-See [src/Psl/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/foundation/src/Psl/) for the full API.
+See [src/Psl/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/foundation/src/Psl/) for the full API.
 
 ---
 
@@ -440,7 +440,7 @@ try {
 }
 ```
 
-See [src/Psl/Fun/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/fun/src/Psl/Fun/) for the full API.
+See [src/Psl/Fun/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/fun/src/Psl/Fun/) for the full API.
 
 ---
 
@@ -628,7 +628,7 @@ $iterator->rewind();
 Iter\first($iterator); // 'a' -- still accessible after counting
 ```
 
-See [src/Psl/Iter/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/iter/src/Psl/Iter/) for the full API.
+See [src/Psl/Iter/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/iter/src/Psl/Iter/) for the full API.
 
 ---
 
@@ -739,7 +739,7 @@ Math\from_base('ff', 16); // 255
 Math\base_convert('ff', 16, 2); // '11111111'
 ```
 
-See [src/Psl/Math/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/math/src/Psl/Math/) for the full API.
+See [src/Psl/Math/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/math/src/Psl/Math/) for the full API.
 
 ---
 
@@ -900,7 +900,7 @@ Str\Grapheme\slice($text, 0, 3); // 'caf' (3 visual characters)
 
 `Str\metaphone()` is deprecated because the underlying PHP `metaphone()` function is deprecated as of PHP 8.6. Use a userland phonetic matching library instead. The wrapper remains available and continues to call PHP's native function, so it does not suppress PHP 8.6 deprecation notices.
 
-See [src/Psl/Str/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/str/src/Psl/Str/) for the full API.
+See [src/Psl/Str/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/str/src/Psl/Str/) for the full API.
 
 ---
 
@@ -1042,7 +1042,7 @@ Dict\filter($data, fn($v) => $v > 1);
 // ['b' => 2, 'c' => 3]  -- keys preserved
 ```
 
-See [src/Psl/Vec/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/vec/src/Psl/Vec/) for the full API.
+See [src/Psl/Vec/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/vec/src/Psl/Vec/) for the full API.
 
 ---
 
@@ -1196,7 +1196,7 @@ All functions work with both `Comparable` types and plain scalars:
 | `greater_or_equal($a, $b)` | True if `$a >= $b` |
 | `sort($a, $b)` | Returns `int` for use as a sort callback |
 
-See [src/Psl/Comparison/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/comparison/src/Psl/Comparison/) for the full API.
+See [src/Psl/Comparison/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/comparison/src/Psl/Comparison/) for the full API.
 
 ---
 
@@ -1246,7 +1246,7 @@ $example = Example::default();
 
 Implementing `DefaultInterface` signals that a class supports this standardized mechanism for obtaining default instances, ensuring consistency across PSL.
 
-See [src/Psl/Default/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/default/src/Psl/Default/) for the full API.
+See [src/Psl/Default/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/default/src/Psl/Default/) for the full API.
 
 ---
 
@@ -1525,7 +1525,7 @@ $hydrated = Vec\map(
 
 If "both present" is a meaningful state in your domain, use `EitherOrBoth`. If it cannot occur, use `Either`.
 
-See [src/Psl/EitherOrBoth/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/either-or-both/src/Psl/EitherOrBoth/) for the full API.
+See [src/Psl/EitherOrBoth/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/either-or-both/src/Psl/EitherOrBoth/) for the full API.
 
 ---
 
@@ -1672,7 +1672,7 @@ $either = new Either\Right('some data')
 
 If both sides can be present at the same time (for example, three-way diff events on two partially-overlapping collections), reach for [EitherOrBoth](#either-or-both) instead. `Either` is the right type when exactly one side is present; `EitherOrBoth` is the right type when either or both can be.
 
-See [src/Psl/Either/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/either/src/Psl/Either/) for the full API.
+See [src/Psl/Either/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/either/src/Psl/Either/) for the full API.
 
 ---
 
@@ -1816,7 +1816,7 @@ Option\none()->unzip(); // [None, None]
 - **Chained lookups**: Use `andThen()` to chain fallible lookups without nested null checks
 - **Safe data access**: Parse user input with `from_nullable()` and transform with `map()`
 
-See [src/Psl/Option/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/option/src/Psl/Option/) for the full API.
+See [src/Psl/Option/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/option/src/Psl/Option/) for the full API.
 
 ---
 
@@ -1966,7 +1966,7 @@ $stats->failed(); // number of failures
 - **Deferred error handling**: Capture errors as values and handle them at the right level
 - **API boundaries**: Return Result from service methods instead of throwing across layers
 
-See [src/Psl/Result/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/result/src/Psl/Result/) for the full API.
+See [src/Psl/Result/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/result/src/Psl/Result/) for the full API.
 
 ---
 
@@ -2379,7 +2379,7 @@ try {
 
 This makes debugging validation failures in deeply nested data structures straightforward.
 
-See [src/Psl/Type/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/type/src/Psl/Type/) for the full API.
+See [src/Psl/Type/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/type/src/Psl/Type/) for the full API.
 
 ---
 
@@ -3043,7 +3043,7 @@ When a token fires, `CancelledException` is thrown. It carries:
 - **`TimeoutException`** -- used internally as the cause inside `CancelledException` when a `TimeoutCancellationToken` fires.
 - **`UnhandledAwaitableException`** -- thrown by the scheduler when a failed `Awaitable` is never awaited or handled. Use `$awaitable->ignore()` to suppress this.
 
-See [src/Psl/Async/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/async/src/Psl/Async/) for the full API.
+See [src/Psl/Async/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/async/src/Psl/Async/) for the full API.
 
 ---
 
@@ -3262,7 +3262,7 @@ try {
 - **Backpressure** -- Bounded channels naturally slow down fast producers when consumers can't keep up
 - **Async coordination** -- Pass data between concurrent tasks without shared mutable state
 
-See [src/Psl/Channel/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/channel/src/Psl/Channel/) for the full API.
+See [src/Psl/Channel/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/channel/src/Psl/Channel/) for the full API.
 
 ---
 
@@ -3401,7 +3401,7 @@ $processed->await();
 - **Error boundaries** -- Catch and recover from failures at specific points in the chain
 - **Resource cleanup** -- Use `always()` to guarantee cleanup runs
 
-See [src/Psl/Promise/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/promise/src/Psl/Promise/) for the full API.
+See [src/Psl/Promise/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/promise/src/Psl/Promise/) for the full API.
 
 ---
 
@@ -3551,7 +3551,7 @@ $v[1] = 99; // sets index 1
 unset($v[0]); // removes index 0
 ```
 
-See [src/Psl/Collection/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/collection/src/Psl/Collection/) for the full API.
+See [src/Psl/Collection/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/collection/src/Psl/Collection/) for the full API.
 
 ---
 
@@ -3641,7 +3641,7 @@ All three structures implement `Countable` and share a consistent pattern:
 - `pull()` removes and returns the next item, or `null` if empty
 - `dequeue()` / `pop()` removes and returns the next item, or throws `UnderflowException` if empty
 
-See [src/Psl/DataStructure/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/data-structure/src/Psl/DataStructure/) for the full API.
+See [src/Psl/DataStructure/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/data-structure/src/Psl/DataStructure/) for the full API.
 
 ---
 
@@ -3783,7 +3783,7 @@ $executionOrder = Graph\topological_sort($graph);
 - **State Machines**: Transitions between states
 - **Data Flow**: Pipeline dependencies, task scheduling
 
-See [src/Psl/Graph/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/graph/src/Psl/Graph/) for the full API.
+See [src/Psl/Graph/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/graph/src/Psl/Graph/) for the full API.
 
 ---
 
@@ -3875,7 +3875,7 @@ $between = $to->withLowerBound(5);
 // Now a BetweenRange: 5..=10
 ```
 
-See [src/Psl/Range/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/range/src/Psl/Range/) for the full API.
+See [src/Psl/Range/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/range/src/Psl/Range/) for the full API.
 
 ---
 
@@ -4045,7 +4045,7 @@ $result = Tree\traverse(
 // Result: 'root(a,b)'
 ```
 
-See [src/Psl/Tree/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/tree/src/Psl/Tree/) for the full API.
+See [src/Psl/Tree/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/tree/src/Psl/Tree/) for the full API.
 
 ---
 
@@ -4288,7 +4288,7 @@ final class MyCustomWriter implements WriterInterface
 | f32 | 4 bytes | N/A | `encode_f32` / `decode_f32` |
 | f64 | 8 bytes | N/A | `encode_f64` / `decode_f64` |
 
-See [src/Psl/Binary/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/binary/src/Psl/Binary/) for the full API.
+See [src/Psl/Binary/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/binary/src/Psl/Binary/) for the full API.
 
 ---
 
@@ -4492,7 +4492,7 @@ IO\write_line('Written encoded: %s', $output->readAll());
 
 Read handles also implement `BufferedReadHandleInterface`, providing `readByte()`, `readLine()`, `readUntil()`, and `readUntilBounded()` directly on the decoded/encoded output with zero wrapper overhead.
 
-See [src/Psl/Encoding/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/encoding/src/Psl/Encoding/) for the full API.
+See [src/Psl/Encoding/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/encoding/src/Psl/Encoding/) for the full API.
 
 ---
 
@@ -4577,7 +4577,7 @@ The `Encoding` enum supports UTF-8, ISO-8859-1, ISO-8859-15, Windows-1251, Windo
 
 Both `encode()` and `encode_special_characters()` replace byte sequences that are invalid in the selected encoding with the Unicode replacement character instead of returning an empty string: U+FFFD itself for UTF-8, and the `&#xFFFD;` character reference for the other encodings. `encode()` and `decode()` use the HTML 4.01 entity table, while `encode_special_characters()` and `decode_special_characters()` use the HTML5 one (so a single quote is written as `&apos;` rather than `&#039;`).
 
-See [src/Psl/Html/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/html/src/Psl/Html/) for the full API.
+See [src/Psl/Html/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/html/src/Psl/Html/) for the full API.
 
 ---
 
@@ -4661,7 +4661,7 @@ $ids = Json\typed('[1, 2, 3]', Type\vec(Type\int()));
 - **Type safety with `typed()`**: Validate the decoded structure against a `Type` in one call, eliminating manual `isset` / `is_array` checks
 - **Consistent API**: Both encoding and decoding errors throw from the same `Json\Exception` hierarchy
 
-See [src/Psl/Json/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/json/src/Psl/Json/) for the full API.
+See [src/Psl/Json/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/json/src/Psl/Json/) for the full API.
 
 ---
 
@@ -4698,7 +4698,7 @@ IO\write_line('%s', $decoded);
 |-----|-------|
 | [RFC 3492](https://datatracker.ietf.org/doc/html/rfc3492) | Punycode: A Bootstring Encoding of Unicode for IDNA |
 
-See [src/Psl/Punycode/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/punycode/src/Psl/Punycode/) for the full API.
+See [src/Psl/Punycode/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/punycode/src/Psl/Punycode/) for the full API.
 
 ---
 
@@ -4812,7 +4812,7 @@ Regex\split('a-b-c-d', '/-/', 2);
 
 All functions throw instead of returning error sentinels. An invalid pattern like `/unclosed(group` throws `Regex\Exception\InvalidPatternException` immediately rather than returning `false`.
 
-See [src/Psl/Regex/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/regex/src/Psl/Regex/) for the full API.
+See [src/Psl/Regex/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/regex/src/Psl/Regex/) for the full API.
 
 ---
 
@@ -4886,7 +4886,7 @@ IO\write_line('Result: %s', $output->readAll());
 
 `flush()` accepts an optional `CancellationTokenInterface` parameter, so you can set a timeout on the finalization when writing to network handles. If it is cancelled or the inner handle fails, calling `flush()` again does not finalize the stream a second time, and does not write again the output the inner handle reported accepting. It does write again what the interrupted write wrote without reporting it: a write to a PSL pipe or socket handle that is cancelled, or fails, after part of its bytes went out reports none of them, so a `flush()` retried after a timeout on such a handle can repeat those bytes.
 
-See [src/Psl/Compression/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/compression/src/Psl/Compression/) for the full API.
+See [src/Psl/Compression/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/compression/src/Psl/Compression/) for the full API.
 
 ---
 
@@ -5101,7 +5101,7 @@ Filesystem\delete_file($sourceFile);
 Filesystem\delete_file($destFile);
 ```
 
-See [src/Psl/File/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/file/src/Psl/File/) for the full API.
+See [src/Psl/File/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/file/src/Psl/File/) for the full API.
 
 ---
 
@@ -5329,7 +5329,7 @@ try {
 
 A path containing a NUL byte can never exist. Predicates such as `exists()` and `is_file()` return `false` for it, and `canonicalize()` returns `null`. Passing such a path where an existing node is expected, such as to `file_size()` or as the directory of `create_temporary_file()`, throws `NotFoundException`. Passing it as a node to create, such as the destination of `copy()` or the path given to `create_file()`, throws `InvalidArgumentException`.
 
-See [src/Psl/Filesystem/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/filesystem/src/Psl/Filesystem/) for the full API.
+See [src/Psl/Filesystem/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/filesystem/src/Psl/Filesystem/) for the full API.
 
 ---
 
@@ -5741,7 +5741,7 @@ $sink->read(); // '' (always empty)
 $sink->reachedEndOfDataSource(); // true (always EOF)
 ```
 
-See [src/Psl/IO/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/io/src/Psl/IO/) for the full API.
+See [src/Psl/IO/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/io/src/Psl/IO/) for the full API.
 
 ---
 
@@ -5909,7 +5909,7 @@ $status = $child->wait(); // blocks until done
 IO\write_line('Finished with code: %d', $status->getCode());
 ```
 
-See [src/Psl/Process/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/process/src/Psl/Process/) for the full API.
+See [src/Psl/Process/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/process/src/Psl/Process/) for the full API.
 
 ---
 
@@ -6035,7 +6035,7 @@ try {
 }
 ```
 
-See [src/Psl/Shell/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/shell/src/Psl/Shell/) for the full API.
+See [src/Psl/Shell/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/shell/src/Psl/Shell/) for the full API.
 
 ---
 
@@ -6109,7 +6109,7 @@ $exact->contains('192.168.1.1'); // true
 $exact->contains('192.168.1.2'); // false
 ```
 
-See [src/Psl/CIDR/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/cidr/src/Psl/CIDR/) for the full API.
+See [src/Psl/CIDR/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/cidr/src/Psl/CIDR/) for the full API.
 
 ---
 
@@ -6273,7 +6273,7 @@ $fromIana = Family::fromIanaFamily(2);
 $fromIana === Family::V6; // true
 ```
 
-See [src/Psl/IP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/ip/src/Psl/IP/) for the full API.
+See [src/Psl/IP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/ip/src/Psl/IP/) for the full API.
 
 ---
 
@@ -6350,7 +6350,7 @@ IO\write_line('%s', $iri->toString());
 | [RFC 5891](https://datatracker.ietf.org/doc/html/rfc5891) | IDNA 2008: Protocol |
 | [RFC 5892](https://datatracker.ietf.org/doc/html/rfc5892) | IDNA 2008: Unicode Code Points |
 
-See [src/Psl/IRI/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/iri/src/Psl/IRI/) for the full API.
+See [src/Psl/IRI/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/iri/src/Psl/IRI/) for the full API.
 
 ---
 
@@ -6465,7 +6465,7 @@ IPv6 addresses use RFC 5952 canonical form and support RFC 6874 zone identifiers
 | [RFC 6874](https://datatracker.ietf.org/doc/html/rfc6874) | IPv6 Zone Identifiers in URIs |
 | [RFC 5952](https://datatracker.ietf.org/doc/html/rfc5952) | IPv6 Address Text Representation |
 
-See [src/Psl/URI/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/uri/src/Psl/URI/) for the full API.
+See [src/Psl/URI/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/uri/src/Psl/URI/) for the full API.
 
 ---
 
@@ -6551,7 +6551,7 @@ $uri = $url->toURI();
 IO\write_line('%s', $uri->toString());
 ```
 
-See [src/Psl/URL/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/url/src/Psl/URL/) for the full API.
+See [src/Psl/URL/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/url/src/Psl/URL/) for the full API.
 
 ---
 
@@ -6658,7 +6658,7 @@ IO\CloseHandleInterface
            \-- TLS\StreamInterface
 ```
 
-See [src/Psl/Network/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/network/src/Psl/Network/) for the full API.
+See [src/Psl/Network/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/network/src/Psl/Network/) for the full API.
 
 ---
 
@@ -6745,7 +6745,7 @@ $proxy = new Socks\Connector(
 $stream = $proxy->connect('target.example.com', 80);
 ```
 
-See [src/Psl/Socks/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/socks/src/Psl/Socks/) for the full API.
+See [src/Psl/Socks/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/socks/src/Psl/Socks/) for the full API.
 
 ---
 
@@ -7155,7 +7155,7 @@ while (true) {
 $composite->close();
 ```
 
-See [src/Psl/TCP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/tcp/src/Psl/TCP/) for the full API.
+See [src/Psl/TCP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/tcp/src/Psl/TCP/) for the full API.
 
 ---
 
@@ -7497,7 +7497,7 @@ try {
 }
 ```
 
-See [src/Psl/TLS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/tls/src/Psl/TLS/) for the full API.
+See [src/Psl/TLS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/tls/src/Psl/TLS/) for the full API.
 
 ---
 
@@ -7666,7 +7666,7 @@ Async\concurrently([
 ]);
 ```
 
-See [src/Psl/UDP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/udp/src/Psl/UDP/) for the full API.
+See [src/Psl/UDP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/udp/src/Psl/UDP/) for the full API.
 
 ---
 
@@ -7853,7 +7853,7 @@ Async\concurrently([
 @unlink($path);
 ```
 
-See [src/Psl/Unix/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/unix/src/Psl/Unix/) for the full API.
+See [src/Psl/Unix/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/unix/src/Psl/Unix/) for the full API.
 
 ---
 
@@ -8360,7 +8360,7 @@ IO\write_line(
 | RFC 8659 | CAA records |
 | RFC 9460 | SVCB and HTTPS records |
 
-See [src/Psl/DNS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/dns/src/Psl/DNS/) for the full API.
+See [src/Psl/DNS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/dns/src/Psl/DNS/) for the full API.
 
 ---
 
@@ -8629,7 +8629,7 @@ IO\write_line(
 | RFC 6605 | ECDSA for DNSSEC (P-256/SHA-256, P-384/SHA-384) |
 | RFC 8080 | Edwards-curve algorithms for DNSSEC (Ed25519, Ed448) |
 
-See [src/Psl/DNSSEC/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/dnssec/src/Psl/DNSSEC/) for the full API.
+See [src/Psl/DNSSEC/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/dnssec/src/Psl/DNSSEC/) for the full API.
 
 ---
 
@@ -8917,7 +8917,7 @@ try {
 }
 ```
 
-See [src/Psl/H2/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/h2/src/Psl/H2/) for the full API.
+See [src/Psl/H2/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/h2/src/Psl/H2/) for the full API.
 
 ---
 
@@ -9063,7 +9063,7 @@ foreach ($decoder->decode($encoded) as $header) {
 }
 ```
 
-See [src/Psl/HPACK/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/hpack/src/Psl/HPACK/) for the full API.
+See [src/Psl/HPACK/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/hpack/src/Psl/HPACK/) for the full API.
 
 ---
 
@@ -9850,7 +9850,7 @@ HTTP/1 status codes must contain exactly three digits and fall within 100-999; c
 | RFC 1928 | SOCKS5 proxy protocol |
 | RFC 9110 | Redirect method rewriting (301/302 POST to GET, 303 to GET except HEAD) |
 
-See [src/Psl/HTTP/Client/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/http-message/src/Psl/HTTP/Client/) for the full API.
+See [src/Psl/HTTP/Client/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/http-message/src/Psl/HTTP/Client/) for the full API.
 
 ---
 
@@ -10107,7 +10107,7 @@ Message\reason_phrase(999); // "status code 999"
 | RFC 9113 | HTTP/2 pseudo-headers, trailers, binary framing semantics |
 | RFC 9114 | HTTP/3 message mapping over QUIC |
 
-See [src/Psl/HTTP/Message/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/http-message/src/Psl/HTTP/Message/) for the full API.
+See [src/Psl/HTTP/Message/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/http-message/src/Psl/HTTP/Message/) for the full API.
 
 ---
 
@@ -10296,7 +10296,7 @@ Header construction rejects CR, LF, and NUL in names and values, mailbox fields,
 | RFC 2045 | MIME body integration via PartInterface |
 | RFC 2047 | Encoded-word subjects and display names |
 
-See [src/Psl/Message/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/message/src/Psl/Message/) for the full API.
+See [src/Psl/Message/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/message/src/Psl/Message/) for the full API.
 
 ---
 
@@ -10536,7 +10536,7 @@ Detect MIME types from content bytes using magic signatures, RIFF sub-formats, I
 | RFC 8551 | S/MIME 4.0 message specification |
 | RFC 9110 | Content negotiation (Accept header) |
 
-See [src/Psl/MIME/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/mime/src/Psl/MIME/) for the full API.
+See [src/Psl/MIME/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/mime/src/Psl/MIME/) for the full API.
 
 Received message and multipart headers may use whitespace before the colon. The parsers skip fields with invalid names or CR, LF, or NUL in unfolded values. `Headers::fromPairs()` and `Headers::with()` stay strict. `Parameters::parse()` reports unsafe decoded values with `ParameterParsingException`.
 
@@ -10841,7 +10841,7 @@ The transport automatically negotiates these extensions when the server advertis
 
 The transport validates all SMTP commands for CRLF and null byte injection attacks. Malicious input in addresses, hostnames, or DSN parameters throws `PossibleAttackException` before reaching the wire.
 
-See [src/Psl/SMTP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/smtp/src/Psl/SMTP/) for the full API.
+See [src/Psl/SMTP/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/smtp/src/Psl/SMTP/) for the full API.
 
 ---
 
@@ -11023,7 +11023,7 @@ IO\write(
 );
 ```
 
-See [src/Psl/Ansi/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/ansi/src/Psl/Ansi/) for the full API.
+See [src/Psl/Ansi/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/ansi/src/Psl/Ansi/) for the full API.
 
 ---
 
@@ -11509,7 +11509,7 @@ $app->run(static function (Terminal\Frame $frame, BufferState $_state): void {
 });
 ```
 
-See [src/Psl/Terminal/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/terminal/src/Psl/Terminal/) for the full API.
+See [src/Psl/Terminal/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/terminal/src/Psl/Terminal/) for the full API.
 
 ---
 
@@ -11836,7 +11836,7 @@ IO\write_line('Keys are different: %s', $key1 !== $key2 ? 'yes' : 'no');
 
 The two-step API (`Hkdf\extract()` + `Hkdf\expand()`) is useful when you need to derive multiple keys from the same source material, as you only pay the extraction cost once.
 
-See [src/Psl/Crypto/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/crypto/src/Psl/Crypto/) for the full API.
+See [src/Psl/Crypto/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/crypto/src/Psl/Crypto/) for the full API.
 
 ---
 
@@ -11969,7 +11969,7 @@ $digest = Hash\Context::hmac(Hash\Hmac\Algorithm::Sha256, $key)
 IO\write_line('Incremental HMAC: %s', $digest);
 ```
 
-See [src/Psl/Hash/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/hash/src/Psl/Hash/) for the full API.
+See [src/Psl/Hash/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/hash/src/Psl/Hash/) for the full API.
 
 ---
 
@@ -12080,7 +12080,7 @@ The `Password\Algorithm` enum provides four cases:
 
 When using `Algorithm::Default`, store hashes in a column that can hold at least 255 characters, since the underlying algorithm (and hash length) may change in future PHP versions.
 
-See [src/Psl/Password/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/password/src/Psl/Password/) for the full API.
+See [src/Psl/Password/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/password/src/Psl/Password/) for the full API.
 
 ---
 
@@ -12136,7 +12136,7 @@ if ($chance < 0.3) {
 | Passwords, encryption keys | `SecureRandom` |
 | Nonces, CSRF tokens | `SecureRandom` |
 
-See [src/Psl/PseudoRandom/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/pseudo-random/src/Psl/PseudoRandom/) for the full API.
+See [src/Psl/PseudoRandom/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/pseudo-random/src/Psl/PseudoRandom/) for the full API.
 
 ---
 
@@ -12249,7 +12249,7 @@ $winner = pick_winner(['Alice', 'Bob', 'Charlie'], $prodRng);
 IO\write_line('Production winner: %s', $winner);
 ```
 
-See [src/Psl/RandomSequence/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/random-sequence/src/Psl/RandomSequence/) for the full API.
+See [src/Psl/RandomSequence/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/random-sequence/src/Psl/RandomSequence/) for the full API.
 
 ---
 
@@ -12328,7 +12328,7 @@ IO\write_line('Code: %s', $code);
 
 All functions throw `SecureRandom\Exception\InsufficientEntropyException` if the system cannot gather enough entropy, and `SecureRandom\Exception\InvalidArgumentException` for invalid arguments (such as `$min > $max` for `int()`).
 
-See [src/Psl/SecureRandom/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/secure-random/src/Psl/SecureRandom/) for the full API.
+See [src/Psl/SecureRandom/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/secure-random/src/Psl/SecureRandom/) for the full API.
 
 ---
 
@@ -12671,7 +12671,7 @@ IO\write_line('From stdlib: %s', $dt->toRfc3339());
 IO\write_line('Back to stdlib: %s', $back->format('Y-m-d H:i:s T'));
 ```
 
-See [src/Psl/DateTime/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/date-time/src/Psl/DateTime/) for the full API.
+See [src/Psl/DateTime/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/date-time/src/Psl/DateTime/) for the full API.
 
 ---
 
@@ -12758,7 +12758,7 @@ $path = Env\join_paths('/usr/local/bin', '/usr/bin', '/bin');
 IO\write_line('Joined path: %s', $path);
 ```
 
-See [src/Psl/Env/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/env/src/Psl/Env/) for the full API.
+See [src/Psl/Env/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/env/src/Psl/Env/) for the full API.
 
 ---
 
@@ -12847,7 +12847,7 @@ $formatted = $now->format('EEEE, MMMM d', locale: Locale::GermanGermany);
 IO\write_line('German date: %s', $formatted);
 ```
 
-See [src/Psl/Locale/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/locale/src/Psl/Locale/) for the full API.
+See [src/Psl/Locale/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/locale/src/Psl/Locale/) for the full API.
 
 ---
 
@@ -12909,7 +12909,7 @@ IO\write_line('%s', $result);
 
 `OperatingSystemFamily::default()` returns the family for the current runtime, making it useful as a dependency injection default.
 
-See [src/Psl/OS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/os/src/Psl/OS/) for the full API.
+See [src/Psl/OS/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/os/src/Psl/OS/) for the full API.
 
 ---
 
@@ -12986,7 +12986,7 @@ IO\write_line('Debug build: %s', Runtime\is_debug() ? 'yes' : 'no');
 IO\write_line('Thread safe: %s', Runtime\is_thread_safe() ? 'yes' : 'no');
 ```
 
-See [src/Psl/Runtime/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/runtime/src/Psl/Runtime/) for the full API.
+See [src/Psl/Runtime/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/runtime/src/Psl/Runtime/) for the full API.
 
 ---
 
@@ -13081,7 +13081,7 @@ An expired entry is never returned: it is removed when it is accessed, and an ev
 
 `NullStore` implements `StoreInterface` but never caches - every `compute()` invokes the computer, every `get()` throws. Useful for testing or disabling caching without changing calling code.
 
-See [src/Psl/Cache/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/cache/src/Psl/Cache/) for the full API.
+See [src/Psl/Cache/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/cache/src/Psl/Cache/) for the full API.
 
 ---
 
@@ -13145,7 +13145,7 @@ $obj = create(stdClass::class);
 IO\write_line('Created: %s', get_class($obj));
 ```
 
-See [src/Psl/Class/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/class/src/Psl/Class/) for the full API.
+See [src/Psl/Class/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/class/src/Psl/Class/) for the full API.
 
 ---
 
@@ -13169,7 +13169,7 @@ IO\write_line('JsonSerializable defined: %s', Interface\defined(JsonSerializable
 IO\write_line('NonExistentTrait exists: %s', Trait\exists('NonExistentTrait') ? 'yes' : 'no');
 ```
 
-See [src/Psl/Interface/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/interface/src/Psl/Interface/) for the full API.
+See [src/Psl/Interface/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/interface/src/Psl/Interface/) for the full API.
 
 ---
 
@@ -13225,7 +13225,7 @@ The following PSL types implement these interfaces:
 | `DateTime\Duration` | `DateInterval` | - | - | - |
 | `DateTime\Timezone` | `DateTimeZone` | `DateTimeZone` | `IntlTimeZone` | `IntlTimeZone` |
 
-See [src/Psl/Interoperability/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/interoperability/src/Psl/Interoperability/) for the full API.
+See [src/Psl/Interoperability/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/interoperability/src/Psl/Interoperability/) for the full API.
 
 ---
 
@@ -13306,7 +13306,7 @@ $inventory->restock(50); // No alert -- observer was removed
 IO\write_line('Final stock: %d', $inventory->getStock());
 ```
 
-See [src/Psl/Observer/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/observer/src/Psl/Observer/) for the full API.
+See [src/Psl/Observer/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/observer/src/Psl/Observer/) for the full API.
 
 ---
 
@@ -13330,7 +13330,7 @@ IO\write_line('JsonSerializable defined: %s', Interface\defined(JsonSerializable
 IO\write_line('NonExistentTrait exists: %s', Trait\exists('NonExistentTrait') ? 'yes' : 'no');
 ```
 
-See [src/Psl/Trait/](https://github.com/php-standard-library/php-standard-library/tree/6.4.1/packages/trait/src/Psl/Trait/) for the full API.
+See [src/Psl/Trait/](https://github.com/php-standard-library/php-standard-library/tree/6.4.2/packages/trait/src/Psl/Trait/) for the full API.
 
 ---
 
