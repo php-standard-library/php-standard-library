@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.4.2
+
+### fixes
+
+- fix(tls): fail a TLS handshake on Windows when one of its steps fails on the socket, for example because the peer closed or reset the connection, instead of spinning at full CPU until the cancellation token ends it (forever with the default token, 10 seconds per connection in `TLS\Listener`); PHP on Windows reports such a step as still in progress, because it tells a step that waits from one that failed by an `errno` that Winsock never resets
+
 ## 6.4.1
 
 ### fixes

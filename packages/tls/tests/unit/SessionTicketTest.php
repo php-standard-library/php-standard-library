@@ -16,7 +16,6 @@ use function array_column;
 use function in_array;
 use function stream_context_set_option;
 
-use const PHP_OS_FAMILY;
 use const PHP_VERSION_ID;
 
 /**
@@ -62,14 +61,6 @@ final class SessionTicketTest extends TestCase
     #[DataProvider('ticketSettings')]
     public function testClientOffersATicketOnlyWhenEnabled(bool $enabled): void
     {
-        if (PHP_OS_FAMILY === 'Windows') {
-            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
-            // never resets, so a handshake whose peer closes before the server has finished never ends.
-            static::markTestSkipped(
-                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
-            );
-        }
-
         $listener = TCP\listen('127.0.0.1', 0);
         $deadline = self::deadline();
 

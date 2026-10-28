@@ -14,6 +14,10 @@ use Psl\TLS\Exception\HandshakeFailedException;
 use function restore_error_handler;
 use function set_error_handler;
 use function stream_socket_enable_crypto;
+use function stream_socket_recvfrom;
+
+use const PHP_OS_FAMILY;
+use const STREAM_PEEK;
 
 /**
  * Perform an asynchronous TLS handshake on the given stream resource.
@@ -32,6 +36,16 @@ use function stream_socket_enable_crypto;
  *
  * A failed handshake is reported with the warning PHP emitted for it, through
  * {@see handshake_failure()}, which tells certificate verification failures apart.
+ *
+ * On Windows, PHP reports a step that failed on the socket as in progress: it tells a step
+ * that waits from one that failed by `errno` (`ext/openssl/xp_ssl.c`,
+ * `php_openssl_enable_crypto`), which OpenSSL resets before each socket call on POSIX
+ * systems, but which on Windows, where OpenSSL uses the Winsock error instead, still holds
+ * the `EAGAIN` that PHP stored when an earlier step had to wait. PHP fixed the same mistake
+ * for reads only (php-src 614c62872ac). A step that waits emits no warning and finds the
+ * connection open, so a step that returned 0 on Windows after emitting a warning, or that
+ * finds the peer has ended the connection, has failed, and is reported as such instead of
+ * waiting for a peer that is gone until the cancellation token ends the handshake.
  *
  * @param resource $stream The stream resource to enable TLS on.
  * @param int $cryptoMethod The crypto method bitmask (STREAM_CRYPTO_METHOD_*).
@@ -73,6 +87,15 @@ function enable_crypto(
             $result = stream_socket_enable_crypto($stream, true, $cryptoMethod);
         } finally {
             restore_error_handler();
+        }
+
+        // On Windows, a step that failed may return 0; a peek of the raw socket returns '' once the peer has ended it.
+        if (
+            0 === $result
+            && PHP_OS_FAMILY === 'Windows'
+            && (null !== $native || '' === @stream_socket_recvfrom($stream, 1, STREAM_PEEK))
+        ) {
+            $result = false;
         }
 
         return [$result, $native];

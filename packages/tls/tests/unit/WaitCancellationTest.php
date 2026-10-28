@@ -79,14 +79,6 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLazyAcceptFailsWhenTheDeadlinePassesBeforeSubscribing(): void
     {
-        if (PHP_OS_FAMILY === 'Windows') {
-            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
-            // never resets, so a handshake whose peer closes before the server has finished never ends.
-            static::markTestSkipped(
-                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
-            );
-        }
-
         $this->assertLazyAcceptFailsWithTheTokenAndKeepsTheStream(new ExpiringCancellationToken());
     }
 
@@ -96,14 +88,6 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLazyAcceptFailsWhenTheTokenNotifiesDuringSubscribe(): void
     {
-        if (PHP_OS_FAMILY === 'Windows') {
-            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
-            // never resets, so a handshake whose peer closes before the server has finished never ends.
-            static::markTestSkipped(
-                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
-            );
-        }
-
         $this->assertLazyAcceptFailsWithTheTokenAndKeepsTheStream(new InlineCancellationToken());
     }
 
@@ -113,14 +97,6 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLateCancellationOfAnEarlierLazyAcceptDoesNotEndALaterOne(): void
     {
-        if (PHP_OS_FAMILY === 'Windows') {
-            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
-            // never resets, so a handshake whose peer closes before the server has finished never ends.
-            static::markTestSkipped(
-                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
-            );
-        }
-
         $listener = TCP\listen('127.0.0.1', 0);
         $deadline = self::deadline();
         $token = new DeferredCancellationToken();
@@ -155,7 +131,7 @@ final class WaitCancellationTest extends TestCase
             Async\later();
             $token->cancel();
             $first = Async\run(static function () use ($client, $deadline): void {
-                self::connector()->connect($client, 'first.example.test', $deadline)->close();
+                self::handshakeAndAwaitClose($client, 'first.example.test', $deadline);
             });
             static::assertSame('first.example.test', $firstHello->getAwaitable()->await());
             $first->await();
@@ -332,7 +308,7 @@ final class WaitCancellationTest extends TestCase
                     return $hello->getServerName();
                 },
                 static function () use ($client, $deadline): void {
-                    self::connector()->connect($client, 'localhost', $deadline)->close();
+                    self::handshakeAndAwaitClose($client, 'localhost', $deadline);
                 },
             ]);
 
@@ -407,7 +383,8 @@ final class WaitCancellationTest extends TestCase
     }
 
     /**
-     * Complete a client handshake with the given server name, and close the stream.
+     * Connect to the listener, complete a client handshake with the given server name, and close the stream once the
+     * server has closed it.
      */
     private static function handshake(
         Network\ListenerInterface $listener,
@@ -415,7 +392,29 @@ final class WaitCancellationTest extends TestCase
         Async\CancellationTokenInterface $deadline,
     ): void {
         $plain = TCP\connect('127.0.0.1', $listener->getLocalAddress()->port, cancellation: $deadline);
-        self::connector()->connect($plain, $serverName, $deadline)->close();
+        self::handshakeAndAwaitClose($plain, $serverName, $deadline);
+    }
+
+    /**
+     * Complete a client handshake with the given server name, read until the server closes the connection, and close
+     * the stream.
+     *
+     * The server closes once its handshake has completed. A client that closes first leaves the server's handshake
+     * sending its TLS 1.3 session tickets to a closed connection, which OpenSSL ignores on Linux and macOS, but which
+     * fails the handshake on Windows.
+     */
+    private static function handshakeAndAwaitClose(
+        Network\StreamInterface $plain,
+        string $serverName,
+        Async\CancellationTokenInterface $deadline,
+    ): void {
+        $stream = self::connector()->connect($plain, $serverName, $deadline);
+
+        try {
+            static::assertSame('', $stream->readAll(cancellation: $deadline));
+        } finally {
+            $stream->close();
+        }
     }
 
     /**

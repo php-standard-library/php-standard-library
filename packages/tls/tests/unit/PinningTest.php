@@ -20,8 +20,6 @@ use function str_repeat;
 use function str_split;
 use function strtoupper;
 
-use const PHP_OS_FAMILY;
-
 final class PinningTest extends TestCase
 {
     private const string CERT_FILE = __DIR__ . '/../../fixture/certs/server.crt';
@@ -47,14 +45,6 @@ final class PinningTest extends TestCase
     #[DataProvider('pins')]
     public function testPeerFingerprintIsCheckedAgainstEveryPin(array $pins, bool $accepted): void
     {
-        if (!$accepted && PHP_OS_FAMILY === 'Windows') {
-            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
-            // never resets, so a handshake whose peer closes before the server has finished never ends.
-            static::markTestSkipped(
-                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
-            );
-        }
-
         $listener = new TLS\Listener(
             TCP\listen('127.0.0.1', 0),
             TLS\ServerConfiguration::create(new TLS\Certificate(self::CERT_FILE, self::KEY_FILE)),
@@ -64,7 +54,17 @@ final class PinningTest extends TestCase
         try {
             Async\concurrently([
                 'server' => static function () use ($listener, $deadline, $accepted): void {
-                    $server = $listener->accept($deadline);
+                    try {
+                        $server = $listener->accept($deadline);
+                    } catch (TLS\Exception\HandshakeFailedException $exception) {
+                        // A rejected client closes as soon as its handshake completes, before the server's ends. On
+                        // Windows, sending the TLS 1.3 session tickets to it then fails the server's handshake.
+                        if ($accepted) {
+                            throw $exception;
+                        }
+
+                        return;
+                    }
 
                     try {
                         // A rejected client closes without reading; a pinned one reads the reply.
