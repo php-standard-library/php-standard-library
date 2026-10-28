@@ -26,7 +26,7 @@
         "php-standard-library/cidr": "^6.4",
         "php-standard-library/date-time": "^6.4",
         "php-standard-library/foundation": "^6.0",
-        "php-standard-library/h2": "^6.4",
+        "php-standard-library/h2": "^6.4.1",
         "php-standard-library/hpack": "^6.4",
         "php-standard-library/http-message": "^6.2",
         "php-standard-library/io": "^6.4",

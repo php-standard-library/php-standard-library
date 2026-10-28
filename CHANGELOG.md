@@ -7,6 +7,10 @@
 - fix(h2): close the connection only at the end of the data instead of on any read that returns nothing, which a TLS stream does for records without application data, such as TLS 1.3 session tickets, and for a record that has only partly arrived; since 6.4.0, HTTP/2 connections over TLS failed with `ConnectionException` ("HTTP/2 connection is closed."), so `HTTP\Client` requests to servers such as `api.github.com`, and large responses from any server, failed
 - fix(h2): read the bytes that the `IO\Reader` given to `ClientConnection` or `ServerConnection` has already buffered, such as the first HTTP/2 bytes after an upgrade from HTTP/1.1, before reading the transport; since 6.4.0 they were skipped
 
+### other
+
+- chore(http-client): require `^6.4.1` of h2, so updating http-client also brings in the HTTP/2 fixes above
+
 ## 6.4.0
 
 ### security
