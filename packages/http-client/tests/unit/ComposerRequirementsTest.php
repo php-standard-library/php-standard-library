@@ -21,11 +21,12 @@ final class ComposerRequirementsTest extends TestCase
 {
     /**
      * `H2\Exception\StreamException::$streamId`, which the HTTP/2 multiplexer reads
-     * to fail the affected request, first ships in h2 6.4.0.
+     * to fail the affected request, first ships in h2 6.4.0, and h2 6.4.1 fixes the
+     * HTTP/2 connections over TLS that 6.4.0 closed on an empty read.
      */
     public function testH2RequirementCoversTheStreamExceptionIdentifier(): void
     {
-        static::assertSame('^6.4', self::requirements()['php-standard-library/h2']);
+        static::assertSame('^6.4.1', self::requirements()['php-standard-library/h2']);
     }
 
     /**
