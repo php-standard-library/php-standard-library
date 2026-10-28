@@ -56,6 +56,12 @@ trait ConnectionTrait
 
     private IO\Reader $reader;
 
+    /**
+     * Whether the reader may still hold bytes that a caller's reader buffered before the connection took over the
+     * handle, such as the first HTTP/2 bytes after an upgrade from HTTP/1.1.
+     */
+    private bool $drainReader = false;
+
     private string $readBuffer = '';
 
     private int $readBufferLength = 0;
@@ -533,6 +539,15 @@ trait ConnectionTrait
      */
     private function readFrameBytes(int $maxBytes, CancellationTokenInterface $cancellation): string
     {
+        if ($this->drainReader) {
+            $chunk = $this->reader->tryRead($maxBytes);
+            if ('' !== $chunk) {
+                return $chunk;
+            }
+
+            $this->drainReader = false;
+        }
+
         do {
             $chunk = $this->handle->read($maxBytes, $cancellation);
             if ('' !== $chunk) {

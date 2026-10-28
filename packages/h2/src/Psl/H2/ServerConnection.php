@@ -43,6 +43,7 @@ final class ServerConnection implements ServerConnectionInterface
         $this->role = Role::Server;
         $this->writeBufferThreshold = $configuration->writeBufferThreshold;
         $this->reader = $reader ?? new IO\Reader($handle);
+        $this->drainReader = null !== $reader;
 
         $maxReceiveWindowSize = $configuration->maxReceiveWindowSize;
 

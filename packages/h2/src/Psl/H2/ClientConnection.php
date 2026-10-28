@@ -40,6 +40,7 @@ final class ClientConnection implements ClientConnectionInterface
         $this->role = Role::Client;
         $this->writeBufferThreshold = $configuration->writeBufferThreshold;
         $this->reader = $reader ?? new IO\Reader($handle);
+        $this->drainReader = null !== $reader;
 
         $maxReceiveWindowSize = $configuration instanceof Configuration ? $configuration->maxReceiveWindowSize : null;
 
