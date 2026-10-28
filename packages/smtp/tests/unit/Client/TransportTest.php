@@ -327,6 +327,10 @@ final class TransportTest extends TestCase
 
             self::readCommand($client);
             $client->writeAll("502 EHLO not supported\r\n");
+
+            // Answer the HELO fallback too: closing on it races the client's read, which then sees a reset.
+            self::readCommand($client);
+            $client->writeAll("502 HELO not supported\r\n");
             $client->close();
         });
 
