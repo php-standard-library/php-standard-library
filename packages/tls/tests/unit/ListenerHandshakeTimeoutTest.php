@@ -13,6 +13,27 @@ use Psl\TLS;
 
 final class ListenerHandshakeTimeoutTest extends TestCase
 {
+    /**
+     * The handshake deadline of the listeners under test, in milliseconds.
+     *
+     * An idle peer reaches it, while a real handshake ends far within it even on a slow, shared CI runner: the client
+     * and the server handshakes run in one event loop, so the deadline covers the work of both sides.
+     */
+    private const int HANDSHAKE_TIMEOUT_MILLISECONDS = 500;
+
+    /**
+     * How long the client waits before it connects, in milliseconds.
+     *
+     * Longer than the handshake deadline: a deadline started by the accept() call, rather than once the inner
+     * listener has accepted the connection, would have passed before the client connects.
+     */
+    private const int CONNECT_DELAY_MILLISECONDS = 1_000;
+
+    /**
+     * How long a test may take before its token gives up, in seconds.
+     */
+    private const int TEST_DEADLINE_SECONDS = 5;
+
     public function testAlreadyCancelledCallAcceptsNothing(): void
     {
         $inner = $this->createMock(Network\ListenerInterface::class);
@@ -31,9 +52,9 @@ final class ListenerHandshakeTimeoutTest extends TestCase
 
     public function testIdlePeerTimesOutAndNextPeerCanConnect(): void
     {
-        $listener = $this->createListener(Duration::milliseconds(20));
+        $listener = $this->createListener(Duration::milliseconds(self::HANDSHAKE_TIMEOUT_MILLISECONDS));
         $port = $listener->getLocalAddress()->port;
-        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(2));
+        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(self::TEST_DEADLINE_SECONDS));
         $idle = TCP\connect('127.0.0.1', $port, cancellation: $cancellation);
 
         try {
@@ -88,9 +109,9 @@ final class ListenerHandshakeTimeoutTest extends TestCase
 
     public function testHandshakeTimeoutStartsAfterAcceptingTcpConnection(): void
     {
-        $listener = $this->createListener(Duration::milliseconds(20));
+        $listener = $this->createListener(Duration::milliseconds(self::HANDSHAKE_TIMEOUT_MILLISECONDS));
         $port = $listener->getLocalAddress()->port;
-        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(2));
+        $cancellation = new Async\TimeoutCancellationToken(Duration::seconds(self::TEST_DEADLINE_SECONDS));
 
         try {
             Async\concurrently([
@@ -100,7 +121,7 @@ final class ListenerHandshakeTimeoutTest extends TestCase
                     $stream->close();
                 },
                 static function () use ($port, $cancellation): void {
-                    Async\sleep(Duration::milliseconds(50), $cancellation);
+                    Async\sleep(Duration::milliseconds(self::CONNECT_DELAY_MILLISECONDS), $cancellation);
                     $stream = TLS\connect(
                         '127.0.0.1',
                         $port,
