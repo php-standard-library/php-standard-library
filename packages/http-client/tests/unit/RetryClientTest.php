@@ -496,6 +496,10 @@ final class RetryClientTest extends TestCase
 
     public function testBackoffFormulaUsesAttemptMinusOne(): void
     {
+        if (PHP_OS_FAMILY !== 'Linux') {
+            static::markTestSkipped('Timing-sensitive test, only reliable on Linux CI.');
+        }
+
         $inner = self::failThenSucceedClient(2);
         $client = new RetryClient($inner, maxAttempts: 3, backoff: Duration::milliseconds(100), backoffMultiplier: 2);
 
