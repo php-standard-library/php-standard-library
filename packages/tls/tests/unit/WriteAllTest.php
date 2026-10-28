@@ -29,6 +29,7 @@ use function stream_socket_pair;
 use function strlen;
 use function substr;
 
+use const PHP_OS_FAMILY;
 use const STREAM_IPPROTO_IP;
 use const STREAM_PF_UNIX;
 use const STREAM_SOCK_STREAM;
@@ -47,6 +48,10 @@ final class WriteAllTest extends TestCase
 
     public function testWriteAllPassesBoundedChunks(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            static::markTestSkipped('Windows emulates socket pairs over TCP, and only for STREAM_PF_INET.');
+        }
+
         $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
         static::assertNotFalse($pair);
         [$resource, $peer] = $pair;

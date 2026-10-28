@@ -20,6 +20,8 @@ use function str_repeat;
 use function str_split;
 use function strtoupper;
 
+use const PHP_OS_FAMILY;
+
 final class PinningTest extends TestCase
 {
     private const string CERT_FILE = __DIR__ . '/../../fixture/certs/server.crt';
@@ -45,6 +47,14 @@ final class PinningTest extends TestCase
     #[DataProvider('pins')]
     public function testPeerFingerprintIsCheckedAgainstEveryPin(array $pins, bool $accepted): void
     {
+        if (!$accepted && PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $listener = new TLS\Listener(
             TCP\listen('127.0.0.1', 0),
             TLS\ServerConfiguration::create(new TLS\Certificate(self::CERT_FILE, self::KEY_FILE)),

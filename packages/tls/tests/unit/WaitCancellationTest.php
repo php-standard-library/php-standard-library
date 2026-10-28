@@ -26,6 +26,7 @@ use function stream_set_blocking;
 use function stream_socket_pair;
 use function strlen;
 
+use const PHP_OS_FAMILY;
 use const STREAM_IPPROTO_IP;
 use const STREAM_PF_UNIX;
 use const STREAM_SOCK_STREAM;
@@ -78,6 +79,14 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLazyAcceptFailsWhenTheDeadlinePassesBeforeSubscribing(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $this->assertLazyAcceptFailsWithTheTokenAndKeepsTheStream(new ExpiringCancellationToken());
     }
 
@@ -87,6 +96,14 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLazyAcceptFailsWhenTheTokenNotifiesDuringSubscribe(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $this->assertLazyAcceptFailsWithTheTokenAndKeepsTheStream(new InlineCancellationToken());
     }
 
@@ -96,6 +113,14 @@ final class WaitCancellationTest extends TestCase
      */
     public function testLateCancellationOfAnEarlierLazyAcceptDoesNotEndALaterOne(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $listener = TCP\listen('127.0.0.1', 0);
         $deadline = self::deadline();
         $token = new DeferredCancellationToken();
@@ -402,6 +427,10 @@ final class WaitCancellationTest extends TestCase
      */
     private function createInner(callable $tryWrite): array
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            static::markTestSkipped('Windows emulates socket pairs over TCP, and only for STREAM_PF_INET.');
+        }
+
         $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
         static::assertNotFalse($pair);
         [$resource, $peer] = $pair;

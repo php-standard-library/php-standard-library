@@ -12,6 +12,8 @@ use Psl\TCP;
 use Psl\TLS;
 use Throwable;
 
+use const PHP_OS_FAMILY;
+
 /**
  * A server with SNI certificates serves the certificate of the host name each client asks for, and the main
  * certificate to every other client.
@@ -38,6 +40,14 @@ final class SniCertificateTest extends TestCase
      */
     public function testServesTheCertificateOfTheRequestedName(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $configuration = self::mainConfiguration()
             ->withSniCertificate('a.example.test', self::certificate('a'))
             ->withSniCertificate('b.example.test', self::certificate('b'));
@@ -52,6 +62,14 @@ final class SniCertificateTest extends TestCase
      */
     public function testServesAWildcardCertificate(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $configuration = self::mainConfiguration()
             ->withSniCertificates([
                 '*.example.test' => self::certificate('a'),
@@ -111,6 +129,14 @@ final class SniCertificateTest extends TestCase
      */
     public function testLazyAcceptorServesAPassphraseProtectedKeyByName(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            // php_openssl_enable_crypto() tells a step that waits from one that failed by errno, which Winsock
+            // never resets, so a handshake whose peer closes before the server has finished never ends.
+            static::markTestSkipped(
+                'On Windows, PHP reports a handshake step that failed on the socket as in progress.',
+            );
+        }
+
         $listener = TCP\listen('127.0.0.1', 0);
         $deadline = self::deadline();
 

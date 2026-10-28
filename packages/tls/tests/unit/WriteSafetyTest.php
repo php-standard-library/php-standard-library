@@ -26,6 +26,7 @@ use function substr;
 use function trigger_error;
 
 use const E_USER_WARNING;
+use const PHP_OS_FAMILY;
 use const STREAM_IPPROTO_IP;
 use const STREAM_PF_UNIX;
 use const STREAM_SOCK_STREAM;
@@ -445,6 +446,10 @@ final class WriteSafetyTest extends TestCase
      */
     private function createInner(callable $tryWrite, bool $writable = true): Network\StreamInterface&MockObject
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            static::markTestSkipped('Windows emulates socket pairs over TCP, and only for STREAM_PF_INET.');
+        }
+
         $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
         static::assertNotFalse($pair);
         [$resource, $peer] = $pair;
