@@ -54,7 +54,9 @@ jobs:
           php-version: "${{ matrix.php-version }}"
           ini-values: memory_limit=-1
           tools: composer:v2, cs2pr
-          extensions: bcmath, mbstring, intl, sodium, json, brotli
+          # The Windows Brotli DLLs from PECL are built against the newest PHP patch release and may not load into the
+          # PHP preinstalled on the runner image, so Brotli is only installed off Windows; its tests skip without it.
+          extensions: bcmath, mbstring, intl, sodium, json${{ matrix.operating-system != 'windows-latest' && ', brotli' || '' }}
 
       - name: "caching dependencies"
         uses: "actions/cache@v5"
@@ -70,8 +72,7 @@ jobs:
       - name: "installing dependencies"
         run: just install
         env:
-          # No Brotli DLL is available for PHP 8.6 on Windows; its tests skip when the extension is missing.
-          COMPOSER_IGNORE_PLATFORM_REQ: ${{ matrix.php-version == '8.6' && matrix.operating-system == 'windows-latest' && 'ext-brotli' || '' }}
+          COMPOSER_IGNORE_PLATFORM_REQ: ${{ matrix.operating-system == 'windows-latest' && 'ext-brotli' || '' }}
 
       - name: "running unit tests"
         run: just test
