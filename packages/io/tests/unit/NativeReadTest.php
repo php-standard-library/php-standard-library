@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\IO;
+use Psl\OS;
 
 use function fclose;
 use function fgets;
@@ -101,6 +102,10 @@ final class NativeReadTest extends TestCase
 
     public function testReadReturnsOneDatagram(): void
     {
+        if (OS\is_windows()) {
+            static::markTestSkipped('Windows emulates socket pairs over TCP, which has no datagram pairs.');
+        }
+
         [$a, $b] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_DGRAM, 0);
         $reader = new IO\CloseReadStreamHandle($a);
         $writer = new IO\CloseWriteStreamHandle($b);

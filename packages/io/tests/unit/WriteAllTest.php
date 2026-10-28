@@ -11,6 +11,7 @@ use Psl\Async;
 use Psl\Async\CancellationTokenInterface;
 use Psl\Async\NullCancellationToken;
 use Psl\IO;
+use Psl\OS;
 
 use function array_slice;
 use function count;
@@ -108,6 +109,12 @@ final class WriteAllTest extends TestCase
 
     public function testStreamWriteAllPassesBoundedSlices(): void
     {
+        if (OS\is_windows()) {
+            // PHP emulates socket pairs over TCP on Windows, whose send buffering may take the whole payload in
+            // one write and so leave no later slice to measure.
+            static::markTestSkipped('Windows has no Unix socket pairs.');
+        }
+
         [$a, $b] = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
 
         $writer = new class($a) extends IO\Internal\ResourceHandle {
