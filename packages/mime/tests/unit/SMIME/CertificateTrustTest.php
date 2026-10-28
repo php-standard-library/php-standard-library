@@ -21,14 +21,34 @@ use function implode;
 use function openssl_csr_new;
 use function openssl_csr_sign;
 use function openssl_pkey_get_private;
+use function openssl_sign;
 use function openssl_x509_export;
 use function openssl_x509_parse;
+use function openssl_x509_verify;
 use function str_replace;
 use function stream_get_meta_data;
+use function time;
 use function tmpfile;
+
+use const OPENSSL_ALGO_SHA256;
 
 final class CertificateTrustTest extends TestCase
 {
+    /**
+     * Start of a validity period that ended long before any test run, as a UTCTime string.
+     */
+    private const string EXPIRED_NOT_BEFORE = '200101000000Z';
+
+    /**
+     * End of a validity period that ended long before any test run, as a UTCTime string.
+     */
+    private const string EXPIRED_NOT_AFTER = '200102000000Z';
+
+    /**
+     * Position of the validity field in a version 3 TBSCertificate (RFC 5280 Section 4.1).
+     */
+    private const int TBS_CERTIFICATE_VALIDITY_INDEX = 4;
+
     public function testSelectsSignerAfterAnotherCertificate(): void
     {
         $signed = new Signer(Certificates::PRIMARY_CERT, Certificates::PRIMARY_KEY)->sign('signed', Encoding::DER);
@@ -173,7 +193,12 @@ final class CertificateTrustTest extends TestCase
 
     public function testRejectsExpiredIntermediate(): void
     {
-        [$root, $intermediate, $leaf] = self::chain(true, 0);
+        [$root, $intermediate, $leaf] = self::chain();
+        $intermediate = self::expire($intermediate, Certificates::PRIMARY_KEY);
+        $info = openssl_x509_parse($intermediate);
+        static::assertIsArray($info);
+        static::assertLessThan(time(), $info['validTo_time_t']);
+        static::assertSame(1, openssl_x509_verify($intermediate, $root));
         $signed = new Signer($leaf, Certificates::CA_SIGNED_KEY, extraCertificates: [$intermediate])->sign('chain');
 
         $this->expectException(CMSException::class);
@@ -181,7 +206,7 @@ final class CertificateTrustTest extends TestCase
     }
 
     /** @return array{string, string, string} */
-    private static function chain(bool $intermediateCa = true, int $intermediateDays = 1): array
+    private static function chain(bool $intermediateCa = true): array
     {
         $config = tmpfile();
         static::assertIsResource($config);
@@ -208,7 +233,7 @@ final class CertificateTrustTest extends TestCase
                 Certificates::PRIMARY_KEY,
                 $path,
                 $intermediateCa ? 'ca' : 'leaf',
-                $intermediateDays,
+                1,
                 2,
             );
             $leaf = self::certificate(
@@ -254,6 +279,36 @@ final class CertificateTrustTest extends TestCase
         static::assertTrue(openssl_x509_export($certificate, $pem));
 
         return $pem;
+    }
+
+    /**
+     * Re-sign a certificate with a validity period that ended long ago.
+     *
+     * OpenSSL 4 treats notAfter as inclusive (RFC 5280 Section 4.1.2.5), so a
+     * certificate issued for zero days is still valid during the second it was
+     * issued in and cannot stand in for an expired one.
+     *
+     * @param string $certificatePem The certificate to re-sign, in PEM format.
+     * @param string $issuerKeyPem The private key of the certificate issuer, in PEM format.
+     *
+     * @return string The re-signed certificate, in PEM format.
+     */
+    private static function expire(string $certificatePem, string $issuerKeyPem): string
+    {
+        $certificate = DERDecoder::parseAll(DERDecoder::parseSequence(DEREncoder::pemDecode($certificatePem)));
+        $fields = DERDecoder::parseAll($certificate[0][1]);
+        $fields[self::TBS_CERTIFICATE_VALIDITY_INDEX] = DERDecoder::parseAll(DEREncoder::sequence(
+            DEREncoder::utcTime(self::EXPIRED_NOT_BEFORE) . DEREncoder::utcTime(self::EXPIRED_NOT_AFTER),
+        ))[0];
+        $tbsCertificate = DEREncoder::sequence(self::encodeFields($fields));
+        static::assertTrue(openssl_sign($tbsCertificate, $signature, $issuerKeyPem, OPENSSL_ALGO_SHA256));
+
+        return DEREncoder::pemEncode(
+            DEREncoder::sequence(
+                $tbsCertificate . DEREncoder::tag(...$certificate[1]) . DEREncoder::bitString($signature),
+            ),
+            'CERTIFICATE',
+        );
     }
 
     /** @param list<string> $certificates */
