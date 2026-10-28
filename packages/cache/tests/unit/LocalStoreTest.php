@@ -24,6 +24,14 @@ use const PHP_INT_MIN;
 
 final class LocalStoreTest extends TestCase
 {
+    /**
+     * Lifetime of the long-lived entry of createStoreWithShortAndLongTtlEntries(), in milliseconds.
+     *
+     * Far longer than the 150 milliseconds the fixture sleeps, so the entry is still there when a slow CI runner
+     * wakes the fixture late.
+     */
+    private const int LONG_TTL_MILLISECONDS = 1_000;
+
     public function testComputeStoresAndReturns(): void
     {
         $store = new LocalStore();
@@ -431,7 +439,7 @@ final class LocalStoreTest extends TestCase
         $store = new LocalStore(cleanupInterval: Duration::milliseconds(50));
 
         $store->compute('short', static fn(): string => 'A', Duration::milliseconds(60));
-        $store->compute('long', static fn(): string => 'B', Duration::milliseconds(300));
+        $store->compute('long', static fn(): string => 'B', Duration::milliseconds(self::LONG_TTL_MILLISECONDS));
 
         Async\sleep(Duration::milliseconds(150));
 
@@ -452,7 +460,7 @@ final class LocalStoreTest extends TestCase
 
         static::assertSame('B', $store->get('long'));
 
-        Async\sleep(Duration::milliseconds(250));
+        Async\sleep(Duration::milliseconds(self::LONG_TTL_MILLISECONDS));
 
         $this->expectException(UnavailableItemException::class);
         $store->get('long');
