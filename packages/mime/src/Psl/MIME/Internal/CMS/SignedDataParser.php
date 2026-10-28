@@ -34,6 +34,7 @@ use const OPENSSL_ALGO_SHA1;
 use const OPENSSL_ALGO_SHA256;
 use const OPENSSL_ALGO_SHA384;
 use const OPENSSL_ALGO_SHA512;
+use const OPENSSL_CMS_BINARY;
 use const OPENSSL_CMS_NOSIGS;
 use const OPENSSL_CMS_NOVERIFY;
 use const OPENSSL_ENCODING_DER;
@@ -538,9 +539,11 @@ final class SignedDataParser
                 throw CMSException::forInvalidCertificate('cannot write signer metadata');
             }
 
+            // Without the binary flag, PHP on Windows opens the DER input in text
+            // mode, which stops reading at the first 0x1A byte and folds CR LF.
             if (!@openssl_cms_verify(
                 $inputPath,
-                OPENSSL_CMS_NOVERIFY | OPENSSL_CMS_NOSIGS,
+                OPENSSL_CMS_BINARY | OPENSSL_CMS_NOVERIFY | OPENSSL_CMS_NOSIGS,
                 $outputPath,
                 encoding: OPENSSL_ENCODING_DER,
             )) {
