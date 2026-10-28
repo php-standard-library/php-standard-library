@@ -61,7 +61,8 @@ final readonly class UDPResolver implements ResolverInterface
         try {
             $cancellation->throwIfCancelled();
             $host = trim($this->host, '[]');
-            if (!str_contains($host, ':')) {
+            // On Windows, gethostbyname('') returns the address of the local host instead of failing.
+            if ('' !== $host && !str_contains($host, ':')) {
                 $host = gethostbyname($host);
             }
 
