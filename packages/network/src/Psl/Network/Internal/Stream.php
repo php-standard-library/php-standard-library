@@ -20,6 +20,7 @@ use function fread;
 use function is_resource;
 use function spl_object_id;
 use function stream_get_meta_data;
+use function stream_select;
 use function stream_socket_get_name;
 use function stream_socket_recvfrom;
 use function stream_socket_shutdown;
@@ -146,6 +147,8 @@ class Stream implements Network\StreamInterface
      * the next bytes. A connection that failed leaves nothing to peek too, and a reset one can fail every attempt,
      * so on a TCP socket that has lost its peer the peek fails instead of waiting again. Unix-domain sockets get no
      * such check, as their peer often has no name: a reset one reads as the end of the stream on the next attempt.
+     * A socket that stays readable with nothing to peek has failed as well, as a reset one does on Windows, where it
+     * keeps its peer's name: the peek tries once more, and fails if that attempt fails too.
      *
      * @param positive-int $maxBytes
      *
@@ -179,6 +182,16 @@ class Stream implements Network\StreamInterface
             $data = @stream_socket_recvfrom($stream, $maxBytes, STREAM_PEEK);
             if (false === $data && $this->hasFailed($stream)) {
                 throw new IO\Exception\RuntimeException('Failed to peek data from stream.');
+            }
+
+            // No other fiber runs before this check, so a socket that is still readable has either received bytes
+            // since the attempt, which the next attempt peeks, or failed, which makes the next attempt fail too.
+            if (false === $data && self::isReadable($stream)) {
+                /** @psalm-suppress MissingThrowsDocblock */
+                $data = @stream_socket_recvfrom($stream, $maxBytes, STREAM_PEEK);
+                if (false === $data) {
+                    throw new IO\Exception\RuntimeException('Failed to peek data from stream.');
+                }
             }
         } while (false === $data);
 
@@ -278,6 +291,22 @@ class Stream implements Network\StreamInterface
                 $cancellation->unsubscribe($id);
             }
         }
+    }
+
+    /**
+     * Whether the socket is readable right now, without waiting.
+     *
+     * A socket is readable when bytes wait on it, when its peer ended the stream and when the connection failed.
+     *
+     * @param resource $stream
+     */
+    private static function isReadable(mixed $stream): bool
+    {
+        $read = [$stream];
+        $write = null;
+        $except = null;
+
+        return 1 === @stream_select($read, $write, $except, 0);
     }
 
     /**

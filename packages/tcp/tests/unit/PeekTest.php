@@ -8,7 +8,6 @@ use PHPUnit\Framework\TestCase;
 use Psl\Async;
 use Psl\DateTime\Duration;
 use Psl\IO;
-use Psl\OS;
 use Psl\TCP;
 
 use function fclose;
@@ -72,10 +71,6 @@ final class PeekTest extends TestCase
      */
     public function testPeekFailsWhenTheConnectionIsReset(): void
     {
-        if (OS\is_windows()) {
-            static::markTestSkipped('On Windows, a peek on a connection the peer reset is not reported as failed yet.');
-        }
-
         $server = stream_socket_server('tcp://127.0.0.1:0');
         static::assertNotFalse($server);
         $address = stream_socket_get_name($server, false);
