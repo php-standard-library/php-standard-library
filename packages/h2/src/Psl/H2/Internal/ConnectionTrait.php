@@ -517,6 +517,33 @@ trait ConnectionTrait
     }
 
     /**
+     * Read the next bytes of a frame from the transport, waiting until some arrive.
+     *
+     * A read that returns nothing has not always reached the end of the data. A TLS stream wakes a read for
+     * records that carry no application data, such as the session tickets a TLS 1.3 server sends after its
+     * handshake, and for a record that has only partly arrived: the read then returns nothing although the
+     * connection is still open. Only the end of the transport's data closes the connection.
+     *
+     * @param positive-int $maxBytes
+     *
+     * @throws ConnectionException If the transport reached the end of its data.
+     * @throws IO\Exception\AlreadyClosedException If the handle has been closed.
+     * @throws IO\Exception\RuntimeException If an I/O error occurs.
+     * @throws CancelledException If the cancellation token is cancelled.
+     */
+    private function readFrameBytes(int $maxBytes, CancellationTokenInterface $cancellation): string
+    {
+        do {
+            $chunk = $this->handle->read($maxBytes, $cancellation);
+            if ('' !== $chunk) {
+                return $chunk;
+            }
+        } while (!$this->handle->reachedEndOfDataSource());
+
+        throw ConnectionException::forConnectionClosed();
+    }
+
+    /**
      * Read a complete frame from the underlying transport.
      *
      * @throws ConnectionException If the connection is closed.
@@ -529,11 +556,7 @@ trait ConnectionTrait
         $available = $this->readBufferLength - $this->readBufferOffset;
 
         while ($available < FRAME_HEADER_SIZE) {
-            $chunk = $this->handle->read(4096, $cancellation);
-            if ($chunk === '') {
-                throw ConnectionException::forConnectionClosed();
-            }
-
+            $chunk = $this->readFrameBytes(4096, $cancellation);
             $this->readBuffer .= $chunk;
             $this->readBufferLength += strlen($chunk);
             $available = $this->readBufferLength - $this->readBufferOffset;
@@ -548,11 +571,7 @@ trait ConnectionTrait
         while ($available < $totalNeeded) {
             /** @var positive-int $missing */
             $missing = $totalNeeded - $available;
-            $chunk = $this->handle->read($missing, $cancellation);
-            if ($chunk === '') {
-                throw ConnectionException::forConnectionClosed();
-            }
-
+            $chunk = $this->readFrameBytes($missing, $cancellation);
             $this->readBuffer .= $chunk;
             $this->readBufferLength += strlen($chunk);
             $available = $this->readBufferLength - $this->readBufferOffset;

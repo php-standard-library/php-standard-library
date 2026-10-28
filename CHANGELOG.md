@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.4.1
+
+### fixes
+
+- fix(h2): close the connection only at the end of the data instead of on any read that returns nothing, which a TLS stream does for records without application data, such as TLS 1.3 session tickets, and for a record that has only partly arrived; since 6.4.0, HTTP/2 connections over TLS failed with `ConnectionException` ("HTTP/2 connection is closed."), so `HTTP\Client` requests to servers such as `api.github.com`, and large responses from any server, failed
+
 ## 6.4.0
 
 ### security
