@@ -68,7 +68,7 @@ function tag(Client\Client $httpClient, MonolithicRepository $monorepo, Git $git
             ));
 
             $content = $transaction->response->body?->readAll() ?? '';
-            if ($transaction->response->status !== Message\STATUS_OK) {
+            if ($transaction->response->status >= 300) {
                 $body = Json\typed($content, Type\shape([
                     'message' => Type\string(),
                 ], allowUnknownFields: true));
@@ -91,7 +91,7 @@ function tag(Client\Client $httpClient, MonolithicRepository $monorepo, Git $git
                 ])),
             ));
 
-            if ($transaction->response->status !== Message\STATUS_OK) {
+            if ($transaction->response->status >= 300) {
                 $content = $transaction->response->body?->readAll() ?? '';
                 $body = Json\typed($content, Type\shape([
                     'message' => Type\string(),
