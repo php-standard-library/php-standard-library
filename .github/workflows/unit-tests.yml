@@ -59,7 +59,7 @@ jobs:
           extensions: bcmath, mbstring, intl, sodium, json${{ matrix.operating-system != 'windows-latest' && ', brotli' || '' }}
 
       - name: "caching dependencies"
-        uses: "actions/cache@v5"
+        uses: "actions/cache@v6"
         with:
           path: |
             ~/.composer/cache
