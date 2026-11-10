@@ -317,6 +317,7 @@
 ### features
 
 * feat(type): add `numeric` type - [#793](https://github.com/php-standard-library/php-standard-library/pull/793) by @gsteel
+* feat(type): add `discriminated_union` type - [#TBD](https://github.com/php-standard-library/php-standard-library/pull/TBD)
 
 ### fixes
 

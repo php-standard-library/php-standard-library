@@ -86,6 +86,16 @@ Use `non_empty_dict()` to require at least one entry.
 
 Coercion tries each type in order. For unions, the first successful coercion wins. Intersections coerce through one type then assert against the other.
 
+### Discriminated Unions
+
+When every variant of a payload carries a tag field, `discriminated_union()` reads that field first and validates the value against the matching variant only. The full value, tag included, is passed to the variant, so each variant's `shape()` must declare the tag field:
+
+@example('types/type-discriminated-union.php')
+
+Because only one variant is checked, errors keep that variant's path, such as `1.firstName` above. A plain `union()` reports a single error for the whole value instead. A missing tag, or a tag with no matching variant, fails at the path of the tag and lists the allowed values:
+
+> Could not coerce "string" to type ""company"|"person"" **at path "partyType"**.
+
 ### Object and Enum Types
 
 @example('types/type-object-enum.php')
