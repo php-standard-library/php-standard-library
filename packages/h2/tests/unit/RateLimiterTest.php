@@ -348,6 +348,10 @@ final class RateLimiterTest extends TestCase
 
     public function testWindowResetsAtExactBoundary(): void
     {
+        if (PHP_OS_FAMILY === 'Windows') {
+            static::markTestSkipped('usleep() resolution on Windows is too coarse for this test.');
+        }
+
         $limiter = new RateLimiter([
             FrameType::Ping->value => [2, DateTime\Duration::milliseconds(1)],
         ]);

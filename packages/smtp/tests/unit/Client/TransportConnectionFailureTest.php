@@ -126,7 +126,8 @@ final class TransportConnectionFailureTest extends TestCase
             $transport->send(
                 new Envelope($sender, [$recipient]),
                 $message,
-                cancellation: new Async\TimeoutCancellationToken(Duration::seconds(10)),
+                // Only guards against a hang: writing the large message takes seconds under code coverage.
+                cancellation: new Async\TimeoutCancellationToken(Duration::seconds(60)),
             );
         } catch (Exception\ExceptionInterface|IO\Exception\ExceptionInterface|Async\Exception\CancelledException $e) {
             return $e;
