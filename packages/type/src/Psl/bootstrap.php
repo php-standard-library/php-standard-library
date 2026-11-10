@@ -14,6 +14,7 @@ declare(strict_types=1);
         'Psl\Type\container' => __DIR__ . '/Type/container.php',
         'Psl\Type\converted' => __DIR__ . '/Type/converted.php',
         'Psl\Type\dict' => __DIR__ . '/Type/dict.php',
+        'Psl\Type\discriminated_union' => __DIR__ . '/Type/discriminated_union.php',
         'Psl\Type\enum_case_of' => __DIR__ . '/Type/enum_case_of.php',
         'Psl\Type\f32' => __DIR__ . '/Type/f32.php',
         'Psl\Type\f64' => __DIR__ . '/Type/f64.php',
