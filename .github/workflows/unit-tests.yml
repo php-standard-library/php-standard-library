@@ -48,6 +48,12 @@ jobs:
           docker run -d --network host -v /tmp/tinyproxy.conf:/etc/tinyproxy/tinyproxy.conf vimagick/tinyproxy
           timeout 10 bash -c 'until nc -z 127.0.0.1 8888; do sleep 1; done'
 
+      # Ubuntu 26.04 ships the legacy zone names (US/Eastern, EST, Asia/Calcutta, ...) in a separate package, and the
+      # PHP build there reads the system zone database, so the DateTime alias tests need it installed.
+      - name: "installing legacy timezone names"
+        if: matrix.operating-system == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y tzdata-legacy
+
       - name: "installing PHP"
         uses: "shivammathur/setup-php@v2"
         with:
@@ -57,6 +63,27 @@ jobs:
           # The Windows Brotli DLLs from PECL are built against the newest PHP patch release and may not load into the
           # PHP preinstalled on the runner image, so Brotli is only installed off Windows; its tests skip without it.
           extensions: bcmath, mbstring, intl, sodium, json${{ matrix.operating-system != 'windows-latest' && ', brotli' || '' }}
+
+      # PHP 8.4 and 8.5 set no TLS session ID context on servers, and OpenSSL 4.1 issues no session tickets without one
+      # (openssl/openssl#31964). Homebrew builds PHP against OpenSSL 4.0 but links the newest 4.x keg, so point it back
+      # at 4.0 until PHP sets a session ID context itself. PHP 8.6 sets one through the session_id_context option.
+      - name: "pinning OpenSSL 4.0 on macOS"
+        if: matrix.operating-system == 'macos-latest' && matrix.php-version != '8.6'
+        run: |
+          keg=$(ls -d "$(brew --cellar openssl@4)"/4.0.* 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$keg" ]; then echo "::error::No OpenSSL 4.0 keg on this runner"; exit 1; fi
+          ln -sfn "$keg" "$(brew --prefix)/opt/openssl@4"
+          php --ri openssl | grep "Library Version"
+
+      - name: "diagnose openssl (temporary)"
+        if: matrix.operating-system == 'macos-latest'
+        run: |
+          php -r 'echo PHP_VERSION, " ", OPENSSL_VERSION_TEXT, PHP_EOL;'
+          php --ri openssl
+          brew list --versions | grep -i -E 'openssl|php' || true
+          otool -L "$(php -r 'echo PHP_BINARY;')" | grep -i -E 'ssl|crypto' || true
+          php -r '$e = ini_get("extension_dir"); foreach (glob($e . "/openssl*.so") ?: [] as $f) { echo $f, PHP_EOL; }'
+          bash .github/tls-ticket-probe.sh
 
       - name: "caching dependencies"
         uses: "actions/cache@v5"
