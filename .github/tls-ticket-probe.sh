@@ -42,3 +42,16 @@ for ossl in "$OSSL4" "$OSSL3"; do
     wait "$server" 2>/dev/null
   done
 done
+
+echo "=== C: s_client -> PHP server with session_id_context (an option PHP 8.6 reads)"
+for v in tls1_2 tls1_3; do
+  php -r '$c = stream_context_create(["ssl" => ["local_cert" => "cert.pem", "local_pk" => "key.pem", "session_id_context" => "psl-probe"]]);
+    $srv = stream_socket_server("tls://127.0.0.1:4434", $e, $m, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $c);
+    $cl = @stream_socket_accept($srv, 10); if ($cl) { fwrite($cl, "ok"); usleep(500000); fclose($cl); }' &
+  server=$!
+  sleep 1
+  echo "--- PHP $(php -r 'echo PHP_VERSION;') server, 4.1 s_client $v:"
+  sleep 1 | "$OSSL4" s_client -connect 127.0.0.1:4434 "-$v" -tlsextdebug 2>&1 \
+    | grep -i -E "TLS server extension \"session ticket\"|New Session Ticket|TLS session ticket lifetime" | sort | uniq -c
+  wait "$server" 2>/dev/null
+done
