@@ -64,6 +64,15 @@ jobs:
           # PHP preinstalled on the runner image, so Brotli is only installed off Windows; its tests skip without it.
           extensions: bcmath, mbstring, intl, sodium, json${{ matrix.operating-system != 'windows-latest' && ', brotli' || '' }}
 
+      - name: "diagnose openssl (temporary)"
+        if: matrix.operating-system == 'macos-latest'
+        run: |
+          php -r 'echo PHP_VERSION, " ", OPENSSL_VERSION_TEXT, PHP_EOL;'
+          php --ri openssl
+          brew list --versions | grep -i -E 'openssl|php' || true
+          otool -L "$(php -r 'echo PHP_BINARY;')" | grep -i -E 'ssl|crypto' || true
+          php -r '$e = ini_get("extension_dir"); foreach (glob($e . "/openssl*.so") ?: [] as $f) { echo $f, PHP_EOL; }'
+
       - name: "caching dependencies"
         uses: "actions/cache@v5"
         with:
