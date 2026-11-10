@@ -64,6 +64,17 @@ jobs:
           # PHP preinstalled on the runner image, so Brotli is only installed off Windows; its tests skip without it.
           extensions: bcmath, mbstring, intl, sodium, json${{ matrix.operating-system != 'windows-latest' && ', brotli' || '' }}
 
+      # PHP 8.4 and 8.5 set no TLS session ID context on servers, and OpenSSL 4.1 issues no session tickets without one
+      # (openssl/openssl#31964). Homebrew builds PHP against OpenSSL 4.0 but links the newest 4.x keg, so point it back
+      # at 4.0 until PHP sets a session ID context itself. PHP 8.6 sets one through the session_id_context option.
+      - name: "pinning OpenSSL 4.0 on macOS"
+        if: matrix.operating-system == 'macos-latest' && matrix.php-version != '8.6'
+        run: |
+          keg=$(ls -d "$(brew --cellar openssl@4)"/4.0.* 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$keg" ]; then echo "::error::No OpenSSL 4.0 keg on this runner"; exit 1; fi
+          ln -sfn "$keg" "$(brew --prefix)/opt/openssl@4"
+          php --ri openssl | grep "Library Version"
+
       - name: "diagnose openssl (temporary)"
         if: matrix.operating-system == 'macos-latest'
         run: |
