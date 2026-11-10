@@ -72,6 +72,7 @@ jobs:
           brew list --versions | grep -i -E 'openssl|php' || true
           otool -L "$(php -r 'echo PHP_BINARY;')" | grep -i -E 'ssl|crypto' || true
           php -r '$e = ini_get("extension_dir"); foreach (glob($e . "/openssl*.so") ?: [] as $f) { echo $f, PHP_EOL; }'
+          bash .github/tls-ticket-probe.sh
 
       - name: "caching dependencies"
         uses: "actions/cache@v5"
